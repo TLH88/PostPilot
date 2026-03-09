@@ -57,9 +57,9 @@ export default function HelpPage() {
       </div>
 
       {/* Security note */}
-      <div className="flex items-start gap-3 rounded-lg border px-4 py-3">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
+      <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <p className="text-sm text-amber-900 dark:text-amber-200">
           Never share your API keys publicly or commit them to version control. PostPilot encrypts
           your key with AES-256-GCM and only uses it server-side.
         </p>
