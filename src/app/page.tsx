@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Lightbulb, FileText, Calendar, Send } from "lucide-react";
+import { LogoMarquee } from "@/components/landing/logo-marquee";
 
 const features = [
   {
@@ -138,6 +139,9 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* AI Provider Logos */}
+        <LogoMarquee />
 
         {/* Bottom CTA */}
         <section className="py-20">
