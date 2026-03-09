@@ -1,0 +1,146 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Send,
+  LayoutDashboard,
+  Lightbulb,
+  FileText,
+  Calendar,
+  Plus,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NAV_ITEMS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
+
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  Lightbulb,
+  FileText,
+  Calendar,
+};
+
+interface MobileNavProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userName: string;
+}
+
+export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
+  const pathname = usePathname();
+  const name = userName || "User";
+
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  function handleLinkClick() {
+    onOpenChange(false);
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" className="flex w-72 flex-col p-0">
+        <SheetHeader className="border-b px-5 py-4">
+          <SheetTitle className="flex items-center gap-2">
+            <Send className="size-5 text-primary" />
+            <span className="text-lg font-bold tracking-tight">PostPilot</span>
+          </SheetTitle>
+        </SheetHeader>
+
+        {/* New Post Button */}
+        <div className="px-3 pt-4 pb-2">
+          <Link
+            href="/posts"
+            onClick={handleLinkClick}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
+          >
+            <Plus className="size-4" />
+            New Post
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 px-3 py-2">
+          {NAV_ITEMS.map((item) => {
+            const Icon = iconMap[item.icon];
+            const isActive =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleLinkClick}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                {Icon && <Icon className="size-4 shrink-0" />}
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <Separator />
+
+        {/* Settings */}
+        <div className="px-3 py-2">
+          <Link
+            href="/settings"
+            onClick={handleLinkClick}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/settings"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Settings className="size-4 shrink-0" />
+            Settings
+          </Link>
+        </div>
+
+        <Separator />
+
+        {/* User profile */}
+        <div className="px-3 py-3">
+          <Link
+            href="/profile"
+            onClick={handleLinkClick}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+              pathname === "/profile"
+                ? "bg-sidebar-accent"
+                : "hover:bg-sidebar-accent"
+            )}
+          >
+            <Avatar className="size-8">
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium text-sidebar-foreground truncate">
+              {name}
+            </span>
+          </Link>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
