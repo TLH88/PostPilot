@@ -43,11 +43,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getAvailableModels,
-  getDefaultModel,
-  type AIProvider,
-} from "@/lib/ai/providers";
+import { type AIProvider } from "@/lib/ai/providers";
+import { useModels } from "@/lib/ai/use-models";
 
 const STEPS = [
   { label: "Basic Info", icon: User },
@@ -82,6 +79,8 @@ const INDUSTRY_SUGGESTIONS = [
 export default function OnboardingPage() {
   const router = useRouter();
   const supabase = createClient();
+
+  const { getAvailableModels, getDefaultModel } = useModels();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -14,11 +14,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  getAvailableModels,
-  getDefaultModel,
-  type AIProvider,
-} from "@/lib/ai/providers";
+import { type AIProvider } from "@/lib/ai/providers";
+import { useModels } from "@/lib/ai/use-models";
 
 const AI_PROVIDERS = [
   { value: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
@@ -49,6 +46,8 @@ export function AIProviderSettings({
   const [savedProvider, setSavedProvider] = useState(currentProvider);
   const [savedModel, setSavedModel] = useState<string | null>(currentModel);
   const [keyConfigured, setKeyConfigured] = useState(hasExistingKey);
+
+  const { getAvailableModels, getDefaultModel } = useModels();
 
   const selectedProviderInfo = AI_PROVIDERS.find((p) => p.value === provider);
   const availableModels = getAvailableModels(provider as AIProvider);
