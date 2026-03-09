@@ -158,7 +158,7 @@ export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
             )}
           >
             <Avatar className="size-8">
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-blue-600 text-white text-xs">{initials}</AvatarFallback>
             </Avatar>
             <span className="text-sm font-medium text-sidebar-foreground truncate">
               {name}
