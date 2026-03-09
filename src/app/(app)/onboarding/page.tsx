@@ -59,7 +59,7 @@ const STEPS = [
 
 const AI_PROVIDERS = [
   { value: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
-  { value: "openai", label: "OpenAI (GPT-4o)", placeholder: "sk-..." },
+  { value: "openai", label: "OpenAI (GPT / o-series)", placeholder: "sk-..." },
   { value: "google", label: "Google (Gemini)", placeholder: "AIza..." },
   { value: "perplexity", label: "Perplexity (Sonar)", placeholder: "pplx-..." },
 ];

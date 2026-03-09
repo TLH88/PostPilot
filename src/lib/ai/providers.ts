@@ -35,33 +35,49 @@ interface ProviderConfig {
 
 const PROVIDER_CONFIG: Record<AIProvider, ProviderConfig> = {
   anthropic: {
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: "claude-sonnet-4-6",
     availableModels: [
-      { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+      { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
+      { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
       { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+      { value: "claude-opus-4-5-20251101", label: "Claude Opus 4.5" },
+      { value: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
+      { value: "claude-opus-4-1-20250805", label: "Claude Opus 4.1" },
+      { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+      { value: "claude-opus-4-20250514", label: "Claude Opus 4" },
     ],
   },
   openai: {
-    defaultModel: "gpt-4o",
+    defaultModel: "gpt-4.1",
     baseURL: "https://api.openai.com/v1",
     availableModels: [
+      { value: "o3", label: "o3 (Reasoning)" },
+      { value: "o4-mini", label: "o4-mini (Reasoning)" },
+      { value: "o3-mini", label: "o3-mini (Reasoning)" },
+      { value: "gpt-4.1", label: "GPT-4.1" },
+      { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+      { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
       { value: "gpt-4o", label: "GPT-4o" },
       { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-      { value: "gpt-4.1", label: "GPT-4.1" },
     ],
   },
   google: {
-    defaultModel: "gemini-2.0-flash",
+    defaultModel: "gemini-2.5-flash",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
     availableModels: [
-      { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
       { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+      { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+      { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
     ],
   },
   perplexity: {
     defaultModel: "sonar-pro",
     baseURL: "https://api.perplexity.ai",
     availableModels: [
+      { value: "sonar-deep-research", label: "Sonar Deep Research" },
+      { value: "sonar-reasoning-pro", label: "Sonar Reasoning Pro" },
+      { value: "sonar-reasoning", label: "Sonar Reasoning" },
       { value: "sonar-pro", label: "Sonar Pro" },
       { value: "sonar", label: "Sonar" },
     ],
