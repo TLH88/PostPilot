@@ -12,9 +12,9 @@ export function LogoMarquee() {
   const logos = [...AI_PROVIDERS, ...AI_PROVIDERS];
 
   return (
-    <section className="py-16">
+    <section className="py-10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="mb-10 text-center text-sm font-medium tracking-wide text-muted-foreground uppercase">
+        <p className="mb-6 text-center text-sm font-medium tracking-wide text-muted-foreground uppercase">
           Powered by leading AI providers
         </p>
       </div>
@@ -25,18 +25,18 @@ export function LogoMarquee() {
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 sm:w-24 bg-gradient-to-l from-background to-transparent" />
 
         {/* Scrolling track */}
-        <div className="animate-marquee flex w-max items-center gap-12 sm:gap-20 lg:gap-28">
+        <div className="animate-marquee flex w-max items-center gap-16 sm:gap-28 lg:gap-40">
           {logos.map((provider, i) => (
             <div
               key={`${provider.name}-${i}`}
-              className="flex h-10 w-36 sm:w-44 shrink-0 items-center justify-center opacity-50 transition-all duration-300 hover:opacity-100"
+              className="flex h-15 w-52 sm:w-64 shrink-0 items-center justify-center opacity-50 transition-all duration-300 hover:opacity-100"
             >
               <Image
                 src={provider.logo}
                 alt={provider.name}
-                width={160}
-                height={40}
-                className="h-8 sm:h-10 w-auto max-w-full object-contain"
+                width={240}
+                height={60}
+                className="h-12 sm:h-15 w-auto max-w-full object-contain"
               />
             </div>
           ))}
