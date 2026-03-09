@@ -10,6 +10,7 @@ import {
   Calendar,
   Plus,
   Settings,
+  HelpCircle,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -112,8 +113,8 @@ export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
 
         <Separator />
 
-        {/* Settings */}
-        <div className="px-3 py-2">
+        {/* Settings & Help */}
+        <div className="space-y-1 px-3 py-2">
           <Link
             href="/settings"
             onClick={handleLinkClick}
@@ -126,6 +127,19 @@ export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
           >
             <Settings className="size-4 shrink-0" />
             Settings
+          </Link>
+          <Link
+            href="/help"
+            onClick={handleLinkClick}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/help"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <HelpCircle className="size-4 shrink-0" />
+            Help
           </Link>
         </div>
 

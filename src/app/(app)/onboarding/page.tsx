@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERTISE_SUGGESTIONS, TONE_OPTIONS } from "@/lib/constants";
 import {
@@ -41,6 +42,7 @@ import {
   Shield,
   FlaskConical,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { type AIProvider } from "@/lib/ai/providers";
@@ -1006,6 +1008,15 @@ export default function OnboardingPage() {
                   }}
                   autoComplete="off"
                 />
+                <p className="text-xs text-muted-foreground">
+                  <Link
+                    href="/help"
+                    className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                  >
+                    <HelpCircle className="size-3" />
+                    Need help finding your API key?
+                  </Link>
+                </p>
               </div>
 
               {/* Test Key Button */}

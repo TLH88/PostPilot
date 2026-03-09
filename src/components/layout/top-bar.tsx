@@ -13,6 +13,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Dashboard";
   if (pathname === "/settings") return "Settings";
   if (pathname === "/profile") return "Profile";
+  if (pathname === "/help") return "Help";
 
   for (const item of NAV_ITEMS) {
     if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
