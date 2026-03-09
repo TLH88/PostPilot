@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { OnboardingGuard } from "@/components/layout/onboarding-guard";
+import { PastDueChecker } from "@/components/past-due-checker";
 
 export default async function AppLayout({
   children,
@@ -32,6 +33,7 @@ export default async function AppLayout({
   return (
     <div className="relative min-h-screen bg-background">
       <OnboardingGuard onboardingCompleted={onboardingCompleted} />
+      <PastDueChecker />
       {/* Sidebar - hidden on mobile */}
       <Sidebar userName={userName} />
 

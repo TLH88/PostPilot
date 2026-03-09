@@ -45,7 +45,7 @@ export interface Post {
   idea_id: string | null;
   title: string | null;
   content: string;
-  status: "draft" | "review" | "scheduled" | "posted" | "archived";
+  status: "draft" | "review" | "scheduled" | "posted" | "past_due" | "archived";
   scheduled_for: string | null;
   posted_at: string | null;
   hashtags: string[];

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { POST_STATUSES } from "@/lib/constants";
 import { NewPostButton } from "@/components/posts/new-post-button";
+import { LinkedInShareButton } from "@/components/posts/linkedin-share-button";
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -27,6 +28,7 @@ interface PostItem {
   status: string;
   character_count: number;
   updated_at: string;
+  hashtags: string[];
 }
 
 function PostCard({ post }: { post: PostItem }) {
@@ -36,6 +38,8 @@ function PostCard({ post }: { post: PostItem }) {
     (post.content
       ? post.content.slice(0, 60) + (post.content.length > 60 ? "..." : "")
       : "Untitled Post");
+
+  const showShareButton = ["review", "scheduled", "past_due"].includes(post.status);
 
   return (
     <Link href={`/posts/${post.id}`}>
@@ -48,11 +52,19 @@ function PostCard({ post }: { post: PostItem }) {
               <span>Updated {formatDate(post.updated_at)}</span>
             </div>
           </div>
-          {status && (
-            <Badge variant="secondary" className={`shrink-0 ${status.color}`}>
-              {status.label}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {showShareButton && (
+              <LinkedInShareButton
+                content={post.content}
+                hashtags={post.hashtags ?? []}
+              />
+            )}
+            {status && (
+              <Badge variant="secondary" className={`shrink-0 ${status.color}`}>
+                {status.label}
+              </Badge>
+            )}
+          </div>
         </CardContent>
       </Card>
     </Link>
@@ -89,7 +101,7 @@ export default async function PostsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, title, content, status, character_count, updated_at")
+    .select("id, title, content, status, character_count, updated_at, hashtags")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -98,6 +110,7 @@ export default async function PostsPage() {
   const draftPosts = allPosts.filter((p) => p.status === "draft");
   const reviewPosts = allPosts.filter((p) => p.status === "review");
   const scheduledPosts = allPosts.filter((p) => p.status === "scheduled");
+  const pastDuePosts = allPosts.filter((p) => p.status === "past_due");
   const postedPosts = allPosts.filter((p) => p.status === "posted");
 
   return (
@@ -128,6 +141,11 @@ export default async function PostsPage() {
           <TabsTrigger value="scheduled">
             Scheduled ({scheduledPosts.length})
           </TabsTrigger>
+          {pastDuePosts.length > 0 && (
+            <TabsTrigger value="past_due">
+              Past Due ({pastDuePosts.length})
+            </TabsTrigger>
+          )}
           <TabsTrigger value="posted">
             Posted ({postedPosts.length})
           </TabsTrigger>
@@ -179,6 +197,20 @@ export default async function PostsPage() {
           ) : (
             <div className="space-y-3">
               {scheduledPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="past_due">
+          {pastDuePosts.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No past due posts.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pastDuePosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>

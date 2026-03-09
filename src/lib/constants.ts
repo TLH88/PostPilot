@@ -11,7 +11,8 @@ export const POST_STATUSES = {
   draft: { label: "Draft", color: "bg-yellow-100 text-yellow-800" },
   review: { label: "In Review", color: "bg-blue-100 text-blue-800" },
   scheduled: { label: "Scheduled", color: "bg-purple-100 text-purple-800" },
-  posted: { label: "Posted", color: "bg-green-100 text-green-800" },
+  posted: { label: "Posted to LinkedIn", color: "bg-green-100 text-green-800" },
+  past_due: { label: "Past Due", color: "bg-red-100 text-red-800" },
   archived: { label: "Archived", color: "bg-gray-100 text-gray-800" },
 } as const;
 

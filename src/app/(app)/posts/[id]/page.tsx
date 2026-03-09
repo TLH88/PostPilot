@@ -44,6 +44,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
+import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
+import { LinkedInIcon } from "@/components/icons/linkedin";
+import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -100,9 +103,10 @@ export default function PostWorkspacePage() {
   // ── Hashtag state ─────────────────────────────────────────────────────────
   const [suggestingHashtags, setSuggestingHashtags] = useState(false);
 
-  // ── Preview & schedule state ─────────────────────────────────────────────
+  // ── Preview, schedule & share state ──────────────────────────────────────
   const [previewOpen, setPreviewOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -357,7 +361,13 @@ export default function PostWorkspacePage() {
 
     if (!error) {
       setStatus("scheduled");
+      setShareDialogOpen(true);
     }
+  }
+
+  // ── Share on LinkedIn helper ──────────────────────────────────────────────
+  function handleShareOnLinkedIn() {
+    openLinkedInShare(content, hashtags);
   }
 
   // ── Version management ────────────────────────────────────────────────────
@@ -813,6 +823,15 @@ export default function PostWorkspacePage() {
                     </Button>
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={handleShareOnLinkedIn}
+                    >
+                      <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                      Post to LinkedIn
+                    </Button>
+                    <Button
+                      size="sm"
                       className="gap-1.5"
                       onClick={() => setScheduleDialogOpen(true)}
                     >
@@ -832,11 +851,57 @@ export default function PostWorkspacePage() {
                     </Button>
                     <Button
                       size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={handleShareOnLinkedIn}
+                    >
+                      <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                      Post to LinkedIn
+                    </Button>
+                    <Button
+                      size="sm"
                       className="gap-1.5"
                       onClick={() => updateStatus("posted")}
                     >
                       <Check className="size-3.5" />
-                      Mark as Posted
+                      Mark as Posted to LinkedIn
+                    </Button>
+                  </>
+                )}
+                {status === "past_due" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => updateStatus("review")}
+                    >
+                      Back to Review
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={handleShareOnLinkedIn}
+                    >
+                      <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                      Post to LinkedIn
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => updateStatus("posted")}
+                    >
+                      <Check className="size-3.5" />
+                      Mark as Posted to LinkedIn
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => setScheduleDialogOpen(true)}
+                    >
+                      Reschedule
                     </Button>
                   </>
                 )}
@@ -1072,6 +1137,14 @@ export default function PostWorkspacePage() {
         open={scheduleDialogOpen}
         onOpenChange={setScheduleDialogOpen}
         onSchedule={schedulePost}
+      />
+
+      {/* LinkedIn share dialog (shown after scheduling) */}
+      <LinkedInShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        content={content}
+        hashtags={hashtags}
       />
     </div>
   );

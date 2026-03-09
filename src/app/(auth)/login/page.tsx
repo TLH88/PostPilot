@@ -17,12 +17,28 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Loader2 } from "lucide-react";
+import { LinkedInIcon } from "@/components/icons/linkedin";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+
+  async function handleLinkedInLogin() {
+    setIsOAuthLoading(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signInWithOAuth({
+        provider: "linkedin_oidc",
+        options: { redirectTo: `${window.location.origin}/callback` },
+      });
+    } catch {
+      toast.error("Failed to connect to LinkedIn. Please try again.");
+      setIsOAuthLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,6 +113,33 @@ export default function LoginPage() {
               <LogIn className="size-4" />
             )}
             {isLoading ? "Signing in..." : "Sign In"}
+          </Button>
+
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                or continue with
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full gap-2"
+            onClick={handleLinkedInLogin}
+            disabled={isLoading || isOAuthLoading}
+          >
+            {isOAuthLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <LinkedInIcon className="size-4 text-[#0A66C2]" />
+            )}
+            {isOAuthLoading ? "Connecting..." : "Sign in with LinkedIn"}
           </Button>
         </form>
       </CardContent>
