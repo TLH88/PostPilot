@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NAV_ITEMS } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Dashboard";
@@ -28,8 +29,15 @@ interface TopBarProps {
 
 export function TopBar({ userName }: TopBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pageTitle = getPageTitle(pathname);
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   return (
     <>
@@ -56,6 +64,18 @@ export function TopBar({ userName }: TopBarProps) {
 
         {/* Theme toggle */}
         <ThemeToggle />
+
+        {/* Sign out */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleSignOut}
+          title="Sign out"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="size-4" />
+          <span className="sr-only">Sign out</span>
+        </Button>
       </header>
 
       {/* Mobile navigation sheet */}

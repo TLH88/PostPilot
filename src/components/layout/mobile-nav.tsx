@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Send,
   LayoutDashboard,
@@ -10,6 +10,7 @@ import {
   Calendar,
   Plus,
   Settings,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -20,8 +21,10 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -38,6 +41,7 @@ interface MobileNavProps {
 
 export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const name = userName || "User";
 
   const initials = name
@@ -49,6 +53,13 @@ export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
 
   function handleLinkClick() {
     onOpenChange(false);
+  }
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    onOpenChange(false);
+    router.push("/login");
   }
 
   return (
@@ -139,6 +150,20 @@ export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
               {name}
             </span>
           </Link>
+        </div>
+
+        <Separator />
+
+        {/* Sign out */}
+        <div className="px-3 py-3">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 px-3 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={handleSignOut}
+          >
+            <LogOut className="size-4 shrink-0" />
+            Sign Out
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

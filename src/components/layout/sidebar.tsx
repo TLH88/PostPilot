@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Send,
   LayoutDashboard,
@@ -10,12 +10,14 @@ import {
   Calendar,
   Plus,
   Settings,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -30,6 +32,7 @@ interface SidebarProps {
 
 export function Sidebar({ userName }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const initials = userName
     .split(" ")
@@ -37,6 +40,12 @@ export function Sidebar({ userName }: SidebarProps) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
@@ -106,8 +115,8 @@ export function Sidebar({ userName }: SidebarProps) {
 
       <Separator />
 
-      {/* User profile */}
-      <div className="px-3 py-3">
+      {/* User profile with hover sign-out */}
+      <div className="group relative px-3 py-3">
         <Link
           href="/profile"
           className={cn(
@@ -120,9 +129,20 @@ export function Sidebar({ userName }: SidebarProps) {
           <Avatar className="size-8">
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-sidebar-foreground truncate">
+          <span className="text-sm font-medium text-sidebar-foreground truncate flex-1">
             {userName}
           </span>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSignOut();
+            }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1.5 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            title="Sign out"
+          >
+            <LogOut className="size-4" />
+          </button>
         </Link>
       </div>
     </aside>
