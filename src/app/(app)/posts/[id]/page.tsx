@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
+  Archive,
   ArrowLeft,
   Bot,
   Check,
@@ -20,6 +21,7 @@ import {
   Save,
   Send,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,8 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -103,10 +107,12 @@ export default function PostWorkspacePage() {
   // ── Hashtag state ─────────────────────────────────────────────────────────
   const [suggestingHashtags, setSuggestingHashtags] = useState(false);
 
-  // ── Preview, schedule & share state ──────────────────────────────────────
+  // ── Preview, schedule, share & delete state ─────────────────────────────
   const [previewOpen, setPreviewOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -368,6 +374,15 @@ export default function PostWorkspacePage() {
   // ── Share on LinkedIn helper ──────────────────────────────────────────────
   function handleShareOnLinkedIn() {
     openLinkedInShare(content, hashtags);
+  }
+
+  // ── Delete post ─────────────────────────────────────────────────────────
+  async function handleDeletePost() {
+    if (!post) return;
+    setDeleting(true);
+    await supabase.from("posts").delete().eq("id", post.id);
+    setDeleting(false);
+    router.push("/posts");
   }
 
   // ── Version management ────────────────────────────────────────────────────
@@ -925,6 +940,30 @@ export default function PostWorkspacePage() {
                     Restore to Draft
                   </Button>
                 )}
+
+                {/* Archive (for non-archived/non-posted statuses) */}
+                {!["archived", "posted"].includes(status) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => updateStatus("archived")}
+                  >
+                    <Archive className="size-3.5" />
+                    Archive
+                  </Button>
+                )}
+
+                {/* Delete */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-destructive hover:text-destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="size-3.5" />
+                  Delete
+                </Button>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1146,6 +1185,34 @@ export default function PostWorkspacePage() {
         content={content}
         hashtags={hashtags}
       />
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete post?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete this post and all its versions.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePost}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { POST_STATUSES } from "@/lib/constants";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { LinkedInShareButton } from "@/components/posts/linkedin-share-button";
+import { PostActions } from "@/components/posts/post-actions";
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -64,6 +65,7 @@ function PostCard({ post }: { post: PostItem }) {
                 {status.label}
               </Badge>
             )}
+            <PostActions postId={post.id} status={post.status} />
           </div>
         </CardContent>
       </Card>
@@ -112,6 +114,7 @@ export default async function PostsPage() {
   const scheduledPosts = allPosts.filter((p) => p.status === "scheduled");
   const pastDuePosts = allPosts.filter((p) => p.status === "past_due");
   const postedPosts = allPosts.filter((p) => p.status === "posted");
+  const archivedPosts = allPosts.filter((p) => p.status === "archived");
 
   return (
     <div className="space-y-6">
@@ -149,6 +152,11 @@ export default async function PostsPage() {
           <TabsTrigger value="posted">
             Posted ({postedPosts.length})
           </TabsTrigger>
+          {archivedPosts.length > 0 && (
+            <TabsTrigger value="archived">
+              Archived ({archivedPosts.length})
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="all">
@@ -225,6 +233,20 @@ export default async function PostsPage() {
           ) : (
             <div className="space-y-3">
               {postedPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived">
+          {archivedPosts.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No archived posts.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {archivedPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>
