@@ -47,6 +47,7 @@ import { ScheduleDialog } from "@/components/schedule-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
@@ -930,7 +931,14 @@ export default function PostWorkspacePage() {
                   <Bot className="size-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">AI Assistant</p>
+                  <p className="text-sm font-medium">
+                    AI Assistant
+                    {profile?.ai_provider && (
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        ({PROVIDER_DISPLAY_NAMES[profile.ai_provider as AIProvider]})
+                      </span>
+                    )}
+                  </p>
                   <p className="max-w-[200px] truncate text-xs text-muted-foreground">
                     Discussing: {title || "Untitled Post"}
                   </p>

@@ -16,6 +16,11 @@ export interface CreatorProfile {
   use_emojis: boolean;
   use_hashtags: boolean;
   onboarding_completed: boolean;
+  ai_provider: "anthropic" | "openai" | "google" | "perplexity";
+  ai_model: string | null;
+  ai_api_key_encrypted: string | null;
+  ai_api_key_iv: string | null;
+  ai_api_key_auth_tag: string | null;
   created_at: string;
   updated_at: string;
 }

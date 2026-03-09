@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { SignOutButton } from "./sign-out-button";
 import { ThemeSetting } from "./theme-setting";
-import { ChangePassword } from "./change-password";
-import { ChangeEmail } from "./change-email";
+import { AIProviderSettings } from "./ai-provider-settings";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -18,6 +16,13 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
+  // Fetch AI provider settings
+  const { data: profile } = await supabase
+    .from("creator_profiles")
+    .select("ai_provider, ai_model, ai_api_key_encrypted")
+    .eq("user_id", user.id)
+    .single();
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -27,47 +32,21 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      {/* Account Info */}
+      {/* AI Provider */}
       <Card>
         <CardHeader>
-          <CardTitle>Account</CardTitle>
+          <CardTitle>AI Provider</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              Email
-            </label>
-            <p className="mt-1 text-sm">{user.email}</p>
-          </div>
-          <Separator />
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              User ID
-            </label>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">
-              {user.id}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Change Email */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Address</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChangeEmail currentEmail={user.email ?? ""} />
-        </CardContent>
-      </Card>
-
-      {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Password</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChangePassword />
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Choose your AI provider and enter your API key. Your key is
+            encrypted at rest and never exposed to the browser.
+          </p>
+          <AIProviderSettings
+            currentProvider={profile?.ai_provider ?? "anthropic"}
+            currentModel={profile?.ai_model ?? null}
+            hasExistingKey={!!profile?.ai_api_key_encrypted}
+          />
         </CardContent>
       </Card>
 

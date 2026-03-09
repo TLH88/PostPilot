@@ -26,8 +26,13 @@ import {
   Plus,
   Loader2,
   Save,
+  Mail,
+  KeyRound,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ChangeEmail } from "@/app/(app)/settings/change-email";
+import { ChangePassword } from "@/app/(app)/settings/change-password";
 
 const INDUSTRY_SUGGESTIONS = [
   "Technology",
@@ -70,6 +75,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState("");
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -101,6 +109,7 @@ export default function ProfilePage() {
 
       if (!user) return;
       setUserId(user.id);
+      setUserEmail(user.email ?? "");
 
       const { data: profile } = await supabase
         .from("creator_profiles")
@@ -317,6 +326,54 @@ export default function ProfilePage() {
             </>
           )}
         </Button>
+      </div>
+
+      {/* Account Info */}
+      <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">Account</h3>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Email</p>
+            <p className="mt-0.5 text-sm">{userEmail}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">User ID</p>
+            <p className="mt-0.5 font-mono text-xs text-muted-foreground">{userId}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowChangeEmail((v) => !v)}
+            className="text-xs"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Change Email
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowChangePassword((v) => !v)}
+            className="text-xs"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Change Password
+          </Button>
+        </div>
+        {showChangeEmail && (
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <ChangeEmail currentEmail={userEmail} />
+          </div>
+        )}
+        {showChangePassword && (
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <ChangePassword />
+          </div>
+        )}
       </div>
 
       {/* Section 1: Basic Info */}

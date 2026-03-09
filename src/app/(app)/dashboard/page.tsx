@@ -8,8 +8,10 @@ import {
   Plus,
   ArrowRight,
   AlertCircle,
+  Bot,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { PROVIDER_DISPLAY_NAMES, getAvailableModels, getDefaultModel, type AIProvider } from "@/lib/ai/providers";
 import {
   Card,
   CardContent,
@@ -34,7 +36,7 @@ export default async function DashboardPage() {
   // Fetch profile for greeting
   const { data: profile } = await supabase
     .from("creator_profiles")
-    .select("full_name, onboarding_completed")
+    .select("full_name, onboarding_completed, ai_provider, ai_model")
     .eq("user_id", user.id)
     .single();
 
@@ -146,6 +148,21 @@ export default async function DashboardPage() {
         <p className="text-muted-foreground">
           Here is what is happening with your LinkedIn content.
         </p>
+        {profile?.ai_provider && (
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+            <Bot className="size-3.5" />
+            <span>
+              Powered by{" "}
+              {PROVIDER_DISPLAY_NAMES[profile.ai_provider as AIProvider]}
+              {" "}
+              <span className="opacity-70">
+                ({getAvailableModels(profile.ai_provider as AIProvider).find(
+                  (m) => m.value === (profile.ai_model ?? getDefaultModel(profile.ai_provider as AIProvider))
+                )?.label})
+              </span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stats Row */}
