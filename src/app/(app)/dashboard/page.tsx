@@ -146,7 +146,7 @@ export default async function DashboardPage() {
           Welcome back, {displayName}!
         </h1>
         <p className="text-muted-foreground">
-          Here is what is happening with your LinkedIn content.
+          Here&apos;s your content overview. Use the quick actions below to brainstorm ideas, start a new post, or check your schedule.
         </p>
         {profile?.ai_provider && (
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">

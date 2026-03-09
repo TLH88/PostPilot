@@ -124,7 +124,7 @@ export default function CalendarPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Content Calendar</h1>
         <p className="text-muted-foreground">
-          Plan and visualize your LinkedIn posting schedule.
+          See your scheduled posts at a glance. Click any date to view its posts, and use the arrows to navigate between months.
         </p>
       </div>
 

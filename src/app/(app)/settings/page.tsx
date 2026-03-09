@@ -28,7 +28,7 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your account settings.
+          Configure your AI provider and API key, adjust your theme, or manage your session.
         </p>
       </div>
 

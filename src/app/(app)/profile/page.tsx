@@ -310,7 +310,7 @@ export default function ProfilePage() {
             Creator Profile
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage your profile details and content preferences.
+            Update your background, expertise, and writing style. The AI uses this info to generate posts that sound like you.
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving}>

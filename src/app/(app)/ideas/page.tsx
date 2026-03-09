@@ -698,11 +698,16 @@ export default function IdeasPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Idea Bank</h1>
-          <Badge variant="secondary" className="text-xs">
-            {ideas.length}
-          </Badge>
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">Idea Bank</h1>
+            <Badge variant="secondary" className="text-xs">
+              {ideas.length}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground">
+            Capture and organize content ideas. Click &quot;Generate Ideas&quot; to brainstorm with AI, or add your own manually.
+          </p>
         </div>
         <Button onClick={() => setGenerateOpen(true)}>
           <Sparkles className="size-4" />

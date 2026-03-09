@@ -123,7 +123,7 @@ export default async function PostsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Your Posts</h1>
           <p className="text-muted-foreground">
-            Manage and track all your LinkedIn posts.
+            Draft, edit, and schedule your LinkedIn posts. Use the tabs to filter by status and the menu on each card to archive or delete.
           </p>
         </div>
         <NewPostButton />
