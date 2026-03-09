@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,22 +13,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { UserPlus, Loader2, MailCheck } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 
 export default function SignupPage() {
-  const router = useRouter();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isConfirmationSent, setIsConfirmationSent] = useState(false);
-  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
 
   async function handleLinkedInSignup() {
-    setIsOAuthLoading(true);
+    setIsLoading(true);
     try {
       const supabase = createClient();
       await supabase.auth.signInWithOAuth({
@@ -38,67 +29,8 @@ export default function SignupPage() {
       });
     } catch {
       toast.error("Failed to connect to LinkedIn. Please try again.");
-      setIsOAuthLoading(false);
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
-      setIsConfirmationSent(true);
-      toast.success("Account created! Check your email for a confirmation link.");
-    } catch {
-      toast.error("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
     }
-  }
-
-  if (isConfirmationSent) {
-    return (
-      <Card>
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">
-            <MailCheck className="size-6 text-primary" />
-          </div>
-          <CardTitle className="text-xl">Check your email</CardTitle>
-          <CardDescription className="leading-relaxed">
-            We&apos;ve sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email}</span>. Click
-            the link in the email to activate your account.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-muted-foreground">
-            Already confirmed?{" "}
-            <Link
-              href="/login"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Sign in
-            </Link>
-          </p>
-        </CardFooter>
-      </Card>
-    );
   }
 
   return (
@@ -106,92 +38,30 @@ export default function SignupPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-xl">Create your account</CardTitle>
         <CardDescription>
-          Get started with PostPilot to create engaging LinkedIn content
+          Connect your LinkedIn account to get started with PostPilot
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form id="signup-form" onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="full-name">Full Name</Label>
-            <Input
-              id="full-name"
-              type="text"
-              placeholder="Jane Smith"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              autoComplete="name"
-              disabled={isLoading}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              disabled={isLoading}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Create a password (min. 6 characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete="new-password"
-              disabled={isLoading}
-            />
-          </div>
-          <Button
-            type="submit"
-            size="lg"
-            className="mt-2 w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <UserPlus className="size-4" />
-            )}
-            {isLoading ? "Creating account..." : "Create Account"}
-          </Button>
+      <CardContent className="grid gap-4">
+        <Button
+          size="lg"
+          className="w-full gap-2 bg-[#0A66C2] text-white hover:bg-[#004182]"
+          onClick={handleLinkedInSignup}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <LinkedInIcon className="size-4" />
+          )}
+          {isLoading ? "Connecting..." : "Continue with LinkedIn"}
+        </Button>
 
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                or continue with
-              </span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="w-full gap-2"
-            onClick={handleLinkedInSignup}
-            disabled={isLoading || isOAuthLoading}
-          >
-            {isOAuthLoading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <LinkedInIcon className="size-4 text-[#0A66C2]" />
-            )}
-            {isOAuthLoading ? "Connecting..." : "Sign up with LinkedIn"}
-          </Button>
-        </form>
+        <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/30 px-3 py-2.5">
+          <Shield className="size-4 shrink-0 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">
+            We only request basic profile info. Your LinkedIn password is never shared with PostPilot.
+          </p>
+        </div>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
