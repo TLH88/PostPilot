@@ -37,14 +37,32 @@ import {
   Briefcase,
   Target,
   Pen,
+  Sparkles,
+  Shield,
+  FlaskConical,
+  AlertCircle,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  getAvailableModels,
+  getDefaultModel,
+  type AIProvider,
+} from "@/lib/ai/providers";
 
 const STEPS = [
   { label: "Basic Info", icon: User },
   { label: "Background", icon: Briefcase },
   { label: "Expertise", icon: Target },
   { label: "Voice & Style", icon: Pen },
+  { label: "AI Setup", icon: Sparkles },
 ] as const;
+
+const AI_PROVIDERS = [
+  { value: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
+  { value: "openai", label: "OpenAI (GPT-4o)", placeholder: "sk-..." },
+  { value: "google", label: "Google (Gemini)", placeholder: "AIza..." },
+  { value: "perplexity", label: "Perplexity (Sonar)", placeholder: "pplx-..." },
+];
 
 const INDUSTRY_SUGGESTIONS = [
   "Technology",
@@ -87,6 +105,13 @@ export default function OnboardingPage() {
   const [industries, setIndustries] = useState<string[]>([]);
   const [customIndustry, setCustomIndustry] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
+
+  // Step 5: AI Setup
+  const [aiProvider, setAiProvider] = useState("anthropic");
+  const [aiModel, setAiModel] = useState<string | null>(null);
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [testingKey, setTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
 
   // Step 4: Voice & Style
   const [contentPillars, setContentPillars] = useState<string[]>([]);
@@ -223,6 +248,43 @@ export default function OnboardingPage() {
     });
   };
 
+  const handleTestAiKey = async () => {
+    if (!aiApiKey.trim()) {
+      toast.error("Please enter an API key first.");
+      return;
+    }
+
+    setTestingKey(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/settings/test-ai-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: aiProvider,
+          apiKey: aiApiKey,
+          aiModel: aiModel,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setTestResult("error");
+        toast.error(data.error || "API key test failed.");
+        return;
+      }
+
+      setTestResult("success");
+      toast.success(data.message || "API key is valid!");
+    } catch {
+      setTestResult("error");
+      toast.error("Failed to test API key.");
+    } finally {
+      setTestingKey(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!userId) return;
 
@@ -254,6 +316,22 @@ export default function OnboardingPage() {
         .upsert(profileData, { onConflict: "user_id" });
 
       if (error) throw error;
+
+      // Save AI provider settings (encryption handled server-side)
+      try {
+        await fetch("/api/settings/ai-provider", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: aiProvider,
+            ...(aiApiKey.trim() ? { apiKey: aiApiKey } : {}),
+            aiModel: aiModel,
+          }),
+        });
+      } catch (aiError) {
+        console.error("Failed to save AI settings:", aiError);
+        // Non-blocking — user can configure later in Settings
+      }
 
       // Force full page reload so the server layout re-fetches the updated profile
       window.location.href = "/dashboard";
@@ -840,6 +918,133 @@ export default function OnboardingPage() {
                     checked={useHashtags}
                     onCheckedChange={setUseHashtags}
                   />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 5: AI Setup */}
+        {currentStep === 4 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                Connect your AI provider
+              </CardTitle>
+              <CardDescription>
+                Choose your preferred AI model and add your API key to
+                power content generation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Provider Selection */}
+              <div className="space-y-2">
+                <Label>AI Provider</Label>
+                <Select
+                  value={aiProvider}
+                  onValueChange={(v) => {
+                    if (v) {
+                      setAiProvider(v);
+                      setAiModel(null);
+                      setTestResult(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDERS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Model Selection */}
+              <div className="space-y-2">
+                <Label>Model</Label>
+                <Select
+                  value={
+                    aiModel ??
+                    getDefaultModel(aiProvider as AIProvider)
+                  }
+                  onValueChange={(v) => {
+                    if (v) setAiModel(v);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableModels(
+                      aiProvider as AIProvider
+                    ).map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* API Key Input */}
+              <div className="space-y-2">
+                <Label htmlFor="aiApiKey">API Key</Label>
+                <Input
+                  id="aiApiKey"
+                  type="password"
+                  placeholder={
+                    AI_PROVIDERS.find((p) => p.value === aiProvider)
+                      ?.placeholder ?? "Enter your API key"
+                  }
+                  value={aiApiKey}
+                  onChange={(e) => {
+                    setAiApiKey(e.target.value);
+                    setTestResult(null);
+                  }}
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Test Key Button */}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={testingKey || !aiApiKey.trim()}
+                onClick={handleTestAiKey}
+                className="gap-1.5"
+              >
+                {testingKey ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : testResult === "success" ? (
+                  <Check className="h-4 w-4 text-green-600" />
+                ) : testResult === "error" ? (
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                ) : (
+                  <FlaskConical className="h-4 w-4" />
+                )}
+                {testingKey
+                  ? "Testing..."
+                  : testResult === "success"
+                    ? "Key Valid"
+                    : "Test Key"}
+              </Button>
+
+              {/* Security Note */}
+              <div className="flex items-start gap-3 rounded-lg border bg-muted/50 p-3">
+                <Shield className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                <div className="text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">
+                    Your key is secure
+                  </p>
+                  <p className="mt-0.5">
+                    API keys are encrypted with AES-256-GCM before storage
+                    and are only used server-side. They are never exposed
+                    to the browser or shared with third parties.
+                  </p>
                 </div>
               </div>
             </CardContent>
