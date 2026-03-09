@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect } from "react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import {
   Card,
@@ -5,6 +9,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Lightbulb, FileText, Calendar, Send } from "lucide-react";
 
 const features = [
@@ -29,6 +34,18 @@ const features = [
 ];
 
 export default function Home() {
+  const { setTheme, theme } = useTheme();
+
+  useEffect(() => {
+    const previousTheme = theme;
+    setTheme("light");
+    return () => {
+      if (previousTheme) setTheme(previousTheme);
+    };
+    // Only run on mount/unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Navigation */}
@@ -41,6 +58,7 @@ export default function Home() {
             </span>
           </Link>
           <nav className="flex items-center gap-3">
+            <ThemeToggle />
             <Link
               href="/login"
               className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
