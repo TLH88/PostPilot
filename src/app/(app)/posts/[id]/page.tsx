@@ -999,7 +999,7 @@ export default function PostWorkspacePage() {
                 {status === "posted" && (
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     className="gap-1.5"
                     onClick={() => updateStatus("archived")}
                   >
@@ -1021,7 +1021,7 @@ export default function PostWorkspacePage() {
                 {!["archived", "posted"].includes(status) && (
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     className="gap-1.5"
                     onClick={() => updateStatus("archived")}
                   >
@@ -1033,8 +1033,8 @@ export default function PostWorkspacePage() {
                 {/* Delete */}
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-destructive hover:text-destructive"
+                  variant="ghost"
+                  className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setDeleteDialogOpen(true)}
                 >
                   <Trash2 className="size-3.5" />
