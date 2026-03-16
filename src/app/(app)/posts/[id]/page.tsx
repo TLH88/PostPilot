@@ -422,6 +422,19 @@ export default function PostWorkspacePage() {
   }
 
   function requestLoadVersion(version: PostVersion) {
+    // Check if current content matches the most recently saved version
+    const latestVersion = versions[0];
+    const hasUnsavedChanges =
+      !latestVersion ||
+      content !== latestVersion.content ||
+      title !== (latestVersion.title ?? "");
+
+    if (!hasUnsavedChanges) {
+      // No changes since last save — switch directly
+      applyVersion(version);
+      return;
+    }
+
     setPendingVersion(version);
     setShowVersionConfirm(true);
   }
