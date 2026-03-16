@@ -56,6 +56,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
+import { toast } from "sonner";
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
@@ -733,7 +734,10 @@ export default function PostWorkspacePage() {
                     className="gap-2"
                     disabled={chatStreaming}
                     onClick={() => {
-                      if (!title.trim()) return;
+                      if (!title.trim()) {
+                        toast.info("Please enter a title for your post so the AI assistant can help you draft it.");
+                        return;
+                      }
                       if (!chatOpen) setChatOpen(true);
                       sendChatMessage(
                         `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only`
@@ -743,11 +747,6 @@ export default function PostWorkspacePage() {
                     <Sparkles className="size-4" />
                     Start Initial Draft
                   </Button>
-                  {!title.trim() && (
-                    <p className="text-xs text-muted-foreground/70">
-                      Add a title first to enable AI drafting
-                    </p>
-                  )}
                   <textarea
                     ref={textareaRef}
                     value={content}
