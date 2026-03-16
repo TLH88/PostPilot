@@ -723,13 +723,48 @@ export default function PostWorkspacePage() {
 
             {/* Main content textarea */}
             <div className="flex-1 flex">
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Start writing your LinkedIn post..."
-                className="min-h-[300px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
-              />
+              {!content.trim() ? (
+                <div className="flex min-h-[300px] w-full flex-1 flex-col items-center justify-center gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Start typing below or let AI draft something for you.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={chatStreaming}
+                    onClick={() => {
+                      if (!title.trim()) return;
+                      if (!chatOpen) setChatOpen(true);
+                      sendChatMessage(
+                        `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only`
+                      );
+                    }}
+                  >
+                    <Sparkles className="size-4" />
+                    Start Initial Draft
+                  </Button>
+                  {!title.trim() && (
+                    <p className="text-xs text-muted-foreground/70">
+                      Add a title first to enable AI drafting
+                    </p>
+                  )}
+                  <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Start writing your LinkedIn post..."
+                    className="min-h-[100px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  placeholder="Start writing your LinkedIn post..."
+                  className="min-h-[300px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
+                />
+              )}
             </div>
 
             {/* Character counter */}
