@@ -40,6 +40,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -92,6 +93,8 @@ export default function PostWorkspacePage() {
   // ── Version state ─────────────────────────────────────────────────────────
   const [versions, setVersions] = useState<PostVersion[]>([]);
   const [savingVersion, setSavingVersion] = useState(false);
+  const [pendingVersion, setPendingVersion] = useState<PostVersion | null>(null);
+  const [showVersionConfirm, setShowVersionConfirm] = useState(false);
 
   // ── Profile state ─────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
@@ -403,6 +406,7 @@ export default function PostWorkspacePage() {
       .insert({
         post_id: post.id,
         user_id: user.id,
+        title,
         content,
         version_number: nextNumber,
         label: `Version ${nextNumber}`,
@@ -417,9 +421,34 @@ export default function PostWorkspacePage() {
     setSavingVersion(false);
   }
 
-  function loadVersion(version: PostVersion) {
+  function requestLoadVersion(version: PostVersion) {
+    setPendingVersion(version);
+    setShowVersionConfirm(true);
+  }
+
+  async function handleVersionConfirmSave() {
+    await saveVersion();
+    if (pendingVersion) {
+      applyVersion(pendingVersion);
+    }
+    setShowVersionConfirm(false);
+    setPendingVersion(null);
+  }
+
+  function handleVersionConfirmDiscard() {
+    if (pendingVersion) {
+      applyVersion(pendingVersion);
+    }
+    setShowVersionConfirm(false);
+    setPendingVersion(null);
+  }
+
+  function applyVersion(version: PostVersion) {
+    if (version.title !== undefined && version.title !== null) {
+      setTitle(version.title);
+    }
     setContent(version.content);
-    scheduleAutoSave(title, version.content, hashtags);
+    scheduleAutoSave(version.title ?? title, version.content, hashtags);
   }
 
   // ── AI Chat ───────────────────────────────────────────────────────────────
@@ -995,28 +1024,30 @@ export default function PostWorkspacePage() {
                       Versions ({versions.length})
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>Version History</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {versions.map((v) => (
-                        <DropdownMenuItem
-                          key={v.id}
-                          onClick={() => loadVersion(v)}
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">
-                              {v.label ?? `Version ${v.version_number}`}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(v.created_at).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Version History</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {versions.map((v) => (
+                          <DropdownMenuItem
+                            key={v.id}
+                            onClick={() => requestLoadVersion(v)}
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">
+                                {v.label ?? `Version ${v.version_number}`}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(v.created_at).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -1187,6 +1218,30 @@ export default function PostWorkspacePage() {
       />
 
       {/* Delete confirmation dialog */}
+      {/* ─── Version Switch Confirmation Dialog ──────────────────────────── */}
+      <Dialog open={showVersionConfirm} onOpenChange={setShowVersionConfirm}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Unsaved changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes. Would you like to save them as a new
+              version before switching?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={handleVersionConfirmDiscard}
+            >
+              Continue without saving
+            </Button>
+            <Button onClick={handleVersionConfirmSave} disabled={savingVersion}>
+              {savingVersion ? "Saving..." : "Save version"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>

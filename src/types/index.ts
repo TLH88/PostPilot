@@ -59,6 +59,7 @@ export interface PostVersion {
   id: string;
   post_id: string;
   user_id: string;
+  title: string | null;
   content: string;
   version_number: number;
   label: string | null;
