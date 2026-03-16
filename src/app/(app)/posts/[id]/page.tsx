@@ -1211,7 +1211,7 @@ export default function PostWorkspacePage() {
                   key={suggestion}
                   onClick={() => sendChatMessage(suggestion)}
                   disabled={chatStreaming}
-                  className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-2.5 py-1 text-xs font-semibold text-white shadow-md transition-all hover:from-blue-700 hover:to-blue-600 disabled:opacity-50"
                 >
                   {suggestion}
                 </button>
