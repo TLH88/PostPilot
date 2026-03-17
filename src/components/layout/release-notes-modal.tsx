@@ -28,24 +28,24 @@ export function ReleaseNotesModal() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
+    // Get IDs of release notes the user has already read
+    const { data: readRecords } = await supabase
+      .from("user_release_notes_read")
+      .select("release_note_id")
+      .eq("user_id", user.id);
+
+    const readIds = (readRecords ?? []).map((r) => r.release_note_id);
+
+    // Get the latest published release note
+    const { data: notes } = await supabase
       .from("release_notes")
-      .select(
-        `*, user_release_notes_read!left(id)`
-      )
+      .select("*")
       .eq("is_published", true)
-      .is("user_release_notes_read.id", null)
       .order("published_at", { ascending: false })
       .limit(1);
 
-    // Filter to only notes where the join returned no read record
-    const unread = data?.filter(
-      (note: ReleaseNote & { user_release_notes_read: { id: string }[] }) =>
-        !note.user_release_notes_read || note.user_release_notes_read.length === 0
-    );
-
-    if (unread && unread.length > 0) {
-      setReleaseNote(unread[0]);
+    if (notes && notes.length > 0 && !readIds.includes(notes[0].id)) {
+      setReleaseNote(notes[0]);
       setOpen(true);
     }
   }, [supabase]);
@@ -62,10 +62,17 @@ export function ReleaseNotesModal() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from("user_release_notes_read").insert({
-      user_id: user.id,
-      release_note_id: releaseNote.id,
-    });
+    const { error } = await supabase.from("user_release_notes_read").upsert(
+      {
+        user_id: user.id,
+        release_note_id: releaseNote.id,
+      },
+      { onConflict: "user_id,release_note_id" }
+    );
+
+    if (error) {
+      console.error("Failed to mark release note as read:", error);
+    }
 
     setOpen(false);
     setReleaseNote(null);
