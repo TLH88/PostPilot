@@ -1,0 +1,129 @@
+# PostPilot - Product Backlog
+
+> Last updated: 2026-03-16
+
+## Status Key
+
+| Status | Description |
+|--------|-------------|
+| Backlog | Identified, not yet started |
+| In Progress | Currently being worked on |
+| Done | Completed and deployed |
+
+---
+
+## Backlog Items
+
+### BP-001: Release Notes Modal for Users
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** User feedback
+**Date Added:** 2026-03-16
+
+**Description:**
+Add a way to share what updates have been implemented in the latest release with users. A modal shown on login is the preferred approach.
+
+**Requirements:**
+- Display a "What's New" modal after login for each new release
+- Track whether the user has seen the current release notes (`seen: true/false`)
+- Only show the modal once per release per user
+- Reset the `seen` flag when a new release is published
+- Requires a release versioning/tracking mechanism (e.g., `app_releases` table with version, notes, date)
+- Requires a `user_release_views` table to track which releases each user has dismissed
+
+**Suggested Implementation:**
+- Database: `app_releases` table (id, version, title, notes, published_at) + `user_release_views` table (user_id, release_id, seen_at)
+- On login/dashboard load, check if the user has seen the latest release
+- If not, show modal with release notes; on dismiss, mark as seen
+
+---
+
+### BP-002: Convert Post Versions into Separate Posts
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** User feedback
+**Date Added:** 2026-03-16
+
+**Description:**
+Create a workflow that allows users to convert a saved post version into its own standalone post.
+
+**Requirements:**
+- Add an action to each version in the version dropdown (e.g., "Create as new post")
+- Clicking the action creates a new post record with the version's title and content
+- The new post should open in the post editor
+- Original post and version remain unchanged
+
+---
+
+### BP-003: Mobile Help Page Access Without Losing Form State
+
+**Status:** Backlog
+**Priority:** High
+**Source:** User feedback (active user pain point)
+**Date Added:** 2026-03-16
+
+**Description:**
+On mobile, when users click the help link from the onboarding form or settings page, the current page is closed/navigated away from. Users lose their progress (e.g., partially entered API key) and have to start over.
+
+**Requirements:**
+- Help page should open without destroying the user's current page state
+- Options to explore:
+  - Open help in a new browser tab (`target="_blank"`)
+  - Show help content in a slide-over drawer or modal overlay
+  - Add inline contextual help tooltips next to the API key field specifically
+- Ensure the solution works well on mobile viewports
+
+---
+
+### BP-004: Fix Text Formatting Helpers (Bullets & Em Dashes)
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Bug report
+**Date Added:** 2026-03-16
+
+**Description:**
+Two bugs with the formatting insert buttons (Line break, Bullet point, Em dash) in the post content area:
+
+**Bug 1 - Selected text is replaced:**
+When the user highlights/selects text and clicks a formatting button (bullet or em dash), the selected text is deleted and replaced with just the formatting character. Expected behavior: the formatting character should be prepended to the selected text, not replace it.
+
+**Bug 2 - Bullets don't persist on new lines:**
+After inserting a bullet point and pressing Enter, the next line does not automatically get a bullet. Expected behavior: pressing Enter after a bulleted line should auto-insert a new bullet on the next line (similar to list behavior in text editors). Pressing Enter twice should exit bullet mode.
+
+**Affected Code:**
+- `src/app/(app)/posts/[id]/page.tsx` - `insertFormatting()` function and content change handler
+
+---
+
+### BP-005: Right-Click Context Menu to Brainstorm Selected Text as Post Topic
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** Feature request
+**Date Added:** 2026-03-16
+
+**Description:**
+Allow users to select any text in the post editor, right-click, and choose an option to brainstorm it as a new post topic.
+
+**Requirements:**
+- Add a custom context menu option: "Brainstorm as post topic" (appears when text is selected)
+- Clicking the option should:
+  1. Auto-save the user's current work
+  2. Open the idea generator modal
+  3. Pre-populate the idea generator text box with the selected text
+  4. When the user clicks "Generate Ideas," the normal idea generation flow continues
+- The custom context menu should integrate with or replace the browser's native context menu for the editor area
+
+**Considerations:**
+- Custom context menus require intercepting the `contextmenu` event
+- Should only show the brainstorm option when text is actively selected
+- May want to include other useful options in the context menu (copy, paste, formatting)
+
+---
+
+## Completed Items
+
+_No items completed yet._

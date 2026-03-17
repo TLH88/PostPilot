@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { OnboardingGuard } from "@/components/layout/onboarding-guard";
 import { PastDueChecker } from "@/components/past-due-checker";
+import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 
 export default async function AppLayout({
   children,
@@ -34,6 +35,7 @@ export default async function AppLayout({
     <div className="relative min-h-screen bg-background">
       <OnboardingGuard onboardingCompleted={onboardingCompleted} />
       <PastDueChecker />
+      <ReleaseNotesModal />
       {/* Sidebar - hidden on mobile */}
       <Sidebar userName={userName} />
 

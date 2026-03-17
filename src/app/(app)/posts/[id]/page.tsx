@@ -9,8 +9,10 @@ import {
   Check,
   ChevronDown,
   Cloud,
+  Copy,
   Eye,
   Hash,
+  Lightbulb,
   List,
   Loader2,
   MessageCircle,
@@ -57,6 +59,7 @@ import { LINKEDIN, POST_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
+import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
@@ -117,6 +120,11 @@ export default function PostWorkspacePage() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // ── Brainstorm context menu state ────────────────────────────────────────
+  const [brainstormOpen, setBrainstormOpen] = useState(false);
+  const [brainstormTopic, setBrainstormTopic] = useState("");
+  const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
 
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,21 +279,94 @@ export default function PostWorkspacePage() {
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+    const selectedText = content.slice(start, end);
     const newContent =
-      content.slice(0, start) + text + content.slice(end);
+      content.slice(0, start) + text + selectedText + content.slice(end);
 
     if (newContent.length > LINKEDIN.MAX_POST_LENGTH) return;
 
     setContent(newContent);
     scheduleAutoSave(title, newContent, hashtags);
 
-    // Restore cursor position after insert
+    // Restore cursor position after insert — keep selected text highlighted
     requestAnimationFrame(() => {
       textarea.selectionStart = start + text.length;
-      textarea.selectionEnd = start + text.length;
+      textarea.selectionEnd = start + text.length + selectedText.length;
       textarea.focus();
     });
   }
+
+  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== "Enter") return;
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = content.slice(0, cursorPos);
+
+    // Find the start of the current line
+    const lastNewline = textBeforeCursor.lastIndexOf("\n");
+    const currentLine = textBeforeCursor.slice(lastNewline + 1);
+
+    // Check for bullet or em dash prefix
+    const bulletMatch = currentLine.match(/^(\u2022 |\u2014 )/);
+    if (!bulletMatch) return;
+
+    const prefix = bulletMatch[1];
+    const lineContent = currentLine.slice(prefix.length);
+
+    e.preventDefault();
+
+    if (lineContent.trim() === "") {
+      // Empty formatted line — remove the prefix and exit format mode
+      const lineStart = lastNewline + 1;
+      const newContent =
+        content.slice(0, lineStart) + content.slice(cursorPos);
+      setContent(newContent);
+      scheduleAutoSave(title, newContent, hashtags);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = lineStart;
+        textarea.selectionEnd = lineStart;
+        textarea.focus();
+      });
+    } else {
+      // Non-empty formatted line — auto-insert same prefix on new line
+      const insertion = "\n" + prefix;
+      const newContent =
+        content.slice(0, cursorPos) + insertion + content.slice(cursorPos);
+      if (newContent.length > LINKEDIN.MAX_POST_LENGTH) return;
+      setContent(newContent);
+      scheduleAutoSave(title, newContent, hashtags);
+      requestAnimationFrame(() => {
+        const newPos = cursorPos + insertion.length;
+        textarea.selectionStart = newPos;
+        textarea.selectionEnd = newPos;
+        textarea.focus();
+      });
+    }
+  }
+
+  // ── Context menu for brainstorm ──────────────────────────────────────────
+  function handleContextMenu(e: React.MouseEvent<HTMLTextAreaElement>) {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const selected = content.substring(textarea.selectionStart, textarea.selectionEnd);
+    if (!selected.trim()) return; // Only show for text selection
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setBrainstormTopic(selected.trim());
+  }
+
+  // Close context menu on click away
+  useEffect(() => {
+    if (!contextMenuPos) return;
+    function handleClick() {
+      setContextMenuPos(null);
+    }
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, [contextMenuPos]);
 
   // ── Hashtag management ────────────────────────────────────────────────────
   function removeHashtag(tag: string) {
@@ -463,6 +544,34 @@ export default function PostWorkspacePage() {
     }
     setContent(version.content);
     scheduleAutoSave(version.title ?? title, version.content, hashtags);
+  }
+
+  async function createPostFromVersion(version: PostVersion) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("posts")
+      .insert({
+        user_id: user.id,
+        title: version.title,
+        content: version.content,
+        status: "draft" as const,
+        hashtags: [],
+        character_count: version.content.length,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      toast.error("Failed to create post from version");
+      return;
+    }
+
+    if (data) {
+      toast.success("New post created from version");
+      router.push(`/posts/${data.id}`);
+    }
   }
 
   // ── AI Chat ───────────────────────────────────────────────────────────────
@@ -751,6 +860,8 @@ export default function PostWorkspacePage() {
                     ref={textareaRef}
                     value={content}
                     onChange={(e) => handleContentChange(e.target.value)}
+                    onKeyDown={handleTextareaKeyDown}
+                    onContextMenu={handleContextMenu}
                     placeholder="Start writing your LinkedIn post..."
                     className="min-h-[100px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
                   />
@@ -760,6 +871,8 @@ export default function PostWorkspacePage() {
                   ref={textareaRef}
                   value={content}
                   onChange={(e) => handleContentChange(e.target.value)}
+                  onKeyDown={handleTextareaKeyDown}
+                  onContextMenu={handleContextMenu}
                   placeholder="Start writing your LinkedIn post..."
                   className="min-h-[300px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
                 />
@@ -1079,18 +1192,30 @@ export default function PostWorkspacePage() {
                             key={v.id}
                             onClick={() => requestLoadVersion(v)}
                           >
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium">
-                                {v.label ?? `Version ${v.version_number}`}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(v.created_at).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
-                              </span>
+                            <div className="flex w-full items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">
+                                  {v.label ?? `Version ${v.version_number}`}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(v.created_at).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  createPostFromVersion(v);
+                                }}
+                                className="ml-2 rounded p-1 hover:bg-muted"
+                                title="Create as new post"
+                              >
+                                <Copy className="size-3.5" />
+                              </button>
                             </div>
                           </DropdownMenuItem>
                         ))}
@@ -1315,6 +1440,34 @@ export default function PostWorkspacePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Context menu for brainstorm */}
+      {contextMenuPos && (
+        <div
+          className="fixed z-50 rounded-lg border bg-popover p-1 shadow-lg"
+          style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
+        >
+          <button
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            onClick={() => {
+              autoSave(title, content, hashtags);
+              setBrainstormOpen(true);
+              setContextMenuPos(null);
+            }}
+          >
+            <Lightbulb className="size-4" />
+            Brainstorm as post topic
+          </button>
+        </div>
+      )}
+
+      {/* Brainstorm dialog triggered from context menu */}
+      <GenerateIdeasDialog
+        open={brainstormOpen}
+        onOpenChange={setBrainstormOpen}
+        initialTopic={brainstormTopic}
+        contentPillars={profile?.content_pillars ?? []}
+      />
     </div>
   );
 }

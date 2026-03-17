@@ -66,6 +66,18 @@ export interface PostVersion {
   created_at: string;
 }
 
+export interface ReleaseNote {
+  id: string;
+  version: string;
+  title: string;
+  description: string;
+  features: { title: string; description: string }[];
+  bug_fixes: { title: string; description: string }[];
+  is_published: boolean;
+  published_at: string;
+  created_at: string;
+}
+
 export interface AIMessage {
   role: "user" | "assistant";
   content: string;

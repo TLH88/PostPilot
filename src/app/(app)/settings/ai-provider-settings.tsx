@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Loader2, Key, FlaskConical, Check, AlertCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { type AIProvider } from "@/lib/ai/providers";
 import { useModels } from "@/lib/ai/use-models";
+import { APIKeyHelpDrawer } from "@/components/ai-help/api-key-help-drawer";
 
 const AI_PROVIDERS = [
   { value: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
@@ -45,6 +45,7 @@ export function AIProviderSettings({
     null
   );
   const [savedProvider, setSavedProvider] = useState(currentProvider);
+  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [savedModel, setSavedModel] = useState<string | null>(currentModel);
   const [keyConfigured, setKeyConfigured] = useState(hasExistingKey);
 
@@ -234,14 +235,16 @@ export function AIProviderSettings({
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          <Link
-            href="/help"
+          <button
+            type="button"
+            onClick={() => setHelpDrawerOpen(true)}
             className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
           >
             <HelpCircle className="size-3" />
             Need help finding your API key?
-          </Link>
+          </button>
         </p>
+        <APIKeyHelpDrawer open={helpDrawerOpen} onOpenChange={setHelpDrawerOpen} />
       </div>
 
       <div className="flex gap-2">
