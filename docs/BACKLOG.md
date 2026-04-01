@@ -16,10 +16,11 @@
 
 ### BP-001: Release Notes Modal for Users
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
 **Source:** User feedback
 **Date Added:** 2026-03-16
+**Completed:** 2026-03-16 (commits `8ea11d3`, `d948ace`)
 
 **Description:**
 Add a way to share what updates have been implemented in the latest release with users. A modal shown on login is the preferred approach.
@@ -41,10 +42,11 @@ Add a way to share what updates have been implemented in the latest release with
 
 ### BP-002: Convert Post Versions into Separate Posts
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
 **Source:** User feedback
 **Date Added:** 2026-03-16
+**Completed:** 2026-03-16 (commit `8ea11d3`)
 
 **Description:**
 Create a workflow that allows users to convert a saved post version into its own standalone post.
@@ -59,10 +61,11 @@ Create a workflow that allows users to convert a saved post version into its own
 
 ### BP-003: Mobile Help Page Access Without Losing Form State
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 **Source:** User feedback (active user pain point)
 **Date Added:** 2026-03-16
+**Completed:** 2026-03-16 (commit `8ea11d3`)
 
 **Description:**
 On mobile, when users click the help link from the onboarding form or settings page, the current page is closed/navigated away from. Users lose their progress (e.g., partially entered API key) and have to start over.
@@ -79,10 +82,11 @@ On mobile, when users click the help link from the onboarding form or settings p
 
 ### BP-004: Fix Text Formatting Helpers (Bullets & Em Dashes)
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 **Source:** Bug report
 **Date Added:** 2026-03-16
+**Completed:** 2026-03-16 (commit `8ea11d3`)
 
 **Description:**
 Two bugs with the formatting insert buttons (Line break, Bullet point, Em dash) in the post content area:
@@ -100,10 +104,11 @@ After inserting a bullet point and pressing Enter, the next line does not automa
 
 ### BP-005: Right-Click Context Menu to Brainstorm Selected Text as Post Topic
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Low
 **Source:** Feature request
 **Date Added:** 2026-03-16
+**Completed:** 2026-03-16 (commit `8ea11d3`)
 
 **Description:**
 Allow users to select any text in the post editor, right-click, and choose an option to brainstorm it as a new post topic.
@@ -124,6 +129,48 @@ Allow users to select any text in the post editor, right-click, and choose an op
 
 ---
 
+### BP-006: Fix Hashtag Double-Hash Display
+
+**Status:** Done
+**Priority:** High
+**Source:** Bug report
+**Date Added:** 2026-03-16
+**Completed:** 2026-03-16
+
+**Description:**
+When AI suggests hashtags, they display with `##` (double hash) instead of `#`. The AI prompt returns hashtags with `#` prefix and the display component prepends another `#`.
+
+**Fix:**
+- Updated hashtag badge display to check if tag already starts with `#` before prepending
+
+---
+
+### BP-007: Improve Convert to Post Button Visibility & UX
+
+**Status:** Done
+**Priority:** High
+**Source:** User feedback
+**Date Added:** 2026-03-16
+**Completed:** 2026-03-16
+
+**Description:**
+The "Convert to Post" button was hidden inside the version dropdown and only appeared after selecting a version. Users couldn't find it. Additionally, version selector dropdown didn't reflect which version was currently active.
+
+**Fix:**
+- Moved "Convert to Post" to a standalone button always visible next to "Save Version"
+- Button works with current editor content (no version selection required)
+- When a version is active, asks user if they want to delete the original version after conversion
+- Version selector dropdown now shows the active version name in the trigger
+- Active version is highlighted with a checkmark in the dropdown list
+
+---
+
 ## Completed Items
 
-_No items completed yet._
+- **BP-001:** Release Notes Modal for Users (2026-03-16)
+- **BP-002:** Convert Post Versions into Separate Posts (2026-03-16)
+- **BP-003:** Mobile Help Page Access Without Losing Form State (2026-03-16)
+- **BP-004:** Fix Text Formatting Helpers - Bullets & Em Dashes (2026-03-16)
+- **BP-005:** Right-Click Context Menu to Brainstorm Selected Text (2026-03-16)
+- **BP-006:** Fix Hashtag Double-Hash Display (2026-03-16)
+- **BP-007:** Improve Convert to Post Button Visibility & UX (2026-03-16)

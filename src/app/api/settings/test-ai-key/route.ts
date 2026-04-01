@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/encryption";
 import { createAIClient, type AIProvider } from "@/lib/ai/providers";
+import { logApiError } from "@/lib/api-utils";
 
 const VALID_PROVIDERS = ["anthropic", "openai", "google", "perplexity"];
 
@@ -80,8 +81,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `${providerLabel} API key is valid and working.`,
     });
-  } catch (error) {
-    console.error("Test AI key error:", error);
+  } catch (error: unknown) {
+    logApiError("api/settings/test-ai-key", error);
 
     const message =
       error instanceof Error ? error.message : "API key test failed";

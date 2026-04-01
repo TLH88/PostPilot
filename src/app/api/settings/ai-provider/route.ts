@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/encryption";
+import { logApiError } from "@/lib/api-utils";
 
 const VALID_PROVIDERS = ["anthropic", "openai", "google", "perplexity"];
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Save AI provider error:", error);
+    logApiError("api/settings/ai-provider", error);
     return NextResponse.json(
       { error: "Failed to save settings" },
       { status: 500 }

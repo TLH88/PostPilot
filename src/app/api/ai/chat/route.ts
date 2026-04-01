@@ -6,18 +6,21 @@ import {
   CHAT_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
+import { ChatInputSchema, logApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, postContent, postTitle } = body;
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    const parsed = ChatInputSchema.safeParse(body);
+    if (!parsed.success) {
       return new Response(
-        JSON.stringify({ error: "Messages array is required" }),
+        JSON.stringify({ error: "Invalid input", details: parsed.error.issues }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    const { messages, postContent, postTitle } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
 
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Chat API error:", error);
+    logApiError("api/ai/chat", error);
 
     const message =
       error instanceof Error ? error.message : "Failed to process chat";

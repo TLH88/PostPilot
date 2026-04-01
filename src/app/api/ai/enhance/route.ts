@@ -6,25 +6,21 @@ import {
   ENHANCE_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
+import { EnhanceInputSchema, logApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { content, instruction } = body;
 
-    if (!content) {
+    const parsed = EnhanceInputSchema.safeParse(body);
+    if (!parsed.success) {
       return new Response(
-        JSON.stringify({ error: "Post content is required" }),
+        JSON.stringify({ error: "Invalid input", details: parsed.error.issues }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    if (!instruction) {
-      return new Response(
-        JSON.stringify({ error: "Enhancement instruction is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const { content, instruction } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
 
@@ -51,7 +47,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Enhance API error:", error);
+    logApiError("api/ai/enhance", error);
 
     const message =
       error instanceof Error ? error.message : "Failed to enhance post";

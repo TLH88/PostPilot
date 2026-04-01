@@ -9,7 +9,7 @@ import {
   Check,
   ChevronDown,
   Cloud,
-  Copy,
+  FilePlus2,
   Eye,
   Hash,
   Lightbulb,
@@ -55,7 +55,7 @@ import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
-import { LINKEDIN, POST_STATUSES } from "@/lib/constants";
+import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
@@ -99,6 +99,10 @@ export default function PostWorkspacePage() {
   const [savingVersion, setSavingVersion] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<PostVersion | null>(null);
   const [showVersionConfirm, setShowVersionConfirm] = useState(false);
+  const [activeVersion, setActiveVersion] = useState<PostVersion | null>(null);
+  const [showConvertConfirm, setShowConvertConfirm] = useState(false);
+  const [convertedPostId, setConvertedPostId] = useState<string | null>(null);
+  const [deletingVersion, setDeletingVersion] = useState(false);
 
   // ── Profile state ─────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
@@ -240,7 +244,7 @@ export default function PostWorkspacePage() {
 
       if (!error) {
         setSaveStatus("saved");
-        setTimeout(() => setSaveStatus("idle"), 2000);
+        setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
       } else {
         setSaveStatus("idle");
       }
@@ -258,7 +262,7 @@ export default function PostWorkspacePage() {
     }
     saveTimeoutRef.current = setTimeout(() => {
       autoSave(newTitle, newContent, newHashtags);
-    }, 2000);
+    }, AUTOSAVE_DEBOUNCE_MS);
   }
 
   function handleTitleChange(value: string) {
@@ -543,22 +547,31 @@ export default function PostWorkspacePage() {
       setTitle(version.title);
     }
     setContent(version.content);
+    setActiveVersion(version);
     scheduleAutoSave(version.title ?? title, version.content, hashtags);
   }
 
-  async function createPostFromVersion(version: PostVersion) {
+  async function createPostFromVersion(version?: PostVersion) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    const postTitle = version ? version.title : title;
+    const postContent = version ? version.content : content;
+
+    if (!postContent.trim()) {
+      toast.error("Cannot convert empty content to a post");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("posts")
       .insert({
         user_id: user.id,
-        title: version.title,
-        content: version.content,
+        title: postTitle,
+        content: postContent,
         status: "draft" as const,
         hashtags: [],
-        character_count: version.content.length,
+        character_count: postContent.length,
       })
       .select("id")
       .single();
@@ -570,7 +583,45 @@ export default function PostWorkspacePage() {
 
     if (data) {
       toast.success("New post created from version");
-      router.push(`/posts/${data.id}`);
+      setConvertedPostId(data.id);
+      // Only ask about deleting the version if one was active
+      if (activeVersion) {
+        setShowConvertConfirm(true);
+      } else {
+        router.push(`/posts/${data.id}`);
+      }
+    }
+  }
+
+  async function deleteVersionAndNavigate() {
+    if (!activeVersion || !convertedPostId) return;
+    setDeletingVersion(true);
+
+    const { error } = await supabase
+      .from("post_versions")
+      .delete()
+      .eq("id", activeVersion.id);
+
+    setDeletingVersion(false);
+
+    if (error) {
+      toast.error("Failed to delete version");
+    } else {
+      toast.success("Version deleted");
+    }
+
+    setShowConvertConfirm(false);
+    setActiveVersion(null);
+    router.push(`/posts/${convertedPostId}`);
+    setConvertedPostId(null);
+  }
+
+  function skipDeleteAndNavigate() {
+    setShowConvertConfirm(false);
+    setActiveVersion(null);
+    if (convertedPostId) {
+      router.push(`/posts/${convertedPostId}`);
+      setConvertedPostId(null);
     }
   }
 
@@ -981,7 +1032,7 @@ export default function PostWorkspacePage() {
                     variant="secondary"
                     className="gap-1 pr-1"
                   >
-                    #{tag}
+                    {tag.startsWith('#') ? tag : `#${tag}`}
                     <button
                       onClick={() => removeHashtag(tag)}
                       className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
@@ -1172,6 +1223,18 @@ export default function PostWorkspacePage() {
                   Save Version
                 </Button>
 
+                {/* Convert Version to Post */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => createPostFromVersion(activeVersion ?? undefined)}
+                  disabled={!content.trim()}
+                >
+                  <FilePlus2 className="size-3.5" />
+                  Convert to Post
+                </Button>
+
                 {/* View Versions Dropdown */}
                 {versions.length > 0 && (
                   <DropdownMenu>
@@ -1181,7 +1244,9 @@ export default function PostWorkspacePage() {
                       }
                     >
                       <ChevronDown className="size-3.5" />
-                      Versions ({versions.length})
+                      {activeVersion
+                        ? (activeVersion.label ?? `Version ${activeVersion.version_number}`)
+                        : `Versions (${versions.length})`}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuGroup>
@@ -1191,31 +1256,27 @@ export default function PostWorkspacePage() {
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => requestLoadVersion(v)}
+                            className={cn(
+                              activeVersion?.id === v.id && "bg-accent font-semibold"
+                            )}
                           >
-                            <div className="flex w-full items-center justify-between">
-                              <div className="flex flex-col">
+                            <div className="flex w-full flex-col">
+                              <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">
                                   {v.label ?? `Version ${v.version_number}`}
                                 </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(v.created_at).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
+                                {activeVersion?.id === v.id && (
+                                  <Check className="size-3.5 text-primary" />
+                                )}
                               </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  createPostFromVersion(v);
-                                }}
-                                className="ml-2 rounded p-1 hover:bg-muted"
-                                title="Create as new post"
-                              >
-                                <Copy className="size-3.5" />
-                              </button>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(v.created_at).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </span>
                             </div>
                           </DropdownMenuItem>
                         ))}
@@ -1436,6 +1497,39 @@ export default function PostWorkspacePage() {
               disabled={deleting}
             >
               {deleting ? "Deleting..." : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert Version to Post - Delete Confirmation Dialog */}
+      <Dialog open={showConvertConfirm} onOpenChange={(open) => {
+        if (!open) skipDeleteAndNavigate();
+      }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete original version?</DialogTitle>
+            <DialogDescription>
+              Your new post has been created. Would you like to delete{" "}
+              <span className="font-medium text-foreground">
+                {activeVersion?.label ?? `Version ${activeVersion?.version_number}`}
+              </span>{" "}
+              from this post?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={skipDeleteAndNavigate}
+            >
+              No, keep it
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={deleteVersionAndNavigate}
+              disabled={deletingVersion}
+            >
+              {deletingVersion ? "Deleting..." : "Yes, delete version"}
             </Button>
           </DialogFooter>
         </DialogContent>

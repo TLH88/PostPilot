@@ -6,11 +6,21 @@ import {
   DRAFT_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
+import { DraftInputSchema, logApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ideaTitle, ideaDescription, topic, instructions, currentDraft } = body;
+
+    const parsed = DraftInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid input", details: parsed.error.issues }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const { ideaTitle, ideaDescription, topic, instructions, currentDraft } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
 
@@ -60,7 +70,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Draft API error:", error);
+    logApiError("api/ai/draft", error);
 
     const message =
       error instanceof Error ? error.message : "Failed to generate draft";

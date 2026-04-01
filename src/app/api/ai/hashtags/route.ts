@@ -6,18 +6,21 @@ import {
   HASHTAG_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
+import { HashtagsInputSchema, HashtagsResponseSchema, logApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { content, count = 5 } = body;
 
-    if (!content) {
+    const parsed = HashtagsInputSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Post content is required" },
+        { error: "Invalid input", details: parsed.error.issues },
         { status: 400 }
       );
     }
+
+    const { content, count } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
 
@@ -48,11 +51,20 @@ export async function POST(request: NextRequest) {
       jsonString = jsonMatch[1].trim();
     }
 
-    const parsed = JSON.parse(jsonString);
+    const rawParsed = JSON.parse(jsonString);
 
-    return NextResponse.json(parsed);
+    const validated = HashtagsResponseSchema.safeParse(rawParsed);
+    if (!validated.success) {
+      logApiError("api/ai/hashtags:response-validation", validated.error);
+      return NextResponse.json(
+        { error: "AI returned an unexpected response format" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
-    console.error("Hashtags API error:", error);
+    logApiError("api/ai/hashtags", error);
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(

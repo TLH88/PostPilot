@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractText, getDocumentProxy } from "unpdf";
+import { MAX_RESUME_FILE_SIZE_BYTES } from "@/lib/constants";
+import { logApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 10 MB limit
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_RESUME_FILE_SIZE_BYTES) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10 MB." },
         { status: 400 }
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ text: trimmed });
   } catch (error) {
-    console.error("PDF parse error:", error);
+    logApiError("api/profile/parse-resume", error);
     return NextResponse.json(
       { error: "Failed to parse the PDF file. Please try again." },
       { status: 500 }

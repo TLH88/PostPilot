@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logApiError } from "@/lib/api-utils";
 
 export async function GET() {
   try {
@@ -41,7 +42,7 @@ export async function GET() {
 
     return NextResponse.json(models);
   } catch (error) {
-    console.error("Failed to fetch models:", error);
+    logApiError("api/models", error);
     return NextResponse.json(
       { error: "Failed to fetch models" },
       { status: 500 }

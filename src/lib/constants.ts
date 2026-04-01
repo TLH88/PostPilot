@@ -61,6 +61,10 @@ export const TONE_OPTIONS = [
   { value: "motivational", label: "Motivational" },
 ] as const;
 
+export const AUTOSAVE_DEBOUNCE_MS = 2000;
+export const SAVE_STATUS_RESET_MS = 2000;
+export const MAX_RESUME_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   { href: "/ideas", label: "Idea Bank", icon: "Lightbulb" },

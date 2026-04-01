@@ -6,11 +6,21 @@ import {
   BRAINSTORM_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
+import { BrainstormInputSchema, BrainstormResponseSchema, logApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, contentPillar, count = 5 } = body;
+
+    const parsed = BrainstormInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { topic, contentPillar, count } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
 
@@ -51,11 +61,20 @@ export async function POST(request: NextRequest) {
       jsonString = jsonMatch[1].trim();
     }
 
-    const parsed = JSON.parse(jsonString);
+    const rawParsed = JSON.parse(jsonString);
 
-    return NextResponse.json(parsed);
+    const validated = BrainstormResponseSchema.safeParse(rawParsed);
+    if (!validated.success) {
+      logApiError("api/ai/brainstorm:response-validation", validated.error);
+      return NextResponse.json(
+        { error: "AI returned an unexpected response format" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(validated.data);
   } catch (error) {
-    console.error("Brainstorm API error:", error);
+    logApiError("api/ai/brainstorm", error);
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
