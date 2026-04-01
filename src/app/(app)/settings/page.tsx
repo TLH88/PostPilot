@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignOutButton } from "./sign-out-button";
 import { ThemeSetting } from "./theme-setting";
 import { AIProviderSettings } from "./ai-provider-settings";
+import { LinkedInConnection } from "./linkedin-connection";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -47,6 +49,22 @@ export default async function SettingsPage() {
             currentModel={profile?.ai_model ?? null}
             hasExistingKey={!!profile?.ai_api_key_encrypted}
           />
+        </CardContent>
+      </Card>
+
+      {/* LinkedIn Posting */}
+      <Card>
+        <CardHeader>
+          <CardTitle>LinkedIn Posting</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Connect your LinkedIn account to post directly from PostPilot
+            and enable auto-publishing of scheduled posts.
+          </p>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading...</p>}>
+            <LinkedInConnection />
+          </Suspense>
         </CardContent>
       </Card>
 

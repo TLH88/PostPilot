@@ -120,6 +120,10 @@ export default function PostWorkspacePage() {
   // ── Hashtag state ─────────────────────────────────────────────────────────
   const [suggestingHashtags, setSuggestingHashtags] = useState(false);
 
+  // ── LinkedIn publishing state ──────────────────────────────────────────
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
   // ── Preview, schedule, share & delete state ─────────────────────────────
   const [previewOpen, setPreviewOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -216,6 +220,16 @@ export default function PostWorkspacePage() {
         setConversationId(conv.id);
         setChatMessages(conv.messages ?? []);
       }
+
+      // Check LinkedIn connection status
+      fetch("/api/linkedin/status")
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => {
+          if (data?.connected && !data.expired) {
+            setLinkedinConnected(true);
+          }
+        })
+        .catch(() => {});
 
       setLoading(false);
     }
@@ -499,7 +513,48 @@ export default function PostWorkspacePage() {
     }
   }
 
-  function handleShareOnLinkedIn() {
+  async function handleShareOnLinkedIn() {
+    if (!post) return;
+
+    // If LinkedIn API is connected, publish directly
+    if (linkedinConnected) {
+      setPublishing(true);
+      try {
+        const res = await fetch("/api/linkedin/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: post.id }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (data.expired) {
+            setLinkedinConnected(false);
+            toast.error("LinkedIn connection expired. Please reconnect in Settings.");
+            return;
+          }
+          throw new Error(data.error || "Failed to publish");
+        }
+
+        setStatus("posted");
+        setPost({ ...post, status: "posted", linkedin_post_url: data.linkedinPostUrl, linkedin_post_id: data.linkedinPostId });
+        toast.success(
+          <span>
+            Posted to LinkedIn!{" "}
+            <a href={data.linkedinPostUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+              View post
+            </a>
+          </span>
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to publish to LinkedIn");
+      } finally {
+        setPublishing(false);
+      }
+      return;
+    }
+
+    // Fallback: open LinkedIn share redirect
     openLinkedInShare(content, hashtags);
   }
 
@@ -1192,9 +1247,14 @@ export default function PostWorkspacePage() {
                       variant="outline"
                       className="gap-1.5"
                       onClick={handleShareOnLinkedIn}
+                      disabled={publishing}
                     >
-                      <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      Post to LinkedIn
+                      {publishing ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                      )}
+                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                     </Button>
                     <Button
                       size="sm"
@@ -1220,9 +1280,14 @@ export default function PostWorkspacePage() {
                       variant="outline"
                       className="gap-1.5"
                       onClick={handleShareOnLinkedIn}
+                      disabled={publishing}
                     >
-                      <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      Post to LinkedIn
+                      {publishing ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                      )}
+                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                     </Button>
                     <Button
                       size="sm"
@@ -1249,9 +1314,14 @@ export default function PostWorkspacePage() {
                       variant="outline"
                       className="gap-1.5"
                       onClick={handleShareOnLinkedIn}
+                      disabled={publishing}
                     >
-                      <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      Post to LinkedIn
+                      {publishing ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                      )}
+                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                     </Button>
                     <Button
                       size="sm"
@@ -1272,14 +1342,27 @@ export default function PostWorkspacePage() {
                   </>
                 )}
                 {status === "posted" && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("archived")}
-                  >
-                    Archive
-                  </Button>
+                  <>
+                    {post.linkedin_post_url && (
+                      <a
+                        href={post.linkedin_post_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium text-[#0A66C2] hover:bg-muted transition-colors"
+                      >
+                        <LinkedInIcon className="size-3.5" />
+                        View on LinkedIn
+                      </a>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5"
+                      onClick={() => updateStatus("archived")}
+                    >
+                      Archive
+                    </Button>
+                  </>
                 )}
                 {status === "archived" && (
                   <Button
