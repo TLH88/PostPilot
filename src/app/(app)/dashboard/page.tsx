@@ -9,6 +9,7 @@ import {
   ArrowRight,
   AlertCircle,
   Bot,
+  BarChart3,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PROVIDER_DISPLAY_NAMES, getAvailableModels, getDefaultModel, type AIProvider } from "@/lib/ai/providers";
@@ -115,6 +116,36 @@ export default async function DashboardPage() {
 
   const recentIdeas = recentIdeasResult.data ?? [];
   const recentDrafts = recentDraftsResult.data ?? [];
+
+  // Fetch content pillar distribution from posts + ideas
+  const { data: profileFull } = await supabase
+    .from("creator_profiles")
+    .select("content_pillars")
+    .eq("user_id", user.id)
+    .single();
+
+  const contentPillars: string[] = profileFull?.content_pillars ?? [];
+
+  // Count pillars from posts (all non-archived)
+  const { data: pillarPosts } = await supabase
+    .from("posts")
+    .select("content_pillar")
+    .eq("user_id", user.id)
+    .neq("status", "archived")
+    .not("content_pillar", "is", null);
+
+  const pillarCounts: Record<string, number> = {};
+  for (const pillar of contentPillars) {
+    pillarCounts[pillar] = 0;
+  }
+  for (const p of pillarPosts ?? []) {
+    if (p.content_pillar) {
+      pillarCounts[p.content_pillar] = (pillarCounts[p.content_pillar] || 0) + 1;
+    }
+  }
+
+  const totalPillarPosts = Object.values(pillarCounts).reduce((a, b) => a + b, 0);
+  const pillarEntries = Object.entries(pillarCounts).sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="space-y-6">
@@ -327,6 +358,60 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Content Pillar Distribution */}
+      {contentPillars.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="size-4 text-primary" />
+              Content Pillar Balance
+            </CardTitle>
+            <CardDescription>
+              How your content is distributed across your pillars.
+              {pillarEntries.some(([, count]) => count === 0) && (
+                <span className="ml-1 text-yellow-600">
+                  Some pillars need attention.
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pillarEntries.map(([pillar, count]) => {
+                const pct = totalPillarPosts > 0 ? Math.round((count / totalPillarPosts) * 100) : 0;
+                const isUnderserved = count === 0;
+                return (
+                  <div key={pillar} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={isUnderserved ? "text-yellow-600 font-medium" : "font-medium"}>
+                        {pillar}
+                        {isUnderserved && (
+                          <span className="ml-1.5 text-xs text-yellow-500">needs content</span>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {count} post{count !== 1 ? "s" : ""} ({pct}%)
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full transition-all ${isUnderserved ? "bg-yellow-300" : "bg-primary"}`}
+                        style={{ width: `${Math.max(pct, 2)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {totalPillarPosts === 0 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Pillar tracking begins when you assign content pillars to your posts and ideas.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

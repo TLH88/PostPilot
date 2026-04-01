@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError } from "@/lib/api-utils";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +25,74 @@ export async function POST(request: NextRequest) {
 
     const { client, profile } = await getUserAIClient();
 
+    // Fetch recent posts and ideas for history context
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    let historyContext = "";
+    if (user) {
+      const [postsResult, ideasResult] = await Promise.all([
+        supabase
+          .from("posts")
+          .select("title, content_pillar, status")
+          .eq("user_id", user.id)
+          .in("status", ["posted", "scheduled", "review", "draft"])
+          .order("updated_at", { ascending: false })
+          .limit(15),
+        supabase
+          .from("ideas")
+          .select("title, content_pillar, temperature")
+          .eq("user_id", user.id)
+          .neq("status", "archived")
+          .order("created_at", { ascending: false })
+          .limit(10),
+      ]);
+
+      const recentPosts = postsResult.data ?? [];
+      const recentIdeas = ideasResult.data ?? [];
+
+      if (recentPosts.length > 0 || recentIdeas.length > 0) {
+        const parts: string[] = ["\nCONTENT HISTORY (avoid repeating these topics):"];
+
+        if (recentPosts.length > 0) {
+          parts.push("Recent posts:");
+          recentPosts.forEach((p) => {
+            const pillar = p.content_pillar ? ` [${p.content_pillar}]` : "";
+            parts.push(`- ${p.title || "Untitled"}${pillar} (${p.status})`);
+          });
+        }
+
+        if (recentIdeas.length > 0) {
+          parts.push("Recent ideas already generated:");
+          recentIdeas.forEach((i) => {
+            const pillar = i.content_pillar ? ` [${i.content_pillar}]` : "";
+            parts.push(`- ${i.title}${pillar}`);
+          });
+        }
+
+        // Calculate pillar distribution
+        const pillarCounts: Record<string, number> = {};
+        for (const p of recentPosts) {
+          if (p.content_pillar) {
+            pillarCounts[p.content_pillar] = (pillarCounts[p.content_pillar] || 0) + 1;
+          }
+        }
+        if (Object.keys(pillarCounts).length > 0) {
+          parts.push("\nContent pillar distribution in recent posts:");
+          for (const [pillar, count] of Object.entries(pillarCounts).sort((a, b) => b[1] - a[1])) {
+            parts.push(`- ${pillar}: ${count} posts`);
+          }
+          const allPillars = profile.content_pillars || [];
+          const underserved = allPillars.filter((p) => !pillarCounts[p]);
+          if (underserved.length > 0) {
+            parts.push(`\nUnderserved pillars (prioritize these): ${underserved.join(", ")}`);
+          }
+        }
+
+        historyContext = parts.join("\n");
+      }
+    }
+
     // Interpolate {count} in brainstorm instructions
     const interpolatedInstructions = BRAINSTORM_INSTRUCTIONS.replace(
       /\{count\}/g,
@@ -34,7 +103,8 @@ export async function POST(request: NextRequest) {
       BASE_PERSONALITY,
       buildCreatorContext(profile),
       interpolatedInstructions,
-      GUARDRAILS
+      GUARDRAILS,
+      historyContext || undefined
     );
 
     // Build user message

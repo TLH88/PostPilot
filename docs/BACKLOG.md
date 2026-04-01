@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-03-16
+> Last updated: 2026-04-01
 
 ## Status Key
 
@@ -165,6 +165,95 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ---
 
+### BP-008: Hook Analysis Feature
+
+**Status:** Done
+**Priority:** High
+**Source:** Product evaluation (Phase 0)
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+
+**Description:**
+Analyze the effectiveness of a LinkedIn post's hook (first ~210 characters visible before "see more"). Provides strength rating, technique identification, feedback, and improvement suggestions.
+
+**Implementation:**
+- New `/api/ai/analyze-hook` endpoint with Zod validation
+- "Analyze Hook" button in post editor formatting toolbar
+- Color-coded results card (green/yellow/red) with score, technique, and suggestion
+
+---
+
+### BP-009: History-Enhanced Brainstorming
+
+**Status:** Done
+**Priority:** High
+**Source:** UVP evaluation (Phase 0)
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+
+**Description:**
+Brainstorm AI now receives context about the user's recent posts and ideas, avoiding topic repetition and prioritizing underserved content pillars.
+
+**Implementation:**
+- Modified `/api/ai/brainstorm` to query recent posts (15) and ideas (10)
+- Injects content history, pillar distribution, and underserved pillars into AI context
+
+---
+
+### BP-010: Content Pillar Distribution Dashboard
+
+**Status:** Done
+**Priority:** Medium
+**Source:** UVP evaluation (Phase 0)
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+
+**Description:**
+Visual breakdown of how content is distributed across the user's defined content pillars, with indicators for underserved pillars.
+
+**Implementation:**
+- New "Content Pillar Balance" card on dashboard
+- Bar chart with percentage breakdown per pillar
+- Yellow "needs content" indicator for pillars with zero posts
+
+---
+
+### BP-011: Copy Post to Clipboard
+
+**Status:** Done
+**Priority:** Medium
+**Source:** Product evaluation (Phase 0)
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+
+**Description:**
+One-click copy of the post content and hashtags to the clipboard for easy pasting into LinkedIn.
+
+**Implementation:**
+- "Copy Post" button in post editor formatting toolbar
+- Copies content + hashtags with proper LinkedIn formatting
+- Success toast notification
+
+---
+
+### BP-012: QA Fixes — Input Validation & Error Logging
+
+**Status:** Done
+**Priority:** High
+**Source:** QA audit (Phase 0)
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+
+**Description:**
+Add Zod input validation to all API routes, Zod response validation for AI outputs, structured error logging with API key redaction, and extract hardcoded constants.
+
+**Implementation:**
+- Created `src/lib/api-utils.ts` with shared Zod schemas and `logApiError()`
+- Applied validation to all 5 AI routes + AI response parsing
+- Extracted timeout and file size constants to `src/lib/constants.ts`
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -174,3 +263,8 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 - **BP-005:** Right-Click Context Menu to Brainstorm Selected Text (2026-03-16)
 - **BP-006:** Fix Hashtag Double-Hash Display (2026-03-16)
 - **BP-007:** Improve Convert to Post Button Visibility & UX (2026-03-16)
+- **BP-008:** Hook Analysis Feature (2026-04-01)
+- **BP-009:** History-Enhanced Brainstorming (2026-04-01)
+- **BP-010:** Content Pillar Distribution Dashboard (2026-04-01)
+- **BP-011:** Copy Post to Clipboard (2026-04-01)
+- **BP-012:** QA Fixes — Input Validation & Error Logging (2026-04-01)

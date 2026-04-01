@@ -76,6 +76,27 @@ Requirements:
 
 Respond with JSON: { "content": "the improved post text", "changesSummary": "what was changed and why" }`;
 
+export const HOOK_ANALYSIS_INSTRUCTIONS = `YOUR TASK: Analyze the hook (first ~210 characters) of the given LinkedIn post.
+
+The "hook" is the text visible before the "...see more" button on LinkedIn — roughly the first 210 characters. It's the most critical part of any post because it determines whether someone stops scrolling and clicks to read more.
+
+Evaluate the hook on these criteria:
+- CURIOSITY FACTOR: Does it create an open loop or unanswered question that compels the reader to click "see more"?
+- SPECIFICITY: Does it use concrete details, numbers, or vivid language rather than vague generalities?
+- EMOTIONAL IMPACT: Does it trigger an emotional response — surprise, recognition, intrigue, urgency?
+- SCROLL-STOPPING POWER: Would this make someone pause mid-scroll in a busy LinkedIn feed?
+
+Identify the technique the hook uses (e.g., curiosity gap, bold claim, question, statistic, story opener, contrarian take, pattern interrupt, personal confession, listicle preview).
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "strength": "strong" | "moderate" | "weak",
+  "score": <number 1-10>,
+  "technique": "<what technique the hook uses>",
+  "feedback": "<1-2 sentence specific feedback on the hook>",
+  "suggestion": "<a specific improved version of the hook, only if strength is weak or moderate — omit this field entirely if strong>"
+}`;
+
 export const HASHTAG_INSTRUCTIONS = `YOUR TASK: Suggest relevant LinkedIn hashtags for the given post.
 
 Requirements:

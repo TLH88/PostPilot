@@ -39,6 +39,10 @@ export const HashtagsInputSchema = z.object({
   count: z.number().int().min(1).max(30).optional().default(5),
 });
 
+export const HookAnalysisInputSchema = z.object({
+  content: z.string().min(1, "Post content is required"),
+});
+
 // ─── Zod schemas for AI response validation ──────────────────────────────────
 
 export const BrainstormResponseSchema = z.array(
@@ -50,6 +54,14 @@ export const BrainstormResponseSchema = z.array(
 );
 
 export const HashtagsResponseSchema = z.array(z.string());
+
+export const HookAnalysisResponseSchema = z.object({
+  strength: z.enum(["strong", "moderate", "weak"]),
+  score: z.number().min(1).max(10),
+  technique: z.string(),
+  feedback: z.string(),
+  suggestion: z.string().optional(),
+});
 
 // ─── Sanitized error logging ─────────────────────────────────────────────────
 

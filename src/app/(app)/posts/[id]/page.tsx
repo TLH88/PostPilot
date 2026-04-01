@@ -9,7 +9,9 @@ import {
   Check,
   ChevronDown,
   Cloud,
+  ClipboardCopy,
   FilePlus2,
+  Zap,
   Eye,
   Hash,
   Lightbulb,
@@ -124,6 +126,16 @@ export default function PostWorkspacePage() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // ── Hook analysis state ──────────────────────────────────────────────────
+  const [hookAnalysis, setHookAnalysis] = useState<{
+    strength: "strong" | "moderate" | "weak";
+    score: number;
+    technique: string;
+    feedback: string;
+    suggestion?: string;
+  } | null>(null);
+  const [analyzingHook, setAnalyzingHook] = useState(false);
 
   // ── Brainstorm context menu state ────────────────────────────────────────
   const [brainstormOpen, setBrainstormOpen] = useState(false);
@@ -461,8 +473,47 @@ export default function PostWorkspacePage() {
   }
 
   // ── Share on LinkedIn helper ──────────────────────────────────────────────
+  async function analyzeHook() {
+    if (!content.trim() || content.length < 20) {
+      toast.info("Write at least a few sentences before analyzing the hook.");
+      return;
+    }
+    setAnalyzingHook(true);
+    setHookAnalysis(null);
+    try {
+      const res = await fetch("/api/ai/analyze-hook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to analyze hook");
+      }
+      const data = await res.json();
+      setHookAnalysis(data);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Hook analysis failed");
+    } finally {
+      setAnalyzingHook(false);
+    }
+  }
+
   function handleShareOnLinkedIn() {
     openLinkedInShare(content, hashtags);
+  }
+
+  async function copyPostToClipboard() {
+    const hashtagText = hashtags.length > 0
+      ? "\n\n" + hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")
+      : "";
+    const fullText = content + hashtagText;
+    try {
+      await navigator.clipboard.writeText(fullText);
+      toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
+    } catch {
+      toast.error("Failed to copy. Try selecting the text manually.");
+    }
   }
 
   // ── Delete post ─────────────────────────────────────────────────────────
@@ -966,8 +1017,55 @@ export default function PostWorkspacePage() {
               </div>
             )}
 
+            {/* Hook analysis card */}
+            {hookAnalysis && (
+              <div className={cn(
+                "rounded-lg border p-3 text-sm",
+                hookAnalysis.strength === "strong" && "border-green-200 bg-green-50",
+                hookAnalysis.strength === "moderate" && "border-yellow-200 bg-yellow-50",
+                hookAnalysis.strength === "weak" && "border-red-200 bg-red-50",
+              )}>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Zap className={cn(
+                      "size-3.5",
+                      hookAnalysis.strength === "strong" && "text-green-600",
+                      hookAnalysis.strength === "moderate" && "text-yellow-600",
+                      hookAnalysis.strength === "weak" && "text-red-600",
+                    )} />
+                    <span className="font-medium capitalize">{hookAnalysis.strength} Hook</span>
+                    <span className="text-xs text-muted-foreground">({hookAnalysis.score}/10)</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {hookAnalysis.technique}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{hookAnalysis.feedback}</p>
+                {hookAnalysis.suggestion && (
+                  <div className="mt-2 rounded border bg-background/80 p-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-0.5">Suggested improvement:</p>
+                    <p className="text-xs italic">&ldquo;{hookAnalysis.suggestion}&rdquo;</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Formatting helpers */}
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1"
+                onClick={analyzeHook}
+                disabled={analyzingHook || !content.trim() || content.length < 20}
+              >
+                {analyzingHook ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Zap className="size-3" />
+                )}
+                {analyzingHook ? "Analyzing..." : "Analyze Hook"}
+              </Button>
               <Button
                 variant="outline"
                 size="xs"
@@ -994,6 +1092,19 @@ export default function PostWorkspacePage() {
               >
                 <Minus className="size-3" />
                 Em dash
+              </Button>
+
+              <div className="flex-1" />
+
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1"
+                onClick={copyPostToClipboard}
+                disabled={!content.trim()}
+              >
+                <ClipboardCopy className="size-3" />
+                Copy Post
               </Button>
             </div>
 
