@@ -133,7 +133,14 @@ export async function POST(request: NextRequest) {
 
     const rawParsed = JSON.parse(jsonString);
 
-    const validated = BrainstormResponseSchema.safeParse(rawParsed);
+    // AI may return a bare array or wrap it in an object like { ideas: [...] }
+    const arrayData = Array.isArray(rawParsed)
+      ? rawParsed
+      : Array.isArray(rawParsed?.ideas)
+        ? rawParsed.ideas
+        : null;
+
+    const validated = BrainstormResponseSchema.safeParse(arrayData);
     if (!validated.success) {
       logApiError("api/ai/brainstorm:response-validation", validated.error);
       return NextResponse.json(
