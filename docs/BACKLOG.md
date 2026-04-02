@@ -539,6 +539,45 @@ Create an interactive guided tutorial that walks new users through onboarding, s
 
 ---
 
+### BP-036: Emoji Picker in Post Editor
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner request
+**Date Added:** 2026-04-02
+**Phase:** 1
+
+**Description:**
+Add an emoji picker to the post editor formatting toolbar so users can easily insert emojis into their LinkedIn posts without relying on OS-level emoji keyboards.
+
+**Requirements:**
+- Emoji picker button in the formatting toolbar row (next to line break, bullet, em dash, copy post)
+- Searchable emoji grid (popular emojis, categories)
+- Insert at cursor position in the content area
+- Consider lightweight library (e.g., emoji-mart or native emoji picker)
+
+---
+
+### BP-037: Clarify Version Management & Convert to Post UX
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner request (user confusion)
+**Date Added:** 2026-04-02
+**Phase:** 1
+
+**Description:**
+The current "Convert to Post" button is confusing — users think it will publish their draft to LinkedIn. The version management and post conversion controls need to be separated and relabeled for clarity.
+
+**Requirements:**
+- Rename "Convert to Post" to something clearer (e.g., "Save as New Post" or "Create Standalone Post")
+- Visually separate version management controls from publishing controls
+- Add a tooltip or helper text explaining what "Convert to Post" does (creates a new standalone post from the current content/version)
+- Ensure the "Post to LinkedIn" / "Publish to LinkedIn" button is the only action that implies LinkedIn publishing
+- Consider moving version controls to a dedicated section or collapsible area to reduce toolbar clutter
+
+---
+
 ## Completed Items
 
 ### BP-008: Hook Analysis Feature
