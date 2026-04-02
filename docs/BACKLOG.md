@@ -254,6 +254,55 @@ Add Zod input validation to all API routes, Zod response validation for AI outpu
 
 ---
 
+### BP-013: LinkedIn Direct Posting via API
+
+**Status:** Done
+**Priority:** Critical
+**Source:** Product evaluation / roadmap
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+
+**Description:**
+Replace the manual "open LinkedIn in a new tab" share flow with direct API posting. Users connect their LinkedIn account once via OAuth (separate from login), then click "Publish to LinkedIn" to post directly without leaving PostPilot.
+
+**Implementation:**
+- Custom OAuth 2.0 flow requesting `w_member_social` scope (separate from Supabase OIDC login)
+- New `src/lib/linkedin-api.ts` — LinkedIn API client (publish, token exchange, member ID lookup, refresh)
+- 5 new API routes: `/api/linkedin/connect`, `/callback`, `/publish`, `/status`, `/disconnect`
+- Encrypted token storage using existing AES-256-GCM (same pattern as AI API keys)
+- Settings page "LinkedIn Posting" card with connect/disconnect/reconnect states
+- Post editor updated: "Publish to LinkedIn" button calls API when connected, falls back to redirect if not
+- "View on LinkedIn" link shown after successful posting
+- Token expiry warnings (7-day threshold)
+- DB migration: 9 new columns on `creator_profiles`, 4 new columns on `posts`
+
+---
+
+### BP-014: Scheduled Auto-Publishing via Supabase Edge Function
+
+**Status:** Done
+**Priority:** High
+**Source:** Product evaluation / roadmap
+**Date Added:** 2026-04-01
+**Completed:** 2026-04-01
+**Branch:** `develop`
+
+**Description:**
+Automatically publish scheduled posts to LinkedIn when their scheduled time arrives, without requiring the user to be online.
+
+**Implementation:**
+- Supabase Edge Function `publish-scheduled-posts` deployed at `supabase/functions/publish-scheduled-posts/index.ts`
+- pg_cron job runs every minute, triggers Edge Function via `pg_net.http_post()`
+- Edge Function queries posts where `status = 'scheduled'` and `scheduled_for <= now()`
+- Decrypts LinkedIn tokens using AES-256-GCM (Deno Web Crypto API)
+- Publishes via LinkedIn REST API, updates post status and stores LinkedIn URL
+- Retry logic: up to 3 attempts, marks `past_due` on persistent failure
+- Auth: HMAC-SHA256 JWT signature verification using project JWT secret
+- Immediately stops retrying on 401/403 (expired token)
+- Edge Function secrets: ENCRYPTION_KEY, LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, JWT_SECRET
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -268,3 +317,5 @@ Add Zod input validation to all API routes, Zod response validation for AI outpu
 - **BP-010:** Content Pillar Distribution Dashboard (2026-04-01)
 - **BP-011:** Copy Post to Clipboard (2026-04-01)
 - **BP-012:** QA Fixes — Input Validation & Error Logging (2026-04-01)
+- **BP-013:** LinkedIn Direct Posting via API (2026-04-01)
+- **BP-014:** Scheduled Auto-Publishing via Edge Function (2026-04-01)

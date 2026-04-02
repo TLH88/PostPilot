@@ -61,6 +61,66 @@ Four parallel agent teams conducted full product evaluation:
 
 ---
 
+## 2026-04-01: LinkedIn Direct Posting + Scheduled Auto-Publishing
+
+### LinkedIn Direct Posting (BP-013) — `main` branch
+Built complete LinkedIn API integration for direct posting:
+
+**OAuth Connect Flow:**
+- Custom OAuth 2.0 flow separate from Supabase OIDC login
+- Requests `w_member_social` scope for posting permissions
+- CSRF-protected with HttpOnly state cookie
+- Tokens encrypted with existing AES-256-GCM and stored in `creator_profiles`
+
+**API Routes Created:**
+- `GET /api/linkedin/connect` — initiates OAuth redirect to LinkedIn
+- `GET /api/linkedin/callback` — exchanges code for tokens, encrypts, stores
+- `POST /api/linkedin/publish` — publishes a post via LinkedIn REST API
+- `GET /api/linkedin/status` — returns connection state and expiry info
+- `POST /api/linkedin/disconnect` — clears stored LinkedIn tokens
+
+**UI Changes:**
+- Settings: "LinkedIn Posting" card with connect/disconnect/reconnect and expiry warnings
+- Post editor: "Publish to LinkedIn" button calls API directly when connected, with loading state
+- "View on LinkedIn" link displayed after successful posting
+- Falls back to redirect method when not connected
+
+**Database Migration:**
+- `creator_profiles`: 9 new columns (encrypted tokens, member ID, expiry, connected_at)
+- `posts`: 4 new columns (linkedin_post_id, linkedin_post_url, publish_attempts, publish_error)
+
+### Scheduled Auto-Publishing (BP-014) — `develop` branch
+Built Supabase Edge Function for automated scheduled post publishing:
+
+**Architecture:**
+- `supabase/functions/publish-scheduled-posts/index.ts` — Deno Edge Function
+- pg_cron job fires every minute via `pg_net.http_post()`
+- Queries posts where `scheduled_for <= now()` and `status = 'scheduled'`
+- Decrypts LinkedIn tokens using AES-256-GCM (Deno Web Crypto API)
+- Publishes via LinkedIn REST API, updates post with LinkedIn URL
+
+**Security:**
+- HMAC-SHA256 JWT signature verification using project JWT secret
+- Validates `service_role` claim and token expiry
+- Rejects forged JWTs, garbage tokens, and missing auth (verified with 4 test scenarios)
+
+**Error Handling:**
+- Retries up to 3 times on failure
+- Immediately marks `past_due` on 401/403 (expired LinkedIn token)
+- Stores `publish_error` for user visibility
+
+**Deployment:**
+- Edge Function deployed via Supabase CLI
+- Secrets set: ENCRYPTION_KEY, LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, JWT_SECRET
+- pg_cron and pg_net extensions enabled in Supabase
+
+### Branching Strategy Established
+- `main` — stable, deploys to production (mypostpilot.app)
+- `develop` — feature development branch for testing without impacting live users
+- Created `develop` from `main` at commit `3ef30ac`
+
+---
+
 ## 2026-03-16: Backlog Sprint (BP-001 through BP-007)
 
 - Implemented release notes modal with DB tracking
