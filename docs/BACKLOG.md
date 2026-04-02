@@ -165,6 +165,310 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ---
 
+---
+
+## Future Backlog (Phase 1: Monetization + Creator Tier)
+
+### BP-015: Stripe Billing Integration
+
+**Status:** Backlog
+**Priority:** Critical
+**Source:** Pricing strategy
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Integrate Stripe for subscription billing. Support Free, Creator ($19/mo), and Professional ($49/mo) tiers with monthly and annual billing (17% annual discount).
+
+**Requirements:**
+- Stripe Checkout for subscription creation
+- Webhook handling for subscription lifecycle events (created, updated, canceled, payment failed)
+- Subscription status stored in `creator_profiles` or new `subscriptions` table
+- Customer portal link for self-service billing management
+
+---
+
+### BP-016: Usage Quota System
+
+**Status:** Backlog
+**Priority:** Critical
+**Source:** Pricing strategy
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Enforce usage limits per tier: posts/month, brainstorms/month, AI chat messages/month, scheduled posts.
+
+**Requirements:**
+- `usage_quotas` table tracking monthly counts per user
+- Quota check middleware before AI API calls and post creation
+- Graceful degradation with upgrade prompts when limits are hit
+- Monthly reset via cron or on-access check
+- Free: 3 posts, 2 brainstorms, 20 chat messages, 2 scheduled
+- Creator: unlimited posts, 15 brainstorms, 200 chat messages, 15 scheduled
+- Professional: unlimited everything
+
+---
+
+### BP-017: Pricing Page
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Pricing strategy
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Public pricing page with tier comparison table, feature breakdown, FAQ, and Stripe Checkout integration.
+
+---
+
+### BP-018: Feature Gating Logic
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Pricing strategy
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Check user's subscription tier before allowing access to gated features. Show upgrade prompts for locked features.
+
+---
+
+### BP-019: Content Library
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Product evaluation (Creator tier value)
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Save and reuse hooks, CTAs, templates, and closing lines. "Save as template" button on any post section, "Insert from library" in the editor.
+
+**Requirements:**
+- New `content_library` table (type, text, pillar, tags, user_id)
+- CRUD UI for browsing, searching, and managing saved content
+- "Save to Library" action in post editor
+- "Insert from Library" button in editor toolbar
+- Creator tier and above only
+
+---
+
+### BP-020: Post Templates
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Product evaluation (Creator tier value)
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Pre-built post structures: story arc, hot take, how-to guide, listicle, question post, framework/model post. Creator tier and above.
+
+---
+
+### BP-021: Manual Analytics
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Product evaluation (Creator tier value)
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Self-report engagement numbers (likes, comments, reposts) on posted content. Track over time. Creator tier and above.
+
+**Requirements:**
+- Number input fields on posted posts
+- Engagement history chart
+- Content pillar performance comparison
+
+---
+
+### BP-022: Advanced Scheduling Suggestions
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** Product evaluation
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Show static best-time-to-post recommendations based on LinkedIn research data. Display in schedule dialog: "Best times: Tue-Thu 8-10am in your timezone."
+
+---
+
+## Future Backlog (Phase 2: Differentiation)
+
+### BP-023: Brand/Team Onboarding Path
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Report feedback
+**Date Added:** 2026-04-01
+**Phase:** 2
+
+**Description:**
+Add workspace type selector at onboarding start: "Individual Creator" vs "Brand/Team". Brand path captures: brand name, UVP, target audience personas, brand voice guidelines, sample content, content pillars.
+
+---
+
+### BP-024: Multi-User Workspaces
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Report feedback
+**Date Added:** 2026-04-01
+**Phase:** 2
+
+**Description:**
+Invite team members via email, role-based access (Admin/Editor/Viewer). Posts belong to workspace. Publishing uses designated LinkedIn account. Professional tier only.
+
+**Requirements:**
+- `workspaces` table (id, name, type, owner_id, brand_profile)
+- `workspace_members` table (workspace_id, user_id, role, invited_at)
+- Posts get optional `workspace_id` column
+- Invite flow via email
+- Role-based UI visibility
+
+---
+
+### BP-025: LinkedIn API Analytics
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Product evaluation
+**Date Added:** 2026-04-01
+**Phase:** 2
+
+**Description:**
+Read post engagement data from LinkedIn API. Requires `r_member_social` scope (restricted, needs LinkedIn approval). Alternative: CSV import from LinkedIn analytics export.
+
+---
+
+### BP-026: Trending Topics for Brainstorming
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** UVP evaluation
+**Date Added:** 2026-04-01
+**Phase:** 2
+
+**Description:**
+Inject trending industry news into brainstorm context via RSS feeds from industry blogs. Free option: rely on AI model's knowledge of current trends.
+
+---
+
+### BP-027: Voice Consistency Validation
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** UVP evaluation
+**Date Added:** 2026-04-01
+**Phase:** 2
+
+**Description:**
+After each draft, compare generated text against voice samples. Show tone score (0-100 match). Highlight phrases that deviate from creator's typical tone.
+
+---
+
+### BP-028: Guided Enhancement Workflows
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** UVP evaluation
+**Date Added:** 2026-04-01
+**Phase:** 2
+
+**Description:**
+Replace generic "Enhance" with specific templates: "Add hook", "Make it story-driven", "Add social proof", "Improve CTA", each with a pre-built prompt.
+
+---
+
+## Future Backlog (Phase 3: Pro Tier)
+
+### BP-029: Image Generation
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Report feedback
+**Date Added:** 2026-04-01
+**Phase:** 3
+
+**Description:**
+Generate images for LinkedIn posts using DALL-E 3 via user's existing OpenAI BYOK key (~$0.04-0.08/image, zero cost to us). Professional tier only.
+
+---
+
+### BP-030: Approval Workflows
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Product evaluation
+**Date Added:** 2026-04-01
+**Phase:** 3
+
+**Description:**
+Draft review/approve chain for teams. Editor submits for review, Admin approves or requests changes. Professional tier only.
+
+---
+
+### BP-031: Bulk Operations
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** Product evaluation
+**Date Added:** 2026-04-01
+**Phase:** 3
+
+**Description:**
+Batch brainstorm (50 ideas at once), batch schedule, batch archive. Professional tier only.
+
+---
+
+### BP-032: A/B Testing for Hooks
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** UVP evaluation
+**Date Added:** 2026-04-01
+**Phase:** 3
+
+**Description:**
+Generate multiple hook versions for the same post. Track which performs better via analytics. Professional tier only.
+
+---
+
+### BP-033: Content Pillar ROI Dashboard
+
+**Status:** Backlog
+**Priority:** Low
+**Source:** Product evaluation
+**Date Added:** 2026-04-01
+**Phase:** 3
+
+**Description:**
+Show which content pillars drive the most engagement. Requires analytics data (BP-021 or BP-025).
+
+---
+
+### BP-034: Past-Due Checker — Direct Publish Button
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** LinkedIn integration follow-up
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Add "Publish Now" button to past-due checker dialog when user has active LinkedIn connection. Show `publish_error` if auto-publish failed.
+
+---
+
+## Completed Items
+
 ### BP-008: Hook Analysis Feature
 
 **Status:** Done
