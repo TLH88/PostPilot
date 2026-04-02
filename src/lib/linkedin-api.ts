@@ -96,7 +96,7 @@ export async function publishToLinkedIn(
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "X-Restli-Protocol-Version": "2.0.0",
-      "LinkedIn-Version": "202604",
+      "LinkedIn-Version": "202602",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
