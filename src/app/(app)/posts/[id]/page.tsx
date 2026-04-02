@@ -1010,28 +1010,30 @@ export default function PostWorkspacePage() {
                 <ChevronDown className="size-3" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Content Pillar</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {profile!.content_pillars.map((pillar) => (
-                  <DropdownMenuItem
-                    key={pillar}
-                    onSelect={() => updateContentPillar(pillar)}
-                  >
-                    {contentPillar === pillar && (
-                      <Check className="size-3.5 mr-1.5" />
-                    )}
-                    {pillar}
-                  </DropdownMenuItem>
-                ))}
-                {contentPillar && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => updateContentPillar(null)}>
-                      <X className="size-3.5 mr-1.5" />
-                      Remove pillar
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Content Pillar</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {profile!.content_pillars.map((pillar) => (
+                    <DropdownMenuItem
+                      key={pillar}
+                      onSelect={() => updateContentPillar(pillar)}
+                    >
+                      {contentPillar === pillar && (
+                        <Check className="size-3.5 mr-1.5" />
+                      )}
+                      {pillar}
                     </DropdownMenuItem>
-                  </>
-                )}
+                  ))}
+                  {contentPillar && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => updateContentPillar(null)}>
+                        <X className="size-3.5 mr-1.5" />
+                        Remove pillar
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
