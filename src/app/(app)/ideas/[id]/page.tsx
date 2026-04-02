@@ -187,7 +187,6 @@ export default function IdeaDetailPage({
           status: "draft",
           hashtags: [],
           character_count: 0,
-          content_pillar: contentPillar || null,
         })
         .select("id")
         .single();
