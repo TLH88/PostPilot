@@ -1,19 +1,58 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ENCRYPTION_KEY_HEX = Deno.env.get("ENCRYPTION_KEY")!;
-const LINKEDIN_CLIENT_ID = Deno.env.get("LINKEDIN_CLIENT_ID")!;
-const LINKEDIN_CLIENT_SECRET = Deno.env.get("LINKEDIN_CLIENT_SECRET")!;
+// Read env vars inside the handler to ensure they're available at runtime
+function getEnv(key: string): string {
+  const val = Deno.env.get(key);
+  if (!val) throw new Error(`Missing env var: ${key}`);
+  return val;
+}
+
+// ─── JWT Signature Verification (HMAC-SHA256) ───────────────────────────────
+
+async function verifyJwtSignature(token: string, secret: string): Promise<boolean> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+
+  const [header, payload, signature] = parts;
+  const signingInput = `${header}.${payload}`;
+
+  // Import the secret as an HMAC key
+  // Supabase JWT secrets may be raw UTF-8 strings — try both raw and base64-decoded
+  const encoder = new TextEncoder();
+  const secretBytes = encoder.encode(secret);
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    secretBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+
+  // Decode the base64url signature
+  const sigBase64 = signature.replace(/-/g, "+").replace(/_/g, "/");
+  const sigPadded = sigBase64 + "=".repeat((4 - (sigBase64.length % 4)) % 4);
+  const sigBytes = Uint8Array.from(atob(sigPadded), (c) => c.charCodeAt(0));
+
+  // Verify the signature
+  return await crypto.subtle.verify("HMAC", key, sigBytes, encoder.encode(signingInput));
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const payload = token.split(".")[1];
+  const padded = payload.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (payload.length % 4)) % 4);
+  return JSON.parse(atob(padded));
+}
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
 // ─── AES-256-GCM Decryption (Deno Web Crypto API) ──────────────────────────
 
 async function decrypt(ciphertext: string, iv: string, authTag: string): Promise<string> {
+  const encKeyHex = getEnv("ENCRYPTION_KEY");
   const keyBytes = new Uint8Array(
-    ENCRYPTION_KEY_HEX.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
+    encKeyHex.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
   );
   const key = await crypto.subtle.importKey(
     "raw",
@@ -93,8 +132,8 @@ async function refreshLinkedInToken(
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: refreshToken,
-    client_id: LINKEDIN_CLIENT_ID,
-    client_secret: LINKEDIN_CLIENT_SECRET,
+    client_id: getEnv("LINKEDIN_CLIENT_ID"),
+    client_secret: getEnv("LINKEDIN_CLIENT_SECRET"),
   });
 
   const response = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
@@ -114,38 +153,57 @@ async function refreshLinkedInToken(
 // ─── Main Handler ───────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
-  // Verify authorization via service role key or anon key with valid JWT
-  const authHeader = req.headers.get("Authorization")?.replace("Bearer ", "") || "";
-  const expectedKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  // Verify authorization — the caller must provide the service role key
+  // SUPABASE_SERVICE_ROLE_KEY is auto-injected by Supabase as the full JWT
+  const authHeader = req.headers.get("Authorization") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+  if (!authHeader.startsWith("Bearer ") || !serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // Accept either the service role key directly, or a valid service role JWT
-  // Supabase auto-injects SUPABASE_SERVICE_ROLE_KEY; pg_cron sends it via net.http_post
-  if (authHeader !== expectedKey) {
-    // Check if the token is a valid JWT with service_role claim
-    try {
-      const payload = JSON.parse(atob(authHeader.split(".")[1]));
-      if (payload.role !== "service_role") {
-        return new Response(JSON.stringify({ error: "Unauthorized: not service role" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    } catch {
-      return new Response(JSON.stringify({ error: "Unauthorized: invalid token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+  const token = authHeader.replace("Bearer ", "");
+
+  // Cryptographically verify the JWT signature using the project's JWT secret
+  // JWT_SECRET is the HMAC-SHA256 signing key used to sign all Supabase JWTs
+  const jwtSecret = Deno.env.get("JWT_SECRET") || "";
+  if (!jwtSecret) {
+    console.error("JWT_SECRET not configured");
+    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const validSignature = await verifyJwtSignature(token, jwtSecret);
+  if (!validSignature) {
+    return new Response(JSON.stringify({ error: "Unauthorized: invalid signature" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Verify the token claims — must be service_role and not expired
+  const payload = decodeJwtPayload(token);
+  if (payload.role !== "service_role") {
+    return new Response(JSON.stringify({ error: "Unauthorized: insufficient role" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  if (typeof payload.exp === "number" && payload.exp < Math.floor(Date.now() / 1000)) {
+    return new Response(JSON.stringify({ error: "Unauthorized: token expired" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Use the verified JWT token to create the Supabase client (bypasses RLS)
+  const supabaseUrl = getEnv("SUPABASE_URL");
+  const supabase = createClient(supabaseUrl, token);
 
   // Find posts that are scheduled and past due (within 10-minute window)
   const { data: posts, error: queryError } = await supabase
