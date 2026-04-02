@@ -1000,9 +1000,8 @@ export default function PostWorkspacePage() {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Badge
-                    variant="outline"
-                    className="gap-1 text-xs cursor-pointer hover:bg-accent"
+                  <button
+                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:bg-accent transition-colors"
                   />
                 }
               >
