@@ -205,13 +205,12 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = getEnv("SUPABASE_URL");
   const supabase = createClient(supabaseUrl, token);
 
-  // Find posts that are scheduled and past due (within 10-minute window)
+  // Find all scheduled posts whose time has arrived
   const { data: posts, error: queryError } = await supabase
     .from("posts")
     .select("id, content, hashtags, user_id, publish_attempts")
     .eq("status", "scheduled")
     .lte("scheduled_for", new Date().toISOString())
-    .gte("scheduled_for", new Date(Date.now() - 10 * 60 * 1000).toISOString())
     .lt("publish_attempts", MAX_PUBLISH_ATTEMPTS);
 
   if (queryError) {
