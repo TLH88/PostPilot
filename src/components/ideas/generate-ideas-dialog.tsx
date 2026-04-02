@@ -131,7 +131,7 @@ export function GenerateIdeasDialog({
 
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.ideas ?? [];
-      // Map suggestedPillar from AI response to content_pillar
+      // Map AI response field names to our internal names
       const ideas: GeneratedIdea[] = raw.map(
         (item: Record<string, unknown>) => ({
           ...item,
@@ -139,6 +139,10 @@ export function GenerateIdeasDialog({
             item.content_pillar ||
             item.suggestedPillar ||
             undefined,
+          temperature:
+            item.temperature ||
+            item.suggestedTemperature ||
+            "warm",
         })
       );
       setGeneratedIdeas(ideas);

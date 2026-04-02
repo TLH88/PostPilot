@@ -30,12 +30,19 @@ Consider:
 - Current trends in their industries
 - Different content formats: personal stories, lessons learned, contrarian takes, how-to tips, behind-the-scenes, questions to the audience, industry analysis
 
-For each idea, respond with a JSON array. Each idea should have:
+IMPORTANT — Temperature distribution:
+You MUST include a good mix of temperatures across the ideas you generate. Aim for roughly:
+- 1-2 "hot" ideas (timely, high-engagement potential, trend-driven, or contrarian takes that spark conversation)
+- 2-3 "warm" ideas (solid evergreen content, reliably valuable, strong audience relevance)
+- 1-2 "cold" ideas (niche deep-dives, unconventional angles, thought-provoking but narrower audience)
+Do NOT default everything to "warm". Variety helps the creator build a well-rounded content strategy.
+
+For each idea, respond with a JSON object. Each idea should have:
 - "title": A compelling hook or title (under 100 chars)
 - "description": A 2-3 sentence description of what the post would cover
 - "suggestedPillar": Which content pillar it fits
-- "suggestedTemperature": "hot" (timely/high-engagement), "warm" (solid evergreen), or "cold" (niche but valuable)
-- "reasoning": Brief note on why this idea suits this creator
+- "suggestedTemperature": "hot", "warm", or "cold" (follow the distribution above)
+- "reasoning": Brief note on why this idea suits this creator and why you assigned this temperature
 
 Respond ONLY with valid JSON: { "ideas": [...] }`;
 
