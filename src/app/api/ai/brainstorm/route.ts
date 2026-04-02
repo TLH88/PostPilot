@@ -6,7 +6,7 @@ import {
   BRAINSTORM_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
-import { BrainstormInputSchema, BrainstormResponseSchema, logApiError } from "@/lib/api-utils";
+import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -148,15 +148,15 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
-        { error: "Failed to parse AI response" },
+        { error: "The AI returned an unreadable response. Please try again.", action: "Try again — if this keeps happening, try a different AI model in Settings." },
         { status: 500 }
       );
     }
 
-    const message =
-      error instanceof Error ? error.message : "Failed to generate ideas";
-    const status = message === "Unauthorized" ? 401 : message.includes("profile") ? 400 : 500;
-
-    return NextResponse.json({ error: message }, { status });
+    const humanized = humanizeAIError(error);
+    return NextResponse.json(
+      { error: humanized.message, action: humanized.action },
+      { status: humanized.status }
+    );
   }
 }

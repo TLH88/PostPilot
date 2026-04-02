@@ -446,7 +446,14 @@ export default function PostWorkspacePage() {
         body: JSON.stringify({ content, count: 5 }),
       });
 
-      if (!response.ok) throw new Error("Failed to get hashtags");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to suggest hashtags", {
+          description: errData.action,
+          duration: 8000,
+        });
+        return;
+      }
       const data = await response.json();
 
       const suggested: string[] = Array.isArray(data.hashtags)
@@ -464,6 +471,10 @@ export default function PostWorkspacePage() {
       scheduleAutoSave(title, content, merged);
     } catch (err) {
       console.error("Hashtag suggestion error:", err);
+      toast.error("Failed to suggest hashtags", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
     } finally {
       setSuggestingHashtags(false);
     }
@@ -543,12 +554,20 @@ export default function PostWorkspacePage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to analyze hook");
+        toast.error(data.error || "Hook analysis failed", {
+          description: data.action,
+          duration: 8000,
+        });
+        setAnalyzingHook(false);
+        return;
       }
       const data = await res.json();
       setHookAnalysis(data);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Hook analysis failed");
+      toast.error("Hook analysis failed", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
     } finally {
       setAnalyzingHook(false);
     }
@@ -809,7 +828,27 @@ export default function PostWorkspacePage() {
         }),
       });
 
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
+        let errMsg = "Something went wrong with the AI request.";
+        let errAction = "Try again. If this keeps happening, check your API key in Settings.";
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+          if (errData.action) errAction = errData.action;
+        } catch { /* ignore parse failure */ }
+        setChatMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            content: `**${errMsg}**\n\n${errAction}`,
+          };
+          return updated;
+        });
+        setChatStreaming(false);
+        return;
+      }
+
+      if (!response.body) {
         throw new Error("Chat request failed");
       }
 

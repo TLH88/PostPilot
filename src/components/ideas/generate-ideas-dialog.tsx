@@ -119,7 +119,14 @@ export function GenerateIdeasDialog({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to generate ideas");
+        const msg = data.error || "Failed to generate ideas";
+        const action = data.action;
+        toast.error(msg, {
+          description: action,
+          duration: 8000,
+        });
+        setGenerating(false);
+        return;
       }
 
       const data = await res.json();
