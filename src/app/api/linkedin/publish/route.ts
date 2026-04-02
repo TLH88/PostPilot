@@ -173,9 +173,32 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logApiError("api/linkedin/publish", error);
 
-    const message =
-      error instanceof Error ? error.message : "Failed to publish to LinkedIn";
+    const raw = error instanceof Error ? error.message : "Failed to publish to LinkedIn";
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Parse LinkedIn API error for user-friendly message
+    let message = "Failed to publish to LinkedIn.";
+    let action = "Try again. If this keeps happening, reconnect LinkedIn in Settings.";
+
+    if (raw.includes("NONEXISTENT_VERSION")) {
+      message = "LinkedIn API version error.";
+      action = "Please report this issue — the API version needs updating.";
+    } else if (raw.includes("401") || raw.includes("UNAUTHORIZED") || raw.includes("expired")) {
+      message = "Your LinkedIn connection has expired.";
+      action = "Go to Settings and reconnect your LinkedIn account.";
+    } else if (raw.includes("403") || raw.includes("FORBIDDEN") || raw.includes("ACCESS_DENIED")) {
+      message = "LinkedIn denied permission to post.";
+      action = "Reconnect LinkedIn in Settings and make sure you grant posting permissions.";
+    } else if (raw.includes("429") || raw.includes("THROTTLE")) {
+      message = "LinkedIn rate limit reached.";
+      action = "Wait a few minutes and try again.";
+    } else if (raw.includes("DUPLICATE")) {
+      message = "LinkedIn detected this as a duplicate post.";
+      action = "Edit the content to make it unique, then try again.";
+    } else if (raw.includes("CONTENT_TOO_LONG") || raw.includes("too long")) {
+      message = "Your post exceeds LinkedIn's character limit.";
+      action = "Shorten your post content and try again.";
+    }
+
+    return NextResponse.json({ error: message, action }, { status: 500 });
   }
 }
