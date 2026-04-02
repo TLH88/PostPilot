@@ -266,9 +266,10 @@ export default async function DashboardPage() {
                       idea.temperature as keyof typeof IDEA_TEMPERATURES
                     ];
                   return (
-                    <div
+                    <Link
                       key={idea.id}
-                      className="flex items-center justify-between gap-3"
+                      href={`/ideas/${idea.id}`}
+                      className="flex items-center justify-between gap-3 rounded-lg p-1 transition-colors hover:bg-muted"
                     >
                       <p className="truncate text-sm font-medium">
                         {idea.title}
@@ -278,7 +279,7 @@ export default async function DashboardPage() {
                           {temp.icon} {temp.label}
                         </Badge>
                       )}
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
