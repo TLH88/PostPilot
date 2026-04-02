@@ -1009,7 +1009,7 @@ export default function PostWorkspacePage() {
                 {contentPillar ?? "Assign pillar"}
                 <ChevronDown className="size-3" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Content Pillar</DropdownMenuLabel>
                   <DropdownMenuSeparator />
