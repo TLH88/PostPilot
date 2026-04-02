@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarIcon, Check, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,48 +11,82 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LinkedInIcon } from "@/components/icons/linkedin";
-import { openLinkedInShare } from "@/lib/linkedin";
 
 interface LinkedInShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  content: string;
-  hashtags: string[];
+  scheduledFor?: Date | null;
+  linkedinConnected?: boolean;
 }
 
 export function LinkedInShareDialog({
   open,
   onOpenChange,
-  content,
-  hashtags,
+  scheduledFor,
+  linkedinConnected,
 }: LinkedInShareDialogProps) {
-  function handleShare() {
-    openLinkedInShare(content, hashtags);
-    onOpenChange(false);
-  }
+  const formattedDate = scheduledFor
+    ? scheduledFor.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+  const formattedTime = scheduledFor
+    ? scheduledFor.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <LinkedInIcon className="size-5 text-[#0A66C2]" />
-            Post to LinkedIn
+            <CalendarIcon className="size-5 text-primary" />
+            Post Scheduled
           </DialogTitle>
-          <DialogDescription>
-            Your post is scheduled! Would you like to share it on LinkedIn now?
+          <DialogDescription className="space-y-2 pt-1">
+            <span className="block">
+              Your post has been scheduled for{" "}
+              <span className="font-medium text-foreground">
+                {formattedDate}
+              </span>{" "}
+              at{" "}
+              <span className="font-medium text-foreground">
+                {formattedTime}
+              </span>
+              .
+            </span>
+            {linkedinConnected ? (
+              <span className="flex items-center gap-1.5 text-sm">
+                <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+                It will be automatically posted to LinkedIn at the scheduled
+                time.
+              </span>
+            ) : (
+              <span className="block text-sm">
+                Connect your LinkedIn account in Settings to enable automatic
+                posting.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Maybe Later
-          </Button>
           <Button
-            onClick={handleShare}
-            className="gap-2 bg-[#0A66C2] text-white hover:bg-[#004182]"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="gap-1.5"
           >
-            <LinkedInIcon className="size-4" />
-            Post to LinkedIn
+            <Pencil className="size-3.5" />
+            Edit
+          </Button>
+          <Button onClick={() => onOpenChange(false)} className="gap-1.5">
+            <Check className="size-3.5" />
+            Confirm
           </Button>
         </DialogFooter>
       </DialogContent>
