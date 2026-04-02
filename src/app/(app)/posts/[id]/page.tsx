@@ -213,7 +213,7 @@ export default function PostWorkspacePage() {
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (convData) {
         const conv = convData as AIConversation;
@@ -530,10 +530,13 @@ export default function PostWorkspacePage() {
         if (!res.ok) {
           if (data.expired) {
             setLinkedinConnected(false);
-            toast.error("LinkedIn connection expired. Please reconnect in Settings.");
-            return;
           }
-          throw new Error(data.error || "Failed to publish");
+          toast.error(data.error || "Failed to publish to LinkedIn", {
+            description: data.action,
+            duration: 8000,
+          });
+          setPublishing(false);
+          return;
         }
 
         setStatus("posted");
@@ -547,7 +550,10 @@ export default function PostWorkspacePage() {
           </span>
         );
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to publish to LinkedIn");
+        toast.error("Failed to publish to LinkedIn", {
+          description: "Check your connection and try again.",
+          duration: 8000,
+        });
       } finally {
         setPublishing(false);
       }
