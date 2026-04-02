@@ -25,6 +25,7 @@ import {
   Save,
   Send,
   Sparkles,
+  Tag,
   Trash2,
   X,
 } from "lucide-react";
@@ -59,6 +60,7 @@ import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { classifyPillar } from "@/lib/classify-pillar";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
@@ -131,6 +133,9 @@ export default function PostWorkspacePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Content pillar state ──────────────────────────────────────────────────
+  const [contentPillar, setContentPillar] = useState<string | null>(null);
+
   // ── Hook analysis state ──────────────────────────────────────────────────
   const [hookAnalysis, setHookAnalysis] = useState<{
     strength: "strong" | "moderate" | "weak";
@@ -182,6 +187,7 @@ export default function PostWorkspacePage() {
       setContent(p.content ?? "");
       setHashtags(p.hashtags ?? []);
       setStatus(p.status);
+      setContentPillar(p.content_pillar ?? null);
 
       // Fetch profile
       const { data: profileData } = await supabase
@@ -271,11 +277,19 @@ export default function PostWorkspacePage() {
       if (!error) {
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
+
+        // Auto-classify content pillar if not already set
+        if (!contentPillar && newContent.length >= 100 && profile?.content_pillars?.length) {
+          const suggested = classifyPillar(newTitle, newContent, profile.content_pillars);
+          if (suggested) {
+            updateContentPillar(suggested);
+          }
+        }
       } else {
         setSaveStatus("idle");
       }
     },
-    [post, supabase]
+    [post, supabase, contentPillar, profile]
   );
 
   function scheduleAutoSave(
@@ -398,6 +412,22 @@ export default function PostWorkspacePage() {
     return () => window.removeEventListener("click", handleClick);
   }, [contextMenuPos]);
 
+  // ── Content pillar management ──────────────────────────────────────────
+  async function updateContentPillar(pillar: string | null) {
+    setContentPillar(pillar);
+    if (!post) return;
+    const { error } = await supabase
+      .from("posts")
+      .update({
+        content_pillar: pillar,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+    if (error) {
+      toast.error("Failed to update content pillar");
+    }
+  }
+
   // ── Hashtag management ────────────────────────────────────────────────────
   function removeHashtag(tag: string) {
     const updated = hashtags.filter((h) => h !== tag);
@@ -457,6 +487,14 @@ export default function PostWorkspacePage() {
       updates.scheduled_for = null;
     }
 
+    // Auto-classify content pillar on status transitions if not set
+    if (!contentPillar && content.length >= 100 && profile?.content_pillars?.length) {
+      const suggested = classifyPillar(title, content, profile.content_pillars);
+      if (suggested) {
+        updates.content_pillar = suggested;
+      }
+    }
+
     const { error } = await supabase
       .from("posts")
       .update(updates)
@@ -464,6 +502,9 @@ export default function PostWorkspacePage() {
 
     if (!error) {
       setStatus(newStatus);
+      if (updates.content_pillar) {
+        setContentPillar(updates.content_pillar as string);
+      }
     }
   }
 
@@ -908,6 +949,54 @@ export default function PostWorkspacePage() {
               </>
             )}
           </div>
+
+          {/* Content pillar badge — editable only for posted posts */}
+          {contentPillar && status !== "posted" && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Tag className="size-3" />
+              {contentPillar}
+            </Badge>
+          )}
+          {status === "posted" && (profile?.content_pillars?.length ?? 0) > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Badge
+                    variant="outline"
+                    className="gap-1 text-xs cursor-pointer hover:bg-accent"
+                  />
+                }
+              >
+                <Tag className="size-3" />
+                {contentPillar ?? "Assign pillar"}
+                <ChevronDown className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Content Pillar</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {profile!.content_pillars.map((pillar) => (
+                  <DropdownMenuItem
+                    key={pillar}
+                    onSelect={() => updateContentPillar(pillar)}
+                  >
+                    {contentPillar === pillar && (
+                      <Check className="size-3.5 mr-1.5" />
+                    )}
+                    {pillar}
+                  </DropdownMenuItem>
+                ))}
+                {contentPillar && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => updateContentPillar(null)}>
+                      <X className="size-3.5 mr-1.5" />
+                      Remove pillar
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

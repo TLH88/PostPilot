@@ -50,6 +50,7 @@ export const BrainstormResponseSchema = z.array(
     title: z.string(),
     description: z.string().optional(),
     hook: z.string().optional(),
+    suggestedPillar: z.string().optional(),
   })
 );
 

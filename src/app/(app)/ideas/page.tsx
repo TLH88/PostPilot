@@ -656,6 +656,7 @@ export default function IdeasPage() {
           status: "draft",
           hashtags: [],
           character_count: 0,
+          content_pillar: idea.content_pillar || null,
         })
         .select("id")
         .single();

@@ -467,6 +467,78 @@ Add "Publish Now" button to past-due checker dialog when user has active LinkedI
 
 ---
 
+### BP-035: Guided Tutorial — First Post Walkthrough
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner request
+**Date Added:** 2026-04-01
+**Phase:** 1
+
+**Description:**
+Create an interactive guided tutorial that walks new users through onboarding, settings configuration, and creating their first post end-to-end. The tutorial should feel like a coach walking alongside the user, not a wall of text.
+
+**Flow:**
+
+1. **Dashboard Introduction** — After settings are configured, take the user to the dashboard. Explain what the dashboard shows (stats, recent activity, content pillar balance) and what actions they can take from here.
+
+2. **Generate Ideas** — Guide the user to click the "Generate Ideas" button.
+   - **Code fix required:** The dashboard "Generate Ideas" button currently just navigates to the Ideas Bank page. It needs to navigate to the Ideas Bank page AND auto-open the Idea Generator modal.
+
+3. **Idea Generator Explanation** — Explain what the user can do in the Idea Generator modal: enter a topic, select a content pillar, and choose how many ideas to generate.
+   - **Code fix required:** Make the topic field **mandatory** (currently optional).
+   - **Code fix required:** Add an interactive "Help me choose" component — when the user is unsure what to post about, AI should ask a few questions based on the user's profile (expertise, audience, pillars) and suggest topics.
+
+4. **View Generated Ideas** — After clicking "Generate Ideas," take the user back to the Ideas Bank to see the newly generated post ideas.
+
+5. **Ideas Bank Overview** — Explain what they can see and do:
+   - View all ideas with descriptions
+   - Archive ideas they don't want
+   - Choose to develop an idea into a post
+   - Explain the temperature labels: **Hot** (timely/high-engagement), **Warm** (solid evergreen), **Cold** (niche but valuable)
+
+6. **Develop an Idea** — Have the user choose a post idea and click the "Develop" button, taking them to the post editor.
+
+7. **Post Editor Tour** — Explain each major section of the post editor page:
+   - Title field
+   - Content area with formatting toolbar (line break, bullet, em dash, copy post)
+   - Character counter and hook indicator
+   - Hook Analyzer
+   - Hashtag section with AI suggestions
+   - Status actions (Move to Review, Schedule, Post to LinkedIn)
+   - Version management (Save Version, view/restore versions, Convert to Post)
+   - AI Chat panel (right side)
+
+8. **AI Drafting** — Explain how to use the AI to create the first draft:
+   - Click "Start Initial Draft" or type a message in the AI chat
+   - The AI uses their voice profile, pillars, and expertise to generate content
+   - Explain the "Apply to Editor" button — clicking it replaces the editor content with the AI's suggestion
+
+9. **Refine the Draft** — After the AI generates the first draft:
+   - Explain the Hook Analyzer — click "Analyze Hook" to get feedback on the first ~210 characters
+   - Explain versions — save different iterations, compare, restore, or convert a version into a new standalone post
+
+10. **Publish** — Walk through the final steps:
+    - Convert to Post (creates a clean copy for publishing)
+    - If LinkedIn auto-posting is connected: click "Post to LinkedIn" to publish directly
+    - If not connected: explain the clipboard copy option and manual posting
+    - Show the "View on LinkedIn" link after successful posting
+
+**Technical Approach:**
+- Use a step-based overlay/tooltip system (e.g., react-joyride or custom implementation)
+- Store tutorial progress in `creator_profiles` or `localStorage`
+- Allow users to skip/dismiss the tutorial at any time
+- Tutorial should be re-launchable from the Help page or Settings
+
+**Sub-tasks requiring code changes before the tutorial can work:**
+- [ ] Fix dashboard "Generate Ideas" button → navigate to Ideas Bank + auto-open generator modal
+- [ ] Make brainstorm topic mandatory (not optional)
+- [ ] Add AI-driven interactive topic suggestion component for unsure users
+- [ ] Implement tutorial overlay/tooltip system
+- [ ] Track tutorial completion state
+
+---
+
 ## Completed Items
 
 ### BP-008: Hook Analysis Feature

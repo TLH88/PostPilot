@@ -123,9 +123,17 @@ export function GenerateIdeasDialog({
       }
 
       const data = await res.json();
-      const ideas: GeneratedIdea[] = Array.isArray(data)
-        ? data
-        : data.ideas ?? [];
+      const raw = Array.isArray(data) ? data : data.ideas ?? [];
+      // Map suggestedPillar from AI response to content_pillar
+      const ideas: GeneratedIdea[] = raw.map(
+        (item: Record<string, unknown>) => ({
+          ...item,
+          content_pillar:
+            item.content_pillar ||
+            item.suggestedPillar ||
+            undefined,
+        })
+      );
       setGeneratedIdeas(ideas);
     } catch (error) {
       console.error("Generate ideas error:", error);
