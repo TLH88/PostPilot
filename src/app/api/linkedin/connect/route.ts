@@ -22,8 +22,11 @@ export async function GET(request: NextRequest) {
     }
 
     const state = crypto.randomUUID();
-    const origin = request.headers.get("origin") || request.nextUrl.origin;
-    const redirectUri = `${origin}/api/linkedin/callback`;
+    // Use the Host header to get the actual domain the user is on
+    // (works correctly for both production and preview deployments)
+    const host = request.headers.get("host") || request.nextUrl.host;
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const redirectUri = `${protocol}://${host}/api/linkedin/callback`;
 
     const authUrl = new URL(
       "https://www.linkedin.com/oauth/v2/authorization"
