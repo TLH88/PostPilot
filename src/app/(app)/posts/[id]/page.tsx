@@ -520,6 +520,8 @@ export default function PostWorkspacePage() {
   }
 
   // ── Schedule post with date/time ────────────────────────────────────────
+  const [lastScheduledDate, setLastScheduledDate] = useState<Date | null>(null);
+
   async function schedulePost(date: Date) {
     if (!post) return;
 
@@ -534,6 +536,7 @@ export default function PostWorkspacePage() {
 
     if (!error) {
       setStatus("scheduled");
+      setLastScheduledDate(date);
       setShareDialogOpen(true);
     }
   }
@@ -1771,12 +1774,12 @@ export default function PostWorkspacePage() {
         onSchedule={schedulePost}
       />
 
-      {/* LinkedIn share dialog (shown after scheduling) */}
+      {/* Schedule confirmation dialog */}
       <LinkedInShareDialog
         open={shareDialogOpen}
         onOpenChange={setShareDialogOpen}
-        content={content}
-        hashtags={hashtags}
+        scheduledFor={lastScheduledDate}
+        linkedinConnected={linkedinConnected}
       />
 
       {/* Delete confirmation dialog */}
