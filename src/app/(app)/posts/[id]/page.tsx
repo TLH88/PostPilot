@@ -39,7 +39,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -56,6 +55,7 @@ import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
 import { EmojiPicker } from "@/components/posts/emoji-picker";
+import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
@@ -129,11 +129,11 @@ export default function PostWorkspacePage() {
   const [publishing, setPublishing] = useState(false);
 
   // ── Preview, schedule, share & delete state ─────────────────────────────
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
+  const [publishPreviewOpen, setPublishPreviewOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // ── Content pillar state ──────────────────────────────────────────────────
@@ -579,50 +579,12 @@ export default function PostWorkspacePage() {
     }
   }
 
-  async function handleShareOnLinkedIn() {
+  function handleShareOnLinkedIn() {
     if (!post) return;
 
-    // If LinkedIn API is connected, publish directly
+    // If LinkedIn API is connected, open preview dialog
     if (linkedinConnected) {
-      setPublishing(true);
-      try {
-        const res = await fetch("/api/linkedin/publish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ postId: post.id }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          if (data.expired) {
-            setLinkedinConnected(false);
-          }
-          toast.error(data.error || "Failed to publish to LinkedIn", {
-            description: data.action,
-            duration: 8000,
-          });
-          setPublishing(false);
-          return;
-        }
-
-        setStatus("posted");
-        setPost({ ...post, status: "posted", linkedin_post_url: data.linkedinPostUrl, linkedin_post_id: data.linkedinPostId });
-        toast.success(
-          <span>
-            Posted to LinkedIn!{" "}
-            <a href={data.linkedinPostUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
-              View post
-            </a>
-          </span>
-        );
-      } catch (error) {
-        toast.error("Failed to publish to LinkedIn", {
-          description: "Check your connection and try again.",
-          duration: 8000,
-        });
-      } finally {
-        setPublishing(false);
-      }
+      setPublishPreviewOpen(true);
       return;
     }
 
@@ -1054,33 +1016,16 @@ export default function PostWorkspacePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* LinkedIn Preview Toggle */}
-          <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-            <DialogTrigger
-              render={<Button variant="outline" size="sm" className="gap-1.5" />}
-            >
-              <Eye className="size-3.5" />
-              Preview
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[620px]">
-              <DialogHeader>
-                <DialogTitle>LinkedIn Preview</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <LinkedInPreview
-                  content={
-                    content +
-                    (hashtags.length > 0
-                      ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ")
-                      : "")
-                  }
-                  title={title}
-                  authorName={profile?.full_name ?? "Your Name"}
-                  authorHeadline={profile?.headline ?? "Your headline"}
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* LinkedIn Preview Toggle — opens same publish preview dialog */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setPublishPreviewOpen(true)}
+          >
+            <Eye className="size-3.5" />
+            Preview
+          </Button>
 
           {/* Chat panel toggle */}
           <Button
@@ -1822,6 +1767,30 @@ export default function PostWorkspacePage() {
         onSuccess={() => {
           setStatus("posted");
         }}
+      />
+
+      {/* Publish preview dialog */}
+      <PublishPreviewDialog
+        open={publishPreviewOpen}
+        onOpenChange={setPublishPreviewOpen}
+        postId={postId}
+        title={title}
+        content={content}
+        hashtags={hashtags}
+        authorName={profile?.full_name ?? "Your Name"}
+        authorHeadline={profile?.headline ?? "Your headline"}
+        onPublished={(result) => {
+          setStatus("posted");
+          if (post) {
+            setPost({
+              ...post,
+              status: "posted",
+              linkedin_post_url: result.postUrl,
+              linkedin_post_id: result.postId,
+            });
+          }
+        }}
+        onTokenExpired={() => setLinkedinConnected(false)}
       />
 
       {/* Delete confirmation dialog */}

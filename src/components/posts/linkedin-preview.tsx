@@ -16,7 +16,8 @@ export function LinkedInPreview({
   title,
   authorName,
   authorHeadline,
-}: LinkedInPreviewProps) {
+  truncate = false,
+}: LinkedInPreviewProps & { truncate?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
   // Build full post text as it will appear on LinkedIn
@@ -25,7 +26,7 @@ export function LinkedInPreview({
       ? `${title}\n\n${content}`
       : content;
 
-  const shouldTruncate = fullContent.length > LINKEDIN.HOOK_VISIBLE_LENGTH;
+  const shouldTruncate = truncate && fullContent.length > LINKEDIN.HOOK_VISIBLE_LENGTH;
   const displayContent =
     shouldTruncate && !expanded
       ? fullContent.slice(0, LINKEDIN.HOOK_VISIBLE_LENGTH)
