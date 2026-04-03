@@ -1,11 +1,29 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// Read env vars inside the handler to ensure they're available at runtime
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 function getEnv(key: string): string {
   const val = Deno.env.get(key);
   if (!val) throw new Error(`Missing env var: ${key}`);
   return val;
+}
+
+/** Structured log — always includes timestamp and context for traceability */
+function log(level: "info" | "warn" | "error", message: string, data?: Record<string, unknown>) {
+  const entry = {
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    ...(data || {}),
+  };
+  if (level === "error") {
+    console.error(JSON.stringify(entry));
+  } else if (level === "warn") {
+    console.warn(JSON.stringify(entry));
+  } else {
+    console.log(JSON.stringify(entry));
+  }
 }
 
 // ─── JWT Signature Verification (HMAC-SHA256) ───────────────────────────────
@@ -17,8 +35,6 @@ async function verifyJwtSignature(token: string, secret: string): Promise<boolea
   const [header, payload, signature] = parts;
   const signingInput = `${header}.${payload}`;
 
-  // Import the secret as an HMAC key
-  // Supabase JWT secrets may be raw UTF-8 strings — try both raw and base64-decoded
   const encoder = new TextEncoder();
   const secretBytes = encoder.encode(secret);
 
@@ -30,12 +46,10 @@ async function verifyJwtSignature(token: string, secret: string): Promise<boolea
     ["verify"]
   );
 
-  // Decode the base64url signature
   const sigBase64 = signature.replace(/-/g, "+").replace(/_/g, "/");
   const sigPadded = sigBase64 + "=".repeat((4 - (sigBase64.length % 4)) % 4);
   const sigBytes = Uint8Array.from(atob(sigPadded), (c) => c.charCodeAt(0));
 
-  // Verify the signature
   return await crypto.subtle.verify("HMAC", key, sigBytes, encoder.encode(signingInput));
 }
 
@@ -66,7 +80,6 @@ async function decrypt(ciphertext: string, iv: string, authTag: string): Promise
   const ciphertextBytes = Uint8Array.from(atob(ciphertext), (c) => c.charCodeAt(0));
   const authTagBytes = Uint8Array.from(atob(authTag), (c) => c.charCodeAt(0));
 
-  // AES-GCM expects ciphertext + authTag concatenated
   const combined = new Uint8Array(ciphertextBytes.length + authTagBytes.length);
   combined.set(ciphertextBytes);
   combined.set(authTagBytes, ciphertextBytes.length);
@@ -150,222 +163,294 @@ async function refreshLinkedInToken(
   return await response.json();
 }
 
+// ─── Safe DB Update (logs failures instead of silently dropping them) ───────
+
+async function safeUpdatePost(
+  supabase: ReturnType<typeof createClient>,
+  postId: string,
+  updates: Record<string, unknown>
+): Promise<void> {
+  const { error } = await supabase
+    .from("posts")
+    .update(updates)
+    .eq("id", postId);
+
+  if (error) {
+    log("error", `DB update failed for post ${postId}`, {
+      postId,
+      updates: JSON.stringify(updates),
+      dbError: error.message,
+      dbCode: error.code,
+      dbDetails: error.details,
+    });
+  }
+}
+
 // ─── Main Handler ───────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
-  // Verify authorization — the caller must provide the service role key
-  // SUPABASE_SERVICE_ROLE_KEY is auto-injected by Supabase as the full JWT
-  const authHeader = req.headers.get("Authorization") || "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  // Wrap EVERYTHING in a top-level try/catch so no error is ever silent
+  try {
+    log("info", "Edge Function invoked");
 
-  if (!authHeader.startsWith("Bearer ") || !serviceRoleKey) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+    // ── Auth verification ─────────────────────────────────────────────────
+    const authHeader = req.headers.get("Authorization") || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-  const token = authHeader.replace("Bearer ", "");
-
-  // Cryptographically verify the JWT signature using the project's JWT secret
-  // JWT_SECRET is the HMAC-SHA256 signing key used to sign all Supabase JWTs
-  const jwtSecret = Deno.env.get("JWT_SECRET") || "";
-  if (!jwtSecret) {
-    console.error("JWT_SECRET not configured");
-    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  const validSignature = await verifyJwtSignature(token, jwtSecret);
-  if (!validSignature) {
-    return new Response(JSON.stringify({ error: "Unauthorized: invalid signature" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Verify the token claims — must be service_role and not expired
-  const payload = decodeJwtPayload(token);
-  if (payload.role !== "service_role") {
-    return new Response(JSON.stringify({ error: "Unauthorized: insufficient role" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (typeof payload.exp === "number" && payload.exp < Math.floor(Date.now() / 1000)) {
-    return new Response(JSON.stringify({ error: "Unauthorized: token expired" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Use the verified JWT token to create the Supabase client (bypasses RLS)
-  const supabaseUrl = getEnv("SUPABASE_URL");
-  const supabase = createClient(supabaseUrl, token);
-
-  // Find all scheduled posts whose time has arrived
-  const { data: posts, error: queryError } = await supabase
-    .from("posts")
-    .select("id, content, hashtags, user_id, publish_attempts")
-    .eq("status", "scheduled")
-    .lte("scheduled_for", new Date().toISOString())
-    .lt("publish_attempts", MAX_PUBLISH_ATTEMPTS);
-
-  if (queryError) {
-    console.error("Query error:", queryError);
-    return new Response(
-      JSON.stringify({ error: "Failed to query scheduled posts", details: queryError.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  if (!posts || posts.length === 0) {
-    return new Response(
-      JSON.stringify({ message: "No posts to publish", count: 0 }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  const results: Array<{ postId: string; status: string; error?: string }> = [];
-
-  for (const post of posts) {
-    // Fetch the creator profile for this post's user
-    const { data: profileData } = await supabase
-      .from("creator_profiles")
-      .select(
-        "linkedin_access_token_encrypted, linkedin_access_token_iv, linkedin_access_token_auth_tag, linkedin_refresh_token_encrypted, linkedin_refresh_token_iv, linkedin_refresh_token_auth_tag, linkedin_token_expires_at, linkedin_member_id"
-      )
-      .eq("user_id", post.user_id)
-      .single();
-
-    const profile = profileData as Record<string, string | null> | null;
-
-    // Check if LinkedIn is connected
-    if (
-      !profile ||
-      !profile.linkedin_access_token_encrypted ||
-      !profile.linkedin_access_token_iv ||
-      !profile.linkedin_access_token_auth_tag ||
-      !profile.linkedin_member_id
-    ) {
-      await supabase
-        .from("posts")
-        .update({
-          status: "past_due",
-          publish_error: "LinkedIn not connected. Please connect in Settings and reschedule.",
-          publish_attempts: (post.publish_attempts || 0) + 1,
-        })
-        .eq("id", post.id);
-
-      results.push({ postId: post.id, status: "skipped", error: "LinkedIn not connected" });
-      continue;
+    if (!authHeader.startsWith("Bearer ") || !serviceRoleKey) {
+      log("warn", "Missing auth header or service role key");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    try {
-      // Decrypt access token
-      let accessToken = await decrypt(
-        profile.linkedin_access_token_encrypted!,
-        profile.linkedin_access_token_iv!,
-        profile.linkedin_access_token_auth_tag!
+    const token = authHeader.replace("Bearer ", "");
+
+    const jwtSecret = Deno.env.get("JWT_SECRET") || "";
+    if (!jwtSecret) {
+      log("error", "JWT_SECRET not configured");
+      return new Response(JSON.stringify({ error: "Server misconfigured: JWT_SECRET missing" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const validSignature = await verifyJwtSignature(token, jwtSecret);
+    if (!validSignature) {
+      log("warn", "JWT signature verification failed");
+      return new Response(JSON.stringify({ error: "Unauthorized: invalid signature" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const payload = decodeJwtPayload(token);
+    if (payload.role !== "service_role") {
+      log("warn", "JWT role is not service_role", { role: String(payload.role) });
+      return new Response(JSON.stringify({ error: "Unauthorized: insufficient role" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (typeof payload.exp === "number" && payload.exp < Math.floor(Date.now() / 1000)) {
+      log("warn", "JWT token expired", { exp: payload.exp });
+      return new Response(JSON.stringify({ error: "Unauthorized: token expired" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Query scheduled posts ─────────────────────────────────────────────
+    const supabaseUrl = getEnv("SUPABASE_URL");
+    const supabase = createClient(supabaseUrl, token);
+
+    const now = new Date().toISOString();
+    const { data: posts, error: queryError } = await supabase
+      .from("posts")
+      .select("id, content, hashtags, user_id, publish_attempts")
+      .eq("status", "scheduled")
+      .lte("scheduled_for", now)
+      .lt("publish_attempts", MAX_PUBLISH_ATTEMPTS);
+
+    if (queryError) {
+      log("error", "Failed to query scheduled posts", {
+        dbError: queryError.message,
+        dbCode: queryError.code,
+      });
+      return new Response(
+        JSON.stringify({ error: "Failed to query scheduled posts", details: queryError.message }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
+    }
 
-      // Check token expiry
-      const tokenExpired =
-        profile.linkedin_token_expires_at &&
-        new Date(profile.linkedin_token_expires_at) < new Date();
+    if (!posts || posts.length === 0) {
+      return new Response(
+        JSON.stringify({ message: "No posts to publish", count: 0 }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-      if (tokenExpired) {
-        // Try refresh
+    log("info", `Found ${posts.length} post(s) to publish`);
+
+    const results: Array<{ postId: string; status: string; error?: string }> = [];
+
+    // ── Process each post ─────────────────────────────────────────────────
+    for (const post of posts) {
+      const postLog = (level: "info" | "warn" | "error", msg: string, data?: Record<string, unknown>) =>
+        log(level, `[post:${post.id}] ${msg}`, { postId: post.id, userId: post.user_id, ...data });
+
+      try {
+        // Fetch creator profile
+        const { data: profileData, error: profileError } = await supabase
+          .from("creator_profiles")
+          .select(
+            "linkedin_access_token_encrypted, linkedin_access_token_iv, linkedin_access_token_auth_tag, linkedin_refresh_token_encrypted, linkedin_refresh_token_iv, linkedin_refresh_token_auth_tag, linkedin_token_expires_at, linkedin_member_id"
+          )
+          .eq("user_id", post.user_id)
+          .single();
+
+        if (profileError) {
+          postLog("error", "Failed to fetch creator profile", { dbError: profileError.message });
+          await safeUpdatePost(supabase, post.id, {
+            status: "past_due",
+            publish_error: `Failed to fetch profile: ${profileError.message}`,
+            publish_attempts: (post.publish_attempts || 0) + 1,
+          });
+          results.push({ postId: post.id, status: "failed", error: `Profile fetch error: ${profileError.message}` });
+          continue;
+        }
+
+        const profile = profileData as Record<string, string | null> | null;
+
+        // Check LinkedIn connection
         if (
-          profile.linkedin_refresh_token_encrypted &&
-          profile.linkedin_refresh_token_iv &&
-          profile.linkedin_refresh_token_auth_tag
+          !profile ||
+          !profile.linkedin_access_token_encrypted ||
+          !profile.linkedin_access_token_iv ||
+          !profile.linkedin_access_token_auth_tag ||
+          !profile.linkedin_member_id
         ) {
-          try {
-            const refreshToken = await decrypt(
-              profile.linkedin_refresh_token_encrypted,
-              profile.linkedin_refresh_token_iv,
-              profile.linkedin_refresh_token_auth_tag
-            );
-            const newTokens = await refreshLinkedInToken(refreshToken);
-            accessToken = newTokens.access_token;
-            // Note: We can't re-encrypt and store here easily without the Node crypto
-            // Token refresh updates should be handled by the main app
-          } catch (refreshError) {
-            await supabase
-              .from("posts")
-              .update({
-                status: "past_due",
-                publish_error: "LinkedIn connection expired. Please reconnect in Settings.",
-                publish_attempts: MAX_PUBLISH_ATTEMPTS, // Don't retry
-              })
-              .eq("id", post.id);
+          postLog("warn", "LinkedIn not connected for user");
+          await safeUpdatePost(supabase, post.id, {
+            status: "past_due",
+            publish_error: "LinkedIn not connected. Please connect in Settings and reschedule.",
+            publish_attempts: (post.publish_attempts || 0) + 1,
+          });
+          results.push({ postId: post.id, status: "skipped", error: "LinkedIn not connected" });
+          continue;
+        }
 
-            results.push({ postId: post.id, status: "failed", error: "Token expired, refresh failed" });
-            continue;
-          }
-        } else {
-          // No refresh token, mark as past due
-          await supabase
-            .from("posts")
-            .update({
+        // Decrypt access token
+        let accessToken: string;
+        try {
+          accessToken = await decrypt(
+            profile.linkedin_access_token_encrypted!,
+            profile.linkedin_access_token_iv!,
+            profile.linkedin_access_token_auth_tag!
+          );
+        } catch (decryptError) {
+          const msg = decryptError instanceof Error ? decryptError.message : "Decryption failed";
+          postLog("error", "Failed to decrypt LinkedIn access token", { decryptError: msg });
+          await safeUpdatePost(supabase, post.id, {
+            status: "past_due",
+            publish_error: `Token decryption failed: ${msg}`,
+            publish_attempts: MAX_PUBLISH_ATTEMPTS,
+          });
+          results.push({ postId: post.id, status: "failed", error: `Decrypt error: ${msg}` });
+          continue;
+        }
+
+        // Check token expiry and refresh if needed
+        const tokenExpired =
+          profile.linkedin_token_expires_at &&
+          new Date(profile.linkedin_token_expires_at) < new Date();
+
+        if (tokenExpired) {
+          postLog("info", "LinkedIn token expired, attempting refresh");
+
+          if (
+            profile.linkedin_refresh_token_encrypted &&
+            profile.linkedin_refresh_token_iv &&
+            profile.linkedin_refresh_token_auth_tag
+          ) {
+            try {
+              const refreshToken = await decrypt(
+                profile.linkedin_refresh_token_encrypted,
+                profile.linkedin_refresh_token_iv,
+                profile.linkedin_refresh_token_auth_tag
+              );
+              const newTokens = await refreshLinkedInToken(refreshToken);
+              accessToken = newTokens.access_token;
+              postLog("info", "LinkedIn token refreshed successfully");
+            } catch (refreshError) {
+              const msg = refreshError instanceof Error ? refreshError.message : "Refresh failed";
+              postLog("error", "LinkedIn token refresh failed", { refreshError: msg });
+              await safeUpdatePost(supabase, post.id, {
+                status: "past_due",
+                publish_error: `LinkedIn connection expired. Refresh failed: ${msg}`,
+                publish_attempts: MAX_PUBLISH_ATTEMPTS,
+              });
+              results.push({ postId: post.id, status: "failed", error: `Token refresh failed: ${msg}` });
+              continue;
+            }
+          } else {
+            postLog("warn", "LinkedIn token expired and no refresh token available");
+            await safeUpdatePost(supabase, post.id, {
               status: "past_due",
               publish_error: "LinkedIn connection expired. Please reconnect in Settings.",
               publish_attempts: MAX_PUBLISH_ATTEMPTS,
-            })
-            .eq("id", post.id);
-
-          results.push({ postId: post.id, status: "failed", error: "Token expired, no refresh token" });
-          continue;
+            });
+            results.push({ postId: post.id, status: "failed", error: "Token expired, no refresh token" });
+            continue;
+          }
         }
-      }
 
-      // Publish
-      const result = await publishToLinkedIn(
-        accessToken,
-        profile.linkedin_member_id!,
-        post.content,
-        post.hashtags || []
-      );
+        // Publish to LinkedIn
+        postLog("info", "Publishing to LinkedIn");
+        const result = await publishToLinkedIn(
+          accessToken,
+          profile.linkedin_member_id!,
+          post.content,
+          post.hashtags || []
+        );
 
-      // Success — update post
-      await supabase
-        .from("posts")
-        .update({
+        // Success — update post
+        await safeUpdatePost(supabase, post.id, {
           status: "posted",
           posted_at: new Date().toISOString(),
           linkedin_post_id: result.postId,
           linkedin_post_url: result.postUrl,
           publish_error: null,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", post.id);
+        });
 
-      results.push({ postId: post.id, status: "published" });
-      console.log(`Published post ${post.id}: ${result.postUrl}`);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      const newAttempts = (post.publish_attempts || 0) + 1;
-      const isAuthError = errorMsg.includes("401") || errorMsg.includes("403");
+        results.push({ postId: post.id, status: "published" });
+        postLog("info", "Published successfully", { linkedinUrl: result.postUrl });
 
-      await supabase
-        .from("posts")
-        .update({
+      } catch (error) {
+        // Per-post catch — ensures one post failure doesn't stop others
+        const errorMsg = error instanceof Error ? error.message : "Unknown error";
+        const newAttempts = (post.publish_attempts || 0) + 1;
+        const isAuthError = errorMsg.includes("401") || errorMsg.includes("403");
+
+        postLog("error", "Publish failed", {
+          error: errorMsg,
+          attempt: newAttempts,
+          isAuthError,
+          willRetry: !isAuthError && newAttempts < MAX_PUBLISH_ATTEMPTS,
+        });
+
+        await safeUpdatePost(supabase, post.id, {
           status: newAttempts >= MAX_PUBLISH_ATTEMPTS || isAuthError ? "past_due" : "scheduled",
           publish_error: errorMsg,
           publish_attempts: isAuthError ? MAX_PUBLISH_ATTEMPTS : newAttempts,
-        })
-        .eq("id", post.id);
+        });
 
-      results.push({ postId: post.id, status: "failed", error: errorMsg });
-      console.error(`Failed to publish post ${post.id}:`, errorMsg);
+        results.push({ postId: post.id, status: "failed", error: errorMsg });
+      }
     }
-  }
 
-  return new Response(
-    JSON.stringify({ message: "Done", count: posts.length, results }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  );
+    log("info", `Processing complete: ${results.length} post(s)`, {
+      published: results.filter((r) => r.status === "published").length,
+      failed: results.filter((r) => r.status === "failed").length,
+      skipped: results.filter((r) => r.status === "skipped").length,
+    });
+
+    return new Response(
+      JSON.stringify({ message: "Done", count: posts.length, results }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+
+  } catch (fatalError) {
+    // Top-level catch — NOTHING escapes without being logged
+    const msg = fatalError instanceof Error ? fatalError.message : "Unknown fatal error";
+    const stack = fatalError instanceof Error ? fatalError.stack : undefined;
+    log("error", "FATAL: Unhandled error in Edge Function", { error: msg, stack });
+
+    return new Response(
+      JSON.stringify({ error: "Internal server error", details: msg }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 });
