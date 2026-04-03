@@ -578,6 +578,29 @@ The current "Convert to Post" button is confusing — users think it will publis
 
 ---
 
+### BP-038: Manual Post Status Change (Mark as Posted)
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner request
+**Date Added:** 2026-04-02
+**Phase:** 1
+
+**Description:**
+Users need the ability to manually change a post's status, particularly to mark a post as "Posted to LinkedIn" when they've posted it manually outside PostPilot. This is needed for posts that were shared via copy/paste or the manual LinkedIn share flow.
+
+**Requirements:**
+- Add status change options to the three-dot menu on the Posts list page
+- Add status change options in the post editor (status area)
+- Key transitions to support:
+  - Any status → "Posted to LinkedIn" (sets posted_at, prompts for optional LinkedIn URL)
+  - "Scheduled" → "Draft" (unschedule)
+  - "Posted" → "Archived"
+- When marking as posted, optionally allow user to paste the LinkedIn post URL
+- Should update the post's `status`, `posted_at`, and optionally `linkedin_post_url`
+
+---
+
 ## Completed Items
 
 ### BP-008: Hook Analysis Feature
