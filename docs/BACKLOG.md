@@ -810,10 +810,11 @@ Flesh out the full requirements for in-app AI image generation (BP-029) and how 
 
 ### BP-044: Publish to LinkedIn Preview & Confirmation Flow
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 **Source:** Owner request
 **Date Added:** 2026-04-03
+**Completed:** 2026-04-03
 **Phase:** 1
 
 **Description:**
@@ -909,3 +910,4 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-040:** Fix Dashboard "New Post" Button Navigation (2026-04-03)
 - **BP-042:** Include Post Title in LinkedIn Publish & Preview (2026-04-03)
 - **BP-043:** Investigate & Fix Frequent LinkedIn Disconnections (2026-04-03)
+- **BP-044:** Publish to LinkedIn Preview & Confirmation Flow (2026-04-03)
