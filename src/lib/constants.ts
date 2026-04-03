@@ -69,5 +69,24 @@ export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   { href: "/ideas", label: "Idea Bank", icon: "Lightbulb" },
   { href: "/posts", label: "Posts", icon: "FileText" },
+  { href: "/library", label: "Library", icon: "BookOpen" },
   { href: "/calendar", label: "Calendar", icon: "Calendar" },
 ] as const;
+
+// Best times to post on LinkedIn (based on engagement research)
+// Days: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+export const SCHEDULING_SUGGESTIONS = [
+  { day: 2, hour: 8,  label: "Tue 8:00 AM" },
+  { day: 2, hour: 10, label: "Tue 10:00 AM" },
+  { day: 3, hour: 8,  label: "Wed 8:00 AM" },
+  { day: 3, hour: 12, label: "Wed 12:00 PM" },
+  { day: 4, hour: 8,  label: "Thu 8:00 AM" },
+  { day: 4, hour: 10, label: "Thu 10:00 AM" },
+] as const;
+
+export const CONTENT_LIBRARY_TYPES = {
+  hook: { label: "Hook", color: "bg-orange-100 text-orange-700" },
+  cta: { label: "CTA", color: "bg-blue-100 text-blue-700" },
+  closing: { label: "Closing", color: "bg-green-100 text-green-700" },
+  snippet: { label: "Snippet", color: "bg-purple-100 text-purple-700" },
+} as const;

@@ -4,6 +4,58 @@
 
 ---
 
+## 2026-04-03: Major Feature Sprint — 12 Backlog Items Completed
+
+### BP-019: Content Library
+- **New table:** `content_library` with RLS, `is_builtin` flag for system examples
+- **New page:** `/library` with card grid, type filters (Hook/CTA/Closing/Snippet), search, content pillar badges, usage counts
+- **12 built-in example items** seeded (3 per type) with "Example" badge, visible to all users
+- **Editor integration:** "Insert from Library" popover in toolbar + "Save to Library" button
+- **New components:** `save-to-library-dialog.tsx`, `insert-from-library.tsx`
+- **Sidebar:** Added "Library" nav item with BookOpen icon
+
+### BP-020: Post Templates
+- **New table:** `post_templates` with RLS, `is_builtin`, `is_shared` columns for community sharing
+- **8 built-in templates** seeded: Story Arc, Hot Take, How-To Guide, Listicle, Question Post, Framework/Model, Lessons Learned, Myth Buster
+- **Template Picker:** Dialog with Built-in, My Templates, Community tabs + preview before applying
+- **"Save as Template"** button in post editor version management area
+- **Share infrastructure:** `is_shared` column + RLS for community templates (Pro+ gate placeholder)
+- **New components:** `template-picker.tsx`, `save-as-template-dialog.tsx`
+
+### BP-022: Advanced Scheduling Suggestions
+- **Updated:** `src/components/schedule-dialog.tsx` — Added "Best times to post" section with timezone-aware clickable suggestion pills
+- **"Schedule for next best time"** one-click button auto-fills the optimal slot
+- **Constants:** `SCHEDULING_SUGGESTIONS` in `src/lib/constants.ts` (Tue-Thu, 8-10 AM)
+
+### BP-034: Past-Due Checker — Direct Publish Button
+- **Updated:** `src/components/past-due-checker.tsx` — Direct LinkedIn API publish when connected, fallback to manual share
+- Shows `publish_error` for failed auto-publishes, picks up `past_due` status posts
+
+### BP-036: Emoji Picker in Post Editor
+- **New component:** `src/components/posts/emoji-picker.tsx` — 250+ emojis across 9 categories with keyword search, category tabs, and All view
+- Replaces the Em dash button in formatting toolbar
+
+### BP-037: Clarify Version Management UX
+- Renamed "Convert to Post" → "Save as New Post" with tooltip
+- Added "Versions" label to visually separate version controls from publish actions
+
+### BP-044: Publish Preview & Confirmation Flow
+- **New component:** `src/components/posts/publish-preview-dialog.tsx`
+- All "Publish to LinkedIn" buttons and Preview button now open unified preview dialog
+- Actions: Cancel, Open in Editor, Add Image (stub), Approve & Publish
+
+### Additional Fixes & Improvements
+- **Sidebar "New Post" button** — fixed to create post + open editor (was navigating to list)
+- **Blank post guard** — prompts user to discard or add title when leaving empty post
+- **NewPostButton** — robust creation with health checks, slow/fail timers, error logging
+- **Clipboard fallback** — added `document.execCommand("copy")` fallback for library and editor copy buttons
+- **Post filters** — added "In Work" (drafts + review + scheduled) and "Complete" (posted + archived) grouped filters, defaulting to In Work
+- **Active tab styling** — global CSS rule matching Idea Bank filter pill style (primary border + tinted bg)
+- **Dialog sizing** — fixed `sm:max-w` override issue, using inline `style` for reliable max-width
+- **Backlog additions:** BP-039 (Image Upload), BP-041 (Image Gen Spec), BP-044 (Publish Preview)
+
+---
+
 ## 2026-04-03: BP-038, BP-040, BP-042, BP-043 + Backlog Updates
 
 ### BP-038: Manual Post Status Change (Mark as Posted)

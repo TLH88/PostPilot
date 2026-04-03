@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-03
+> Last updated: 2026-04-04
 
 ## Status Key
 
@@ -238,10 +238,11 @@ Check user's subscription tier before allowing access to gated features. Show up
 
 ### BP-019: Content Library
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 **Source:** Product evaluation (Creator tier value)
 **Date Added:** 2026-04-01
+**Completed:** 2026-04-03
 **Phase:** 1
 
 **Description:**
@@ -258,10 +259,11 @@ Save and reuse hooks, CTAs, templates, and closing lines. "Save as template" but
 
 ### BP-020: Post Templates
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 **Source:** Product evaluation (Creator tier value)
 **Date Added:** 2026-04-01
+**Completed:** 2026-04-03
 **Phase:** 1
 
 **Description:**
@@ -289,10 +291,11 @@ Self-report engagement numbers (likes, comments, reposts) on posted content. Tra
 
 ### BP-022: Advanced Scheduling Suggestions
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Low
 **Source:** Product evaluation
 **Date Added:** 2026-04-01
+**Completed:** 2026-04-03
 **Phase:** 1
 
 **Description:**
@@ -911,3 +914,9 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-042:** Include Post Title in LinkedIn Publish & Preview (2026-04-03)
 - **BP-043:** Investigate & Fix Frequent LinkedIn Disconnections (2026-04-03)
 - **BP-044:** Publish to LinkedIn Preview & Confirmation Flow (2026-04-03)
+- **BP-019:** Content Library (2026-04-03)
+- **BP-020:** Post Templates (2026-04-03)
+- **BP-022:** Advanced Scheduling Suggestions (2026-04-03)
+- **BP-034:** Past-Due Checker — Direct Publish Button (2026-04-03)
+- **BP-036:** Emoji Picker in Post Editor (2026-04-03)
+- **BP-037:** Clarify Version Management & Convert to Post UX (2026-04-03)

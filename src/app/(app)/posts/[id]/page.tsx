@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Archive,
   ArrowLeft,
+  BookOpen,
   Bot,
   Check,
   ChevronDown,
@@ -55,6 +56,10 @@ import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
 import { EmojiPicker } from "@/components/posts/emoji-picker";
+import { InsertFromLibrary } from "@/components/library/insert-from-library";
+import { SaveToLibraryDialog } from "@/components/library/save-to-library-dialog";
+import { TemplatePicker } from "@/components/posts/template-picker";
+import { SaveAsTemplateDialog } from "@/components/posts/save-as-template-dialog";
 import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
@@ -134,7 +139,11 @@ export default function PostWorkspacePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
   const [publishPreviewOpen, setPublishPreviewOpen] = useState(false);
+  const [saveToLibraryOpen, setSaveToLibraryOpen] = useState(false);
+  const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // ── Content pillar state ──────────────────────────────────────────────────
   const [contentPillar, setContentPillar] = useState<string | null>(null);
@@ -157,6 +166,40 @@ export default function PostWorkspacePage() {
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Blank post detection ────────────────────────────────────────────────
+  const isBlankPost =
+    (!title.trim() || title.trim() === "Untitled Post") && !content.trim();
+
+  /** Navigate away, but intercept if the post is blank */
+  function navigateAway(href: string) {
+    if (isBlankPost && status === "draft") {
+      setPendingNavigation(href);
+      setDiscardDialogOpen(true);
+    } else {
+      router.push(href);
+    }
+  }
+
+  async function handleDiscardBlankPost() {
+    // Delete the blank post from DB
+    await supabase.from("posts").delete().eq("id", postId);
+    setDiscardDialogOpen(false);
+    router.push(pendingNavigation ?? "/posts");
+  }
+
+  function handleKeepBlankPost() {
+    // User wants to keep it — close dialog, focus title
+    setDiscardDialogOpen(false);
+    setPendingNavigation(null);
+    // Focus the title input so they can name it
+    const titleInput = document.querySelector<HTMLInputElement>('input[placeholder*="title"]');
+    if (titleInput) {
+      titleInput.focus();
+      titleInput.select();
+    }
+    toast.info("Add a title to save this draft.");
+  }
 
   // ── Fetch post, profile, versions, and conversation on mount ──────────────
   useEffect(() => {
@@ -601,10 +644,18 @@ export default function PostWorkspacePage() {
     const fullText = titlePrefix + content + hashtagText;
     try {
       await navigator.clipboard.writeText(fullText);
-      toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
     } catch {
-      toast.error("Failed to copy. Try selecting the text manually.");
+      // Fallback for non-HTTPS or denied clipboard permission
+      const textarea = document.createElement("textarea");
+      textarea.value = fullText;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
     }
+    toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
   }
 
   // ── Delete post ─────────────────────────────────────────────────────────
@@ -943,7 +994,7 @@ export default function PostWorkspacePage() {
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => router.push("/posts")}
+            onClick={() => navigateAway("/posts")}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -1102,6 +1153,12 @@ export default function PostWorkspacePage() {
                     <Sparkles className="size-4" />
                     Start Initial Draft
                   </Button>
+                  <TemplatePicker
+                    onSelect={(structure) => {
+                      setContent(structure);
+                      scheduleAutoSave(title, structure, hashtags);
+                    }}
+                  />
                   <textarea
                     ref={textareaRef}
                     value={content}
@@ -1229,9 +1286,20 @@ export default function PostWorkspacePage() {
                 Bullet point
               </Button>
               <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
+              <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
 
               <div className="flex-1" />
 
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1"
+                onClick={() => setSaveToLibraryOpen(true)}
+                disabled={!content.trim()}
+              >
+                <BookOpen className="size-3" />
+                Save to Library
+              </Button>
               <Button
                 variant="outline"
                 size="xs"
@@ -1543,6 +1611,18 @@ export default function PostWorkspacePage() {
                   </TooltipContent>
                 </Tooltip>
 
+                {/* Save as Template */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setSaveAsTemplateOpen(true)}
+                  disabled={!content.trim()}
+                >
+                  <Tag className="size-3.5" />
+                  Save as Template
+                </Button>
+
                 {/* View Versions Dropdown */}
                 {versions.length > 0 && (
                   <DropdownMenu>
@@ -1792,6 +1872,42 @@ export default function PostWorkspacePage() {
         }}
         onTokenExpired={() => setLinkedinConnected(false)}
       />
+
+      {/* Save to Library dialog */}
+      <SaveToLibraryDialog
+        open={saveToLibraryOpen}
+        onOpenChange={setSaveToLibraryOpen}
+        initialContent={content}
+        contentPillars={profile?.content_pillars ?? []}
+      />
+
+      {/* Save as Template dialog */}
+      <SaveAsTemplateDialog
+        open={saveAsTemplateOpen}
+        onOpenChange={setSaveAsTemplateOpen}
+        content={content}
+        contentPillar={contentPillar}
+      />
+
+      {/* Discard blank post dialog */}
+      <Dialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]" style={{ maxWidth: "400px" }}>
+          <DialogHeader>
+            <DialogTitle>Discard blank post?</DialogTitle>
+            <DialogDescription>
+              This post has no title or content. Would you like to discard it or add a title to keep it as a draft?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={handleKeepBlankPost}>
+              Keep &amp; Add Title
+            </Button>
+            <Button variant="destructive" onClick={handleDiscardBlankPost}>
+              Discard Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation dialog */}
       {/* ─── Version Switch Confirmation Dialog ──────────────────────────── */}

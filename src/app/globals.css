@@ -128,6 +128,14 @@
   }
 }
 
+/* Active tab styling — matches Idea Bank filter pill style */
+[data-slot="tabs-trigger"][data-active] {
+  border-color: var(--primary) !important;
+  background-color: color-mix(in oklch, var(--primary) 10%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
 /* Infinite scrolling marquee */
 @keyframes marquee-scroll {
   0% {

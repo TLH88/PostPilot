@@ -7,13 +7,14 @@ import {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BookOpen,
   Calendar,
-  Plus,
   Settings,
   HelpCircle,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
+import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NAV_ITEMS } from "@/lib/constants";
@@ -24,6 +25,7 @@ const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BookOpen,
   Calendar,
 };
 
@@ -62,13 +64,10 @@ export function Sidebar({ userName }: SidebarProps) {
 
       {/* New Post Button */}
       <div className="px-3 pt-4 pb-2">
-        <Link
-          href="/posts"
+        <NewPostButton
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
-        >
-          <Plus className="size-4" />
-          New Post
-        </Link>
+          label="New Post"
+        />
       </div>
 
       {/* Navigation */}

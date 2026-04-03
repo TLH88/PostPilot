@@ -116,6 +116,10 @@ export default async function PostsPage() {
   const postedPosts = allPosts.filter((p) => p.status === "posted");
   const archivedPosts = allPosts.filter((p) => p.status === "archived");
 
+  // Grouped filters
+  const inWorkPosts = allPosts.filter((p) => ["draft", "review", "scheduled"].includes(p.status));
+  const completePosts = allPosts.filter((p) => ["posted", "archived"].includes(p.status));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -130,10 +134,13 @@ export default async function PostsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="in_work">
         <TabsList>
-          <TabsTrigger value="all">
-            All ({allPosts.length})
+          <TabsTrigger value="in_work">
+            In Work ({inWorkPosts.length})
+          </TabsTrigger>
+          <TabsTrigger value="complete">
+            Complete ({completePosts.length})
           </TabsTrigger>
           <TabsTrigger value="draft">
             Drafts ({draftPosts.length})
@@ -157,7 +164,36 @@ export default async function PostsPage() {
               Archived ({archivedPosts.length})
             </TabsTrigger>
           )}
+          <TabsTrigger value="all">
+            All ({allPosts.length})
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="in_work">
+          {inWorkPosts.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="space-y-3">
+              {inWorkPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="complete">
+          {completePosts.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No completed posts yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {completePosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="all">
           {allPosts.length === 0 ? (

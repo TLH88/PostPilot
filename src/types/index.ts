@@ -94,6 +94,33 @@ export interface ReleaseNote {
   created_at: string;
 }
 
+export interface ContentLibraryItem {
+  id: string;
+  user_id: string | null;
+  type: "hook" | "cta" | "closing" | "snippet";
+  title: string;
+  content: string;
+  content_pillar: string | null;
+  tags: string[];
+  usage_count: number;
+  is_builtin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PostTemplate {
+  id: string;
+  user_id: string | null;
+  name: string;
+  description: string | null;
+  structure: string;
+  content_pillar: string | null;
+  is_builtin: boolean;
+  is_shared: boolean;
+  shared_at: string | null;
+  created_at: string;
+}
+
 export interface AIMessage {
   role: "user" | "assistant";
   content: string;
