@@ -4,6 +4,49 @@
 
 ---
 
+## 2026-04-03: BP-038, BP-040, BP-042, BP-043 + Backlog Updates
+
+### BP-038: Manual Post Status Change (Mark as Posted)
+- **New component:** `src/components/posts/mark-posted-dialog.tsx` — Shared dialog for marking posts as "Posted to LinkedIn" with optional LinkedIn URL input
+- **Updated:** `src/components/posts/post-actions.tsx` — Expanded three-dot menu on Posts list page with status-aware actions:
+  - Draft → "Move to Review"
+  - Review → "Back to Draft"
+  - Scheduled → "Back to Draft", "Mark as Posted"
+  - Past Due → "Back to Draft", "Mark as Posted"
+  - "Mark as Posted" opens dialog with optional LinkedIn URL field
+- **Updated:** `src/app/(app)/posts/[id]/page.tsx` — "Mark as Posted to LinkedIn" buttons in post editor (scheduled + past_due states) now open the MarkPostedDialog instead of directly setting status, allowing users to optionally provide their LinkedIn post URL
+- **Updated:** `src/app/(app)/posts/page.tsx` — Passes post title to PostActions for better dialog context
+
+### BP-040: Fix Dashboard "New Post" Button Navigation
+- **Updated:** `src/app/(app)/dashboard/page.tsx` — Replaced static `<Link href="/posts">` with `<NewPostButton>` component that creates a new post in Supabase and navigates directly to the editor
+- **Updated:** `src/components/posts/new-post-button.tsx` — Added `className` and `label` props so the button can be styled to match the dashboard gradient buttons
+
+### BP-042: Include Post Title in LinkedIn Publish & Preview
+- **Updated:** `src/lib/linkedin-api.ts` — `publishToLinkedIn()` now accepts optional `title` param, prepends it as first line of LinkedIn `commentary` field (skips "Untitled Post")
+- **Updated:** `src/app/api/linkedin/publish/route.ts` — Passes `post.title` to `publishToLinkedIn()`
+- **Updated:** `supabase/functions/publish-scheduled-posts/index.ts` — Added `title` to post query, passes to LinkedIn publish function
+- **Updated:** `src/components/posts/linkedin-preview.tsx` — Accepts `title` prop, shows it prepended to content in preview
+- **Updated:** `src/app/(app)/posts/[id]/page.tsx` — Passes `title` to `LinkedInPreview`, includes title in "Copy Post" clipboard text
+
+### BP-043: Investigate & Fix LinkedIn Disconnections
+**Root causes identified:**
+1. Status endpoint only checked stored `expires_at` — showed "expired" even when refresh token was available
+2. Token refresh only happened at publish time — user already saw "disconnected" in UI
+3. Publish route treated all refresh failures as permanent disconnection (including temporary network errors)
+
+**Fixes applied:**
+- **Updated:** `src/app/api/linkedin/status/route.ts` — Now proactively attempts token refresh when expired token is detected with a refresh token available. If refresh succeeds, returns `expired: false` with updated expiry. User sees "Connected" instead of "Expired".
+- **Updated:** `src/app/api/linkedin/publish/route.ts` — Improved error handling to distinguish temporary network errors (returns 502 "try again") from genuine token expiry (returns 401 "reconnect"). Temporary failures no longer cause the editor to show "disconnected".
+
+### Backlog Updates
+- **BP-039:** Add Image to LinkedIn Post Before Publishing (Phase 1)
+- **BP-040:** Fix Dashboard "New Post" Button Navigation (Phase 1) — **DONE**
+- **BP-041:** Requirements Spec — In-App Image Generation & LinkedIn Image Publishing (Phase 2)
+- **BP-042:** Include Post Title in LinkedIn Publish & Preview (Phase 1) — **DONE**
+- **BP-043:** Investigate & Fix LinkedIn Disconnections (Phase 1) — **DONE**
+
+---
+
 ## 2026-04-01: Full Product Evaluation + Phase 0 Implementation
 
 ### Evaluation Reports Completed

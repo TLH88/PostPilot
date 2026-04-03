@@ -5,11 +5,11 @@ import {
   FileText,
   Calendar,
   TrendingUp,
-  Plus,
   ArrowRight,
   AlertCircle,
   Bot,
 } from "lucide-react";
+import { NewPostButton } from "@/components/posts/new-post-button";
 import { createClient } from "@/lib/supabase/server";
 import { PROVIDER_DISPLAY_NAMES, getAvailableModels, getDefaultModel, type AIProvider } from "@/lib/ai/providers";
 import {
@@ -226,13 +226,10 @@ export default async function DashboardPage() {
           <Lightbulb className="size-4" />
           Generate Ideas
         </Link>
-        <Link
-          href="/posts"
+        <NewPostButton
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
-        >
-          <Plus className="size-4" />
-          Start New Post
-        </Link>
+          label="Start New Post"
+        />
         <Link
           href="/calendar"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"

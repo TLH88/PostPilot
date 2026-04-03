@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-01
+> Last updated: 2026-04-03
 
 ## Status Key
 
@@ -741,6 +741,123 @@ Automatically publish scheduled posts to LinkedIn when their scheduled time arri
 
 ---
 
+### BP-039: Add Image to LinkedIn Post Before Publishing
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner request
+**Date Added:** 2026-04-03
+**Phase:** 1
+
+**Description:**
+Update the "Post to LinkedIn" workflow to allow users to optionally attach an image to their post before it is published. Currently, posts are published as text-only. LinkedIn posts with images get significantly higher engagement.
+
+**Requirements:**
+- Add an image upload step/preview in the publish-to-LinkedIn flow (before the post is sent)
+- Support common image formats (JPG, PNG, GIF) within LinkedIn's size limits
+- Show image preview with option to remove before publishing
+- Update `/api/linkedin/publish` to use LinkedIn's image upload API (`/rest/images` → register upload → upload binary → attach to post)
+- Update the Supabase Edge Function (`publish-scheduled-posts`) to support image attachments for scheduled posts
+- Store uploaded image reference on the `posts` table (e.g., `image_url` or `image_storage_path`)
+- Consider using Supabase Storage for image hosting
+- Graceful fallback: if image upload fails, prompt user to publish text-only or retry
+- Image should also be visible in the post editor preview
+
+---
+
+### BP-040: Fix Dashboard "New Post" Button Navigation
+
+**Status:** Done
+**Priority:** High
+**Source:** Bug report (Owner)
+**Date Added:** 2026-04-03
+**Completed:** 2026-04-03
+**Phase:** 1
+
+**Description:**
+The "New Post" button on the dashboard currently navigates to the Posts list page instead of opening the post editor with a new blank post. Users expect clicking "New Post" to immediately start creating a new post.
+
+**Requirements:**
+- Dashboard "New Post" button should create a new post record and navigate directly to the post editor (`/posts/[new-id]`)
+- Match the behavior of however new posts are created elsewhere in the app (e.g., from Ideas Bank "Develop" button)
+- If post creation requires a minimum set of data, pre-populate with sensible defaults (e.g., status: draft, untitled)
+
+---
+
+### BP-041: Requirements Spec — In-App Image Generation & LinkedIn Image Publishing
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner request (feeds into BP-029)
+**Date Added:** 2026-04-03
+**Phase:** 2
+
+**Description:**
+Flesh out the full requirements for in-app AI image generation (BP-029) and how generated/uploaded images will be attached to posts and published to LinkedIn. This is a design/requirements task, not implementation.
+
+**Requirements to Define:**
+- **Image generation flow:** Where in the post editor does the user trigger image generation? What prompts/options are available? How does the AI use post content to suggest an image?
+- **BYOK integration:** How does this work with the user's existing OpenAI key (DALL-E 3)? What about users on Claude/Gemini/Perplexity who don't have an OpenAI key?
+- **Image storage:** Where are generated images stored? (Supabase Storage bucket, external CDN, etc.) Retention policy? Storage limits per tier?
+- **Image-to-post association:** Data model for linking images to posts (one image per post? multiple? carousel support?)
+- **LinkedIn publishing with images:** Full API flow for publishing a post with an attached image (register upload → upload binary → create post with media). How does this integrate with both direct publish and scheduled auto-publish?
+- **Image editing/regeneration:** Can users regenerate, crop, or swap images before publishing?
+- **Tier gating:** Which tiers get image generation vs. image upload only?
+- **Cost transparency:** Show users estimated cost per image generation ($0.04–0.08 via DALL-E 3)
+- **Output:** A detailed spec document that can be used to implement BP-029 and update BP-039
+
+---
+
+### BP-042: Include Post Title in LinkedIn Publish & Preview
+
+**Status:** Done
+**Priority:** High
+**Source:** Owner request
+**Date Added:** 2026-04-03
+**Completed:** 2026-04-03
+**Phase:** 1
+
+**Description:**
+The post title is not currently included when a post is published to LinkedIn or shown in the LinkedIn preview. The title should be prepended to the post content (e.g., as a bold first line) so it appears as part of the published post on LinkedIn.
+
+**Requirements:**
+- When publishing to LinkedIn (both direct publish via `/api/linkedin/publish` and scheduled auto-publish via Edge Function), prepend the post title to the content body
+- Update the LinkedIn Preview component to show the title integrated into the post content, matching how it will appear on LinkedIn
+- Handle edge cases: no title set, title duplicates first line of content
+- Ensure "Copy Post" clipboard action also includes the title
+- Define formatting: title as first line followed by a blank line, or title in bold unicode characters, etc.
+
+---
+
+### BP-043: Investigate & Fix Frequent LinkedIn Disconnections
+
+**Status:** Done
+**Priority:** Critical
+**Source:** Owner report (recurring issue)
+**Date Added:** 2026-04-03
+**Completed:** 2026-04-03
+**Phase:** 1
+
+**Description:**
+The system frequently loses its connection to LinkedIn, requiring users to manually reconnect. This disrupts the posting workflow and undermines trust in scheduled auto-publishing. Needs investigation to determine root cause and implement a fix.
+
+**Investigation Areas:**
+- **Token expiry:** LinkedIn access tokens expire after 60 days. Are tokens expiring sooner than expected? Is the expiry being tracked/stored correctly?
+- **Token refresh:** Is there a refresh token flow implemented? LinkedIn's OAuth 2.0 supports refresh tokens — verify if we're requesting and using them
+- **Encryption/decryption:** Could token storage or retrieval (AES-256-GCM) be silently failing, causing the app to think the connection is lost?
+- **Status check logic:** Review `/api/linkedin/status` — is it incorrectly reporting disconnected status? Are there edge cases (e.g., network timeouts) being treated as disconnections?
+- **LinkedIn API errors:** Check if 401/403 responses from LinkedIn are triggering token deletion. Should we distinguish between "token expired" and "temporary API error"?
+- **Edge Function impact:** Is the scheduled publishing Edge Function consuming or invalidating tokens?
+
+**Requirements (after investigation):**
+- Implement token refresh flow if not already present
+- Add token expiry warning UI (e.g., "Your LinkedIn connection expires in X days — reconnect now")
+- Improve error handling to distinguish temporary API errors from actual token invalidation
+- Add logging/telemetry to track disconnection events and their causes
+- Consider proactive token refresh before expiry
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -757,3 +874,7 @@ Automatically publish scheduled posts to LinkedIn when their scheduled time arri
 - **BP-012:** QA Fixes — Input Validation & Error Logging (2026-04-01)
 - **BP-013:** LinkedIn Direct Posting via API (2026-04-01)
 - **BP-014:** Scheduled Auto-Publishing via Edge Function (2026-04-01)
+- **BP-038:** Manual Post Status Change — Mark as Posted (2026-04-03)
+- **BP-040:** Fix Dashboard "New Post" Button Navigation (2026-04-03)
+- **BP-042:** Include Post Title in LinkedIn Publish & Preview (2026-04-03)
+- **BP-043:** Investigate & Fix Frequent LinkedIn Disconnections (2026-04-03)

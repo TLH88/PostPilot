@@ -99,12 +99,22 @@ async function publishToLinkedIn(
   accessToken: string,
   memberId: string,
   content: string,
-  hashtags: string[]
+  hashtags: string[],
+  title?: string | null
 ): Promise<{ postId: string; postUrl: string }> {
   const hashtagText = hashtags
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
     .join(" ");
-  const fullText = hashtagText ? `${content}\n\n${hashtagText}` : content;
+
+  // Prepend title as a first line if provided
+  const bodyWithTitle =
+    title && title !== "Untitled Post"
+      ? `${title}\n\n${content}`
+      : content;
+
+  const fullText = hashtagText
+    ? `${bodyWithTitle}\n\n${hashtagText}`
+    : bodyWithTitle;
 
   const response = await fetch("https://api.linkedin.com/rest/posts", {
     method: "POST",
@@ -248,7 +258,7 @@ Deno.serve(async (req: Request) => {
     const now = new Date().toISOString();
     const { data: posts, error: queryError } = await supabase
       .from("posts")
-      .select("id, content, hashtags, user_id, publish_attempts")
+      .select("id, title, content, hashtags, user_id, publish_attempts")
       .eq("status", "scheduled")
       .lte("scheduled_for", now)
       .lt("publish_attempts", MAX_PUBLISH_ATTEMPTS);
@@ -392,7 +402,8 @@ Deno.serve(async (req: Request) => {
           accessToken,
           profile.linkedin_member_id!,
           post.content,
-          post.hashtags || []
+          post.hashtags || [],
+          post.title
         );
 
         // Success — update post

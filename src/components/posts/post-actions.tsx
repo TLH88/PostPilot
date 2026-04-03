@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, MoreVertical, Trash2, RotateCcw } from "lucide-react";
+import {
+  Archive,
+  Check,
+  Eye,
+  FileEdit,
+  MoreVertical,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,36 +27,42 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
 import { createClient } from "@/lib/supabase/client";
 
 interface PostActionsProps {
   postId: string;
   status: string;
+  title?: string | null;
 }
 
-export function PostActions({ postId, status }: PostActionsProps) {
+export function PostActions({ postId, status, title }: PostActionsProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [markPostedOpen, setMarkPostedOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  async function handleArchive(e: React.MouseEvent) {
+  async function handleStatusChange(
+    e: React.MouseEvent,
+    newStatus: string,
+    extraUpdates?: Record<string, unknown>
+  ) {
     e.preventDefault();
     e.stopPropagation();
-    await supabase
-      .from("posts")
-      .update({ status: "archived", updated_at: new Date().toISOString() })
-      .eq("id", postId);
-    router.refresh();
-  }
 
-  async function handleRestore(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    await supabase
-      .from("posts")
-      .update({ status: "draft", updated_at: new Date().toISOString() })
-      .eq("id", postId);
+    const updates: Record<string, unknown> = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+      ...extraUpdates,
+    };
+
+    // Clear scheduled_for when moving back to draft
+    if (newStatus === "draft") {
+      updates.scheduled_for = null;
+    }
+
+    await supabase.from("posts").update(updates).eq("id", postId);
     router.refresh();
   }
 
@@ -59,6 +73,9 @@ export function PostActions({ postId, status }: PostActionsProps) {
     setDeleting(false);
     router.refresh();
   }
+
+  // Determine which status actions to show
+  const statusActions = getStatusActions(status);
 
   return (
     <>
@@ -85,18 +102,45 @@ export function PostActions({ postId, status }: PostActionsProps) {
             e.stopPropagation();
           }}
         >
+          {/* Status change actions */}
+          {statusActions.map((action) => (
+            <DropdownMenuItem
+              key={action.label}
+              onClick={(e) => {
+                if (action.action === "mark_posted") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMarkPostedOpen(true);
+                } else {
+                  handleStatusChange(e, action.targetStatus!);
+                }
+              }}
+            >
+              {action.icon}
+              {action.label}
+            </DropdownMenuItem>
+          ))}
+
+          {statusActions.length > 0 && <DropdownMenuSeparator />}
+
+          {/* Archive / Restore */}
           {status !== "archived" ? (
-            <DropdownMenuItem onClick={handleArchive}>
+            <DropdownMenuItem
+              onClick={(e) => handleStatusChange(e, "archived")}
+            >
               <Archive className="size-4" />
               Archive
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={handleRestore}>
+            <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
               <RotateCcw className="size-4" />
               Restore to Draft
             </DropdownMenuItem>
           )}
+
           <DropdownMenuSeparator />
+
+          {/* Delete */}
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onClick={(e) => {
@@ -111,6 +155,7 @@ export function PostActions({ postId, status }: PostActionsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent
           className="sm:max-w-[400px]"
@@ -119,8 +164,8 @@ export function PostActions({ postId, status }: PostActionsProps) {
           <DialogHeader>
             <DialogTitle>Delete post?</DialogTitle>
             <DialogDescription>
-              This will permanently delete this post and all its versions.
-              This action cannot be undone.
+              This will permanently delete this post and all its versions. This
+              action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
@@ -140,6 +185,80 @@ export function PostActions({ postId, status }: PostActionsProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mark as Posted dialog */}
+      <MarkPostedDialog
+        open={markPostedOpen}
+        onOpenChange={setMarkPostedOpen}
+        postId={postId}
+        postTitle={title}
+        onSuccess={() => router.refresh()}
+      />
     </>
   );
+}
+
+/** Returns the status-specific menu actions for a given post status */
+function getStatusActions(status: string) {
+  const actions: {
+    label: string;
+    icon: React.ReactNode;
+    targetStatus?: string;
+    action?: string;
+  }[] = [];
+
+  switch (status) {
+    case "draft":
+      actions.push({
+        label: "Move to Review",
+        icon: <Eye className="size-4" />,
+        targetStatus: "review",
+      });
+      actions.push({
+        label: "Mark as Posted",
+        icon: <Check className="size-4" />,
+        action: "mark_posted",
+      });
+      break;
+    case "review":
+      actions.push({
+        label: "Back to Draft",
+        icon: <FileEdit className="size-4" />,
+        targetStatus: "draft",
+      });
+      actions.push({
+        label: "Mark as Posted",
+        icon: <Check className="size-4" />,
+        action: "mark_posted",
+      });
+      break;
+    case "scheduled":
+      actions.push({
+        label: "Back to Draft",
+        icon: <FileEdit className="size-4" />,
+        targetStatus: "draft",
+      });
+      actions.push({
+        label: "Mark as Posted",
+        icon: <Check className="size-4" />,
+        action: "mark_posted",
+      });
+      break;
+    case "past_due":
+      actions.push({
+        label: "Back to Draft",
+        icon: <FileEdit className="size-4" />,
+        targetStatus: "draft",
+      });
+      actions.push({
+        label: "Mark as Posted",
+        icon: <Check className="size-4" />,
+        action: "mark_posted",
+      });
+      break;
+    // "posted" and "archived" have no additional status actions
+    // (Archive/Restore already handled separately)
+  }
+
+  return actions;
 }

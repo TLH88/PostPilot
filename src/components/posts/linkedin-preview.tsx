@@ -6,22 +6,30 @@ import { LINKEDIN } from "@/lib/constants";
 
 interface LinkedInPreviewProps {
   content: string;
+  title?: string | null;
   authorName: string;
   authorHeadline: string;
 }
 
 export function LinkedInPreview({
   content,
+  title,
   authorName,
   authorHeadline,
 }: LinkedInPreviewProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const shouldTruncate = content.length > LINKEDIN.HOOK_VISIBLE_LENGTH;
+  // Build full post text as it will appear on LinkedIn
+  const fullContent =
+    title && title !== "Untitled Post"
+      ? `${title}\n\n${content}`
+      : content;
+
+  const shouldTruncate = fullContent.length > LINKEDIN.HOOK_VISIBLE_LENGTH;
   const displayContent =
     shouldTruncate && !expanded
-      ? content.slice(0, LINKEDIN.HOOK_VISIBLE_LENGTH)
-      : content;
+      ? fullContent.slice(0, LINKEDIN.HOOK_VISIBLE_LENGTH)
+      : fullContent;
 
   return (
     <div className="mx-auto w-full max-w-[552px] rounded-lg bg-white shadow-sm ring-1 ring-black/10">

@@ -65,7 +65,7 @@ function PostCard({ post }: { post: PostItem }) {
                 {status.label}
               </Badge>
             )}
-            <PostActions postId={post.id} status={post.status} />
+            <PostActions postId={post.id} status={post.status} title={post.title} />
           </div>
         </CardContent>
       </Card>

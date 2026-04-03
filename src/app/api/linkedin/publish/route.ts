@@ -123,7 +123,27 @@ export async function POST(request: NextRequest) {
             .from("creator_profiles")
             .update(updateData)
             .eq("user_id", user.id);
-        } catch {
+        } catch (refreshError) {
+          const msg =
+            refreshError instanceof Error ? refreshError.message : "";
+          // Distinguish true expiry from temporary failures
+          const isTemporary =
+            msg.includes("ECONNRESET") ||
+            msg.includes("ETIMEDOUT") ||
+            msg.includes("fetch failed") ||
+            msg.includes("network");
+
+          if (isTemporary) {
+            return NextResponse.json(
+              {
+                error:
+                  "Could not reach LinkedIn to refresh your connection. Please try again.",
+                action: "This may be a temporary network issue.",
+              },
+              { status: 502 }
+            );
+          }
+
           return NextResponse.json(
             {
               error:
@@ -149,7 +169,8 @@ export async function POST(request: NextRequest) {
       accessToken,
       profile.linkedin_member_id,
       post.content,
-      post.hashtags ?? []
+      post.hashtags ?? [],
+      post.title
     );
 
     // Update post with LinkedIn info

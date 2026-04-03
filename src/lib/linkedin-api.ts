@@ -84,12 +84,22 @@ export async function publishToLinkedIn(
   accessToken: string,
   memberId: string,
   content: string,
-  hashtags: string[]
+  hashtags: string[],
+  title?: string | null
 ): Promise<LinkedInPublishResult> {
   const hashtagText = hashtags
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
     .join(" ");
-  const fullText = hashtagText ? `${content}\n\n${hashtagText}` : content;
+
+  // Prepend title as a bold first line if provided
+  const bodyWithTitle =
+    title && title !== "Untitled Post"
+      ? `${title}\n\n${content}`
+      : content;
+
+  const fullText = hashtagText
+    ? `${bodyWithTitle}\n\n${hashtagText}`
+    : bodyWithTitle;
 
   const response = await fetch("https://api.linkedin.com/rest/posts", {
     method: "POST",

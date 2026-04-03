@@ -55,6 +55,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
+import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
@@ -131,6 +132,7 @@ export default function PostWorkspacePage() {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [markPostedOpen, setMarkPostedOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // ── Content pillar state ──────────────────────────────────────────────────
@@ -631,7 +633,9 @@ export default function PostWorkspacePage() {
     const hashtagText = hashtags.length > 0
       ? "\n\n" + hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")
       : "";
-    const fullText = content + hashtagText;
+    const titlePrefix =
+      title && title !== "Untitled Post" ? `${title}\n\n` : "";
+    const fullText = titlePrefix + content + hashtagText;
     try {
       await navigator.clipboard.writeText(fullText);
       toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
@@ -1069,6 +1073,7 @@ export default function PostWorkspacePage() {
                       ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ")
                       : "")
                   }
+                  title={title}
                   authorName={profile?.full_name ?? "Your Name"}
                   authorHeadline={profile?.headline ?? "Your headline"}
                 />
@@ -1360,15 +1365,26 @@ export default function PostWorkspacePage() {
               <div className="flex items-center gap-2">
                 {/* Status actions based on current status */}
                 {status === "draft" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("review")}
-                  >
-                    <Eye className="size-3.5" />
-                    Move to Review
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => updateStatus("review")}
+                    >
+                      <Eye className="size-3.5" />
+                      Move to Review
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => setMarkPostedOpen(true)}
+                    >
+                      <Check className="size-3.5" />
+                      Mark as Posted
+                    </Button>
+                  </>
                 )}
                 {status === "review" && (
                   <>
@@ -1401,6 +1417,15 @@ export default function PostWorkspacePage() {
                     >
                       Schedule
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => setMarkPostedOpen(true)}
+                    >
+                      <Check className="size-3.5" />
+                      Mark as Posted
+                    </Button>
                   </>
                 )}
                 {status === "scheduled" && (
@@ -1430,7 +1455,7 @@ export default function PostWorkspacePage() {
                     <Button
                       size="sm"
                       className="gap-1.5"
-                      onClick={() => updateStatus("posted")}
+                      onClick={() => setMarkPostedOpen(true)}
                     >
                       <Check className="size-3.5" />
                       Mark as Posted to LinkedIn
@@ -1464,7 +1489,7 @@ export default function PostWorkspacePage() {
                     <Button
                       size="sm"
                       className="gap-1.5"
-                      onClick={() => updateStatus("posted")}
+                      onClick={() => setMarkPostedOpen(true)}
                     >
                       <Check className="size-3.5" />
                       Mark as Posted to LinkedIn
@@ -1780,6 +1805,17 @@ export default function PostWorkspacePage() {
         onOpenChange={setShareDialogOpen}
         scheduledFor={lastScheduledDate}
         linkedinConnected={linkedinConnected}
+      />
+
+      {/* Mark as Posted dialog */}
+      <MarkPostedDialog
+        open={markPostedOpen}
+        onOpenChange={setMarkPostedOpen}
+        postId={postId}
+        postTitle={title}
+        onSuccess={() => {
+          setStatus("posted");
+        }}
       />
 
       {/* Delete confirmation dialog */}

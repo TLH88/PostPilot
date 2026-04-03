@@ -6,7 +6,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-export function NewPostButton() {
+export function NewPostButton({ className, label }: { className?: string; label?: string }) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
 
@@ -52,13 +52,13 @@ export function NewPostButton() {
   }
 
   return (
-    <Button onClick={handleCreatePost} disabled={isCreating} className="gap-2">
+    <Button onClick={handleCreatePost} disabled={isCreating} className={className ?? "gap-2"}>
       {isCreating ? (
         <Loader2 className="size-4 animate-spin" />
       ) : (
         <Plus className="size-4" />
       )}
-      {isCreating ? "Creating..." : "New Post"}
+      {isCreating ? "Creating..." : (label ?? "New Post")}
     </Button>
   );
 }
