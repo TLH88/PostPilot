@@ -808,6 +808,37 @@ Flesh out the full requirements for in-app AI image generation (BP-029) and how 
 
 ---
 
+### BP-044: Publish to LinkedIn Preview & Confirmation Flow
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner request
+**Date Added:** 2026-04-03
+**Phase:** 1
+
+**Description:**
+Clicking any "Publish to LinkedIn" button anywhere in the system should open the post in a preview/confirmation dialog before sending it to LinkedIn. Currently, clicking publish sends the post immediately with no chance to review.
+
+**Requirements:**
+- Intercept ALL "Publish to LinkedIn" triggers system-wide (post editor, past-due checker, and any future publish entry points)
+- Show a preview dialog that displays the post exactly as it will appear on LinkedIn (reuse/extend the existing `LinkedInPreview` component)
+- Preview dialog provides four actions:
+  1. **Approve & Publish** — sends the post to LinkedIn as-is
+  2. **Add/Replace Image** — allows user to attach or swap an image before publishing (ties into BP-039 image upload feature)
+  3. **Open in Editor** — navigates to the post editor for further edits, cancels the publish flow
+  4. **Cancel** — closes the dialog, no action taken
+- The dialog should show the post title (prepended), content, and hashtags as they will appear in the LinkedIn feed
+- Loading state on "Approve & Publish" while the API call is in progress
+- On success: show toast with "View on LinkedIn" link, same as current behavior
+
+**Implementation Notes:**
+- Create a shared `PublishPreviewDialog` component that wraps the publish API call
+- All publish triggers pass `postId` to the dialog instead of calling `/api/linkedin/publish` directly
+- The "Add/Replace Image" action can be a stub/placeholder until BP-039 (image upload) is implemented
+- Consider whether the dialog should fetch fresh post data or accept it as props
+
+---
+
 ### BP-042: Include Post Title in LinkedIn Publish & Preview
 
 **Status:** Done

@@ -10,9 +10,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 interface PastDuePost {
   id: string;
@@ -20,12 +22,15 @@ interface PastDuePost {
   content: string;
   hashtags: string[];
   scheduled_for: string;
+  publish_error: string | null;
 }
 
 export function PastDueChecker() {
   const [posts, setPosts] = useState<PastDuePost[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [open, setOpen] = useState(false);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const supabase = createClient();
 
@@ -37,18 +42,40 @@ export function PastDueChecker() {
 
     const { data } = await supabase
       .from("posts")
-      .select("id, title, content, hashtags, scheduled_for")
+      .select("id, title, content, hashtags, scheduled_for, publish_error")
       .eq("user_id", user.id)
       .eq("status", "scheduled")
       .lt("scheduled_for", new Date().toISOString())
       .order("scheduled_for", { ascending: true });
 
-    if (data && data.length > 0) {
-      setPosts(data);
+    // Also check for posts already marked past_due
+    const { data: pastDueData } = await supabase
+      .from("posts")
+      .select("id, title, content, hashtags, scheduled_for, publish_error")
+      .eq("user_id", user.id)
+      .eq("status", "past_due")
+      .order("scheduled_for", { ascending: true });
+
+    const allPosts = [...(data ?? []), ...(pastDueData ?? [])];
+
+    if (allPosts.length > 0) {
+      setPosts(allPosts);
       setCurrentIndex(0);
       setOpen(true);
     }
   }, [supabase]);
+
+  // Check LinkedIn connection status on mount
+  useEffect(() => {
+    fetch("/api/linkedin/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.connected && !data.expired) {
+          setLinkedinConnected(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     checkPastDue();
@@ -111,8 +138,56 @@ export function PastDueChecker() {
     moveToNext();
   }
 
-  function handleShareNow() {
-    openLinkedInShare(current.content, current.hashtags ?? []);
+  async function handlePublishNow() {
+    if (!linkedinConnected) {
+      // Fallback to manual share
+      openLinkedInShare(current.content, current.hashtags ?? []);
+      return;
+    }
+
+    // Direct API publish
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/linkedin/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: current.id }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.expired) {
+          setLinkedinConnected(false);
+        }
+        toast.error(data.error || "Failed to publish to LinkedIn", {
+          description: data.action,
+          duration: 8000,
+        });
+        return;
+      }
+
+      toast.success(
+        <span>
+          Posted to LinkedIn!{" "}
+          <a
+            href={data.linkedinPostUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-medium"
+          >
+            View post
+          </a>
+        </span>
+      );
+      moveToNext();
+    } catch {
+      toast.error("Failed to publish to LinkedIn", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
+    } finally {
+      setPublishing(false);
+    }
   }
 
   return (
@@ -121,7 +196,8 @@ export function PastDueChecker() {
         <DialogHeader>
           <DialogTitle>Scheduled Post Past Due</DialogTitle>
           <DialogDescription>
-            This post was scheduled for {scheduledDate}. Did you post it to LinkedIn?
+            This post was scheduled for {scheduledDate}. Did you post it to
+            LinkedIn?
           </DialogDescription>
         </DialogHeader>
 
@@ -133,6 +209,14 @@ export function PastDueChecker() {
           <p className="text-xs text-muted-foreground">
             Scheduled: {scheduledDate}
           </p>
+          {current.publish_error && (
+            <div className="flex items-start gap-2 rounded-md bg-red-50 p-2 text-xs text-red-700">
+              <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+              <span>
+                Auto-publish failed: {current.publish_error}
+              </span>
+            </div>
+          )}
         </div>
 
         {posts.length > 1 && (
@@ -148,10 +232,19 @@ export function PastDueChecker() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={handleShareNow}
+            onClick={handlePublishNow}
+            disabled={publishing}
           >
-            <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-            Post to LinkedIn now
+            {publishing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
+            )}
+            {publishing
+              ? "Publishing..."
+              : linkedinConnected
+                ? "Publish to LinkedIn now"
+                : "Post to LinkedIn now"}
           </Button>
           <Button onClick={handleConfirmPosted}>
             Yes, I posted it to LinkedIn

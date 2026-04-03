@@ -18,7 +18,6 @@ import {
   List,
   Loader2,
   MessageCircle,
-  Minus,
   PanelRightClose,
   PanelRightOpen,
   Pilcrow,
@@ -56,11 +55,13 @@ import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
+import { EmojiPicker } from "@/components/posts/emoji-picker";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { classifyPillar } from "@/lib/classify-pillar";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
@@ -1282,15 +1283,7 @@ export default function PostWorkspacePage() {
                 <List className="size-3" />
                 Bullet point
               </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => insertAtCursor("\n\u2014 ")}
-              >
-                <Minus className="size-3" />
-                Em dash
-              </Button>
+              <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
 
               <div className="flex-1" />
 
@@ -1564,6 +1557,10 @@ export default function PostWorkspacePage() {
               </div>
 
               <div className="flex items-center gap-2">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden sm:inline">
+                  Versions
+                </span>
+
                 {/* Save Version */}
                 <Button
                   variant="outline"
@@ -1580,17 +1577,26 @@ export default function PostWorkspacePage() {
                   Save Version
                 </Button>
 
-                {/* Convert Version to Post */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => createPostFromVersion(activeVersion ?? undefined)}
-                  disabled={!content.trim()}
-                >
-                  <FilePlus2 className="size-3.5" />
-                  Convert to Post
-                </Button>
+                {/* Save as New Post (creates standalone draft copy) */}
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => createPostFromVersion(activeVersion ?? undefined)}
+                        disabled={!content.trim()}
+                      />
+                    }
+                  >
+                    <FilePlus2 className="size-3.5" />
+                    Save as New Post
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Creates a standalone copy of this content as a new draft
+                  </TooltipContent>
+                </Tooltip>
 
                 {/* View Versions Dropdown */}
                 {versions.length > 0 && (
