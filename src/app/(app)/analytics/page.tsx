@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { HelpLink, HelpStepList, HelpTip } from "@/components/help-link";
 import { ImportAnalyticsDialog } from "@/components/analytics/import-analytics-dialog";
 import type { SubscriptionTier } from "@/lib/constants";
 import type { Post } from "@/types";
@@ -113,9 +114,43 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground">
-            Track engagement on your LinkedIn posts. Import data from LinkedIn or enter it manually.
+          <h1 className="text-2xl font-bold tracking-tight">
+            Analytics
+            <HelpLink anchor="import-linkedin-post-analytics" title="How to import LinkedIn analytics">
+              <h3 className="text-base font-semibold">Import LinkedIn Post Analytics</h3>
+              <p className="text-muted-foreground">
+                LinkedIn provides analytics on your post performance including impressions and engagements.
+                Import this data into PostPilot in two passes — one for impressions and one for engagements.
+              </p>
+
+              <h4 className="font-semibold mt-4">Importing Impressions</h4>
+              <HelpStepList>
+                <li>Open your <strong>LinkedIn profile</strong> and scroll down to the <strong>Analytics</strong> section (just above About).</li>
+                <li>Click <strong>&quot;Show all analytics&quot;</strong> at the bottom of that section.</li>
+                <li>Click the <strong>top-right box</strong> to view <strong>Post Impressions</strong>.</li>
+                <li>Set the filter to <strong>90 days</strong> and ensure <strong>Impressions</strong> is selected.</li>
+                <li>Select all (<strong>Ctrl+A</strong> / <strong>Cmd+A</strong>) and copy (<strong>Ctrl+C</strong> / <strong>Cmd+C</strong>).</li>
+                <li>In PostPilot, click <strong>&quot;Import from LinkedIn&quot;</strong> on the Analytics page.</li>
+                <li>Paste the content and click <strong>&quot;Parse &amp; Preview&quot;</strong>.</li>
+                <li>Review the matches and click <strong>&quot;Import&quot;</strong>.</li>
+              </HelpStepList>
+
+              <h4 className="font-semibold mt-4">Importing Engagements</h4>
+              <HelpStepList>
+                <li>Go back to LinkedIn and change the filter from <strong>Impressions</strong> to <strong>Engagements</strong>.</li>
+                <li>Select all and copy the entire page again.</li>
+                <li>Click <strong>&quot;Import from LinkedIn&quot;</strong> again in PostPilot.</li>
+                <li>Paste, click <strong>&quot;Parse &amp; Preview&quot;</strong>, review, and <strong>&quot;Import&quot;</strong>.</li>
+              </HelpStepList>
+
+              <HelpTip>
+                You can repeat this process anytime to update your analytics. PostPilot updates existing values
+                rather than creating duplicates.
+              </HelpTip>
+            </HelpLink>
+          </h1>
+          <p className="text-muted-foreground max-w-[80%]">
+            Measure what resonates with your audience. Track impressions, reactions, comments, and reposts across your published posts. Import data directly from LinkedIn or enter numbers manually to see which content pillars and topics drive the most engagement.
           </p>
         </div>
         {canUseAnalytics && (

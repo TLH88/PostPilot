@@ -123,8 +123,8 @@ export default function LibraryPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Content Library</h1>
-          <p className="text-muted-foreground">
-            Save and reuse your best hooks, CTAs, closings, and snippets.
+          <p className="text-muted-foreground max-w-[80%]">
+            Build a collection of your best-performing content pieces. Save opening hooks that grab attention, calls-to-action that drive engagement, closing lines that leave an impression, and reusable snippets you can insert into any post with one click.
           </p>
         </div>
         <Button onClick={() => setSaveDialogOpen(true)} className="gap-2 shrink-0 self-start sm:self-center" disabled={!canUseLibrary}>

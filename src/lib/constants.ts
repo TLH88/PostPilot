@@ -151,6 +151,14 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   analytics: "creator",
 } as const;
 
+// ── Tier badge colors ─────────────────────────────────────────────────────────
+export const TIER_BADGE_COLORS: Record<string, string> = {
+  free: "bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300",
+  creator: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  professional: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+  business: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+} as const;
+
 export const CONTENT_LIBRARY_TYPES = {
   hook: { label: "Hook", color: "bg-orange-100 text-orange-700" },
   cta: { label: "CTA", color: "bg-blue-100 text-blue-700" },

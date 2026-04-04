@@ -1285,17 +1285,17 @@ export default function PostWorkspacePage() {
             {hookAnalysis && (
               <div className={cn(
                 "rounded-lg border p-3 text-sm",
-                hookAnalysis.strength === "strong" && "border-green-200 bg-green-50",
-                hookAnalysis.strength === "moderate" && "border-yellow-200 bg-yellow-50",
-                hookAnalysis.strength === "weak" && "border-red-200 bg-red-50",
+                hookAnalysis.strength === "strong" && "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
+                hookAnalysis.strength === "moderate" && "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950",
+                hookAnalysis.strength === "weak" && "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
               )}>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2">
                     <Zap className={cn(
                       "size-3.5",
-                      hookAnalysis.strength === "strong" && "text-green-600",
-                      hookAnalysis.strength === "moderate" && "text-yellow-600",
-                      hookAnalysis.strength === "weak" && "text-red-600",
+                      hookAnalysis.strength === "strong" && "text-green-600 dark:text-green-400",
+                      hookAnalysis.strength === "moderate" && "text-yellow-600 dark:text-yellow-400",
+                      hookAnalysis.strength === "weak" && "text-red-600 dark:text-red-400",
                     )} />
                     <span className="font-medium capitalize">{hookAnalysis.strength} Hook</span>
                     <span className="text-xs text-muted-foreground">({hookAnalysis.score}/10)</span>

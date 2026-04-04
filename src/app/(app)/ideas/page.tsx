@@ -246,7 +246,7 @@ export default function IdeasPage() {
 
   // Filters
   const [tempFilter, setTempFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("open");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Dialog states

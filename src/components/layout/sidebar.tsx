@@ -19,7 +19,7 @@ import {
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { NAV_ITEMS, GATED_FEATURES, type SubscriptionTier } from "@/lib/constants";
+import { NAV_ITEMS, GATED_FEATURES, SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -155,9 +155,14 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
           <Avatar className="size-8">
             <AvatarFallback className="bg-blue-600 text-white text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-sidebar-foreground truncate flex-1">
-            {userName}
-          </span>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-sidebar-foreground truncate block">
+              {userName}
+            </span>
+            <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5", TIER_BADGE_COLORS[userTier] ?? TIER_BADGE_COLORS.free)}>
+              {SUBSCRIPTION_TIERS[userTier]?.label ?? "Free"}
+            </span>
+          </div>
           <button
             onClick={(e) => {
               e.preventDefault();

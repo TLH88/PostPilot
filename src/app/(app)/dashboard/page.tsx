@@ -241,7 +241,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Two-column layout: main content (left) + content balance (right) */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
         {/* Left column — 80% */}
         <div className="flex-1 min-w-0 space-y-6">
           {/* Recent Drafts — card grid */}
@@ -376,7 +376,9 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right column — 20% */}
-        <div className="w-full lg:w-[20%] shrink-0 space-y-6">
+        <div className="w-full lg:w-[20%] shrink-0 space-y-3">
+          {/* Spacer to align with "Recent Drafts" header row */}
+          <div className="hidden lg:block h-5" />
           <UsageSummary />
           {contentPillars.length > 0 && (
             <ContentPillarBalance

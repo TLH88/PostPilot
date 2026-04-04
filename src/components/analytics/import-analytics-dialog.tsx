@@ -224,15 +224,21 @@ export function ImportAnalyticsDialog({
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
                 placeholder="Paste your LinkedIn analytics page content here..."
               />
-              <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
-                <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium">How to get your analytics data</p>
-                  <p className="mt-0.5">
-                    Go to your LinkedIn profile, click &quot;Show all analytics&quot;, select &quot;Top performing posts&quot;,
-                    then select all (Ctrl+A) and copy (Ctrl+C). Paste it here.
-                  </p>
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                <div className="flex items-start gap-2 mb-2">
+                  <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                  <p className="font-medium">How to import your LinkedIn analytics</p>
                 </div>
+                <ol className="list-decimal list-inside space-y-1 ml-6">
+                  <li>Open your LinkedIn profile and scroll down to the <strong>Analytics</strong> section (just above About)</li>
+                  <li>Click <strong>Show all analytics</strong> at the bottom of that section</li>
+                  <li>Click the top-right box to view <strong>Post Impressions</strong></li>
+                  <li>Set the filter to <strong>90 days</strong> and <strong>Impressions</strong></li>
+                  <li>Select all (<strong>Ctrl+A</strong> / <strong>Cmd+A</strong>) and copy (<strong>Ctrl+C</strong> / <strong>Cmd+C</strong>), then paste here and click <strong>Parse &amp; Preview</strong></li>
+                  <li>Go back to LinkedIn and change the filter from Impressions to <strong>Engagements</strong></li>
+                  <li>Click <strong>Import from LinkedIn</strong> again in PostPilot</li>
+                  <li>Select all and copy the page again, paste here and click <strong>Parse &amp; Preview</strong></li>
+                </ol>
               </div>
             </div>
           )}

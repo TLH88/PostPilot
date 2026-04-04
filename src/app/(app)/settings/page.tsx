@@ -31,8 +31,8 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">
-          Configure your AI provider and API key, adjust your theme, or manage your session.
+        <p className="text-muted-foreground max-w-[80%]">
+          Manage your subscription plan, configure your AI provider and API key, connect your LinkedIn account for direct posting, and customize your theme preferences.
         </p>
       </div>
 

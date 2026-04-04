@@ -240,8 +240,8 @@ export default function CalendarPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Content Calendar</h1>
-        <p className="text-muted-foreground">
-          See your scheduled posts at a glance. Click any date to view its posts, and use the arrows to navigate between months.
+        <p className="text-muted-foreground max-w-[80%]">
+          Plan your publishing schedule visually. See all scheduled posts on a monthly, weekly, or daily view. Click any date to drill into that day&apos;s posts, and use the upcoming posts panel to quickly review what&apos;s next.
         </p>
       </div>
 

@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SUBSCRIPTION_TIERS, type QuotaType } from "@/lib/constants";
+import { SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type QuotaType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const QUOTA_LABELS: Record<QuotaType, string> = {
@@ -55,7 +55,7 @@ export function UsageSummary() {
             <Gauge className="size-4 text-primary" />
             Monthly Usage
           </span>
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className={cn("text-[10px]", TIER_BADGE_COLORS[tier] ?? TIER_BADGE_COLORS.free)}>
             {tierConfig?.label ?? "Free"}
           </Badge>
         </CardTitle>
