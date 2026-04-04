@@ -84,6 +84,44 @@ export const SCHEDULING_SUGGESTIONS = [
   { day: 4, hour: 10, label: "Thu 10:00 AM" },
 ] as const;
 
+// ── Subscription Tiers & Quota Limits ─────────────────────────────────────────
+// -1 = unlimited
+export type SubscriptionTier = "free" | "creator" | "professional";
+export type QuotaType = "posts" | "brainstorms" | "chat_messages" | "scheduled_posts";
+
+export const SUBSCRIPTION_TIERS: Record<
+  SubscriptionTier,
+  {
+    label: string;
+    price: string;
+    limits: Record<QuotaType, number>;
+  }
+> = {
+  free: {
+    label: "Free",
+    price: "$0/mo",
+    limits: { posts: 3, brainstorms: 2, chat_messages: 20, scheduled_posts: 2 },
+  },
+  creator: {
+    label: "Creator",
+    price: "$19/mo",
+    limits: { posts: -1, brainstorms: 15, chat_messages: 200, scheduled_posts: 15 },
+  },
+  professional: {
+    label: "Professional",
+    price: "$49/mo",
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+  },
+} as const;
+
+// Map quota DB columns to QuotaType keys
+export const QUOTA_COLUMN_MAP: Record<QuotaType, string> = {
+  posts: "posts_created",
+  brainstorms: "brainstorms_used",
+  chat_messages: "chat_messages_used",
+  scheduled_posts: "scheduled_posts",
+} as const;
+
 export const CONTENT_LIBRARY_TYPES = {
   hook: { label: "Hook", color: "bg-orange-100 text-orange-700" },
   cta: { label: "CTA", color: "bg-blue-100 text-blue-700" },

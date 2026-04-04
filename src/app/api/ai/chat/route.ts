@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { ChatInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
+import { checkQuota, incrementQuota } from "@/lib/quota";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,18 @@ export async function POST(request: NextRequest) {
     const { messages, postContent, postTitle } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
+
+    // Quota check
+    const quota = await checkQuota(profile.user_id, "chat_messages");
+    if (!quota.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Monthly AI chat limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Increment quota before streaming (optimistic)
+    await incrementQuota(profile.user_id, "chat_messages");
 
     // Build system prompt with optional post context
     let additionalContext: string | undefined;

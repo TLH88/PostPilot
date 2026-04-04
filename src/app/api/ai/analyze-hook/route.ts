@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { HookAnalysisInputSchema, HookAnalysisResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
+import { checkQuota, incrementQuota } from "@/lib/quota";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,15 @@ export async function POST(request: NextRequest) {
     const { content } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
+
+    // Quota check
+    const quota = await checkQuota(profile.user_id, "chat_messages");
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: `Monthly AI message limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` },
+        { status: 403 }
+      );
+    }
 
     const systemPrompt = buildSystemPrompt(
       BASE_PERSONALITY,
@@ -64,6 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await incrementQuota(profile.user_id, "chat_messages");
     return NextResponse.json(validated.data);
   } catch (error) {
     logApiError("api/ai/analyze-hook", error);

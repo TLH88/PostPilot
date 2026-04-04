@@ -190,10 +190,11 @@ Integrate Stripe for subscription billing. Support Free, Creator ($19/mo), and P
 
 ### BP-016: Usage Quota System
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Critical
 **Source:** Pricing strategy
 **Date Added:** 2026-04-01
+**Completed:** 2026-04-04
 **Phase:** 1
 
 **Description:**
@@ -584,10 +585,11 @@ The current "Convert to Post" button is confusing — users think it will publis
 
 ### BP-038: Manual Post Status Change (Mark as Posted)
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 **Source:** Owner request
 **Date Added:** 2026-04-02
+**Completed:** 2026-04-03
 **Phase:** 1
 
 **Description:**
@@ -926,3 +928,5 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-029:** AI Image Generation (2026-04-03)
 - **BP-039:** Image Upload to LinkedIn Posts (2026-04-03)
 - **BP-041:** Image Generation Requirements Spec (2026-04-03)
+- **BP-016:** Usage Quota System (2026-04-04)
+- **BP-038:** Manual Post Status Change (2026-04-03)

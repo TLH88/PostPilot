@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProviderApiKey } from "@/lib/ai/get-user-ai-client";
 import { logApiError } from "@/lib/api-utils";
+import { checkQuota, incrementQuota } from "@/lib/quota";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
 
@@ -34,6 +35,15 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Quota check
+    const quota = await checkQuota(user.id, "chat_messages");
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: `Monthly AI message limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` },
+        { status: 403 }
+      );
     }
 
     // Fetch post content for auto-prompt
@@ -249,6 +259,8 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", postId);
     }
+
+    await incrementQuota(user.id, "chat_messages");
 
     return NextResponse.json({
       imageUrl,

@@ -597,6 +597,18 @@ export default function PostWorkspacePage() {
   async function schedulePost(date: Date) {
     if (!post) return;
 
+    // Quota check for scheduled posts
+    try {
+      const quotaRes = await fetch("/api/quota");
+      if (quotaRes.ok) {
+        const quota = await quotaRes.json();
+        if (quota.scheduled_posts.limit !== -1 && quota.scheduled_posts.used >= quota.scheduled_posts.limit) {
+          toast.error(`Monthly scheduling limit reached (${quota.scheduled_posts.used}/${quota.scheduled_posts.limit}). Upgrade your plan for more.`);
+          return;
+        }
+      }
+    } catch {}
+
     const { error } = await supabase
       .from("posts")
       .update({
@@ -610,6 +622,13 @@ export default function PostWorkspacePage() {
       setStatus("scheduled");
       setLastScheduledDate(date);
       setShareDialogOpen(true);
+
+      // Increment scheduling quota
+      fetch("/api/quota/increment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "scheduled_posts" }),
+      }).catch(() => {});
     }
   }
 

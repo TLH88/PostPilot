@@ -115,6 +115,17 @@ export function NewPostButton({ className, label }: { className?: string; label?
         return;
       }
 
+      // Quota check
+      const quotaRes = await fetch("/api/quota");
+      if (quotaRes.ok) {
+        const quota = await quotaRes.json();
+        if (quota.posts.limit !== -1 && quota.posts.used >= quota.posts.limit) {
+          toast.error(`Monthly post limit reached (${quota.posts.used}/${quota.posts.limit}). Upgrade your plan for more.`);
+          setIsCreating(false);
+          return;
+        }
+      }
+
       const { data, error } = await supabase
         .from("posts")
         .insert({
@@ -136,6 +147,13 @@ export function NewPostButton({ className, label }: { className?: string; label?
       }
 
       if (data) {
+        // Increment post quota
+        fetch("/api/quota/increment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "posts" }),
+        }).catch(() => {}); // fire-and-forget
+
         targetPostId.current = data.id;
         startTimers(data.id);
         router.push(`/posts/${data.id}`);

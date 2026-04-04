@@ -37,6 +37,20 @@ export interface CreatorProfile {
   linkedin_token_expires_at: string | null;
   linkedin_member_id: string | null;
   linkedin_connected_at: string | null;
+  // Subscription
+  subscription_tier: "free" | "creator" | "professional";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UsageQuota {
+  id: string;
+  user_id: string;
+  period_start: string;
+  posts_created: number;
+  brainstorms_used: number;
+  chat_messages_used: number;
+  scheduled_posts: number;
   created_at: string;
   updated_at: string;
 }

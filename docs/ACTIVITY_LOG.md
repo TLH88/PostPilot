@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-04-04 (Session 2): BP-016 Usage Quota System
+
+### Database
+- **New table:** `usage_quotas` — monthly period rows per user with `posts_created`, `brainstorms_used`, `chat_messages_used`, `scheduled_posts` counters
+- **New column:** `subscription_tier` on `creator_profiles` (free/creator/professional, default: free)
+- RLS policies, unique constraint on `(user_id, period_start)`, index for fast lookups
+
+### Core Infrastructure
+- **New file:** `src/lib/quota.ts` — `checkQuota()`, `incrementQuota()`, `getQuotaStatus()`, `getOrCreateQuota()`, `getUserTier()`
+- **Updated:** `src/lib/constants.ts` — `SUBSCRIPTION_TIERS` with per-tier limits, `QUOTA_COLUMN_MAP`, `SubscriptionTier` and `QuotaType` types
+- **Updated:** `src/types/index.ts` — `UsageQuota` interface, `subscription_tier` on `CreatorProfile`
+- Monthly reset handled by period_start approach: each month auto-creates a new zeroed row
+
+### API Endpoints
+- **New:** `GET /api/quota` — returns full usage status for authenticated user
+- **New:** `POST /api/quota/increment` — increments a quota counter (used by client-side actions)
+
+### Quota Enforcement (7 AI Routes)
+- `brainstorm` — brainstorms quota (check + increment after success)
+- `chat`, `enhance`, `draft` — chat_messages quota (check + optimistic increment before stream)
+- `hashtags`, `analyze-hook` — chat_messages quota (check + increment after success)
+- `generate-image` — chat_messages quota (check + increment after success)
+- All return 403 with usage info when limit reached
+
+### Client-Side Enforcement
+- `new-post-button.tsx` — checks posts quota before creation, increments after
+- `posts/[id]/page.tsx` — checks scheduled_posts quota before scheduling, increments after
+
+### Settings: Tier Selector
+- **New component:** `src/app/(app)/settings/subscription-tier.tsx` — 3 tier cards (Free/Creator/Professional) with limits breakdown, current usage bars, click to switch tier
+- Added "Subscription Plan" card to Settings page above AI Provider
+
+### Dashboard: Usage Summary
+- **New component:** `src/components/dashboard/usage-summary.tsx` — monthly usage card with progress bars per quota type (green → yellow → red)
+- Added to dashboard right column above Content Balance
+
+---
+
 ## 2026-04-04: UI Polish, Mobile Responsiveness, Hover Standardization
 
 ### Image Generation Prompt Fix

@@ -6,6 +6,8 @@ import { SignOutButton } from "./sign-out-button";
 import { ThemeSetting } from "./theme-setting";
 import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
+import { SubscriptionTierSetting } from "./subscription-tier";
+import type { SubscriptionTier } from "@/lib/constants";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -18,10 +20,10 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  // Fetch AI provider settings
+  // Fetch AI provider settings + subscription tier
   const { data: profile } = await supabase
     .from("creator_profiles")
-    .select("ai_provider, ai_model, ai_api_key_encrypted")
+    .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier")
     .eq("user_id", user.id)
     .single();
 
@@ -33,6 +35,18 @@ export default async function SettingsPage() {
           Configure your AI provider and API key, adjust your theme, or manage your session.
         </p>
       </div>
+
+      {/* Subscription Plan */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Subscription Plan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SubscriptionTierSetting
+            currentTier={(profile?.subscription_tier as SubscriptionTier) ?? "free"}
+          />
+        </CardContent>
+      </Card>
 
       {/* AI Provider */}
       <Card>

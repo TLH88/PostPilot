@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { IDEA_TEMPERATURES, POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
+import { UsageSummary } from "@/components/dashboard/usage-summary";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -379,15 +380,16 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right column — 20% */}
-        {contentPillars.length > 0 && (
-          <div className="w-full lg:w-[20%] shrink-0">
+        <div className="w-full lg:w-[20%] shrink-0 space-y-6">
+          <UsageSummary />
+          {contentPillars.length > 0 && (
             <ContentPillarBalance
               pillarCounts={pillarCounts}
               totalPosts={totalPillarPosts}
               title="Content Balance"
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import {
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
+import { checkQuota, incrementQuota } from "@/lib/quota";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +25,15 @@ export async function POST(request: NextRequest) {
     const { topic, contentPillar, count } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
+
+    // Quota check
+    const quota = await checkQuota(profile.user_id, "brainstorms");
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: `Monthly brainstorm limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` },
+        { status: 403 }
+      );
+    }
 
     // Fetch recent posts and ideas for history context
     const supabase = await createClient();
@@ -148,6 +158,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Increment quota after successful brainstorm
+    await incrementQuota(profile.user_id, "brainstorms");
 
     return NextResponse.json(validated.data);
   } catch (error) {
