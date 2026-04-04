@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BarChart3,
   BookOpen,
   Calendar,
   Lock,
@@ -36,10 +37,12 @@ const iconMap: Record<string, LucideIcon> = {
   FileText,
   BookOpen,
   Calendar,
+  BarChart3,
 };
 
 const NAV_GATE_MAP: Record<string, string> = {
   "/library": "content_library",
+  "/analytics": "analytics",
 };
 
 interface MobileNavProps {

@@ -30,17 +30,17 @@ Consider:
 - Current trends in their industries
 - Different content formats: personal stories, lessons learned, contrarian takes, how-to tips, behind-the-scenes, questions to the audience, industry analysis
 
-IMPORTANT — Temperature distribution:
-You MUST include a good mix of temperatures across the ideas you generate. Aim for roughly:
-- 1-2 "hot" ideas (timely, high-engagement potential, trend-driven, or contrarian takes that spark conversation)
-- 2-3 "warm" ideas (solid evergreen content, reliably valuable, strong audience relevance)
-- 1-2 "cold" ideas (niche deep-dives, unconventional angles, thought-provoking but narrower audience)
-Do NOT default everything to "warm". Variety helps the creator build a well-rounded content strategy.
+CRITICAL — Temperature distribution (YOU MUST FOLLOW THIS):
+You are REQUIRED to distribute temperatures across the ideas. DO NOT make all ideas "warm". The distribution MUST be:
+- At least 1 idea MUST be "hot" (timely, high-engagement potential, trend-driven, contrarian takes that spark conversation)
+- At least 1 idea MUST be "cold" (niche deep-dives, unconventional angles, thought-provoking but narrower audience)
+- The remaining ideas should be "warm" (solid evergreen content, reliably valuable, strong audience relevance)
+If generating 5+ ideas: include at least 2 hot and 2 cold. NEVER return all ideas as the same temperature.
 
 For each idea, respond with a JSON object. Each idea should have:
 - "title": A compelling hook or title (under 100 chars)
 - "description": A 2-3 sentence description of what the post would cover
-- "suggestedPillar": Which content pillar it fits
+- "suggestedPillars": An array of content pillars this idea fits (can be one or multiple, e.g. ["AI & Technology", "Leadership"])
 - "suggestedTemperature": "hot", "warm", or "cold" (follow the distribution above)
 - "reasoning": Brief note on why this idea suits this creator and why you assigned this temperature
 

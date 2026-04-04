@@ -105,7 +105,7 @@ export default function LibraryPage() {
       !query ||
       item.title.toLowerCase().includes(query) ||
       item.content.toLowerCase().includes(query) ||
-      item.content_pillar?.toLowerCase().includes(query);
+      (item.content_pillars ?? []).some((p: string) => p.toLowerCase().includes(query));
     return matchesType && matchesSearch;
   });
 
@@ -223,11 +223,11 @@ export default function LibraryPage() {
                       Example
                     </Badge>
                   )}
-                  {item.content_pillar && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {item.content_pillar}
+                  {(item.content_pillars ?? []).map((pillar: string) => (
+                    <Badge key={pillar} variant="outline" className="text-[10px] px-1.5 py-0">
+                      {pillar}
                     </Badge>
-                  )}
+                  ))}
                   {item.usage_count > 0 && (
                     <span className="text-[10px] text-muted-foreground ml-auto">
                       Used {item.usage_count}x

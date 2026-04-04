@@ -62,7 +62,7 @@ export interface Idea {
   description: string | null;
   source: string | null;
   temperature: "hot" | "warm" | "cold";
-  content_pillar: string | null;
+  content_pillars: string[];
   tags: string[];
   status: "captured" | "developing" | "converted" | "archived";
   created_at: string;
@@ -75,7 +75,7 @@ export interface Post {
   idea_id: string | null;
   title: string | null;
   content: string;
-  content_pillar: string | null;
+  content_pillars: string[];
   status: "draft" | "review" | "scheduled" | "posted" | "past_due" | "archived";
   scheduled_for: string | null;
   posted_at: string | null;
@@ -91,6 +91,12 @@ export interface Post {
   image_url: string | null;
   image_storage_path: string | null;
   image_alt_text: string | null;
+  // Analytics (manual entry or LinkedIn paste import)
+  impressions: number | null;
+  reactions: number | null;
+  comments_count: number | null;
+  reposts: number | null;
+  engagements: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -124,7 +130,7 @@ export interface ContentLibraryItem {
   type: "hook" | "cta" | "closing" | "snippet";
   title: string;
   content: string;
-  content_pillar: string | null;
+  content_pillars: string[];
   tags: string[];
   usage_count: number;
   is_builtin: boolean;
@@ -138,7 +144,7 @@ export interface PostTemplate {
   name: string;
   description: string | null;
   structure: string;
-  content_pillar: string | null;
+  content_pillars: string[];
   is_builtin: boolean;
   is_shared: boolean;
   shared_at: string | null;

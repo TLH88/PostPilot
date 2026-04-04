@@ -67,7 +67,7 @@ export function SaveToLibraryDialog({
       type,
       title: title.trim(),
       content: content.trim(),
-      content_pillar: pillar || null,
+      content_pillars: pillar ? [pillar] : [],
     });
 
     setSaving(false);

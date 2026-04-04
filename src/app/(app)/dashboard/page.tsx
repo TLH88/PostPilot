@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { IDEA_TEMPERATURES, POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
+import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -113,7 +114,7 @@ export default async function DashboardPage() {
       .limit(5),
     supabase
       .from("posts")
-      .select("id, title, content, status, updated_at, image_url, content_pillar")
+      .select("id, title, content, status, updated_at, image_url, content_pillars")
       .eq("user_id", user.id)
       .neq("status", "archived")
       .order("updated_at", { ascending: false })
@@ -135,17 +136,16 @@ export default async function DashboardPage() {
   // Count pillars from all posts (including archived — archived posts still count for metrics)
   const { data: pillarPosts } = await supabase
     .from("posts")
-    .select("content_pillar")
-    .eq("user_id", user.id)
-    .not("content_pillar", "is", null);
+    .select("content_pillars")
+    .eq("user_id", user.id);
 
   const pillarCounts: Record<string, number> = {};
   for (const pillar of contentPillars) {
     pillarCounts[pillar] = 0;
   }
   for (const p of pillarPosts ?? []) {
-    if (p.content_pillar) {
-      pillarCounts[p.content_pillar] = (pillarCounts[p.content_pillar] || 0) + 1;
+    for (const pillar of p.content_pillars ?? []) {
+      pillarCounts[pillar] = (pillarCounts[pillar] || 0) + 1;
     }
   }
 
@@ -224,13 +224,9 @@ export default async function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
-        <Link
-          href="/ideas"
+        <GenerateIdeasButton
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
-        >
-          <Lightbulb className="size-4" />
-          Generate Ideas
-        </Link>
+        />
         <NewPostButton
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
           label="Start New Post"
@@ -310,11 +306,11 @@ export default async function DashboardPage() {
                               {contentPreview}
                             </p>
                           )}
-                          {post.content_pillar && (
-                            <Badge variant="outline" className="text-[10px] h-4">
-                              {post.content_pillar}
+                          {(post.content_pillars ?? []).map((pillar: string) => (
+                            <Badge key={pillar} variant="outline" className="text-[10px] h-4">
+                              {pillar}
                             </Badge>
-                          )}
+                          ))}
                         </CardContent>
                       </Card>
                     </Link>

@@ -682,11 +682,11 @@ export default function IdeasPage() {
 
                   {/* Content pillar & tags */}
                   <div className="flex flex-wrap gap-1">
-                    {idea.content_pillar && (
-                      <Badge variant="outline" className="text-[10px] h-4">
-                        {idea.content_pillar}
+                    {(idea.content_pillars ?? []).map((pillar: string) => (
+                      <Badge key={pillar} variant="outline" className="text-[10px] h-4">
+                        {pillar}
                       </Badge>
-                    )}
+                    ))}
                     {idea.tags?.map((tag) => (
                       <Badge
                         key={tag}

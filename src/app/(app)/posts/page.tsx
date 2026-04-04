@@ -30,8 +30,10 @@ interface PostItem {
   character_count: number;
   updated_at: string;
   hashtags: string[];
-  content_pillar: string | null;
+  content_pillars: string[];
   image_url: string | null;
+  impressions: number | null;
+  reactions: number | null;
 }
 
 function PostCard({ post }: { post: PostItem }) {
@@ -83,17 +85,25 @@ function PostCard({ post }: { post: PostItem }) {
 
           {/* Pillar + hashtag count */}
           <div className="flex flex-wrap gap-1">
-            {post.content_pillar && (
-              <Badge variant="outline" className="text-[10px] h-4">
-                {post.content_pillar}
+            {(post.content_pillars ?? []).map((pillar) => (
+              <Badge key={pillar} variant="outline" className="text-[10px] h-4">
+                {pillar}
               </Badge>
-            )}
+            ))}
             {post.hashtags?.length > 0 && (
               <Badge variant="secondary" className="text-[10px] h-4">
                 {post.hashtags.length} hashtag{post.hashtags.length !== 1 ? "s" : ""}
               </Badge>
             )}
           </div>
+
+          {/* Analytics (posted posts with data) */}
+          {post.impressions != null && (
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span>{post.impressions.toLocaleString()} impressions</span>
+              {post.reactions != null && <span>{post.reactions} reactions</span>}
+            </div>
+          )}
 
           {/* Meta */}
           <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -141,7 +151,7 @@ export default async function PostsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillar, image_url")
+    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 

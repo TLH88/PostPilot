@@ -57,7 +57,7 @@ export function SaveAsTemplateDialog({
       name: name.trim(),
       description: description.trim() || null,
       structure: content,
-      content_pillar: contentPillar || null,
+      content_pillars: contentPillar ? [contentPillar] : [],
     });
 
     setSaving(false);

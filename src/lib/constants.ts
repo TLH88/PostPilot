@@ -71,6 +71,7 @@ export const NAV_ITEMS = [
   { href: "/posts", label: "Posts", icon: "FileText" },
   { href: "/library", label: "Library", icon: "BookOpen" },
   { href: "/calendar", label: "Calendar", icon: "Calendar" },
+  { href: "/analytics", label: "Analytics", icon: "BarChart3" },
 ] as const;
 
 // Best times to post on LinkedIn (based on engagement research)
@@ -130,6 +131,7 @@ export const TIER_FEATURES = [
   { key: "scheduling", name: "Post Scheduling", free: "2", creator: "15", professional: "Unlimited" },
   { key: "versions", name: "Post Versions", free: "1", creator: "5", professional: "Unlimited" },
   { key: "image_generation", name: "AI Image Generation", free: false, creator: "5 / month", professional: "Unlimited" },
+  { key: "analytics", name: "Manual Analytics", free: false, creator: true, professional: true },
   { key: "content_library", name: "Content Library", free: false, creator: true, professional: true },
   { key: "hook_analysis", name: "Hook Analysis", free: false, creator: true, professional: true },
   { key: "templates", name: "Post Templates", free: false, creator: true, professional: true },
@@ -146,6 +148,7 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   hook_analysis: "creator",
   templates: "creator",
   image_generation: "creator",
+  analytics: "creator",
 } as const;
 
 export const CONTENT_LIBRARY_TYPES = {

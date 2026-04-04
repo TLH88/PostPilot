@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BarChart3,
   BookOpen,
   Calendar,
   Settings,
@@ -29,11 +30,13 @@ const iconMap: Record<string, LucideIcon> = {
   FileText,
   BookOpen,
   Calendar,
+  BarChart3,
 };
 
 // Map nav item href to feature gate key
 const NAV_GATE_MAP: Record<string, string> = {
   "/library": "content_library",
+  "/analytics": "analytics",
 };
 
 interface SidebarProps {

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Archive,
   ArrowLeft,
+  BarChart3,
   BookOpen,
   Bot,
   Check,
@@ -155,7 +156,7 @@ export default function PostWorkspacePage() {
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // ── Content pillar state ──────────────────────────────────────────────────
-  const [contentPillar, setContentPillar] = useState<string | null>(null);
+  const [contentPillars, setContentPillarsState] = useState<string[]>([]);
 
   // ── Image state ─────────────────────────────────────────────────────────
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -261,7 +262,7 @@ export default function PostWorkspacePage() {
       setContent(p.content ?? "");
       setHashtags(p.hashtags ?? []);
       setStatus(p.status);
-      setContentPillar(p.content_pillar ?? null);
+      setContentPillarsState(p.content_pillars ?? []);
       setImageUrl(p.image_url ?? null);
 
       // Fetch profile
@@ -357,17 +358,17 @@ export default function PostWorkspacePage() {
         setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
 
         // Auto-classify content pillar if not already set
-        if (!contentPillar && newContent.length >= 100 && profile?.content_pillars?.length) {
+        if (contentPillars.length === 0 && newContent.length >= 100 && profile?.content_pillars?.length) {
           const suggested = classifyPillar(newTitle, newContent, profile.content_pillars);
           if (suggested) {
-            updateContentPillar(suggested);
+            updateContentPillars([suggested]);
           }
         }
       } else {
         setSaveStatus("idle");
       }
     },
-    [post, supabase, contentPillar, profile]
+    [post, supabase, contentPillars, profile]
   );
 
   function scheduleAutoSave(
@@ -491,19 +492,26 @@ export default function PostWorkspacePage() {
   }, [contextMenuPos]);
 
   // ── Content pillar management ──────────────────────────────────────────
-  async function updateContentPillar(pillar: string | null) {
-    setContentPillar(pillar);
+  async function updateContentPillars(pillars: string[]) {
+    setContentPillarsState(pillars);
     if (!post) return;
     const { error } = await supabase
       .from("posts")
       .update({
-        content_pillar: pillar,
+        content_pillars: pillars,
         updated_at: new Date().toISOString(),
       })
       .eq("id", post.id);
     if (error) {
       toast.error("Failed to update content pillar");
     }
+  }
+
+  function toggleContentPillar(pillar: string) {
+    const updated = contentPillars.includes(pillar)
+      ? contentPillars.filter((p) => p !== pillar)
+      : [...contentPillars, pillar];
+    updateContentPillars(updated);
   }
 
   // ── Hashtag management ────────────────────────────────────────────────────
@@ -577,10 +585,10 @@ export default function PostWorkspacePage() {
     }
 
     // Auto-classify content pillar on status transitions if not set
-    if (!contentPillar && content.length >= 100 && profile?.content_pillars?.length) {
+    if (contentPillars.length === 0 && content.length >= 100 && profile?.content_pillars?.length) {
       const suggested = classifyPillar(title, content, profile.content_pillars);
       if (suggested) {
-        updates.content_pillar = suggested;
+        updates.content_pillars = [suggested];
       }
     }
 
@@ -591,8 +599,8 @@ export default function PostWorkspacePage() {
 
     if (!error) {
       setStatus(newStatus);
-      if (updates.content_pillar) {
-        setContentPillar(updates.content_pillar as string);
+      if (updates.content_pillars) {
+        setContentPillarsState(updates.content_pillars as string[]);
       }
     }
   }
@@ -1067,12 +1075,16 @@ export default function PostWorkspacePage() {
             )}
           </div>
 
-          {/* Content pillar badge — editable only for posted posts */}
-          {contentPillar && status !== "posted" && (
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Tag className="size-3" />
-              {contentPillar}
-            </Badge>
+          {/* Content pillar badges — editable only for posted posts */}
+          {contentPillars.length > 0 && status !== "posted" && (
+            <div className="flex flex-wrap gap-1">
+              {contentPillars.map((pillar) => (
+                <Badge key={pillar} variant="outline" className="gap-1 text-xs">
+                  <Tag className="size-3" />
+                  {pillar}
+                </Badge>
+              ))}
+            </div>
           )}
           {status === "posted" && (profile?.content_pillars?.length ?? 0) > 0 && (
             <DropdownMenu>
@@ -1084,30 +1096,30 @@ export default function PostWorkspacePage() {
                 }
               >
                 <Tag className="size-3" />
-                {contentPillar ?? "Assign pillar"}
+                {contentPillars.length > 0 ? contentPillars.join(", ") : "Assign pillar"}
                 <ChevronDown className="size-3" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>Content Pillar</DropdownMenuLabel>
+                  <DropdownMenuLabel>Content Pillars</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {profile!.content_pillars.map((pillar) => (
                     <DropdownMenuItem
                       key={pillar}
-                      onClick={() => updateContentPillar(pillar)}
+                      onClick={() => toggleContentPillar(pillar)}
                     >
-                      {contentPillar === pillar && (
+                      {contentPillars.includes(pillar) && (
                         <Check className="size-3.5 mr-1.5" />
                       )}
                       {pillar}
                     </DropdownMenuItem>
                   ))}
-                  {contentPillar && (
+                  {contentPillars.length > 0 && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => updateContentPillar(null)}>
+                      <DropdownMenuItem onClick={() => updateContentPillars([])}>
                         <X className="size-3.5 mr-1.5" />
-                        Remove pillar
+                        Remove all pillars
                       </DropdownMenuItem>
                     </>
                   )}
@@ -1302,78 +1314,8 @@ export default function PostWorkspacePage() {
               </div>
             )}
 
-            {/* Formatting helpers — desktop */}
-            <div className="hidden lg:flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="gap-1"
-                      onClick={analyzeHook}
-                      disabled={!hasFeature(userTier, "hook_analysis") || analyzingHook || !content.trim() || content.length < 20}
-                    />
-                  }
-                >
-                  {analyzingHook ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Zap className="size-3" />
-                  )}
-                  {analyzingHook ? "Analyzing..." : "Analyze Hook"}
-                </TooltipTrigger>
-                {!hasFeature(userTier, "hook_analysis") && (
-                  <TooltipContent>Creator plan required</TooltipContent>
-                )}
-              </Tooltip>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => insertAtCursor("\n")}
-              >
-                <Pilcrow className="size-3" />
-                Line break
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => insertAtCursor("\n\u2022 ")}
-              >
-                <List className="size-3" />
-                Bullet point
-              </Button>
-              <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
-              <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
-
-              <div className="flex-1" />
-
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => setSaveToLibraryOpen(true)}
-                disabled={!hasFeature(userTier, "content_library") || !content.trim()}
-              >
-                <BookOpen className="size-3" />
-                Save to Library
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={copyPostToClipboard}
-                disabled={!content.trim()}
-              >
-                <ClipboardCopy className="size-3" />
-                Copy Post
-              </Button>
-            </div>
-
-            {/* Formatting helpers — mobile dropdown */}
-            <div className="flex lg:hidden items-center gap-2">
+            {/* Formatting helpers */}
+            <div className="flex items-center gap-2">
               <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -1530,191 +1472,8 @@ export default function PostWorkspacePage() {
 
             <Separator />
 
-            {/* Status bar + Version management — desktop */}
-            <div className="hidden lg:flex flex-wrap items-center justify-between gap-2 pb-2">
-              <div className="flex items-center gap-2">
-                {/* Status actions based on current status */}
-                {status === "draft" && (
-                  <>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("review")}>
-                      <Eye className="size-3.5" />
-                      Move to Review
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
-                      <Check className="size-3.5" />
-                      Mark as Posted
-                    </Button>
-                  </>
-                )}
-                {status === "review" && (
-                  <>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("draft")}>
-                      Back to Draft
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareOnLinkedIn} disabled={publishing}>
-                      {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <LinkedInIcon className="size-3.5 text-[#0A66C2]" />}
-                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                    </Button>
-                    <Button size="sm" className="gap-1.5" onClick={() => setScheduleDialogOpen(true)}>
-                      Schedule
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
-                      <Check className="size-3.5" />
-                      Mark as Posted
-                    </Button>
-                  </>
-                )}
-                {status === "scheduled" && (
-                  <>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("review")}>
-                      Back to Review
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareOnLinkedIn} disabled={publishing}>
-                      {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <LinkedInIcon className="size-3.5 text-[#0A66C2]" />}
-                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                    </Button>
-                    <Button size="sm" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
-                      <Check className="size-3.5" />
-                      Mark as Posted to LinkedIn
-                    </Button>
-                  </>
-                )}
-                {status === "past_due" && (
-                  <>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("review")}>
-                      Back to Review
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareOnLinkedIn} disabled={publishing}>
-                      {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <LinkedInIcon className="size-3.5 text-[#0A66C2]" />}
-                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                    </Button>
-                    <Button size="sm" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
-                      <Check className="size-3.5" />
-                      Mark as Posted to LinkedIn
-                    </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setScheduleDialogOpen(true)}>
-                      Reschedule
-                    </Button>
-                  </>
-                )}
-                {status === "posted" && (
-                  <>
-                    {post.linkedin_post_url && (
-                      <a
-                        href={post.linkedin_post_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium text-[#0A66C2] hover:bg-hover-highlight transition-colors"
-                      >
-                        <LinkedInIcon className="size-3.5" />
-                        View on LinkedIn
-                      </a>
-                    )}
-                    <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => updateStatus("archived")}>
-                      Archive
-                    </Button>
-                  </>
-                )}
-                {status === "archived" && (
-                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("draft")}>
-                    Restore to Draft
-                  </Button>
-                )}
-
-                {!["archived", "posted"].includes(status) && (
-                  <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => updateStatus("archived")}>
-                    <Archive className="size-3.5" />
-                    Archive
-                  </Button>
-                )}
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="size-3.5" />
-                  Delete
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Versions
-                </span>
-
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={saveVersion} disabled={savingVersion || !content.trim()}>
-                  {savingVersion ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-                  Save Version
-                </Button>
-
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => createPostFromVersion(activeVersion ?? undefined)} disabled={!content.trim()} />
-                    }
-                  >
-                    <FilePlus2 className="size-3.5" />
-                    Save as New Post
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Creates a standalone copy of this content as a new draft
-                  </TooltipContent>
-                </Tooltip>
-
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSaveAsTemplateOpen(true)} disabled={!hasFeature(userTier, "templates") || !content.trim()}>
-                  <Tag className="size-3.5" />
-                  Save as Template
-                </Button>
-
-                {versions.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={<Button variant="outline" size="sm" className="gap-1.5" />}
-                    >
-                      <ChevronDown className="size-3.5" />
-                      {activeVersion
-                        ? (activeVersion.label ?? `Version ${activeVersion.version_number}`)
-                        : `Versions (${versions.length})`}
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Version History</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {versions.map((v) => (
-                          <DropdownMenuItem
-                            key={v.id}
-                            onClick={() => requestLoadVersion(v)}
-                            className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
-                          >
-                            <div className="flex w-full flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">
-                                  {v.label ?? `Version ${v.version_number}`}
-                                </span>
-                                {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(v.created_at).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            </div>
-
-            {/* Status bar + Version management — mobile dropdowns */}
-            <div className="flex lg:hidden items-center gap-2 pb-2">
+            {/* Status bar + Version management — dropdown menus */}
+            <div className="flex items-center gap-2 pb-2">
               {/* Status Actions dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -1883,6 +1642,54 @@ export default function PostWorkspacePage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Engagement Analytics — posted posts only, Creator+ */}
+            {["posted", "archived"].includes(status) && hasFeature(userTier, "analytics") && (
+              <div className="space-y-2 pb-2">
+                <Separator />
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <BarChart3 className="size-4 text-primary" />
+                  Engagement
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {([
+                    { key: "impressions", label: "Impressions" },
+                    { key: "reactions", label: "Reactions" },
+                    { key: "comments_count", label: "Comments" },
+                    { key: "reposts", label: "Reposts" },
+                    { key: "engagements", label: "Engagements" },
+                  ] as const).map(({ key, label }) => (
+                    <div key={key} className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">{label}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                        value={(post as Record<string, unknown>)[key] as number ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
+                          setPost({ ...post!, [key]: val });
+                        }}
+                        onBlur={async (e) => {
+                          const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
+                          await supabase
+                            .from("posts")
+                            .update({ [key]: val, updated_at: new Date().toISOString() })
+                            .eq("id", post!.id);
+                        }}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {["posted", "archived"].includes(status) && !hasFeature(userTier, "analytics") && (
+              <div className="pb-2">
+                <Separator className="mb-3" />
+                <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -2112,7 +1919,7 @@ export default function PostWorkspacePage() {
         open={saveAsTemplateOpen}
         onOpenChange={setSaveAsTemplateOpen}
         content={content}
-        contentPillar={contentPillar}
+        contentPillar={contentPillars[0] ?? null}
       />
 
       {/* Discard blank post dialog */}

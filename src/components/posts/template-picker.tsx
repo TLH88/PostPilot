@@ -176,11 +176,11 @@ export function TemplatePicker({ onSelect }: TemplatePickerProps) {
                           Built-in
                         </Badge>
                       )}
-                      {template.content_pillar && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {template.content_pillar}
+                      {(template.content_pillars ?? []).map((pillar: string) => (
+                        <Badge key={pillar} variant="outline" className="text-[10px] px-1.5 py-0">
+                          {pillar}
                         </Badge>
-                      )}
+                      ))}
                     </div>
                     {template.description && (
                       <p className="text-xs text-muted-foreground">

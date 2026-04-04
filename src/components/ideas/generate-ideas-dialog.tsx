@@ -30,7 +30,7 @@ interface GeneratedIdea {
   title: string;
   description: string;
   temperature: "hot" | "warm" | "cold";
-  content_pillar?: string;
+  content_pillars?: string[];
   tags?: string[];
 }
 
@@ -177,9 +177,11 @@ export function GenerateIdeasDialog({
       const ideas: GeneratedIdea[] = raw.map(
         (item: Record<string, unknown>) => ({
           ...item,
-          content_pillar:
-            item.content_pillar ||
-            item.suggestedPillar ||
+          content_pillars:
+            item.content_pillars ||
+            (item.suggestedPillars ? item.suggestedPillars : null) ||
+            (item.content_pillar ? [item.content_pillar] : null) ||
+            (item.suggestedPillar ? [item.suggestedPillar] : null) ||
             undefined,
           temperature:
             item.temperature ||
@@ -214,7 +216,7 @@ export function GenerateIdeasDialog({
           title: idea.title,
           description: idea.description || null,
           temperature: idea.temperature || "warm",
-          content_pillar: idea.content_pillar || null,
+          content_pillars: idea.content_pillars?.length ? idea.content_pillars : [],
           tags: idea.tags || [],
           status: "captured",
           source: "ai-brainstorm",
@@ -378,11 +380,11 @@ export function GenerateIdeasDialog({
                             >
                               {temp.icon} {temp.label}
                             </Badge>
-                            {idea.content_pillar && (
-                              <Badge variant="outline">
-                                {idea.content_pillar}
+                            {idea.content_pillars?.map((pillar) => (
+                              <Badge key={pillar} variant="outline">
+                                {pillar}
                               </Badge>
-                            )}
+                            ))}
                           </div>
                           <p className="text-sm font-semibold">
                             {idea.title}

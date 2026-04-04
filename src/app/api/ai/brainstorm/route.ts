@@ -44,14 +44,14 @@ export async function POST(request: NextRequest) {
       const [postsResult, ideasResult] = await Promise.all([
         supabase
           .from("posts")
-          .select("title, content_pillar, status")
+          .select("title, content_pillars, status")
           .eq("user_id", user.id)
           .in("status", ["posted", "archived", "scheduled", "review", "draft"])
           .order("updated_at", { ascending: false })
           .limit(15),
         supabase
           .from("ideas")
-          .select("title, content_pillar, temperature")
+          .select("title, content_pillars, temperature")
           .eq("user_id", user.id)
           .neq("status", "archived")
           .order("created_at", { ascending: false })
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         if (recentPosts.length > 0) {
           parts.push("Recent posts:");
           recentPosts.forEach((p) => {
-            const pillar = p.content_pillar ? ` [${p.content_pillar}]` : "";
+            const pillar = p.content_pillars?.length ? ` [${p.content_pillars.join(", ")}]` : "";
             parts.push(`- ${p.title || "Untitled"}${pillar} (${p.status})`);
           });
         }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         if (recentIdeas.length > 0) {
           parts.push("Recent ideas already generated:");
           recentIdeas.forEach((i) => {
-            const pillar = i.content_pillar ? ` [${i.content_pillar}]` : "";
+            const pillar = i.content_pillars?.length ? ` [${i.content_pillars.join(", ")}]` : "";
             parts.push(`- ${i.title}${pillar}`);
           });
         }
@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
         // Calculate pillar distribution
         const pillarCounts: Record<string, number> = {};
         for (const p of recentPosts) {
-          if (p.content_pillar) {
-            pillarCounts[p.content_pillar] = (pillarCounts[p.content_pillar] || 0) + 1;
+          for (const pillar of p.content_pillars ?? []) {
+            pillarCounts[pillar] = (pillarCounts[pillar] || 0) + 1;
           }
         }
         if (Object.keys(pillarCounts).length > 0) {

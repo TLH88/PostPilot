@@ -225,9 +225,9 @@ export default function CalendarPage() {
                 ? post.content.slice(0, 50) + "..."
                 : "Untitled Post")}
           </p>
-          {post.content_pillar && (
+          {(post.content_pillars ?? []).length > 0 && (
             <span className="text-[9px] opacity-70 mt-1 block">
-              {post.content_pillar}
+              {(post.content_pillars ?? []).join(", ")}
             </span>
           )}
         </div>
@@ -522,11 +522,11 @@ export default function CalendarPage() {
                         <span>{format(scheduledDate, "h:mm a")}</span>
                       </div>
                     )}
-                    {post.content_pillar && (
-                      <Badge variant="outline" className="text-[10px] h-4">
-                        {post.content_pillar}
+                    {(post.content_pillars ?? []).map((pillar: string) => (
+                      <Badge key={pillar} variant="outline" className="text-[10px] h-4">
+                        {pillar}
                       </Badge>
-                    )}
+                    ))}
                   </CardContent>
                 </Card>
               );

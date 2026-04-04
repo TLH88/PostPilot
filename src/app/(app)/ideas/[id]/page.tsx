@@ -120,7 +120,7 @@ export default function IdeaDetailPage({
       setTitle(idea.title);
       setDescription(idea.description ?? "");
       setTemperature(idea.temperature);
-      setContentPillar(idea.content_pillar ?? "");
+      setContentPillar((idea.content_pillars ?? [])[0] ?? "");
       setTags(idea.tags ?? []);
       setStatus(idea.status);
       setCreatedAt(idea.created_at);
@@ -148,7 +148,7 @@ export default function IdeaDetailPage({
           title: title.trim(),
           description: description.trim() || null,
           temperature,
-          content_pillar: contentPillar || null,
+          content_pillars: contentPillar ? [contentPillar] : [],
           tags,
           updated_at: new Date().toISOString(),
         })
