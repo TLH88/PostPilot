@@ -38,6 +38,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-hover-highlight: var(--hover-highlight);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -72,6 +73,7 @@
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
   --radius: 0.625rem;
+  --hover-highlight: oklch(0.93 0.04 255);
   --sidebar: oklch(0.97 0.01 250);
   --sidebar-foreground: oklch(0.2 0 0);
   --sidebar-primary: oklch(0.55 0.2 260);
@@ -106,6 +108,7 @@
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
+  --hover-highlight: oklch(0.22 0.03 255);
   --sidebar: oklch(0.16 0.015 260);
   --sidebar-foreground: oklch(0.93 0 0);
   --sidebar-primary: oklch(0.65 0.18 255);
@@ -126,6 +129,14 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Active tab styling — matches Idea Bank filter pill style */
+[data-slot="tabs-trigger"][data-active] {
+  border-color: var(--primary) !important;
+  background-color: color-mix(in oklch, var(--primary) 10%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: none !important;
 }
 
 /* Infinite scrolling marquee */

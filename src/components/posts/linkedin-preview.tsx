@@ -6,22 +6,33 @@ import { LINKEDIN } from "@/lib/constants";
 
 interface LinkedInPreviewProps {
   content: string;
+  title?: string | null;
+  imageUrl?: string | null;
   authorName: string;
   authorHeadline: string;
 }
 
 export function LinkedInPreview({
   content,
+  title,
+  imageUrl,
   authorName,
   authorHeadline,
-}: LinkedInPreviewProps) {
+  truncate = false,
+}: LinkedInPreviewProps & { truncate?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
-  const shouldTruncate = content.length > LINKEDIN.HOOK_VISIBLE_LENGTH;
+  // Build full post text as it will appear on LinkedIn
+  const fullContent =
+    title && title !== "Untitled Post"
+      ? `${title}\n\n${content}`
+      : content;
+
+  const shouldTruncate = truncate && fullContent.length > LINKEDIN.HOOK_VISIBLE_LENGTH;
   const displayContent =
     shouldTruncate && !expanded
-      ? content.slice(0, LINKEDIN.HOOK_VISIBLE_LENGTH)
-      : content;
+      ? fullContent.slice(0, LINKEDIN.HOOK_VISIBLE_LENGTH)
+      : fullContent;
 
   return (
     <div className="mx-auto w-full max-w-[552px] rounded-lg bg-white shadow-sm ring-1 ring-black/10">
@@ -66,6 +77,18 @@ export function LinkedInPreview({
           )}
         </div>
       </div>
+
+      {/* Post Image */}
+      {imageUrl && (
+        <div className="mt-1">
+          <img
+            src={imageUrl}
+            alt="Post image"
+            className="w-full object-cover"
+            style={{ maxHeight: "300px" }}
+          />
+        </div>
+      )}
 
       {/* Engagement Stats (subtle) */}
       <div className="mx-4 flex items-center justify-between border-b border-gray-200 py-2">

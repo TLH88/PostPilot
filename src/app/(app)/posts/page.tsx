@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, Layers, CalendarClock, ClipboardCheck, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
   CardContent,
+  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { POST_STATUSES } from "@/lib/constants";
 import { NewPostButton } from "@/components/posts/new-post-button";
-import { LinkedInShareButton } from "@/components/posts/linkedin-share-button";
 import { PostActions } from "@/components/posts/post-actions";
 
 function formatDate(dateString: string): string {
@@ -30,6 +30,10 @@ interface PostItem {
   character_count: number;
   updated_at: string;
   hashtags: string[];
+  content_pillars: string[];
+  image_url: string | null;
+  impressions: number | null;
+  reactions: number | null;
 }
 
 function PostCard({ post }: { post: PostItem }) {
@@ -40,34 +44,78 @@ function PostCard({ post }: { post: PostItem }) {
       ? post.content.slice(0, 60) + (post.content.length > 60 ? "..." : "")
       : "Untitled Post");
 
-  const showShareButton = ["review", "scheduled", "past_due"].includes(post.status);
+  const contentPreview = post.content
+    ? post.content.slice(0, 120) + (post.content.length > 120 ? "..." : "")
+    : "";
 
   return (
-    <Link href={`/posts/${post.id}`}>
-      <Card className="transition-colors hover:bg-muted/50">
-        <CardContent className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{displayTitle}</p>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-              <span>{post.character_count} characters</span>
-              <span>Updated {formatDate(post.updated_at)}</span>
-            </div>
+    <Link href={`/posts/${post.id}`} className="h-full">
+      <Card className="flex flex-col h-full transition-colors hover:bg-hover-highlight overflow-hidden">
+        {/* Post image */}
+        {post.image_url && (
+          <div className="w-full h-32 overflow-hidden">
+            <img
+              src={post.image_url}
+              alt=""
+              className="w-full h-full object-cover"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            {showShareButton && (
-              <LinkedInShareButton
-                content={post.content}
-                hashtags={post.hashtags ?? []}
-              />
-            )}
+        )}
+        <CardContent className="flex-1 space-y-2">
+          {/* Status badge */}
+          <div className="flex items-center justify-between gap-2">
             {status && (
-              <Badge variant="secondary" className={`shrink-0 ${status.color}`}>
+              <Badge variant="secondary" className={`${status.color} text-[10px]`}>
                 {status.label}
               </Badge>
             )}
-            <PostActions postId={post.id} status={post.status} />
+          </div>
+
+          {/* Title */}
+          <p className="text-sm font-semibold leading-snug line-clamp-2">
+            {displayTitle}
+          </p>
+
+          {/* Content preview */}
+          {contentPreview && (
+            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+              {contentPreview}
+            </p>
+          )}
+
+          {/* Pillar + hashtag count */}
+          <div className="flex flex-wrap gap-1">
+            {(post.content_pillars ?? []).map((pillar) => (
+              <Badge key={pillar} variant="outline" className="text-[10px] h-4">
+                {pillar}
+              </Badge>
+            ))}
+            {post.hashtags?.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-4">
+                {post.hashtags.length} hashtag{post.hashtags.length !== 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
+
+          {/* Analytics (posted posts with data) */}
+          {post.impressions != null && (
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span>{post.impressions.toLocaleString()} impressions</span>
+              {post.reactions != null && <span>{post.reactions} reactions</span>}
+            </div>
+          )}
+
+          {/* Meta */}
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+            <span>{post.character_count} chars</span>
+            <span>Updated {formatDate(post.updated_at)}</span>
           </div>
         </CardContent>
+
+        {/* Action buttons */}
+        <CardFooter className="gap-1">
+          <PostActions postId={post.id} status={post.status} title={post.title} variant="footer" />
+        </CardFooter>
       </Card>
     </Link>
   );
@@ -103,7 +151,7 @@ export default async function PostsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags")
+    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -116,10 +164,14 @@ export default async function PostsPage() {
   const postedPosts = allPosts.filter((p) => p.status === "posted");
   const archivedPosts = allPosts.filter((p) => p.status === "archived");
 
+  // Grouped filters
+  const inWorkPosts = allPosts.filter((p) => ["draft", "review", "scheduled"].includes(p.status));
+  const completePosts = allPosts.filter((p) => ["posted", "archived"].includes(p.status));
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Your Posts</h1>
           <p className="text-muted-foreground">
@@ -129,11 +181,70 @@ export default async function PostsPage() {
         <NewPostButton />
       </div>
 
+      {/* Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Posts</p>
+                <p className="text-2xl font-bold">{allPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-blue-500/10">
+                <Layers className="size-4 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Scheduled</p>
+                <p className="text-2xl font-bold">{scheduledPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-amber-500/10">
+                <CalendarClock className="size-4 text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-purple-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">In Review</p>
+                <p className="text-2xl font-bold">{reviewPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
+                <ClipboardCheck className="size-4 text-purple-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Published</p>
+                <p className="text-2xl font-bold">{postedPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-emerald-500/10">
+                <Send className="size-4 text-emerald-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filter Tabs */}
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="in_work">
         <TabsList>
-          <TabsTrigger value="all">
-            All ({allPosts.length})
+          <TabsTrigger value="in_work">
+            In Work ({inWorkPosts.length})
+          </TabsTrigger>
+          <TabsTrigger value="complete">
+            Complete ({completePosts.length})
           </TabsTrigger>
           <TabsTrigger value="draft">
             Drafts ({draftPosts.length})
@@ -157,13 +268,42 @@ export default async function PostsPage() {
               Archived ({archivedPosts.length})
             </TabsTrigger>
           )}
+          <TabsTrigger value="all">
+            All ({allPosts.length})
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="in_work">
+          {inWorkPosts.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {inWorkPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="complete">
+          {completePosts.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No completed posts yet.
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {completePosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="all">
           {allPosts.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {allPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -175,7 +315,7 @@ export default async function PostsPage() {
           {draftPosts.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {draftPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -189,7 +329,7 @@ export default async function PostsPage() {
               No posts in review.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reviewPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -203,7 +343,7 @@ export default async function PostsPage() {
               No scheduled posts.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {scheduledPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -217,7 +357,7 @@ export default async function PostsPage() {
               No past due posts.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastDuePosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -231,7 +371,7 @@ export default async function PostsPage() {
               No published posts yet.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {postedPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -245,7 +385,7 @@ export default async function PostsPage() {
               No archived posts.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {archivedPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}

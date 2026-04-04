@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Archive,
   ArrowLeft,
+  BarChart3,
+  BookOpen,
   Bot,
   Check,
   ChevronDown,
@@ -14,19 +16,22 @@ import {
   Zap,
   Eye,
   Hash,
+  ImagePlus,
   Lightbulb,
   List,
   Loader2,
   MessageCircle,
-  Minus,
   PanelRightClose,
   PanelRightOpen,
   Pilcrow,
   Save,
   Send,
   Sparkles,
+  Tag,
   Trash2,
   X,
+  Menu,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +44,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -54,11 +58,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
+import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
+import { EmojiPicker } from "@/components/posts/emoji-picker";
+import { InsertFromLibrary } from "@/components/library/insert-from-library";
+import { SaveToLibraryDialog } from "@/components/library/save-to-library-dialog";
+import { TemplatePicker } from "@/components/posts/template-picker";
+import { SaveAsTemplateDialog } from "@/components/posts/save-as-template-dialog";
+import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
+import { ImageUpload } from "@/components/posts/image-upload";
+import { ImageViewer } from "@/components/posts/image-viewer";
+import { GenerateImageDialog } from "@/components/posts/generate-image-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
-import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "@/lib/constants";
+import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { classifyPillar } from "@/lib/classify-pillar";
+import { hasFeature } from "@/lib/feature-gate";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
@@ -108,9 +126,10 @@ export default function PostWorkspacePage() {
 
   // ── Profile state ─────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [userTier, setUserTier] = useState<SubscriptionTier>("free");
 
   // ── Chat state ────────────────────────────────────────────────────────────
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false); // collapsed by default; opened on desktop via useEffect
   const [chatMessages, setChatMessages] = useState<AIMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatStreaming, setChatStreaming] = useState(false);
@@ -125,11 +144,24 @@ export default function PostWorkspacePage() {
   const [publishing, setPublishing] = useState(false);
 
   // ── Preview, schedule, share & delete state ─────────────────────────────
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [markPostedOpen, setMarkPostedOpen] = useState(false);
+  const [publishPreviewOpen, setPublishPreviewOpen] = useState(false);
+  const [saveToLibraryOpen, setSaveToLibraryOpen] = useState(false);
+  const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  // ── Content pillar state ──────────────────────────────────────────────────
+  const [contentPillars, setContentPillarsState] = useState<string[]>([]);
+
+  // ── Image state ─────────────────────────────────────────────────────────
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [generateImageOpen, setGenerateImageOpen] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
   // ── Hook analysis state ──────────────────────────────────────────────────
   const [hookAnalysis, setHookAnalysis] = useState<{
@@ -146,9 +178,57 @@ export default function PostWorkspacePage() {
   const [brainstormTopic, setBrainstormTopic] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
 
+  // ── Responsive: open AI panel on desktop, keep collapsed on mobile ──────
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const isLg = window.innerWidth >= 1024; // lg breakpoint
+    setIsMobile(!isLg);
+    if (isLg) setChatOpen(true);
+
+    function handleResize() {
+      setIsMobile(window.innerWidth < 1024);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Blank post detection ────────────────────────────────────────────────
+  const isBlankPost =
+    (!title.trim() || title.trim() === "Untitled Post") && !content.trim();
+
+  /** Navigate away, but intercept if the post is blank */
+  function navigateAway(href: string) {
+    if (isBlankPost && status === "draft") {
+      setPendingNavigation(href);
+      setDiscardDialogOpen(true);
+    } else {
+      router.push(href);
+    }
+  }
+
+  async function handleDiscardBlankPost() {
+    // Delete the blank post from DB
+    await supabase.from("posts").delete().eq("id", postId);
+    setDiscardDialogOpen(false);
+    router.push(pendingNavigation ?? "/posts");
+  }
+
+  function handleKeepBlankPost() {
+    // User wants to keep it — close dialog, focus title
+    setDiscardDialogOpen(false);
+    setPendingNavigation(null);
+    // Focus the title input so they can name it
+    const titleInput = document.querySelector<HTMLInputElement>('input[placeholder*="title"]');
+    if (titleInput) {
+      titleInput.focus();
+      titleInput.select();
+    }
+    toast.info("Add a title to save this draft.");
+  }
 
   // ── Fetch post, profile, versions, and conversation on mount ──────────────
   useEffect(() => {
@@ -182,6 +262,8 @@ export default function PostWorkspacePage() {
       setContent(p.content ?? "");
       setHashtags(p.hashtags ?? []);
       setStatus(p.status);
+      setContentPillarsState(p.content_pillars ?? []);
+      setImageUrl(p.image_url ?? null);
 
       // Fetch profile
       const { data: profileData } = await supabase
@@ -192,6 +274,9 @@ export default function PostWorkspacePage() {
 
       if (profileData) {
         setProfile(profileData as CreatorProfile);
+        if (profileData.subscription_tier) {
+          setUserTier(profileData.subscription_tier as SubscriptionTier);
+        }
       }
 
       // Fetch versions
@@ -271,11 +356,19 @@ export default function PostWorkspacePage() {
       if (!error) {
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
+
+        // Auto-classify content pillar if not already set
+        if (contentPillars.length === 0 && newContent.length >= 100 && profile?.content_pillars?.length) {
+          const suggested = classifyPillar(newTitle, newContent, profile.content_pillars);
+          if (suggested) {
+            updateContentPillars([suggested]);
+          }
+        }
       } else {
         setSaveStatus("idle");
       }
     },
-    [post, supabase]
+    [post, supabase, contentPillars, profile]
   );
 
   function scheduleAutoSave(
@@ -398,6 +491,29 @@ export default function PostWorkspacePage() {
     return () => window.removeEventListener("click", handleClick);
   }, [contextMenuPos]);
 
+  // ── Content pillar management ──────────────────────────────────────────
+  async function updateContentPillars(pillars: string[]) {
+    setContentPillarsState(pillars);
+    if (!post) return;
+    const { error } = await supabase
+      .from("posts")
+      .update({
+        content_pillars: pillars,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+    if (error) {
+      toast.error("Failed to update content pillar");
+    }
+  }
+
+  function toggleContentPillar(pillar: string) {
+    const updated = contentPillars.includes(pillar)
+      ? contentPillars.filter((p) => p !== pillar)
+      : [...contentPillars, pillar];
+    updateContentPillars(updated);
+  }
+
   // ── Hashtag management ────────────────────────────────────────────────────
   function removeHashtag(tag: string) {
     const updated = hashtags.filter((h) => h !== tag);
@@ -416,7 +532,14 @@ export default function PostWorkspacePage() {
         body: JSON.stringify({ content, count: 5 }),
       });
 
-      if (!response.ok) throw new Error("Failed to get hashtags");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to suggest hashtags", {
+          description: errData.action,
+          duration: 8000,
+        });
+        return;
+      }
       const data = await response.json();
 
       const suggested: string[] = Array.isArray(data.hashtags)
@@ -434,6 +557,10 @@ export default function PostWorkspacePage() {
       scheduleAutoSave(title, content, merged);
     } catch (err) {
       console.error("Hashtag suggestion error:", err);
+      toast.error("Failed to suggest hashtags", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
     } finally {
       setSuggestingHashtags(false);
     }
@@ -457,6 +584,14 @@ export default function PostWorkspacePage() {
       updates.scheduled_for = null;
     }
 
+    // Auto-classify content pillar on status transitions if not set
+    if (contentPillars.length === 0 && content.length >= 100 && profile?.content_pillars?.length) {
+      const suggested = classifyPillar(title, content, profile.content_pillars);
+      if (suggested) {
+        updates.content_pillars = [suggested];
+      }
+    }
+
     const { error } = await supabase
       .from("posts")
       .update(updates)
@@ -464,6 +599,9 @@ export default function PostWorkspacePage() {
 
     if (!error) {
       setStatus(newStatus);
+      if (updates.content_pillars) {
+        setContentPillarsState(updates.content_pillars as string[]);
+      }
     }
   }
 
@@ -472,6 +610,18 @@ export default function PostWorkspacePage() {
 
   async function schedulePost(date: Date) {
     if (!post) return;
+
+    // Quota check for scheduled posts
+    try {
+      const quotaRes = await fetch("/api/quota");
+      if (quotaRes.ok) {
+        const quota = await quotaRes.json();
+        if (quota.scheduled_posts.limit !== -1 && quota.scheduled_posts.used >= quota.scheduled_posts.limit) {
+          toast.error(`Monthly scheduling limit reached (${quota.scheduled_posts.used}/${quota.scheduled_posts.limit}). Upgrade your plan for more.`);
+          return;
+        }
+      }
+    } catch {}
 
     const { error } = await supabase
       .from("posts")
@@ -486,6 +636,13 @@ export default function PostWorkspacePage() {
       setStatus("scheduled");
       setLastScheduledDate(date);
       setShareDialogOpen(true);
+
+      // Increment scheduling quota
+      fetch("/api/quota/increment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "scheduled_posts" }),
+      }).catch(() => {});
     }
   }
 
@@ -505,61 +662,31 @@ export default function PostWorkspacePage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to analyze hook");
+        toast.error(data.error || "Hook analysis failed", {
+          description: data.action,
+          duration: 8000,
+        });
+        setAnalyzingHook(false);
+        return;
       }
       const data = await res.json();
       setHookAnalysis(data);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Hook analysis failed");
+      toast.error("Hook analysis failed", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
     } finally {
       setAnalyzingHook(false);
     }
   }
 
-  async function handleShareOnLinkedIn() {
+  function handleShareOnLinkedIn() {
     if (!post) return;
 
-    // If LinkedIn API is connected, publish directly
+    // If LinkedIn API is connected, open preview dialog
     if (linkedinConnected) {
-      setPublishing(true);
-      try {
-        const res = await fetch("/api/linkedin/publish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ postId: post.id }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          if (data.expired) {
-            setLinkedinConnected(false);
-          }
-          toast.error(data.error || "Failed to publish to LinkedIn", {
-            description: data.action,
-            duration: 8000,
-          });
-          setPublishing(false);
-          return;
-        }
-
-        setStatus("posted");
-        setPost({ ...post, status: "posted", linkedin_post_url: data.linkedinPostUrl, linkedin_post_id: data.linkedinPostId });
-        toast.success(
-          <span>
-            Posted to LinkedIn!{" "}
-            <a href={data.linkedinPostUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
-              View post
-            </a>
-          </span>
-        );
-      } catch (error) {
-        toast.error("Failed to publish to LinkedIn", {
-          description: "Check your connection and try again.",
-          duration: 8000,
-        });
-      } finally {
-        setPublishing(false);
-      }
+      setPublishPreviewOpen(true);
       return;
     }
 
@@ -571,13 +698,23 @@ export default function PostWorkspacePage() {
     const hashtagText = hashtags.length > 0
       ? "\n\n" + hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")
       : "";
-    const fullText = content + hashtagText;
+    const titlePrefix =
+      title && title !== "Untitled Post" ? `${title}\n\n` : "";
+    const fullText = titlePrefix + content + hashtagText;
     try {
       await navigator.clipboard.writeText(fullText);
-      toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
     } catch {
-      toast.error("Failed to copy. Try selecting the text manually.");
+      // Fallback for non-HTTPS or denied clipboard permission
+      const textarea = document.createElement("textarea");
+      textarea.value = fullText;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
     }
+    toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
   }
 
   // ── Delete post ─────────────────────────────────────────────────────────
@@ -741,16 +878,20 @@ export default function PostWorkspacePage() {
   }
 
   // ── AI Chat ───────────────────────────────────────────────────────────────
-  async function sendChatMessage(messageText: string) {
+  async function sendChatMessage(messageText: string, displayText?: string) {
     if (!messageText.trim() || chatStreaming) return;
 
+    // displayText: what the user sees in the chat bubble
+    // messageText: what gets sent to the AI (may include hidden instructions)
     const userMessage: AIMessage = {
       role: "user",
-      content: messageText.trim(),
+      content: displayText ?? messageText.trim(),
       timestamp: new Date().toISOString(),
     };
 
     const updatedMessages = [...chatMessages, userMessage];
+    // For the API, use the actual instruction text
+    const apiMessages = [...chatMessages, { role: "user" as const, content: messageText.trim(), timestamp: userMessage.timestamp }];
     setChatMessages(updatedMessages);
     setChatInput("");
     setChatStreaming(true);
@@ -768,7 +909,7 @@ export default function PostWorkspacePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: updatedMessages.map((m) => ({
+          messages: apiMessages.map((m) => ({
             role: m.role,
             content: m.content,
           })),
@@ -777,7 +918,27 @@ export default function PostWorkspacePage() {
         }),
       });
 
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
+        let errMsg = "Something went wrong with the AI request.";
+        let errAction = "Try again. If this keeps happening, check your API key in Settings.";
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+          if (errData.action) errAction = errData.action;
+        } catch { /* ignore parse failure */ }
+        setChatMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            content: `**${errMsg}**\n\n${errAction}`,
+          };
+          return updated;
+        });
+        setChatStreaming(false);
+        return;
+      }
+
+      if (!response.body) {
         throw new Error("Chat request failed");
       }
 
@@ -869,8 +1030,29 @@ export default function PostWorkspacePage() {
   }
 
   function applyAIContent(messageContent: string) {
-    setContent(messageContent);
-    scheduleAutoSave(title, messageContent, hashtags);
+    // Strip common AI preamble patterns before applying to editor
+    let cleaned = messageContent;
+
+    // Remove opening filler lines like "Absolutely! Here's your draft:", "Sure, here is...", etc.
+    cleaned = cleaned.replace(
+      /^(?:(?:absolutely|sure|of course|here(?:'s| is| are)|great|certainly|perfect)[!.,]*[\s]*(?:here(?:'s| is| are))?[^:\n]*[:!.\n]?\s*\n?)+/i,
+      ""
+    );
+
+    // Remove repeated title at the start (if it matches current title)
+    if (title && title !== "Untitled Post") {
+      const titlePattern = new RegExp(
+        `^\\**${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\**\\s*\\n+`,
+        "i"
+      );
+      cleaned = cleaned.replace(titlePattern, "");
+    }
+
+    // Remove leading/trailing whitespace
+    cleaned = cleaned.trim();
+
+    setContent(cleaned);
+    scheduleAutoSave(title, cleaned, hashtags);
   }
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -896,7 +1078,7 @@ export default function PostWorkspacePage() {
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => router.push("/posts")}
+            onClick={() => navigateAway("/posts")}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -917,35 +1099,72 @@ export default function PostWorkspacePage() {
               </>
             )}
           </div>
+
+          {/* Content pillar badges — editable only for posted posts */}
+          {contentPillars.length > 0 && status !== "posted" && (
+            <div className="flex flex-wrap gap-1">
+              {contentPillars.map((pillar) => (
+                <Badge key={pillar} variant="outline" className="gap-1 text-xs">
+                  <Tag className="size-3" />
+                  {pillar}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {status === "posted" && (profile?.content_pillars?.length ?? 0) > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:bg-accent transition-colors"
+                  />
+                }
+              >
+                <Tag className="size-3" />
+                {contentPillars.length > 0 ? contentPillars.join(", ") : "Assign pillar"}
+                <ChevronDown className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Content Pillars</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {profile!.content_pillars.map((pillar) => (
+                    <DropdownMenuItem
+                      key={pillar}
+                      onClick={() => toggleContentPillar(pillar)}
+                    >
+                      {contentPillars.includes(pillar) && (
+                        <Check className="size-3.5 mr-1.5" />
+                      )}
+                      {pillar}
+                    </DropdownMenuItem>
+                  ))}
+                  {contentPillars.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => updateContentPillars([])}>
+                        <X className="size-3.5 mr-1.5" />
+                        Remove all pillars
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* LinkedIn Preview Toggle */}
-          <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-            <DialogTrigger
-              render={<Button variant="outline" size="sm" className="gap-1.5" />}
-            >
-              <Eye className="size-3.5" />
-              Preview
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[620px]">
-              <DialogHeader>
-                <DialogTitle>LinkedIn Preview</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <LinkedInPreview
-                  content={
-                    content +
-                    (hashtags.length > 0
-                      ? "\n\n" + hashtags.map((h) => `#${h}`).join(" ")
-                      : "")
-                  }
-                  authorName={profile?.full_name ?? "Your Name"}
-                  authorHeadline={profile?.headline ?? "Your headline"}
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* LinkedIn Preview Toggle — opens same publish preview dialog */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setPublishPreviewOpen(true)}
+          >
+            <Eye className="size-3.5" />
+            Preview
+          </Button>
 
           {/* Chat panel toggle */}
           <Button
@@ -1015,13 +1234,20 @@ export default function PostWorkspacePage() {
                       }
                       if (!chatOpen) setChatOpen(true);
                       sendChatMessage(
-                        `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only`
+                        `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only. Output ONLY the post content — no preamble, no title repetition.`,
+                        `Draft a post about "${title.trim()}"`
                       );
                     }}
                   >
                     <Sparkles className="size-4" />
                     Start Initial Draft
                   </Button>
+                  <TemplatePicker
+                    onSelect={(structure) => {
+                      setContent(structure);
+                      scheduleAutoSave(title, structure, hashtags);
+                    }}
+                  />
                   <textarea
                     ref={textareaRef}
                     value={content}
@@ -1085,17 +1311,17 @@ export default function PostWorkspacePage() {
             {hookAnalysis && (
               <div className={cn(
                 "rounded-lg border p-3 text-sm",
-                hookAnalysis.strength === "strong" && "border-green-200 bg-green-50",
-                hookAnalysis.strength === "moderate" && "border-yellow-200 bg-yellow-50",
-                hookAnalysis.strength === "weak" && "border-red-200 bg-red-50",
+                hookAnalysis.strength === "strong" && "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
+                hookAnalysis.strength === "moderate" && "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950",
+                hookAnalysis.strength === "weak" && "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
               )}>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2">
                     <Zap className={cn(
                       "size-3.5",
-                      hookAnalysis.strength === "strong" && "text-green-600",
-                      hookAnalysis.strength === "moderate" && "text-yellow-600",
-                      hookAnalysis.strength === "weak" && "text-red-600",
+                      hookAnalysis.strength === "strong" && "text-green-600 dark:text-green-400",
+                      hookAnalysis.strength === "moderate" && "text-yellow-600 dark:text-yellow-400",
+                      hookAnalysis.strength === "weak" && "text-red-600 dark:text-red-400",
                     )} />
                     <span className="font-medium capitalize">{hookAnalysis.strength} Hook</span>
                     <span className="text-xs text-muted-foreground">({hookAnalysis.score}/10)</span>
@@ -1116,60 +1342,106 @@ export default function PostWorkspacePage() {
 
             {/* Formatting helpers */}
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={analyzeHook}
-                disabled={analyzingHook || !content.trim() || content.length < 20}
-              >
-                {analyzingHook ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Zap className="size-3" />
-                )}
-                {analyzingHook ? "Analyzing..." : "Analyze Hook"}
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => insertAtCursor("\n")}
-              >
-                <Pilcrow className="size-3" />
-                Line break
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => insertAtCursor("\n\u2022 ")}
-              >
-                <List className="size-3" />
-                Bullet point
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={() => insertAtCursor("\n\u2014 ")}
-              >
-                <Minus className="size-3" />
-                Em dash
-              </Button>
+              <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="outline" size="xs" className="gap-1" />
+                  }
+                >
+                  <Menu className="size-3" />
+                  Format
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                  <DropdownMenuItem
+                    onClick={analyzeHook}
+                    disabled={!hasFeature(userTier, "hook_analysis") || analyzingHook || !content.trim() || content.length < 20}
+                  >
+                    <Zap className="size-3.5 mr-2" />
+                    {analyzingHook ? "Analyzing..." : "Analyze Hook"}
+                    {!hasFeature(userTier, "hook_analysis") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertAtCursor("\n")}>
+                    <Pilcrow className="size-3.5 mr-2" />
+                    Line Break
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertAtCursor("\n\u2022 ")}>
+                    <List className="size-3.5 mr-2" />
+                    Bullet Point
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSaveToLibraryOpen(true)}
+                    disabled={!hasFeature(userTier, "content_library") || !content.trim()}
+                  >
+                    <BookOpen className="size-3.5 mr-2" />
+                    Save to Library
+                    {!hasFeature(userTier, "content_library") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={copyPostToClipboard}
+                    disabled={!content.trim()}
+                  >
+                    <ClipboardCopy className="size-3.5 mr-2" />
+                    Copy Post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
+            </div>
 
-              <div className="flex-1" />
+            <Separator />
 
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={copyPostToClipboard}
-                disabled={!content.trim()}
-              >
-                <ClipboardCopy className="size-3" />
-                Copy Post
-              </Button>
+            {/* Post Image */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <ImagePlus className="size-3.5" />
+                Post Image
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <ImageUpload
+                  postId={postId}
+                  imageUrl={imageUrl}
+                  onImageChange={setImageUrl}
+                  inline
+                />
+                <div className="flex-1" />
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setGenerateImageOpen(true)}
+                        disabled={!hasFeature(userTier, "image_generation") || !content.trim()}
+                      />
+                    }
+                  >
+                    <Sparkles className="size-3.5" />
+                    {imageUrl ? "Replace with AI" : "Generate with AI"}
+                  </TooltipTrigger>
+                  {!hasFeature(userTier, "image_generation") && (
+                    <TooltipContent>Creator plan required</TooltipContent>
+                  )}
+                </Tooltip>
+              </div>
+              {imageUrl && (
+                <>
+                  <img
+                    src={imageUrl}
+                    alt="Post image"
+                    className="w-full max-h-48 rounded-lg border object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setImageViewerOpen(true)}
+                    title="Click to view full resolution"
+                  />
+                  <ImageViewer
+                    open={imageViewerOpen}
+                    onOpenChange={setImageViewerOpen}
+                    imageUrl={imageUrl}
+                  />
+                </>
+              )}
             </div>
 
             <Separator />
@@ -1226,275 +1498,235 @@ export default function PostWorkspacePage() {
 
             <Separator />
 
-            {/* Status bar + Version management */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
-              <div className="flex items-center gap-2">
-                {/* Status actions based on current status */}
-                {status === "draft" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("review")}
-                  >
-                    <Eye className="size-3.5" />
-                    Move to Review
-                  </Button>
-                )}
-                {status === "review" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("draft")}
-                    >
-                      Back to Draft
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={handleShareOnLinkedIn}
-                      disabled={publishing}
-                    >
-                      {publishing ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      )}
-                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => setScheduleDialogOpen(true)}
-                    >
-                      Schedule
-                    </Button>
-                  </>
-                )}
-                {status === "scheduled" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("review")}
-                    >
-                      Back to Review
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={handleShareOnLinkedIn}
-                      disabled={publishing}
-                    >
-                      {publishing ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      )}
-                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("posted")}
-                    >
-                      <Check className="size-3.5" />
-                      Mark as Posted to LinkedIn
-                    </Button>
-                  </>
-                )}
-                {status === "past_due" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("review")}
-                    >
-                      Back to Review
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={handleShareOnLinkedIn}
-                      disabled={publishing}
-                    >
-                      {publishing ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      )}
-                      {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("posted")}
-                    >
-                      <Check className="size-3.5" />
-                      Mark as Posted to LinkedIn
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => setScheduleDialogOpen(true)}
-                    >
-                      Reschedule
-                    </Button>
-                  </>
-                )}
-                {status === "posted" && (
-                  <>
-                    {post.linkedin_post_url && (
-                      <a
-                        href={post.linkedin_post_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium text-[#0A66C2] hover:bg-muted transition-colors"
-                      >
-                        <LinkedInIcon className="size-3.5" />
-                        View on LinkedIn
-                      </a>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("archived")}
-                    >
-                      Archive
-                    </Button>
-                  </>
-                )}
-                {status === "archived" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("draft")}
-                  >
-                    Restore to Draft
-                  </Button>
-                )}
-
-                {/* Archive (for non-archived/non-posted statuses) */}
-                {!["archived", "posted"].includes(status) && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("archived")}
-                  >
-                    <Archive className="size-3.5" />
-                    Archive
-                  </Button>
-                )}
-
-                {/* Delete */}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setDeleteDialogOpen(true)}
+            {/* Status bar + Version management — dropdown menus */}
+            <div className="flex items-center gap-2 pb-2">
+              {/* Status Actions dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="sm" className="gap-1.5" />}
                 >
-                  <Trash2 className="size-3.5" />
-                  Delete
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Save Version */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={saveVersion}
-                  disabled={savingVersion || !content.trim()}
-                >
-                  {savingVersion ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Save className="size-3.5" />
+                  <MoreHorizontal className="size-3.5" />
+                  Actions
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                  {status === "draft" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("review")}>
+                        <Eye className="size-3.5 mr-2" />
+                        Move to Review
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                    </>
                   )}
-                  Save Version
-                </Button>
+                  {status === "review" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                        Back to Draft
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
+                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        Schedule
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "scheduled" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("review")}>
+                        Back to Review
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
+                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "past_due" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("review")}>
+                        Back to Review
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
+                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        Reschedule
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "posted" && (
+                    <>
+                      {post?.linkedin_post_url && (
+                        <DropdownMenuItem onClick={() => window.open(post.linkedin_post_url!, "_blank")}>
+                          <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                          View on LinkedIn
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => updateStatus("archived")}>
+                        Archive
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "archived" && (
+                    <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                      Restore to Draft
+                    </DropdownMenuItem>
+                  )}
+                  {!["archived", "posted"].includes(status) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => updateStatus("archived")}>
+                        <Archive className="size-3.5 mr-2" />
+                        Archive
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="size-3.5 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                {/* Convert Version to Post */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => createPostFromVersion(activeVersion ?? undefined)}
-                  disabled={!content.trim()}
+              {/* Version management dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="sm" className="gap-1.5" />}
                 >
-                  <FilePlus2 className="size-3.5" />
-                  Convert to Post
-                </Button>
-
-                {/* View Versions Dropdown */}
-                {versions.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="outline" size="sm" className="gap-1.5" />
-                      }
-                    >
-                      <ChevronDown className="size-3.5" />
-                      {activeVersion
-                        ? (activeVersion.label ?? `Version ${activeVersion.version_number}`)
-                        : `Versions (${versions.length})`}
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Version History</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {versions.map((v) => (
-                          <DropdownMenuItem
-                            key={v.id}
-                            onClick={() => requestLoadVersion(v)}
-                            className={cn(
-                              activeVersion?.id === v.id && "bg-accent font-semibold"
-                            )}
-                          >
-                            <div className="flex w-full flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">
-                                  {v.label ?? `Version ${v.version_number}`}
-                                </span>
-                                {activeVersion?.id === v.id && (
-                                  <Check className="size-3.5 text-primary" />
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(v.created_at).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
+                  <Save className="size-3.5" />
+                  Versions
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                  <DropdownMenuItem onClick={saveVersion} disabled={savingVersion || !content.trim()}>
+                    <Save className="size-3.5 mr-2" />
+                    Save Version
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => createPostFromVersion(activeVersion ?? undefined)}
+                    disabled={!content.trim()}
+                  >
+                    <FilePlus2 className="size-3.5 mr-2" />
+                    Save as New Post
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!hasFeature(userTier, "templates") || !content.trim()}>
+                    <Tag className="size-3.5 mr-2" />
+                    Save as Template
+                    {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                  </DropdownMenuItem>
+                  {versions.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <span className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Version History</span>
+                      {versions.map((v) => (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onClick={() => requestLoadVersion(v)}
+                          className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
+                        >
+                          <div className="flex w-full flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {v.label ?? `Version ${v.version_number}`}
                               </span>
+                              {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
                             </div>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(v.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+
+            {/* Engagement Analytics — posted posts only, Creator+ */}
+            {["posted", "archived"].includes(status) && hasFeature(userTier, "analytics") && (
+              <div className="space-y-2 pb-2">
+                <Separator />
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <BarChart3 className="size-4 text-primary" />
+                  Engagement
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {([
+                    { key: "impressions", label: "Impressions" },
+                    { key: "reactions", label: "Reactions" },
+                    { key: "comments_count", label: "Comments" },
+                    { key: "reposts", label: "Reposts" },
+                    { key: "engagements", label: "Engagements" },
+                  ] as const).map(({ key, label }) => (
+                    <div key={key} className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">{label}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                        value={(post as Record<string, unknown>)[key] as number ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
+                          setPost({ ...post!, [key]: val });
+                        }}
+                        onBlur={async (e) => {
+                          const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
+                          await supabase
+                            .from("posts")
+                            .update({ [key]: val, updated_at: new Date().toISOString() })
+                            .eq("id", post!.id);
+                        }}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {["posted", "archived"].includes(status) && !hasFeature(userTier, "analytics") && (
+              <div className="pb-2">
+                <Separator className="mb-3" />
+                <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
+              </div>
+            )}
           </div>
         </div>
 
         {/* ─── Right Panel: AI Chat ───────────────────────────────────────── */}
         {chatOpen && (
-          <div className="flex w-full flex-col overflow-hidden border-l pl-4 lg:w-[40%] min-h-0">
+          <div className={cn(
+            "flex flex-col overflow-hidden min-h-0",
+            isMobile
+              ? "fixed inset-0 z-50 bg-background p-4"
+              : "w-full border-l pl-4 lg:w-[40%]"
+          )}>
             {/* Chat header */}
             <div className="flex items-center justify-between pb-3">
               <div className="flex items-center gap-2">
@@ -1653,6 +1885,89 @@ export default function PostWorkspacePage() {
         linkedinConnected={linkedinConnected}
       />
 
+      {/* Mark as Posted dialog */}
+      <MarkPostedDialog
+        open={markPostedOpen}
+        onOpenChange={setMarkPostedOpen}
+        postId={postId}
+        postTitle={title}
+        onSuccess={() => {
+          setStatus("posted");
+        }}
+      />
+
+      {/* Publish preview dialog */}
+      <PublishPreviewDialog
+        open={publishPreviewOpen}
+        onOpenChange={setPublishPreviewOpen}
+        postId={postId}
+        title={title}
+        content={content}
+        hashtags={hashtags}
+        imageUrl={imageUrl}
+        authorName={profile?.full_name ?? "Your Name"}
+        authorHeadline={profile?.headline ?? "Your headline"}
+        onImageChange={setImageUrl}
+        onPublished={(result) => {
+          setStatus("posted");
+          if (post) {
+            setPost({
+              ...post,
+              status: "posted",
+              linkedin_post_url: result.postUrl,
+              linkedin_post_id: result.postId,
+            });
+          }
+        }}
+        onTokenExpired={() => setLinkedinConnected(false)}
+      />
+
+      {/* Generate Image dialog */}
+      <GenerateImageDialog
+        open={generateImageOpen}
+        onOpenChange={setGenerateImageOpen}
+        postId={postId}
+        postTitle={title}
+        postContent={content}
+        onImageGenerated={setImageUrl}
+      />
+
+      {/* Save to Library dialog */}
+      <SaveToLibraryDialog
+        open={saveToLibraryOpen}
+        onOpenChange={setSaveToLibraryOpen}
+        initialContent={content}
+        contentPillars={profile?.content_pillars ?? []}
+      />
+
+      {/* Save as Template dialog */}
+      <SaveAsTemplateDialog
+        open={saveAsTemplateOpen}
+        onOpenChange={setSaveAsTemplateOpen}
+        content={content}
+        contentPillar={contentPillars[0] ?? null}
+      />
+
+      {/* Discard blank post dialog */}
+      <Dialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]" style={{ maxWidth: "400px" }}>
+          <DialogHeader>
+            <DialogTitle>Discard blank post?</DialogTitle>
+            <DialogDescription>
+              This post has no title or content. Would you like to discard it or add a title to keep it as a draft?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={handleKeepBlankPost}>
+              Keep &amp; Add Title
+            </Button>
+            <Button variant="destructive" onClick={handleDiscardBlankPost}>
+              Discard Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete confirmation dialog */}
       {/* ─── Version Switch Confirmation Dialog ──────────────────────────── */}
       <Dialog open={showVersionConfirm} onOpenChange={setShowVersionConfirm}>
@@ -1745,7 +2060,7 @@ export default function PostWorkspacePage() {
           style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
         >
           <button
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-hover-highlight"
             onClick={() => {
               autoSave(title, content, hashtags);
               setBrainstormOpen(true);

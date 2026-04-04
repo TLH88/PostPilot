@@ -30,12 +30,19 @@ Consider:
 - Current trends in their industries
 - Different content formats: personal stories, lessons learned, contrarian takes, how-to tips, behind-the-scenes, questions to the audience, industry analysis
 
-For each idea, respond with a JSON array. Each idea should have:
+CRITICAL — Temperature distribution (YOU MUST FOLLOW THIS):
+You are REQUIRED to distribute temperatures across the ideas. DO NOT make all ideas "warm". The distribution MUST be:
+- At least 1 idea MUST be "hot" (timely, high-engagement potential, trend-driven, contrarian takes that spark conversation)
+- At least 1 idea MUST be "cold" (niche deep-dives, unconventional angles, thought-provoking but narrower audience)
+- The remaining ideas should be "warm" (solid evergreen content, reliably valuable, strong audience relevance)
+If generating 5+ ideas: include at least 2 hot and 2 cold. NEVER return all ideas as the same temperature.
+
+For each idea, respond with a JSON object. Each idea should have:
 - "title": A compelling hook or title (under 100 chars)
 - "description": A 2-3 sentence description of what the post would cover
-- "suggestedPillar": Which content pillar it fits
-- "suggestedTemperature": "hot" (timely/high-engagement), "warm" (solid evergreen), or "cold" (niche but valuable)
-- "reasoning": Brief note on why this idea suits this creator
+- "suggestedPillars": An array of content pillars this idea fits (can be one or multiple, e.g. ["AI & Technology", "Leadership"])
+- "suggestedTemperature": "hot", "warm", or "cold" (follow the distribution above)
+- "reasoning": Brief note on why this idea suits this creator and why you assigned this temperature
 
 Respond ONLY with valid JSON: { "ideas": [...] }`;
 
@@ -59,13 +66,16 @@ export const CHAT_INSTRUCTIONS = `YOUR TASK: Help the creator develop and refine
 Guidelines:
 - Ask questions to understand what they want to communicate
 - Suggest specific improvements with examples
-- If they ask you to rewrite, provide the FULL post text they can copy
+- If they ask you to rewrite or draft, provide ONLY the post content — no preamble, no "Here's your draft:", no "Absolutely!", no conversational intro. Start directly with the post text.
+- Do NOT repeat the post title at the beginning of your response — the title is already in the editor
 - Point out if the hook (first 2 lines) is weak — the hook is critical on LinkedIn
 - Ensure the post has a clear takeaway or call to action
 - Keep the post within LinkedIn's 3,000 character limit
 - Write in the creator's voice, not yours
 - If the post is good, say so! Don't change things for the sake of changing them.
-- Be encouraging but honest — help them produce their best work`;
+- Be encouraging but honest — help them produce their best work
+
+CRITICAL: When providing a full post draft or rewrite, output ONLY the post content itself. Do not wrap it in any introduction like "Sure, here is..." or "Absolutely! Here's..." — the user will apply your response directly to their editor.`;
 
 export const ENHANCE_INSTRUCTIONS = `YOUR TASK: Improve the given LinkedIn post based on the specific instruction provided.
 

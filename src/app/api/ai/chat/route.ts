@@ -6,7 +6,8 @@ import {
   CHAT_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
-import { ChatInputSchema, logApiError } from "@/lib/api-utils";
+import { ChatInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
+import { checkQuota, incrementQuota } from "@/lib/quota";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,18 @@ export async function POST(request: NextRequest) {
     const { messages, postContent, postTitle } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
+
+    // Quota check
+    const quota = await checkQuota(profile.user_id, "chat_messages");
+    if (!quota.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Monthly AI chat limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Increment quota before streaming (optimistic)
+    await incrementQuota(profile.user_id, "chat_messages");
 
     // Build system prompt with optional post context
     let additionalContext: string | undefined;
@@ -60,13 +73,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logApiError("api/ai/chat", error);
 
-    const message =
-      error instanceof Error ? error.message : "Failed to process chat";
-    const status = message === "Unauthorized" ? 401 : message.includes("profile") ? 400 : 500;
-
+    const humanized = humanizeAIError(error);
     return new Response(
-      JSON.stringify({ error: message }),
-      { status, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: humanized.message, action: humanized.action }),
+      { status: humanized.status, headers: { "Content-Type": "application/json" } }
     );
   }
 }

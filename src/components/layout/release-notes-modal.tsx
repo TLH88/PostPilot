@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Sparkles, Bug, Rocket, X } from "lucide-react";
+import { Sparkles, Bug, Rocket, Map, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { ReleaseNote } from "@/types";
 
@@ -82,10 +82,11 @@ export function ReleaseNotesModal() {
 
   const features = releaseNote.features ?? [];
   const bugFixes = releaseNote.bug_fixes ?? [];
+  const roadmap = releaseNote.roadmap ?? [];
 
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!value) handleDismiss(); }}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent style={{ maxWidth: "600px" }} className="max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Rocket className="size-5 text-blue-500" />
@@ -99,6 +100,7 @@ export function ReleaseNotesModal() {
           </DialogDescription>
         </DialogHeader>
 
+        <div className="overflow-y-auto flex-1 min-h-0 space-y-4">
         <p className="text-sm text-muted-foreground leading-relaxed">
           {releaseNote.description}
         </p>
@@ -149,6 +151,33 @@ export function ReleaseNotesModal() {
             </div>
           </>
         )}
+
+        {roadmap.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Map className="size-4 text-blue-500" />
+                Coming Soon
+              </div>
+              <div className="space-y-2">
+                {roadmap.map((item, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-dashed border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30 p-3 space-y-1"
+                  >
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        </div>
 
         <DialogFooter>
           <Button

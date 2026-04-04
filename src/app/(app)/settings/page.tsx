@@ -6,6 +6,10 @@ import { SignOutButton } from "./sign-out-button";
 import { ThemeSetting } from "./theme-setting";
 import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
+import { SubscriptionTierSetting } from "./subscription-tier";
+import { WorkspaceSettings } from "./workspace-settings";
+import type { SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -18,10 +22,10 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  // Fetch AI provider settings
+  // Fetch AI provider settings + subscription tier
   const { data: profile } = await supabase
     .from("creator_profiles")
-    .select("ai_provider, ai_model, ai_api_key_encrypted")
+    .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier")
     .eq("user_id", user.id)
     .single();
 
@@ -29,10 +33,34 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">
-          Configure your AI provider and API key, adjust your theme, or manage your session.
+        <p className="text-muted-foreground max-w-[80%]">
+          Manage your subscription plan, configure your AI provider and API key, connect your LinkedIn account for direct posting, and customize your theme preferences.
         </p>
       </div>
+
+      {/* Subscription Plan */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Subscription Plan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SubscriptionTierSetting
+            currentTier={(profile?.subscription_tier as SubscriptionTier) ?? "free"}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Workspace (Team+ only) */}
+      {hasFeature((profile?.subscription_tier as SubscriptionTier) ?? "free", "workspaces") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workspace</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WorkspaceSettings />
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Provider */}
       <Card>

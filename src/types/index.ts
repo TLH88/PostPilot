@@ -21,6 +21,12 @@ export interface CreatorProfile {
   ai_api_key_encrypted: string | null;
   ai_api_key_iv: string | null;
   ai_api_key_auth_tag: string | null;
+  // Image AI provider (separate from text AI)
+  image_ai_provider: "anthropic" | "openai" | "google" | null;
+  image_ai_model: string | null;
+  image_ai_api_key_encrypted: string | null;
+  image_ai_api_key_iv: string | null;
+  image_ai_api_key_auth_tag: string | null;
   // LinkedIn API connection (separate from Supabase OIDC login)
   linkedin_access_token_encrypted: string | null;
   linkedin_access_token_iv: string | null;
@@ -31,18 +37,60 @@ export interface CreatorProfile {
   linkedin_token_expires_at: string | null;
   linkedin_member_id: string | null;
   linkedin_connected_at: string | null;
+  // Subscription
+  subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
   created_at: string;
   updated_at: string;
+}
+
+export interface UsageQuota {
+  id: string;
+  user_id: string;
+  period_start: string;
+  posts_created: number;
+  brainstorms_used: number;
+  chat_messages_used: number;
+  scheduled_posts: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  owner_id: string;
+  brand_name: string | null;
+  brand_uvp: string | null;
+  brand_industry: string | null;
+  brand_product_or_service: string | null;
+  brand_target_audience: string | null;
+  brand_demographics: string | null;
+  brand_voice_guidelines: string | null;
+  brand_content_pillars: string[];
+  linkedin_account_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  role: "owner" | "admin" | "editor" | "member" | "viewer";
+  invited_by: string | null;
+  invited_at: string | null;
+  joined_at: string | null;
 }
 
 export interface Idea {
   id: string;
   user_id: string;
+  workspace_id: string | null;
   title: string;
   description: string | null;
   source: string | null;
   temperature: "hot" | "warm" | "cold";
-  content_pillar: string | null;
+  content_pillars: string[];
   tags: string[];
   status: "captured" | "developing" | "converted" | "archived";
   created_at: string;
@@ -52,9 +100,11 @@ export interface Idea {
 export interface Post {
   id: string;
   user_id: string;
+  workspace_id: string | null;
   idea_id: string | null;
   title: string | null;
   content: string;
+  content_pillars: string[];
   status: "draft" | "review" | "scheduled" | "posted" | "past_due" | "archived";
   scheduled_for: string | null;
   posted_at: string | null;
@@ -66,6 +116,16 @@ export interface Post {
   linkedin_post_url: string | null;
   publish_attempts: number;
   publish_error: string | null;
+  // Image
+  image_url: string | null;
+  image_storage_path: string | null;
+  image_alt_text: string | null;
+  // Analytics (manual entry or LinkedIn paste import)
+  impressions: number | null;
+  reactions: number | null;
+  comments_count: number | null;
+  reposts: number | null;
+  engagements: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -88,9 +148,49 @@ export interface ReleaseNote {
   description: string;
   features: { title: string; description: string }[];
   bug_fixes: { title: string; description: string }[];
+  roadmap: { title: string; description: string }[];
   is_published: boolean;
   published_at: string;
   created_at: string;
+}
+
+export interface ContentLibraryItem {
+  id: string;
+  user_id: string | null;
+  type: "hook" | "cta" | "closing" | "snippet";
+  title: string;
+  content: string;
+  content_pillars: string[];
+  tags: string[];
+  usage_count: number;
+  is_builtin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PostTemplate {
+  id: string;
+  user_id: string | null;
+  name: string;
+  description: string | null;
+  structure: string;
+  content_pillars: string[];
+  is_builtin: boolean;
+  is_shared: boolean;
+  shared_at: string | null;
+  created_at: string;
+}
+
+export interface AIProviderKey {
+  id: string;
+  user_id: string;
+  provider: "anthropic" | "openai" | "google" | "perplexity";
+  api_key_encrypted: string;
+  api_key_iv: string;
+  api_key_auth_tag: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AIMessage {

@@ -19,9 +19,16 @@
 5. CAC and LTV by channel
 6. Feature usage by tier (guides product priorities)
 
+## Ad Revenue (Free Tier)
+- Free tier users see third-party ads (e.g., Google AdSense) in sidebar, dashboard, and between content sections
+- Paid tiers (Creator, Professional) are completely ad-free
+- Ad revenue supplements subscription revenue and helps offset infrastructure costs for free users
+- Estimated CPM: $2-5 for B2B/professional audience (LinkedIn creators are a high-value demographic)
+
 ## Revenue Targets
 - Monthly operating costs: ~$130/mo ($25 Supabase + $100 AI coding platform + ~$5.42 domain)
 - Break-even target: $150/mo (costs + 15% profit margin)
+- Additional revenue stream: ad impressions from free tier users
 - Conservative Year 1: $25K ARR (~300 paying customers)
 - Moderate Year 1: $75K ARR (~600 paying customers)
 - Optimistic Year 1: $150K ARR (~1,000 paying customers)

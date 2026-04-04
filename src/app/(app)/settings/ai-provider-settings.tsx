@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Key, FlaskConical, Check, AlertCircle, HelpCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, Key, FlaskConical, Check, AlertCircle, HelpCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +49,25 @@ export function AIProviderSettings({
   const [savedModel, setSavedModel] = useState<string | null>(currentModel);
   const [keyConfigured, setKeyConfigured] = useState(hasExistingKey);
 
+  // Configured provider keys
+  const [configuredKeys, setConfiguredKeys] = useState<
+    { id: string; provider: string; is_active: boolean }[]
+  >([]);
+
+  const loadConfiguredKeys = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/provider-keys");
+      if (res.ok) {
+        const { keys } = await res.json();
+        setConfiguredKeys(keys);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadConfiguredKeys();
+  }, [loadConfiguredKeys]);
+
   const { getAvailableModels, getDefaultModel } = useModels();
 
   const selectedProviderInfo = AI_PROVIDERS.find((p) => p.value === provider);
@@ -65,6 +84,7 @@ export function AIProviderSettings({
 
     setSaving(true);
     try {
+      // Save to legacy ai-provider endpoint (keeps creator_profiles in sync)
       const res = await fetch("/api/settings/ai-provider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,12 +100,33 @@ export function AIProviderSettings({
         throw new Error(data.error || "Failed to save settings");
       }
 
+      // Also save to provider keys table (if key provided)
+      if (apiKey) {
+        await fetch("/api/settings/provider-keys", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider,
+            apiKey,
+            setActive: true,
+          }),
+        });
+      } else {
+        // Just switch active provider
+        await fetch("/api/settings/provider-keys", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider }),
+        });
+      }
+
       toast.success("AI provider settings saved.");
       setSavedProvider(provider);
       setSavedModel(selectedModel);
       if (apiKey) setKeyConfigured(true);
       setApiKey("");
       setTestResult(null);
+      loadConfiguredKeys();
     } catch (error) {
       const msg =
         error instanceof Error ? error.message : "Failed to save settings.";
@@ -276,6 +317,93 @@ export function AIProviderSettings({
           {testing ? "Testing..." : "Test Key"}
         </Button>
       </div>
+
+      {/* Configured providers list */}
+      {configuredKeys.length > 0 && (
+        <div className="space-y-2 pt-2 border-t">
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Configured Providers
+          </Label>
+          <div className="space-y-1.5">
+            {configuredKeys.map((key) => {
+              const providerInfo = AI_PROVIDERS.find(
+                (p) => p.value === key.provider
+              );
+              return (
+                <div
+                  key={key.id}
+                  className="flex items-center justify-between rounded-md border px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "size-2 rounded-full",
+                        key.is_active ? "bg-green-500" : "bg-gray-300"
+                      )}
+                    />
+                    <span className="text-sm font-medium">
+                      {providerInfo?.label ?? key.provider}
+                    </span>
+                    {key.is_active && (
+                      <span className="text-[10px] text-green-600 dark:text-green-400 font-medium">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!key.is_active && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          onClick={async () => {
+                            await fetch("/api/settings/provider-keys", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ provider: key.provider }),
+                            });
+                            setSavedProvider(key.provider);
+                            setProvider(key.provider);
+                            setSelectedModel(null);
+                            setKeyConfigured(true);
+                            loadConfiguredKeys();
+                            toast.success(`Switched to ${providerInfo?.label ?? key.provider}`);
+                          }}
+                        >
+                          Switch to
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          className="text-destructive hover:text-destructive"
+                          onClick={async () => {
+                            const res = await fetch("/api/settings/provider-keys", {
+                              method: "DELETE",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ provider: key.provider }),
+                            });
+                            if (res.ok) {
+                              loadConfiguredKeys();
+                              toast.success(`${providerInfo?.label ?? key.provider} removed`);
+                            } else {
+                              const data = await res.json();
+                              toast.error(data.error || "Failed to remove");
+                            }
+                          }}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </form>
   );
 }

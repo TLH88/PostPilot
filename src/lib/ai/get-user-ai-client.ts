@@ -8,7 +8,13 @@ interface UserAIContext {
   profile: CreatorProfile;
 }
 
-export async function getUserAIClient(): Promise<UserAIContext> {
+/**
+ * Get the AI client for a specific provider (or the active one).
+ * Reads keys from ai_provider_keys table first, falls back to creator_profiles.
+ */
+export async function getUserAIClient(
+  forProvider?: AIProvider
+): Promise<UserAIContext> {
   const supabase = await createClient();
 
   const {
@@ -31,29 +37,114 @@ export async function getUserAIClient(): Promise<UserAIContext> {
   }
 
   const creatorProfile = profile as CreatorProfile;
+  const targetProvider = forProvider || (creatorProfile.ai_provider as AIProvider);
 
-  // Decrypt the user's API key
-  if (
-    !creatorProfile.ai_api_key_encrypted ||
-    !creatorProfile.ai_api_key_iv ||
-    !creatorProfile.ai_api_key_auth_tag
+  // Try to get key from ai_provider_keys table first
+  const { data: providerKey } = await supabase
+    .from("ai_provider_keys")
+    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+    .eq("user_id", user.id)
+    .eq("provider", targetProvider)
+    .single();
+
+  let apiKey: string;
+
+  if (providerKey) {
+    // Use key from the new provider keys table
+    apiKey = decrypt({
+      ciphertext: providerKey.api_key_encrypted,
+      iv: providerKey.api_key_iv,
+      authTag: providerKey.api_key_auth_tag,
+    });
+  } else if (
+    creatorProfile.ai_api_key_encrypted &&
+    creatorProfile.ai_api_key_iv &&
+    creatorProfile.ai_api_key_auth_tag &&
+    creatorProfile.ai_provider === targetProvider
   ) {
+    // Fall back to legacy single-key on creator_profiles
+    apiKey = decrypt({
+      ciphertext: creatorProfile.ai_api_key_encrypted,
+      iv: creatorProfile.ai_api_key_iv,
+      authTag: creatorProfile.ai_api_key_auth_tag,
+    });
+  } else {
     throw new Error(
-      "No API key configured. Please add your API key in Settings."
+      `No API key configured for ${targetProvider}. Please add your API key in Settings.`
     );
   }
 
-  const apiKey = decrypt({
-    ciphertext: creatorProfile.ai_api_key_encrypted,
-    iv: creatorProfile.ai_api_key_iv,
-    authTag: creatorProfile.ai_api_key_auth_tag,
-  });
-
   const client = createAIClient(
-    creatorProfile.ai_provider as AIProvider,
+    targetProvider,
     apiKey,
     creatorProfile.ai_model
   );
 
   return { client, profile: creatorProfile };
+}
+
+/**
+ * Get the decrypted API key for a specific provider.
+ * Useful for image generation and other non-chat uses.
+ */
+export async function getProviderApiKey(
+  provider: AIProvider
+): Promise<{ apiKey: string; profile: CreatorProfile }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: profile } = await supabase
+    .from("creator_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!profile) throw new Error("Profile not found");
+
+  const creatorProfile = profile as CreatorProfile;
+
+  // Try provider keys table first
+  const { data: providerKey } = await supabase
+    .from("ai_provider_keys")
+    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+    .eq("user_id", user.id)
+    .eq("provider", provider)
+    .single();
+
+  if (providerKey) {
+    return {
+      apiKey: decrypt({
+        ciphertext: providerKey.api_key_encrypted,
+        iv: providerKey.api_key_iv,
+        authTag: providerKey.api_key_auth_tag,
+      }),
+      profile: creatorProfile,
+    };
+  }
+
+  // Fall back to legacy key if provider matches
+  if (
+    creatorProfile.ai_provider === provider &&
+    creatorProfile.ai_api_key_encrypted &&
+    creatorProfile.ai_api_key_iv &&
+    creatorProfile.ai_api_key_auth_tag
+  ) {
+    return {
+      apiKey: decrypt({
+        ciphertext: creatorProfile.ai_api_key_encrypted,
+        iv: creatorProfile.ai_api_key_iv,
+        authTag: creatorProfile.ai_api_key_auth_tag,
+      }),
+      profile: creatorProfile,
+    };
+  }
+
+  throw new Error(
+    `No API key configured for ${provider}. Please add it in Settings.`
+  );
 }

@@ -1,4 +1,4 @@
-import { HelpCircle, ExternalLink, AlertTriangle, CreditCard } from "lucide-react";
+import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3 } from "lucide-react";
 import { CollapsibleCard } from "@/components/collapsible-card";
 
 function StepList({ children }: { children: React.ReactNode }) {
@@ -296,6 +296,92 @@ export default function HelpPage() {
         <Tip>
           Perplexity&apos;s Sonar models include built-in web search capabilities, making them
           especially useful for creating content about trending topics and current events.
+        </Tip>
+      </CollapsibleCard>
+
+      {/* ─── LinkedIn Analytics Import ─── */}
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="size-5 text-primary" />
+          <h2 className="text-lg font-semibold">Importing Analytics</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          PostPilot can import your LinkedIn post performance data so you can track engagement
+          and identify your best-performing content.
+        </p>
+      </div>
+
+      <CollapsibleCard
+        title="Import LinkedIn Post Analytics"
+        description="Import impressions and engagement data from your LinkedIn profile"
+        defaultOpen={false}
+      >
+        <p className="text-sm text-foreground/80 mb-3">
+          LinkedIn provides analytics on your post performance including impressions and engagements.
+          You can import this data into PostPilot in two passes &mdash; one for impressions and one for
+          engagements. PostPilot will automatically match the data to your existing posts.
+        </p>
+
+        <h4 className="text-sm font-semibold">Importing Impressions</h4>
+        <StepList>
+          <li>
+            Open your <strong>LinkedIn profile</strong> and scroll down to the{" "}
+            <strong>Analytics</strong> section (located just above the &quot;About&quot; section).
+          </li>
+          <li>
+            Click the <strong>&quot;Show all analytics&quot;</strong> link at the bottom of the
+            Analytics section.
+          </li>
+          <li>
+            Click the <strong>top-right box</strong> to view <strong>Post Impressions</strong>.
+          </li>
+          <li>
+            Adjust the filters to <strong>90 days</strong> (or your preferred time range) and ensure{" "}
+            <strong>Impressions</strong> is selected.
+          </li>
+          <li>
+            Select the entire page using <strong>Ctrl+A</strong> (Windows) or{" "}
+            <strong>Cmd+A</strong> (Mac), then copy with <strong>Ctrl+C</strong> /{" "}
+            <strong>Cmd+C</strong>.
+          </li>
+          <li>
+            In PostPilot, go to the <strong>Analytics</strong> page and click{" "}
+            <strong>&quot;Import from LinkedIn&quot;</strong>.
+          </li>
+          <li>
+            Paste the copied content into the text area and click{" "}
+            <strong>&quot;Parse &amp; Preview&quot;</strong>. PostPilot will match the data to your
+            posts and show you the results.
+          </li>
+          <li>
+            Review the matches and click <strong>&quot;Import&quot;</strong> to save the
+            impressions data.
+          </li>
+        </StepList>
+
+        <h4 className="text-sm font-semibold">Importing Engagements</h4>
+        <StepList>
+          <li>
+            Go back to your LinkedIn analytics page and change the filter from{" "}
+            <strong>Impressions</strong> to <strong>Engagements</strong>.
+          </li>
+          <li>
+            Select all (<strong>Ctrl+A</strong> / <strong>Cmd+A</strong>) and copy (
+            <strong>Ctrl+C</strong> / <strong>Cmd+C</strong>) the entire page again.
+          </li>
+          <li>
+            In PostPilot, click <strong>&quot;Import from LinkedIn&quot;</strong> again.
+          </li>
+          <li>
+            Paste the engagement data, click <strong>&quot;Parse &amp; Preview&quot;</strong>,
+            review the matches, and click <strong>&quot;Import&quot;</strong>.
+          </li>
+        </StepList>
+
+        <Tip>
+          You can repeat this process anytime to update your analytics with the latest data.
+          PostPilot will update existing values rather than creating duplicates. For best results,
+          import both impressions and engagements to get a complete picture of your post performance.
         </Tip>
       </CollapsibleCard>
     </div>

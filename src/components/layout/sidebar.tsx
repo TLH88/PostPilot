@@ -7,16 +7,21 @@ import {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BarChart3,
+  BookOpen,
   Calendar,
-  Plus,
   Settings,
   HelpCircle,
+  Lock,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
+import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, GATED_FEATURES, SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
+import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
+import { hasFeature } from "@/lib/feature-gate";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,14 +29,23 @@ const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BookOpen,
   Calendar,
+  BarChart3,
+};
+
+// Map nav item href to feature gate key
+const NAV_GATE_MAP: Record<string, string> = {
+  "/library": "content_library",
+  "/analytics": "analytics",
 };
 
 interface SidebarProps {
   userName: string;
+  userTier?: SubscriptionTier;
 }
 
-export function Sidebar({ userName }: SidebarProps) {
+export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -60,15 +74,15 @@ export function Sidebar({ userName }: SidebarProps) {
 
       <Separator />
 
+      {/* Workspace Switcher */}
+      <WorkspaceSwitcher />
+
       {/* New Post Button */}
       <div className="px-3 pt-4 pb-2">
-        <Link
-          href="/posts"
+        <NewPostButton
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
-        >
-          <Plus className="size-4" />
-          New Post
-        </Link>
+          label="New Post"
+        />
       </div>
 
       {/* Navigation */}
@@ -91,6 +105,9 @@ export function Sidebar({ userName }: SidebarProps) {
             >
               {Icon && <Icon className="size-4 shrink-0" />}
               {item.label}
+              {NAV_GATE_MAP[item.href] && !hasFeature(userTier, NAV_GATE_MAP[item.href]) && (
+                <Lock className="size-3 ml-auto text-muted-foreground" />
+              )}
             </Link>
           );
         })}
@@ -142,9 +159,14 @@ export function Sidebar({ userName }: SidebarProps) {
           <Avatar className="size-8">
             <AvatarFallback className="bg-blue-600 text-white text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-sidebar-foreground truncate flex-1">
-            {userName}
-          </span>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-sidebar-foreground truncate block">
+              {userName}
+            </span>
+            <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5", TIER_BADGE_COLORS[userTier] ?? TIER_BADGE_COLORS.free)}>
+              {SUBSCRIPTION_TIERS[userTier]?.label ?? "Free"}
+            </span>
+          </div>
           <button
             onClick={(e) => {
               e.preventDefault();

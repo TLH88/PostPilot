@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/encryption";
-import { publishToLinkedIn, refreshLinkedInToken } from "@/lib/linkedin-api";
+import { publishToLinkedIn, uploadImageToLinkedIn, refreshLinkedInToken } from "@/lib/linkedin-api";
 import { encrypt } from "@/lib/encryption";
 import { logApiError } from "@/lib/api-utils";
 import type { CreatorProfile, Post } from "@/types";
@@ -123,7 +123,27 @@ export async function POST(request: NextRequest) {
             .from("creator_profiles")
             .update(updateData)
             .eq("user_id", user.id);
-        } catch {
+        } catch (refreshError) {
+          const msg =
+            refreshError instanceof Error ? refreshError.message : "";
+          // Distinguish true expiry from temporary failures
+          const isTemporary =
+            msg.includes("ECONNRESET") ||
+            msg.includes("ETIMEDOUT") ||
+            msg.includes("fetch failed") ||
+            msg.includes("network");
+
+          if (isTemporary) {
+            return NextResponse.json(
+              {
+                error:
+                  "Could not reach LinkedIn to refresh your connection. Please try again.",
+                action: "This may be a temporary network issue.",
+              },
+              { status: 502 }
+            );
+          }
+
           return NextResponse.json(
             {
               error:
@@ -144,12 +164,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Upload image to LinkedIn if post has one
+    let imageUrn: string | null = null;
+    if (post.image_url) {
+      try {
+        const imageRes = await fetch(post.image_url);
+        if (imageRes.ok) {
+          const imageBuffer = await imageRes.arrayBuffer();
+          const contentType = imageRes.headers.get("content-type") || "image/jpeg";
+          imageUrn = await uploadImageToLinkedIn(
+            accessToken,
+            profile.linkedin_member_id,
+            imageBuffer,
+            contentType
+          );
+        }
+      } catch (imgError) {
+        // Log but don't block — publish text-only if image upload fails
+        console.error("Image upload to LinkedIn failed:", imgError);
+      }
+    }
+
     // Publish to LinkedIn
     const result = await publishToLinkedIn(
       accessToken,
       profile.linkedin_member_id,
       post.content,
-      post.hashtags ?? []
+      post.hashtags ?? [],
+      post.title,
+      imageUrn
     );
 
     // Update post with LinkedIn info
@@ -175,6 +218,7 @@ export async function POST(request: NextRequest) {
 
     const raw = error instanceof Error ? error.message : "Failed to publish to LinkedIn";
 
+    // Parse LinkedIn API error for user-friendly message
     let message = "Failed to publish to LinkedIn.";
     let action = "Try again. If this keeps happening, reconnect LinkedIn in Settings.";
 
@@ -193,6 +237,9 @@ export async function POST(request: NextRequest) {
     } else if (raw.includes("DUPLICATE")) {
       message = "LinkedIn detected this as a duplicate post.";
       action = "Edit the content to make it unique, then try again.";
+    } else if (raw.includes("CONTENT_TOO_LONG") || raw.includes("too long")) {
+      message = "Your post exceeds LinkedIn's character limit.";
+      action = "Shorten your post content and try again.";
     }
 
     return NextResponse.json({ error: message, action }, { status: 500 });
