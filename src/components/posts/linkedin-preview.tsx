@@ -7,6 +7,7 @@ import { LINKEDIN } from "@/lib/constants";
 interface LinkedInPreviewProps {
   content: string;
   title?: string | null;
+  imageUrl?: string | null;
   authorName: string;
   authorHeadline: string;
 }
@@ -14,6 +15,7 @@ interface LinkedInPreviewProps {
 export function LinkedInPreview({
   content,
   title,
+  imageUrl,
   authorName,
   authorHeadline,
   truncate = false,
@@ -75,6 +77,18 @@ export function LinkedInPreview({
           )}
         </div>
       </div>
+
+      {/* Post Image */}
+      {imageUrl && (
+        <div className="mt-1">
+          <img
+            src={imageUrl}
+            alt="Post image"
+            className="w-full object-cover"
+            style={{ maxHeight: "300px" }}
+          />
+        </div>
+      )}
 
       {/* Engagement Stats (subtle) */}
       <div className="mx-4 flex items-center justify-between border-b border-gray-200 py-2">

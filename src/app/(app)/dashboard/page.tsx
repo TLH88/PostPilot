@@ -64,7 +64,7 @@ export default async function DashboardPage() {
         .from("posts")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .eq("status", "posted"),
+        .in("status", ["posted", "archived"]),
     ]);
 
   const stats = [
@@ -110,6 +110,7 @@ export default async function DashboardPage() {
       .from("posts")
       .select("id, title, content, status, updated_at")
       .eq("user_id", user.id)
+      .neq("status", "archived")
       .order("updated_at", { ascending: false })
       .limit(5),
   ]);
@@ -126,12 +127,11 @@ export default async function DashboardPage() {
 
   const contentPillars: string[] = profileFull?.content_pillars ?? [];
 
-  // Count pillars from posts (all non-archived)
+  // Count pillars from all posts (including archived — archived posts still count for metrics)
   const { data: pillarPosts } = await supabase
     .from("posts")
     .select("content_pillar")
     .eq("user_id", user.id)
-    .neq("status", "archived")
     .not("content_pillar", "is", null);
 
   const pillarCounts: Record<string, number> = {};
@@ -285,7 +285,7 @@ export default async function DashboardPage() {
               <div className="mt-4">
                 <Link
                   href="/ideas"
-                  className="inline-flex h-8 items-center gap-1 rounded-md px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="inline-flex h-8 items-center gap-1 rounded-md px-3 text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300 transition-colors"
                 >
                   View all ideas
                   <ArrowRight className="size-3" />
@@ -345,7 +345,7 @@ export default async function DashboardPage() {
               <div className="mt-4">
                 <Link
                   href="/posts"
-                  className="inline-flex h-8 items-center gap-1 rounded-md px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="inline-flex h-8 items-center gap-1 rounded-md px-3 text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300 transition-colors"
                 >
                   View all posts
                   <ArrowRight className="size-3" />

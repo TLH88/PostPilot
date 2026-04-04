@@ -4,7 +4,58 @@
 
 ---
 
-## 2026-04-03: Major Feature Sprint — 12 Backlog Items Completed
+## 2026-04-03 (Session 2): Image Upload, AI Image Generation, Multi-Provider Keys
+
+### BP-039: Image Upload to LinkedIn Posts
+- **New API route:** `/api/posts/upload-image` — POST (upload) + DELETE (remove) with file validation (10MB, JPG/PNG/GIF/WebP)
+- **New component:** `image-upload.tsx` — shared upload + preview with Replace/Remove buttons, full-res viewer on click
+- **New component:** `image-viewer.tsx` — full resolution image viewer dialog
+- **Updated:** `linkedin-api.ts` — new `uploadImageToLinkedIn()` function (register → upload binary → get URN), `publishToLinkedIn()` now accepts optional `imageUrn` for image posts
+- **Updated:** `/api/linkedin/publish` — fetches post image, uploads to LinkedIn, passes URN
+- **Updated:** `linkedin-preview.tsx` — shows image below post content matching LinkedIn layout
+- **Updated:** `publish-preview-dialog.tsx` — "Add Image" button now functional with ImageUpload component
+- **Updated:** Post editor — "Post Image" section with upload, replace, remove, and AI generation buttons
+- **DB migration:** Added `image_url`, `image_storage_path`, `image_alt_text` columns to posts table
+- **Supabase Storage:** Created `post-images` bucket with public access + RLS policies
+
+### BP-029: AI Image Generation
+- **New API route:** `/api/ai/generate-image` — multi-provider image generation:
+  - OpenAI: GPT Image 1.5, GPT Image 1, GPT Image 1 Mini, DALL-E 3, DALL-E 2
+  - Google: Gemini 3.1 Flash Image, Gemini 2.0 Flash Image (native generateContent endpoint)
+  - Anthropic: Not supported (confirmed — Claude cannot generate images via API)
+- **New component:** `generate-image-dialog.tsx` — full-featured generation UI with:
+  - Provider selector (only shows configured providers)
+  - Image format: Landscape (1920×1080) / Square (1080×1080) per LinkedIn size guide
+  - 8 art style options
+  - Text in image: No Text / Include Text (150 char limit)
+  - Editable prompt auto-populated from post content
+  - Preview + Regenerate + Use This Image actions
+  - `{ }` button to view full assembled prompt sent to AI
+- Prompt no longer wraps title/content in quotes (prevents AI from rendering text in image)
+
+### Multi-Provider API Key Storage
+- **New table:** `ai_provider_keys` — stores one encrypted key per provider per user with `is_active` flag
+- **New API route:** `/api/settings/provider-keys` — full CRUD (GET list, POST add/update, PATCH switch active, DELETE remove)
+- **Updated:** `get-user-ai-client.ts` — reads from `ai_provider_keys` first, falls back to legacy `creator_profiles`
+- **Updated:** Settings page — "Configured Providers" section with Switch to / Delete actions per provider
+- **Updated:** Image gen dialog — fetches all configured providers and shows image-capable ones
+
+### UX Improvements
+- **Archived posts now count** in Published Posts metric and Content Pillar distribution
+- **Archived posts filtered** from Recent Drafts on dashboard
+- **View All buttons** on dashboard now styled blue
+- **Post cards** — card grid layout with footer action buttons (matching Ideas Bank)
+- **"Manually Posted"** link moved to far right of card footer
+- **Idea Bank filters** — new Open Ideas / Closed Ideas grouped filters with contextual sub-filters
+- **Idea Bank cards** — "Archive" label added next to icon
+- **Idea Generator** — users can add new content pillars inline, saved to profile
+- **Idea Generator topic** now mandatory (marked with *)
+- **Calendar** — weekly and daily views added, status-colored entries, side-by-side layout with upcoming posts
+- **Post page filters** — new In Work / Complete grouped tabs, All moved to end
+
+---
+
+## 2026-04-03 (Session 1): Major Feature Sprint — 12 Backlog Items Completed
 
 ### BP-019: Content Library
 - **New table:** `content_library` with RLS, `is_builtin` flag for system examples

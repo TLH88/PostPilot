@@ -15,6 +15,7 @@ import {
   Zap,
   Eye,
   Hash,
+  ImagePlus,
   Lightbulb,
   List,
   Loader2,
@@ -61,6 +62,9 @@ import { SaveToLibraryDialog } from "@/components/library/save-to-library-dialog
 import { TemplatePicker } from "@/components/posts/template-picker";
 import { SaveAsTemplateDialog } from "@/components/posts/save-as-template-dialog";
 import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
+import { ImageUpload } from "@/components/posts/image-upload";
+import { ImageViewer } from "@/components/posts/image-viewer";
+import { GenerateImageDialog } from "@/components/posts/generate-image-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
@@ -148,6 +152,11 @@ export default function PostWorkspacePage() {
   // ── Content pillar state ──────────────────────────────────────────────────
   const [contentPillar, setContentPillar] = useState<string | null>(null);
 
+  // ── Image state ─────────────────────────────────────────────────────────
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [generateImageOpen, setGenerateImageOpen] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+
   // ── Hook analysis state ──────────────────────────────────────────────────
   const [hookAnalysis, setHookAnalysis] = useState<{
     strength: "strong" | "moderate" | "weak";
@@ -234,6 +243,7 @@ export default function PostWorkspacePage() {
       setHashtags(p.hashtags ?? []);
       setStatus(p.status);
       setContentPillar(p.content_pillar ?? null);
+      setImageUrl(p.image_url ?? null);
 
       // Fetch profile
       const { data: profileData } = await supabase
@@ -1314,6 +1324,51 @@ export default function PostWorkspacePage() {
 
             <Separator />
 
+            {/* Post Image */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <ImagePlus className="size-3.5" />
+                Post Image
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <ImageUpload
+                  postId={postId}
+                  imageUrl={imageUrl}
+                  onImageChange={setImageUrl}
+                  inline
+                />
+                <div className="flex-1" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setGenerateImageOpen(true)}
+                  disabled={!content.trim()}
+                >
+                  <Sparkles className="size-3.5" />
+                  {imageUrl ? "Replace with AI" : "Generate with AI"}
+                </Button>
+              </div>
+              {imageUrl && (
+                <>
+                  <img
+                    src={imageUrl}
+                    alt="Post image"
+                    className="w-full max-h-48 rounded-lg border object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setImageViewerOpen(true)}
+                    title="Click to view full resolution"
+                  />
+                  <ImageViewer
+                    open={imageViewerOpen}
+                    onOpenChange={setImageViewerOpen}
+                    imageUrl={imageUrl}
+                  />
+                </>
+              )}
+            </div>
+
+            <Separator />
+
             {/* Hashtags section */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -1857,8 +1912,10 @@ export default function PostWorkspacePage() {
         title={title}
         content={content}
         hashtags={hashtags}
+        imageUrl={imageUrl}
         authorName={profile?.full_name ?? "Your Name"}
         authorHeadline={profile?.headline ?? "Your headline"}
+        onImageChange={setImageUrl}
         onPublished={(result) => {
           setStatus("posted");
           if (post) {
@@ -1871,6 +1928,16 @@ export default function PostWorkspacePage() {
           }
         }}
         onTokenExpired={() => setLinkedinConnected(false)}
+      />
+
+      {/* Generate Image dialog */}
+      <GenerateImageDialog
+        open={generateImageOpen}
+        onOpenChange={setGenerateImageOpen}
+        postId={postId}
+        postTitle={title}
+        postContent={content}
+        onImageGenerated={setImageUrl}
       />
 
       {/* Save to Library dialog */}

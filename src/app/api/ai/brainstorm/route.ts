@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
           .from("posts")
           .select("title, content_pillar, status")
           .eq("user_id", user.id)
-          .in("status", ["posted", "scheduled", "review", "draft"])
+          .in("status", ["posted", "archived", "scheduled", "review", "draft"])
           .order("updated_at", { ascending: false })
           .limit(15),
         supabase

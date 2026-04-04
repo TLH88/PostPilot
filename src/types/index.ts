@@ -21,6 +21,12 @@ export interface CreatorProfile {
   ai_api_key_encrypted: string | null;
   ai_api_key_iv: string | null;
   ai_api_key_auth_tag: string | null;
+  // Image AI provider (separate from text AI)
+  image_ai_provider: "anthropic" | "openai" | "google" | null;
+  image_ai_model: string | null;
+  image_ai_api_key_encrypted: string | null;
+  image_ai_api_key_iv: string | null;
+  image_ai_api_key_auth_tag: string | null;
   // LinkedIn API connection (separate from Supabase OIDC login)
   linkedin_access_token_encrypted: string | null;
   linkedin_access_token_iv: string | null;
@@ -67,6 +73,10 @@ export interface Post {
   linkedin_post_url: string | null;
   publish_attempts: number;
   publish_error: string | null;
+  // Image
+  image_url: string | null;
+  image_storage_path: string | null;
+  image_alt_text: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -119,6 +129,18 @@ export interface PostTemplate {
   is_shared: boolean;
   shared_at: string | null;
   created_at: string;
+}
+
+export interface AIProviderKey {
+  id: string;
+  user_id: string;
+  provider: "anthropic" | "openai" | "google" | "perplexity";
+  api_key_encrypted: string;
+  api_key_iv: string;
+  api_key_auth_tag: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AIMessage {

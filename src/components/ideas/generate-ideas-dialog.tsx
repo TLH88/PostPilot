@@ -68,14 +68,16 @@ export function GenerateIdeasDialog({
   open,
   onOpenChange,
   initialTopic,
-  contentPillars,
+  contentPillars: initialPillars,
   onIdeasSaved,
+  onPillarsUpdated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTopic?: string;
   contentPillars: string[];
   onIdeasSaved?: (newIdeas: Idea[]) => void;
+  onPillarsUpdated?: (pillars: string[]) => void;
 }) {
   const supabase = createClient();
   const [topic, setTopic] = useState(initialTopic ?? "");
@@ -84,6 +86,14 @@ export function GenerateIdeasDialog({
   const [generatedIdeas, setGeneratedIdeas] = useState<GeneratedIdea[]>([]);
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
+  const [pillars, setPillars] = useState<string[]>(initialPillars);
+  const [newPillar, setNewPillar] = useState("");
+  const [showAddPillar, setShowAddPillar] = useState(false);
+
+  // Sync pillars when prop changes
+  useEffect(() => {
+    setPillars(initialPillars);
+  }, [initialPillars]);
 
   // Update topic when initialTopic changes (e.g. from context menu selection)
   useEffect(() => {
@@ -99,6 +109,38 @@ export function GenerateIdeasDialog({
     setGeneratedIdeas([]);
     setSavingIndex(null);
     setSavedIndices(new Set());
+  }
+
+  async function handleAddPillar() {
+    const trimmed = newPillar.trim();
+    if (!trimmed) return;
+    if (pillars.some((p) => p.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error("This pillar already exists");
+      return;
+    }
+
+    const updatedPillars = [...pillars, trimmed];
+
+    // Save to profile
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("creator_profiles")
+      .update({ content_pillars: updatedPillars })
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast.error("Failed to save pillar");
+      return;
+    }
+
+    setPillars(updatedPillars);
+    setSelectedPillar(trimmed);
+    setNewPillar("");
+    setShowAddPillar(false);
+    onPillarsUpdated?.(updatedPillars);
+    toast.success(`"${trimmed}" added to your content pillars`);
   }
 
   async function handleGenerate() {
@@ -216,7 +258,7 @@ export function GenerateIdeasDialog({
         <div className="space-y-4">
           {/* Topic input */}
           <div className="space-y-2">
-            <Label htmlFor="gen-topic">Topic (optional)</Label>
+            <Label htmlFor="gen-topic">Topic <span className="text-destructive">*</span></Label>
             <Input
               id="gen-topic"
               placeholder="e.g. remote work trends, AI in healthcare..."
@@ -232,31 +274,69 @@ export function GenerateIdeasDialog({
           </div>
 
           {/* Content pillar selector */}
-          {contentPillars.length > 0 && (
-            <div className="space-y-2">
-              <Label>Content Pillar (optional)</Label>
-              <div className="flex flex-wrap gap-2">
-                {contentPillars.map((pillar) => (
-                  <FilterPill
-                    key={pillar}
-                    active={selectedPillar === pillar}
-                    onClick={() =>
-                      setSelectedPillar((prev) =>
-                        prev === pillar ? "" : pillar
-                      )
-                    }
+          <div className="space-y-2">
+            <Label>Content Pillar (optional)</Label>
+            <div className="flex flex-wrap gap-2">
+              {pillars.map((pillar) => (
+                <FilterPill
+                  key={pillar}
+                  active={selectedPillar === pillar}
+                  onClick={() =>
+                    setSelectedPillar((prev) =>
+                      prev === pillar ? "" : pillar
+                    )
+                  }
+                >
+                  {pillar}
+                </FilterPill>
+              ))}
+
+              {/* Add pillar button / input */}
+              {showAddPillar ? (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    placeholder="New pillar name..."
+                    value={newPillar}
+                    onChange={(e) => setNewPillar(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddPillar();
+                      }
+                      if (e.key === "Escape") {
+                        setShowAddPillar(false);
+                        setNewPillar("");
+                      }
+                    }}
+                    className="h-7 w-40 text-xs"
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleAddPillar}
+                    disabled={!newPillar.trim()}
                   >
-                    {pillar}
-                  </FilterPill>
-                ))}
-              </div>
+                    <Check className="size-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAddPillar(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-colors"
+                >
+                  <Plus className="size-3" />
+                  Add Pillar
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Generate button */}
           <Button
             onClick={handleGenerate}
-            disabled={generating}
+            disabled={generating || !topic.trim()}
             className="w-full"
           >
             {generating ? (

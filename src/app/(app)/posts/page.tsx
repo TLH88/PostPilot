@@ -5,12 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import {
   Card,
   CardContent,
+  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { POST_STATUSES } from "@/lib/constants";
 import { NewPostButton } from "@/components/posts/new-post-button";
-import { LinkedInShareButton } from "@/components/posts/linkedin-share-button";
 import { PostActions } from "@/components/posts/post-actions";
 
 function formatDate(dateString: string): string {
@@ -30,6 +30,7 @@ interface PostItem {
   character_count: number;
   updated_at: string;
   hashtags: string[];
+  content_pillar: string | null;
 }
 
 function PostCard({ post }: { post: PostItem }) {
@@ -40,34 +41,60 @@ function PostCard({ post }: { post: PostItem }) {
       ? post.content.slice(0, 60) + (post.content.length > 60 ? "..." : "")
       : "Untitled Post");
 
-  const showShareButton = ["review", "scheduled", "past_due"].includes(post.status);
+  const contentPreview = post.content
+    ? post.content.slice(0, 120) + (post.content.length > 120 ? "..." : "")
+    : "";
 
   return (
-    <Link href={`/posts/${post.id}`}>
-      <Card className="transition-colors hover:bg-muted/50">
-        <CardContent className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{displayTitle}</p>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-              <span>{post.character_count} characters</span>
-              <span>Updated {formatDate(post.updated_at)}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {showShareButton && (
-              <LinkedInShareButton
-                content={post.content}
-                hashtags={post.hashtags ?? []}
-              />
-            )}
+    <Link href={`/posts/${post.id}`} className="h-full">
+      <Card className="flex flex-col h-full transition-colors hover:bg-muted/50">
+        <CardContent className="flex-1 space-y-2">
+          {/* Status badge */}
+          <div className="flex items-center justify-between gap-2">
             {status && (
-              <Badge variant="secondary" className={`shrink-0 ${status.color}`}>
+              <Badge variant="secondary" className={`${status.color} text-[10px]`}>
                 {status.label}
               </Badge>
             )}
-            <PostActions postId={post.id} status={post.status} title={post.title} />
+          </div>
+
+          {/* Title */}
+          <p className="text-sm font-semibold leading-snug line-clamp-2">
+            {displayTitle}
+          </p>
+
+          {/* Content preview */}
+          {contentPreview && (
+            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+              {contentPreview}
+            </p>
+          )}
+
+          {/* Pillar + hashtag count */}
+          <div className="flex flex-wrap gap-1">
+            {post.content_pillar && (
+              <Badge variant="outline" className="text-[10px] h-4">
+                {post.content_pillar}
+              </Badge>
+            )}
+            {post.hashtags?.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-4">
+                {post.hashtags.length} hashtag{post.hashtags.length !== 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
+
+          {/* Meta */}
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+            <span>{post.character_count} chars</span>
+            <span>Updated {formatDate(post.updated_at)}</span>
           </div>
         </CardContent>
+
+        {/* Action buttons */}
+        <CardFooter className="gap-1">
+          <PostActions postId={post.id} status={post.status} title={post.title} variant="footer" />
+        </CardFooter>
       </Card>
     </Link>
   );
@@ -103,7 +130,7 @@ export default async function PostsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags")
+    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillar")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -173,7 +200,7 @@ export default async function PostsPage() {
           {inWorkPosts.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {inWorkPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -187,7 +214,7 @@ export default async function PostsPage() {
               No completed posts yet.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {completePosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -199,7 +226,7 @@ export default async function PostsPage() {
           {allPosts.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {allPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -211,7 +238,7 @@ export default async function PostsPage() {
           {draftPosts.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {draftPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -225,7 +252,7 @@ export default async function PostsPage() {
               No posts in review.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reviewPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -239,7 +266,7 @@ export default async function PostsPage() {
               No scheduled posts.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {scheduledPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -253,7 +280,7 @@ export default async function PostsPage() {
               No past due posts.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastDuePosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -267,7 +294,7 @@ export default async function PostsPage() {
               No published posts yet.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {postedPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
@@ -281,7 +308,7 @@ export default async function PostsPage() {
               No archived posts.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {archivedPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}

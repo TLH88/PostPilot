@@ -80,12 +80,70 @@ export async function getLinkedInMemberId(
   return data.sub;
 }
 
+/** Upload an image to LinkedIn and return its URN */
+export async function uploadImageToLinkedIn(
+  accessToken: string,
+  memberId: string,
+  imageBuffer: ArrayBuffer,
+  contentType: string
+): Promise<string> {
+  // Step 1: Initialize upload — register the image asset
+  const initResponse = await fetch(
+    "https://api.linkedin.com/rest/images?action=initializeUpload",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "X-Restli-Protocol-Version": "2.0.0",
+        "LinkedIn-Version": "202602",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        initializeUploadRequest: {
+          owner: `urn:li:person:${memberId}`,
+        },
+      }),
+    }
+  );
+
+  if (!initResponse.ok) {
+    const error = await initResponse.text();
+    throw new Error(`LinkedIn image init failed: ${error}`);
+  }
+
+  const initData = await initResponse.json();
+  const uploadUrl = initData.value?.uploadUrl;
+  const imageUrn = initData.value?.image;
+
+  if (!uploadUrl || !imageUrn) {
+    throw new Error("LinkedIn did not return upload URL or image URN");
+  }
+
+  // Step 2: Upload the image binary
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": contentType,
+    },
+    body: imageBuffer,
+  });
+
+  if (!uploadResponse.ok) {
+    const error = await uploadResponse.text();
+    throw new Error(`LinkedIn image upload failed: ${error}`);
+  }
+
+  return imageUrn;
+}
+
 export async function publishToLinkedIn(
   accessToken: string,
   memberId: string,
   content: string,
   hashtags: string[],
-  title?: string | null
+  title?: string | null,
+  imageUrn?: string | null
 ): Promise<LinkedInPublishResult> {
   const hashtagText = hashtags
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
@@ -101,6 +159,28 @@ export async function publishToLinkedIn(
     ? `${bodyWithTitle}\n\n${hashtagText}`
     : bodyWithTitle;
 
+  // Build post body — with or without image
+  const postBody: Record<string, unknown> = {
+    author: `urn:li:person:${memberId}`,
+    commentary: fullText,
+    visibility: "PUBLIC",
+    distribution: {
+      feedDistribution: "MAIN_FEED",
+      targetEntities: [],
+      thirdPartyDistributionChannels: [],
+    },
+    lifecycleState: "PUBLISHED",
+    isReshareDisabledByAuthor: false,
+  };
+
+  if (imageUrn) {
+    postBody.content = {
+      media: {
+        id: imageUrn,
+      },
+    };
+  }
+
   const response = await fetch("https://api.linkedin.com/rest/posts", {
     method: "POST",
     headers: {
@@ -109,18 +189,7 @@ export async function publishToLinkedIn(
       "LinkedIn-Version": "202602",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      author: `urn:li:person:${memberId}`,
-      commentary: fullText,
-      visibility: "PUBLIC",
-      distribution: {
-        feedDistribution: "MAIN_FEED",
-        targetEntities: [],
-        thirdPartyDistributionChannels: [],
-      },
-      lifecycleState: "PUBLISHED",
-      isReshareDisabledByAuthor: false,
-    }),
+    body: JSON.stringify(postBody),
   });
 
   if (!response.ok) {

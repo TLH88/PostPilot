@@ -394,8 +394,9 @@ Replace generic "Enhance" with specific templates: "Add hook", "Make it story-dr
 
 ### BP-029: Image Generation
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
+**Completed:** 2026-04-03
 **Source:** Report feedback
 **Date Added:** 2026-04-01
 **Phase:** 3
@@ -746,8 +747,9 @@ Automatically publish scheduled posts to LinkedIn when their scheduled time arri
 
 ### BP-039: Add Image to LinkedIn Post Before Publishing
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
+**Completed:** 2026-04-03
 **Source:** Owner request
 **Date Added:** 2026-04-03
 **Phase:** 1
@@ -789,8 +791,9 @@ The "New Post" button on the dashboard currently navigates to the Posts list pag
 
 ### BP-041: Requirements Spec — In-App Image Generation & LinkedIn Image Publishing
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
+**Completed:** 2026-04-03
 **Source:** Owner request (feeds into BP-029)
 **Date Added:** 2026-04-03
 **Phase:** 2
@@ -920,3 +923,6 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-034:** Past-Due Checker — Direct Publish Button (2026-04-03)
 - **BP-036:** Emoji Picker in Post Editor (2026-04-03)
 - **BP-037:** Clarify Version Management & Convert to Post UX (2026-04-03)
+- **BP-029:** AI Image Generation (2026-04-03)
+- **BP-039:** Image Upload to LinkedIn Posts (2026-04-03)
+- **BP-041:** Image Generation Requirements Spec (2026-04-03)

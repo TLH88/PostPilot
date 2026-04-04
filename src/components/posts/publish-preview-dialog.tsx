@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2, ExternalLink, FileEdit } from "lucide-react";
+import { Loader2, ExternalLink, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,13 +12,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
+import { ImageUpload } from "@/components/posts/image-upload";
 import { toast } from "sonner";
 
 interface PublishPreviewDialogProps {
@@ -28,6 +24,7 @@ interface PublishPreviewDialogProps {
   title: string | null;
   content: string;
   hashtags: string[];
+  imageUrl?: string | null;
   authorName: string;
   authorHeadline: string;
   /** Show "Open in Editor" button (hide when already in editor) */
@@ -36,6 +33,8 @@ interface PublishPreviewDialogProps {
   onPublished?: (result: { postUrl: string; postId: string }) => void;
   /** Called if token is expired */
   onTokenExpired?: () => void;
+  /** Called when image changes */
+  onImageChange?: (imageUrl: string | null) => void;
 }
 
 export function PublishPreviewDialog({
@@ -45,14 +44,26 @@ export function PublishPreviewDialog({
   title,
   content,
   hashtags,
+  imageUrl: initialImageUrl,
   authorName,
   authorHeadline,
   showEditorLink = false,
   onPublished,
   onTokenExpired,
+  onImageChange,
 }: PublishPreviewDialogProps) {
   const [publishing, setPublishing] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(
+    initialImageUrl ?? null
+  );
   const router = useRouter();
+
+  // Sync when dialog opens with new props
+  const [lastInitial, setLastInitial] = useState(initialImageUrl);
+  if (initialImageUrl !== lastInitial) {
+    setCurrentImageUrl(initialImageUrl ?? null);
+    setLastInitial(initialImageUrl);
+  }
 
   // Build the content string with hashtags as it will appear on LinkedIn
   const hashtagText =
@@ -60,6 +71,11 @@ export function PublishPreviewDialog({
       ? "\n\n" + hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")
       : "";
   const previewContent = content + hashtagText;
+
+  function handleImageChange(url: string | null) {
+    setCurrentImageUrl(url);
+    onImageChange?.(url);
+  }
 
   async function handlePublish() {
     setPublishing(true);
@@ -143,6 +159,7 @@ export function PublishPreviewDialog({
           <LinkedInPreview
             content={previewContent}
             title={title}
+            imageUrl={currentImageUrl}
             authorName={authorName}
             authorHeadline={authorHeadline}
             truncate
@@ -174,21 +191,12 @@ export function PublishPreviewDialog({
           </div>
 
           <div className="flex gap-2">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    className="gap-1.5"
-                    disabled
-                  />
-                }
-              >
-                <ImagePlus className="size-3.5" />
-                Add Image
-              </TooltipTrigger>
-              <TooltipContent>Coming soon</TooltipContent>
-            </Tooltip>
+            <ImageUpload
+              postId={postId}
+              imageUrl={currentImageUrl}
+              onImageChange={handleImageChange}
+              compact
+            />
 
             <Button
               className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"

@@ -44,17 +44,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-
-// ---------------------------------------------------------------------------
-// Types for generated ideas from the brainstorm API
-// ---------------------------------------------------------------------------
-interface GeneratedIdea {
-  title: string;
-  description: string;
-  temperature: "hot" | "warm" | "cold";
-  content_pillar?: string;
-  tags?: string[];
-}
+import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 
 // ---------------------------------------------------------------------------
 // Skeleton loader for initial load
@@ -244,282 +234,6 @@ function EditIdeaDialog({
 }
 
 // ---------------------------------------------------------------------------
-// AI Idea Generator Dialog
-// ---------------------------------------------------------------------------
-function GenerateIdeasDialog({
-  open,
-  onOpenChange,
-  contentPillars,
-  onIdeasSaved,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  contentPillars: string[];
-  onIdeasSaved: (newIdeas: Idea[]) => void;
-}) {
-  const supabase = createClient();
-  const [topic, setTopic] = useState("");
-  const [selectedPillar, setSelectedPillar] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generatedIdeas, setGeneratedIdeas] = useState<GeneratedIdea[]>([]);
-  const [savingIndex, setSavingIndex] = useState<number | null>(null);
-  const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
-
-  function resetState() {
-    setTopic("");
-    setSelectedPillar("");
-    setGenerating(false);
-    setGeneratedIdeas([]);
-    setSavingIndex(null);
-    setSavedIndices(new Set());
-  }
-
-  async function handleGenerate() {
-    setGenerating(true);
-    setGeneratedIdeas([]);
-    setSavedIndices(new Set());
-
-    try {
-      const res = await fetch("/api/ai/brainstorm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: topic.trim() || undefined,
-          contentPillar: selectedPillar || undefined,
-          count: 5,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to generate ideas");
-      }
-
-      const data = await res.json();
-      // The API returns either { ideas: [...] } or an array directly
-      const ideas: GeneratedIdea[] = Array.isArray(data)
-        ? data
-        : data.ideas ?? [];
-      setGeneratedIdeas(ideas);
-    } catch (error) {
-      console.error("Generate ideas error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to generate ideas"
-      );
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function handleSaveIdea(idea: GeneratedIdea, index: number) {
-    setSavingIndex(index);
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("ideas")
-        .insert({
-          user_id: user.id,
-          title: idea.title,
-          description: idea.description || null,
-          temperature: idea.temperature || "warm",
-          content_pillar: idea.content_pillar || null,
-          tags: idea.tags || [],
-          status: "captured",
-          source: "ai-brainstorm",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setSavedIndices((prev) => new Set(prev).add(index));
-      onIdeasSaved([data as Idea]);
-      toast.success(`"${idea.title}" saved to your Idea Bank!`);
-    } catch (error) {
-      console.error("Save idea error:", error);
-      toast.error("Failed to save idea. Please try again.");
-    } finally {
-      setSavingIndex(null);
-    }
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        onOpenChange(nextOpen);
-        if (!nextOpen) resetState();
-      }}
-    >
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
-            AI Idea Generator
-          </DialogTitle>
-          <DialogDescription>
-            Let AI brainstorm LinkedIn post ideas tailored to your profile. Add
-            a topic or pick a content pillar to focus the results.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Topic input */}
-          <div className="space-y-2">
-            <Label htmlFor="gen-topic">Topic (optional)</Label>
-            <Input
-              id="gen-topic"
-              placeholder="e.g. remote work trends, AI in healthcare..."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !generating) {
-                  e.preventDefault();
-                  handleGenerate();
-                }
-              }}
-            />
-          </div>
-
-          {/* Content pillar selector */}
-          {contentPillars.length > 0 && (
-            <div className="space-y-2">
-              <Label>Content Pillar (optional)</Label>
-              <div className="flex flex-wrap gap-2">
-                {contentPillars.map((pillar) => (
-                  <FilterPill
-                    key={pillar}
-                    active={selectedPillar === pillar}
-                    onClick={() =>
-                      setSelectedPillar((prev) =>
-                        prev === pillar ? "" : pillar
-                      )
-                    }
-                  >
-                    {pillar}
-                  </FilterPill>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Generate button */}
-          <Button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="w-full"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Generating ideas...
-              </>
-            ) : (
-              <>
-                <Sparkles className="size-4" />
-                Generate Ideas
-              </>
-            )}
-          </Button>
-
-          {/* Generated ideas list */}
-          {generatedIdeas.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Generated Ideas
-              </p>
-              {generatedIdeas.map((idea, index) => {
-                const temp =
-                  IDEA_TEMPERATURES[
-                    idea.temperature as keyof typeof IDEA_TEMPERATURES
-                  ] ?? IDEA_TEMPERATURES.warm;
-                const isSaved = savedIndices.has(index);
-                const isSaving = savingIndex === index;
-
-                return (
-                  <Card key={index} size="sm">
-                    <CardContent className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge
-                              variant="secondary"
-                              className={temp.color}
-                            >
-                              {temp.icon} {temp.label}
-                            </Badge>
-                            {idea.content_pillar && (
-                              <Badge variant="outline">
-                                {idea.content_pillar}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm font-semibold">
-                            {idea.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {idea.description}
-                          </p>
-                        </div>
-                      </div>
-                      {idea.tags && idea.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {idea.tags.map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="secondary"
-                              className="text-[10px] h-4"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                    <CardFooter className="justify-end">
-                      {isSaved ? (
-                        <Button variant="ghost" size="sm" disabled>
-                          <Check className="size-3.5 text-green-600" />
-                          Saved
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSaveIdea(idea, index)}
-                          disabled={isSaving}
-                        >
-                          {isSaving ? (
-                            <>
-                              <Loader2 className="size-3.5 animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="size-3.5" />
-                              Save to Idea Bank
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main Ideas Page
 // ---------------------------------------------------------------------------
 export default function IdeasPage() {
@@ -574,7 +288,9 @@ export default function IdeasPage() {
   const filteredIdeas = useMemo(() => {
     return ideas.filter((idea) => {
       if (tempFilter !== "all" && idea.temperature !== tempFilter) return false;
-      if (statusFilter !== "all" && idea.status !== statusFilter) return false;
+      if (statusFilter === "open" && !["captured", "developing"].includes(idea.status)) return false;
+      if (statusFilter === "closed" && !["converted", "archived"].includes(idea.status)) return false;
+      if (!["all", "open", "closed"].includes(statusFilter) && idea.status !== statusFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesTitle = idea.title.toLowerCase().includes(q);
@@ -748,23 +464,134 @@ export default function IdeasPage() {
           <span className="text-xs font-medium text-muted-foreground mr-1">
             Status:
           </span>
+
+          {/* Open Ideas group pill — always visible */}
+          <FilterPill
+            active={statusFilter === "open"}
+            onClick={() => setStatusFilter("open")}
+          >
+            Open Ideas
+          </FilterPill>
+
+          {/* Sub-filters for Open: show when Open is selected */}
+          {statusFilter === "open" && (
+            <>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("captured")}
+              >
+                {IDEA_STATUSES.captured.label}
+              </FilterPill>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("developing")}
+              >
+                {IDEA_STATUSES.developing.label}
+              </FilterPill>
+            </>
+          )}
+
+          {/* Individual open status selected — show siblings + parent */}
+          {statusFilter === "captured" && (
+            <>
+              <FilterPill
+                active={true}
+                onClick={() => setStatusFilter("captured")}
+              >
+                {IDEA_STATUSES.captured.label}
+              </FilterPill>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("developing")}
+              >
+                {IDEA_STATUSES.developing.label}
+              </FilterPill>
+            </>
+          )}
+          {statusFilter === "developing" && (
+            <>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("captured")}
+              >
+                {IDEA_STATUSES.captured.label}
+              </FilterPill>
+              <FilterPill
+                active={true}
+                onClick={() => setStatusFilter("developing")}
+              >
+                {IDEA_STATUSES.developing.label}
+              </FilterPill>
+            </>
+          )}
+
+          {/* Closed Ideas group pill — always visible */}
+          <FilterPill
+            active={statusFilter === "closed"}
+            onClick={() => setStatusFilter("closed")}
+          >
+            Closed Ideas
+          </FilterPill>
+
+          {/* Sub-filters for Closed: show when Closed is selected */}
+          {statusFilter === "closed" && (
+            <>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("converted")}
+              >
+                {IDEA_STATUSES.converted.label}
+              </FilterPill>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("archived")}
+              >
+                {IDEA_STATUSES.archived.label}
+              </FilterPill>
+            </>
+          )}
+
+          {/* Individual closed status selected — show siblings + parent */}
+          {statusFilter === "converted" && (
+            <>
+              <FilterPill
+                active={true}
+                onClick={() => setStatusFilter("converted")}
+              >
+                {IDEA_STATUSES.converted.label}
+              </FilterPill>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("archived")}
+              >
+                {IDEA_STATUSES.archived.label}
+              </FilterPill>
+            </>
+          )}
+          {statusFilter === "archived" && (
+            <>
+              <FilterPill
+                active={false}
+                onClick={() => setStatusFilter("converted")}
+              >
+                {IDEA_STATUSES.converted.label}
+              </FilterPill>
+              <FilterPill
+                active={true}
+                onClick={() => setStatusFilter("archived")}
+              >
+                {IDEA_STATUSES.archived.label}
+              </FilterPill>
+            </>
+          )}
+
+          {/* All — always visible */}
           <FilterPill
             active={statusFilter === "all"}
             onClick={() => setStatusFilter("all")}
           >
             All
           </FilterPill>
-          {(
-            Object.keys(IDEA_STATUSES) as Array<keyof typeof IDEA_STATUSES>
-          ).map((key) => (
-            <FilterPill
-              key={key}
-              active={statusFilter === key}
-              onClick={() => setStatusFilter(key)}
-            >
-              {IDEA_STATUSES[key].label}
-            </FilterPill>
-          ))}
         </div>
 
         {/* Search */}
@@ -916,6 +743,7 @@ export default function IdeasPage() {
                       onClick={() => handleArchive(idea.id)}
                     >
                       <Archive className="size-3" />
+                      Archive
                     </Button>
                   )}
                 </CardFooter>
@@ -931,6 +759,7 @@ export default function IdeasPage() {
         onOpenChange={setGenerateOpen}
         contentPillars={contentPillars}
         onIdeasSaved={handleIdeasSaved}
+        onPillarsUpdated={(updated) => setContentPillars(updated)}
       />
 
       {/* Edit Idea Dialog */}

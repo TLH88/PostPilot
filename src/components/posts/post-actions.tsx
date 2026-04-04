@@ -34,9 +34,10 @@ interface PostActionsProps {
   postId: string;
   status: string;
   title?: string | null;
+  variant?: "dropdown" | "footer";
 }
 
-export function PostActions({ postId, status, title }: PostActionsProps) {
+export function PostActions({ postId, status, title, variant = "dropdown" }: PostActionsProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -76,6 +77,122 @@ export function PostActions({ postId, status, title }: PostActionsProps) {
 
   // Determine which status actions to show
   const statusActions = getStatusActions(status);
+
+  if (variant === "footer") {
+    return (
+      <>
+        <div className="flex flex-wrap items-center gap-1 w-full">
+          {/* Status actions as buttons */}
+          {statusActions.filter((a) => a.action !== "mark_posted").map((action) => (
+            <Button
+              key={action.label}
+              variant="ghost"
+              size="xs"
+              onClick={(e) => handleStatusChange(e, action.targetStatus!)}
+            >
+              {action.icon}
+              {action.label}
+            </Button>
+          ))}
+
+          {/* Archive / Restore */}
+          {status !== "archived" ? (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={(e) => handleStatusChange(e, "archived")}
+            >
+              <Archive className="size-3" />
+              Archive
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={(e) => handleStatusChange(e, "draft")}
+            >
+              <RotateCcw className="size-3" />
+              Restore
+            </Button>
+          )}
+
+          {/* Delete */}
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-destructive hover:text-destructive"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDeleteDialogOpen(true);
+            }}
+          >
+            <Trash2 className="size-3" />
+            Delete
+          </Button>
+
+          {/* Manually Posted — pushed to far right */}
+          {statusActions.some((a) => a.action === "mark_posted") && (
+            <>
+              <div className="flex-1" />
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMarkPostedOpen(true);
+                }}
+              >
+                <Check className="size-3" />
+                Manually Posted
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Delete confirmation dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent
+            className="sm:max-w-[400px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete post?</DialogTitle>
+              <DialogDescription>
+                This will permanently delete this post and all its versions. This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete permanently"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Mark as Posted dialog */}
+        <MarkPostedDialog
+          open={markPostedOpen}
+          onOpenChange={setMarkPostedOpen}
+          postId={postId}
+          postTitle={title}
+          onSuccess={() => router.refresh()}
+        />
+      </>
+    );
+  }
 
   return (
     <>
