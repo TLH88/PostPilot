@@ -123,6 +123,18 @@ All items done and deployed.
 
 ---
 
+## Managed AI Access (Trial & Beta System)
+
+*System-level AI keys that provide free/trial users with full AI functionality without configuring their own API keys.*
+
+- [ ] System-level API keys via environment variables (SYSTEM_AI_KEY_OPENAI, SYSTEM_AI_KEY_ANTHROPIC, etc.)
+- [ ] managed_ai_access flag + managed_ai_expires_at on creator_profiles (auto-granted to new accounts for 14 days)
+- [ ] AI client fallback chain: personal key → managed system key → error
+- [ ] Settings UI: "Trial AI Access" badge with expiry countdown
+- [ ] Manual override: admin can grant/revoke access per user via Supabase
+
+---
+
 ## Phase T1: Team Collaboration Core
 
 *Foundation for team-based content creation. Build first — these are early differentiators.*

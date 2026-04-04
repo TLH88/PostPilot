@@ -788,6 +788,49 @@ Create briefs before posts are written. Assign to writers with topic, key points
 
 ---
 
+### BP-054: Managed AI Access — System Keys & Trial Access
+
+**Status:** Backlog
+**Priority:** Critical
+**Source:** Owner request (alpha/beta testing, trial experience)
+**Date Added:** 2026-04-04
+**Phase:** 1
+
+**Description:**
+Provide system-level AI access to free/trial users without requiring them to configure their own API keys. New accounts auto-receive 14-day managed AI access. Admin can manually grant/revoke per user.
+
+**Requirements:**
+- **Database:** Add `managed_ai_access` (boolean, default true) and `managed_ai_expires_at` (timestamptz, default now+14 days) to `creator_profiles`
+- **Environment:** System-level API keys as env vars (`SYSTEM_AI_KEY_OPENAI`, `SYSTEM_AI_KEY_ANTHROPIC`, `SYSTEM_AI_KEY_GOOGLE`, `SYSTEM_AI_KEY_PERPLEXITY`)
+- **AI Client:** Update `get-user-ai-client.ts` fallback chain: user's personal key → managed system key (if flag=true and not expired) → error
+- **Onboarding:** Auto-set managed_ai_access=true + expires_at=now()+14 days on new profile creation
+- **Settings UI:** Show "Trial AI Access" badge with expiry countdown when using managed keys. Show "Add your own API key" prompt when trial is expiring.
+- **Security:** System keys never exposed to browser — server-side only. User quotas still enforced.
+- **Admin:** Manual grant/revoke via Supabase (future: admin panel)
+- **Onboarding flow:** Skip the API key setup step when managed access is active — user can go straight to creating content
+
+---
+
+### BP-055: Managed AI Access — Settings & Onboarding UX
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner request
+**Date Added:** 2026-04-04
+**Phase:** 1
+
+**Description:**
+Update the Settings page and onboarding flow to reflect managed AI access status.
+
+**Requirements:**
+- Settings: "AI Access" card showing current source (Trial / Personal Key / Expired)
+- Trial countdown: "X days remaining" with progress bar
+- "Upgrade" CTA when trial is expiring or expired
+- Onboarding: AI key step becomes optional when managed access is active (show "Skip — you have trial access" option)
+- Help text explaining BYOK vs managed access
+
+---
+
 ## Completed Items
 
 ### BP-008: Hook Analysis Feature
