@@ -79,7 +79,7 @@ export function InsertFromLibrary({ onInsert }: InsertFromLibraryProps) {
               className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
                 filter === t
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:bg-hover-highlight"
               }`}
             >
               {t === "all" ? "All" : CONTENT_LIBRARY_TYPES[t].label}

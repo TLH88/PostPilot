@@ -167,7 +167,7 @@ export function TemplatePicker({ onSelect }: TemplatePickerProps) {
                     key={template.id}
                     type="button"
                     onClick={() => setPreview(template)}
-                    className="w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                    className="w-full text-left rounded-lg border p-3 hover:bg-hover-highlight transition-colors"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-medium">{template.name}</span>

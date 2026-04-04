@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, Layers, CalendarClock, ClipboardCheck, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
@@ -31,6 +31,7 @@ interface PostItem {
   updated_at: string;
   hashtags: string[];
   content_pillar: string | null;
+  image_url: string | null;
 }
 
 function PostCard({ post }: { post: PostItem }) {
@@ -47,7 +48,17 @@ function PostCard({ post }: { post: PostItem }) {
 
   return (
     <Link href={`/posts/${post.id}`} className="h-full">
-      <Card className="flex flex-col h-full transition-colors hover:bg-muted/50">
+      <Card className="flex flex-col h-full transition-colors hover:bg-hover-highlight overflow-hidden">
+        {/* Post image */}
+        {post.image_url && (
+          <div className="w-full h-32 overflow-hidden">
+            <img
+              src={post.image_url}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
         <CardContent className="flex-1 space-y-2">
           {/* Status badge */}
           <div className="flex items-center justify-between gap-2">
@@ -130,7 +141,7 @@ export default async function PostsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillar")
+    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillar, image_url")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -150,7 +161,7 @@ export default async function PostsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Your Posts</h1>
           <p className="text-muted-foreground">
@@ -158,6 +169,62 @@ export default async function PostsPage() {
           </p>
         </div>
         <NewPostButton />
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Posts</p>
+                <p className="text-2xl font-bold">{allPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-blue-500/10">
+                <Layers className="size-4 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Scheduled</p>
+                <p className="text-2xl font-bold">{scheduledPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-amber-500/10">
+                <CalendarClock className="size-4 text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-purple-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">In Review</p>
+                <p className="text-2xl font-bold">{reviewPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
+                <ClipboardCheck className="size-4 text-purple-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Published</p>
+                <p className="text-2xl font-bold">{postedPosts.length}</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-emerald-500/10">
+                <Send className="size-4 text-emerald-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter Tabs */}

@@ -85,9 +85,12 @@ export async function POST(request: NextRequest) {
       ? `Include the following text prominently in the image: "${imageText}".`
       : "Do NOT include any text, words, letters, or numbers in the image.";
 
-    const imagePrompt =
-      customPrompt ||
-      `Generate an image for a social media post, ${formatDesc}, illustrating the concept of ${post.title || "a LinkedIn post"}, inspired by the theme: ${hook}. In the style of: ${selectedStyle}. ${textInstruction}`;
+    // Always append format, style, and text instructions — even when the user provides a custom prompt.
+    // The client sends the base prompt (which may be user-edited), and we add the structured directives here.
+    const basePrompt = customPrompt ||
+      `Generate an image for a social media post. The image should visually represent the mood, energy, and themes of this topic — do NOT render the topic text itself in the image. Topic: ${post.title || "a LinkedIn post"}. Thematic context: ${hook}`;
+
+    const imagePrompt = `${basePrompt} ${formatDesc}. In the style of: ${selectedStyle}. ${textInstruction}`;
 
     let imageUrl: string;
 

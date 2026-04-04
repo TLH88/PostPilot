@@ -105,7 +105,7 @@ export function SaveToLibraryDialog({
                   className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                     type === t
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "border-input hover:bg-muted"
+                      : "border-input hover:bg-hover-highlight"
                   }`}
                 >
                   {CONTENT_LIBRARY_TYPES[t].label}
@@ -153,7 +153,7 @@ export function SaveToLibraryDialog({
                     className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                       pillar === p
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "border-input hover:bg-muted"
+                        : "border-input hover:bg-hover-highlight"
                     }`}
                   >
                     {p}

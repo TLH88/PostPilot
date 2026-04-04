@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-04-04: UI Polish, Mobile Responsiveness, Hover Standardization
+
+### Image Generation Prompt Fix
+- **Updated:** `src/app/api/ai/generate-image/route.ts` — Fixed prompt assembly: server now always appends format, art style, and text instructions (including "Do NOT include any text") to every prompt. Previously these were only added to fallback prompts, not user-provided ones.
+- **Updated:** `src/components/posts/generate-image-dialog.tsx` — Rephrased default prompt to explicitly instruct AI to "visually represent the mood, energy, and themes — do NOT render the topic text itself in the image"
+- **Root cause:** Title/content were phrased as visual elements ("illustrating the concept of [TITLE]") causing AI to render them as text overlays
+
+### Post & Calendar Image Thumbnails
+- **Updated:** `src/app/(app)/posts/page.tsx` — Added `image_url` to query and post cards; shows 128px thumbnail at top of card
+- **Updated:** `src/app/(app)/calendar/page.tsx` — Added image thumbnails to week/day view post cards (64px) and upcoming posts sidebar (96px)
+
+### Posts Page Metrics
+- **New:** 4 metric cards at top of Posts page — Total Posts (blue), Scheduled (amber), In Review (purple), Published (emerald)
+- Each card has colored left border, icon with tinted background circle, and bold count
+
+### Dashboard Redesign
+- **Updated:** Stats cards restyled to match Posts page — colored left border, label above count, tinted icon circle on right
+- **Updated:** Recent Drafts converted from list to card grid (4 columns on xl), moved above Recent Ideas
+- **Updated:** 2-column layout (80/20) — main content left, Content Balance (renamed from "Content Pillar Balance") right
+- **Updated:** `src/components/dashboard/content-pillar-balance.tsx` — Accepts optional `title` prop
+
+### Hover Color Standardization
+- **New CSS variable:** `--hover-highlight` in globals.css (light: `oklch(0.93 0.04 255)`, dark: `oklch(0.22 0.03 255)`)
+- **Registered:** `--color-hover-highlight` in Tailwind theme for `hover:bg-hover-highlight`
+- **Standardized across 10 files:** posts page, dashboard, calendar, post editor, library components, template picker, emoji picker, theme setting — all interactive elements now use consistent muted blue hover
+
+### Mobile Post Editor Overhaul
+- **AI Panel:** Collapsed by default on mobile (<1024px), auto-opens on desktop. On mobile opens as full-screen overlay (`fixed inset-0 z-50`)
+- **Formatting toolbar:** Mobile dropdown ("Format") replaces individual buttons — contains Analyze Hook, Line Break, Bullet, Save to Library, Copy Post. Emoji picker and Insert from Library remain standalone.
+- **Status actions:** Mobile dropdown ("Actions") replaces status-dependent buttons
+- **Version management:** Mobile dropdown ("Versions") replaces Save Version, Save as New Post, Save as Template, and version history
+- Desktop view completely unchanged
+
+### Mobile Layout Fixes
+- **Page headers** (Posts, Ideas, Library): Changed from `flex items-center justify-between` to `flex flex-col sm:flex-row` so title/description and action button stack vertically on mobile
+- **Mobile nav:** Added missing `BookOpen` icon import and iconMap entry for Library nav item
+
+---
+
 ## 2026-04-03 (Session 2): Image Upload, AI Image Generation, Multi-Provider Keys
 
 ### BP-039: Image Upload to LinkedIn Posts

@@ -413,7 +413,7 @@ export default function IdeasPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">Idea Bank</h1>
@@ -425,7 +425,7 @@ export default function IdeasPage() {
             Capture and organize content ideas. Click &quot;Generate Ideas&quot; to brainstorm with AI, or add your own manually.
           </p>
         </div>
-        <Button onClick={() => setGenerateOpen(true)}>
+        <Button onClick={() => setGenerateOpen(true)} className="shrink-0 self-start sm:self-center">
           <Sparkles className="size-4" />
           Generate Ideas
         </Button>

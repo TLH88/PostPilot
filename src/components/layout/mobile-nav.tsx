@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BookOpen,
   Calendar,
   Plus,
   Settings,
@@ -31,6 +32,7 @@ const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   Lightbulb,
   FileText,
+  BookOpen,
   Calendar,
 };
 

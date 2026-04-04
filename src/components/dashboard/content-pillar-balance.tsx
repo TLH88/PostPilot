@@ -225,11 +225,13 @@ function categorizePillars(
 interface ContentPillarBalanceProps {
   pillarCounts: Record<string, number>;
   totalPosts: number;
+  title?: string;
 }
 
 export function ContentPillarBalance({
   pillarCounts,
   totalPosts,
+  title,
 }: ContentPillarBalanceProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
@@ -255,7 +257,7 @@ export function ContentPillarBalance({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="size-4 text-primary" />
-          Content Pillar Balance
+          {title ?? "Content Pillar Balance"}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>

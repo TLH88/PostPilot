@@ -202,28 +202,35 @@ export default function CalendarPage() {
         key={post.id}
         onClick={() => router.push(`/posts/${post.id}`)}
         className={cn(
-          "w-full rounded-lg border p-2 text-left transition-opacity hover:opacity-80",
+          "w-full rounded-lg border text-left transition-opacity hover:opacity-80 overflow-hidden",
           statusConfig?.color ?? "bg-gray-100 text-gray-700"
         )}
       >
-        <div className="flex items-center gap-2 mb-1">
-          {scheduledDate && (
-            <span className="text-[10px] font-medium opacity-70">
-              {format(scheduledDate, "h:mm a")}
+        {post.image_url && (
+          <div className="w-full h-16 overflow-hidden">
+            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="p-2">
+          <div className="flex items-center gap-2 mb-1">
+            {scheduledDate && (
+              <span className="text-[10px] font-medium opacity-70">
+                {format(scheduledDate, "h:mm a")}
+              </span>
+            )}
+          </div>
+          <p className="text-xs font-semibold line-clamp-2">
+            {post.title ||
+              (post.content
+                ? post.content.slice(0, 50) + "..."
+                : "Untitled Post")}
+          </p>
+          {post.content_pillar && (
+            <span className="text-[9px] opacity-70 mt-1 block">
+              {post.content_pillar}
             </span>
           )}
         </div>
-        <p className="text-xs font-semibold line-clamp-2">
-          {post.title ||
-            (post.content
-              ? post.content.slice(0, 50) + "..."
-              : "Untitled Post")}
-        </p>
-        {post.content_pillar && (
-          <span className="text-[9px] opacity-70 mt-1 block">
-            {post.content_pillar}
-          </span>
-        )}
       </button>
     );
   }
@@ -308,7 +315,7 @@ export default function CalendarPage() {
                       <div
                         key={dateKey}
                         className={cn(
-                          "min-h-[100px] border-b border-r p-1.5 transition-colors cursor-pointer hover:bg-muted/30",
+                          "min-h-[100px] border-b border-r p-1.5 transition-colors cursor-pointer hover:bg-hover-highlight",
                           !inCurrentMonth && "bg-muted/30",
                           index % 7 === 0 && "border-l-0",
                           today && "bg-primary/5"
@@ -385,7 +392,7 @@ export default function CalendarPage() {
                       <div
                         key={dateKey}
                         className={cn(
-                          "border-r p-2 space-y-2 cursor-pointer hover:bg-muted/20",
+                          "border-r p-2 space-y-2 cursor-pointer hover:bg-hover-highlight",
                           today && "bg-primary/5"
                         )}
                         onClick={() => {
@@ -448,7 +455,7 @@ export default function CalendarPage() {
         </Card>
 
         {/* Upcoming posts — right side */}
-        <div className="w-full lg:w-[300px] shrink-0 space-y-3">
+        <div className="w-full lg:w-[390px] shrink-0 space-y-3">
           <div className="flex items-center gap-2 px-1">
             <Clock className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Upcoming Posts</h2>
@@ -487,9 +494,14 @@ export default function CalendarPage() {
               return (
                 <Card
                   key={post.id}
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  className="cursor-pointer transition-colors hover:bg-hover-highlight overflow-hidden"
                   onClick={() => router.push(`/posts/${post.id}`)}
                 >
+                  {post.image_url && (
+                    <div className="w-full h-24 overflow-hidden">
+                      <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <CardContent className="space-y-2 p-3">
                     {statusConfig && (
                       <Badge

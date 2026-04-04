@@ -466,7 +466,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
             <button
               type="button"
               onClick={() => handleTabClick("all")}
-              className={`flex items-center justify-center shrink-0 p-2 transition-colors hover:bg-muted rounded-sm ${
+              className={`flex items-center justify-center shrink-0 p-2 transition-colors hover:bg-hover-highlight rounded-sm ${
                 activeTab === "all"
                   ? "text-foreground border-b-2 border-primary -mb-px"
                   : "text-muted-foreground"
@@ -480,7 +480,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
                 key={cat.id}
                 type="button"
                 onClick={() => handleTabClick(cat.id)}
-                className={`flex items-center justify-center shrink-0 p-2 transition-colors hover:bg-muted rounded-sm ${
+                className={`flex items-center justify-center shrink-0 p-2 transition-colors hover:bg-hover-highlight rounded-sm ${
                   activeTab === cat.id
                     ? "text-foreground border-b-2 border-primary -mb-px"
                     : "text-muted-foreground"
@@ -517,7 +517,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
                         key={i}
                         type="button"
                         onClick={() => handleSelect(emoji)}
-                        className="flex items-center justify-center rounded p-1 text-xl hover:bg-muted transition-colors cursor-pointer aspect-square"
+                        className="flex items-center justify-center rounded p-1 text-xl hover:bg-hover-highlight transition-colors cursor-pointer aspect-square"
                       >
                         {emoji}
                       </button>
@@ -548,7 +548,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
                         key={i}
                         type="button"
                         onClick={() => handleSelect(entry.e)}
-                        className="flex items-center justify-center rounded p-1 text-xl hover:bg-muted transition-colors cursor-pointer aspect-square"
+                        className="flex items-center justify-center rounded p-1 text-xl hover:bg-hover-highlight transition-colors cursor-pointer aspect-square"
                       >
                         {entry.e}
                       </button>
@@ -573,7 +573,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
                     key={i}
                     type="button"
                     onClick={() => handleSelect(entry.e)}
-                    className="flex items-center justify-center rounded p-1 text-xl hover:bg-muted transition-colors cursor-pointer aspect-square"
+                    className="flex items-center justify-center rounded p-1 text-xl hover:bg-hover-highlight transition-colors cursor-pointer aspect-square"
                   >
                     {entry.e}
                   </button>

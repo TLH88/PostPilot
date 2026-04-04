@@ -81,7 +81,7 @@ export function GenerateImageDialog({
   onImageGenerated,
 }: GenerateImageDialogProps) {
   const hook = postContent.slice(0, 210);
-  const defaultPrompt = `Generate an image for a social media post illustrating the concept of ${postTitle || "a LinkedIn post"}, inspired by the theme: ${hook}.`;
+  const defaultPrompt = `Generate an image for a social media post. The image should visually represent the mood, energy, and themes of this topic — do NOT render the topic text itself in the image. Topic: ${postTitle || "a LinkedIn post"}. Thematic context: ${hook}`;
 
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [imageFormat, setImageFormat] = useState<ImageFormat>("landscape");
@@ -218,7 +218,7 @@ export function GenerateImageDialog({
     }
   }
 
-  // Build full prompt as the API will see it
+  // Build full prompt exactly as the API will assemble it
   function getFullPrompt() {
     const fmt = imageFormat === "square"
       ? "square format (1:1, 1080x1080)"

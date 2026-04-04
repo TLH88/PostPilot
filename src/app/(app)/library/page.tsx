@@ -113,14 +113,14 @@ export default function LibraryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Content Library</h1>
           <p className="text-muted-foreground">
             Save and reuse your best hooks, CTAs, closings, and snippets.
           </p>
         </div>
-        <Button onClick={() => setSaveDialogOpen(true)} className="gap-2">
+        <Button onClick={() => setSaveDialogOpen(true)} className="gap-2 shrink-0 self-start sm:self-center">
           <Plus className="size-4" />
           Add to Library
         </Button>

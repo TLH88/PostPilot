@@ -29,6 +29,8 @@ import {
   Tag,
   Trash2,
   X,
+  Menu,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -123,7 +125,7 @@ export default function PostWorkspacePage() {
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
 
   // ── Chat state ────────────────────────────────────────────────────────────
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false); // collapsed by default; opened on desktop via useEffect
   const [chatMessages, setChatMessages] = useState<AIMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatStreaming, setChatStreaming] = useState(false);
@@ -171,6 +173,20 @@ export default function PostWorkspacePage() {
   const [brainstormOpen, setBrainstormOpen] = useState(false);
   const [brainstormTopic, setBrainstormTopic] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
+
+  // ── Responsive: open AI panel on desktop, keep collapsed on mobile ──────
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const isLg = window.innerWidth >= 1024; // lg breakpoint
+    setIsMobile(!isLg);
+    if (isLg) setChatOpen(true);
+
+    function handleResize() {
+      setIsMobile(window.innerWidth < 1024);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1261,8 +1277,8 @@ export default function PostWorkspacePage() {
               </div>
             )}
 
-            {/* Formatting helpers */}
-            <div className="flex items-center gap-2">
+            {/* Formatting helpers — desktop */}
+            <div className="hidden lg:flex items-center gap-2">
               <Button
                 variant="outline"
                 size="xs"
@@ -1320,6 +1336,54 @@ export default function PostWorkspacePage() {
                 <ClipboardCopy className="size-3" />
                 Copy Post
               </Button>
+            </div>
+
+            {/* Formatting helpers — mobile dropdown */}
+            <div className="flex lg:hidden items-center gap-2">
+              <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="outline" size="xs" className="gap-1" />
+                  }
+                >
+                  <Menu className="size-3" />
+                  Format
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                  <DropdownMenuItem
+                    onClick={analyzeHook}
+                    disabled={analyzingHook || !content.trim() || content.length < 20}
+                  >
+                    <Zap className="size-3.5 mr-2" />
+                    {analyzingHook ? "Analyzing..." : "Analyze Hook"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertAtCursor("\n")}>
+                    <Pilcrow className="size-3.5 mr-2" />
+                    Line Break
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => insertAtCursor("\n\u2022 ")}>
+                    <List className="size-3.5 mr-2" />
+                    Bullet Point
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSaveToLibraryOpen(true)}
+                    disabled={!content.trim()}
+                  >
+                    <BookOpen className="size-3.5 mr-2" />
+                    Save to Library
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={copyPostToClipboard}
+                    disabled={!content.trim()}
+                  >
+                    <ClipboardCopy className="size-3.5 mr-2" />
+                    Copy Post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
             </div>
 
             <Separator />
@@ -1421,27 +1485,17 @@ export default function PostWorkspacePage() {
 
             <Separator />
 
-            {/* Status bar + Version management */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
+            {/* Status bar + Version management — desktop */}
+            <div className="hidden lg:flex flex-wrap items-center justify-between gap-2 pb-2">
               <div className="flex items-center gap-2">
                 {/* Status actions based on current status */}
                 {status === "draft" && (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("review")}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("review")}>
                       <Eye className="size-3.5" />
                       Move to Review
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => setMarkPostedOpen(true)}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
                       <Check className="size-3.5" />
                       Mark as Posted
                     </Button>
@@ -1449,41 +1503,17 @@ export default function PostWorkspacePage() {
                 )}
                 {status === "review" && (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("draft")}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("draft")}>
                       Back to Draft
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={handleShareOnLinkedIn}
-                      disabled={publishing}
-                    >
-                      {publishing ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      )}
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareOnLinkedIn} disabled={publishing}>
+                      {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <LinkedInIcon className="size-3.5 text-[#0A66C2]" />}
                       {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                     </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => setScheduleDialogOpen(true)}
-                    >
+                    <Button size="sm" className="gap-1.5" onClick={() => setScheduleDialogOpen(true)}>
                       Schedule
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => setMarkPostedOpen(true)}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
                       <Check className="size-3.5" />
                       Mark as Posted
                     </Button>
@@ -1491,33 +1521,14 @@ export default function PostWorkspacePage() {
                 )}
                 {status === "scheduled" && (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("review")}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("review")}>
                       Back to Review
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={handleShareOnLinkedIn}
-                      disabled={publishing}
-                    >
-                      {publishing ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      )}
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareOnLinkedIn} disabled={publishing}>
+                      {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <LinkedInIcon className="size-3.5 text-[#0A66C2]" />}
                       {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                     </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => setMarkPostedOpen(true)}
-                    >
+                    <Button size="sm" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
                       <Check className="size-3.5" />
                       Mark as Posted to LinkedIn
                     </Button>
@@ -1525,42 +1536,18 @@ export default function PostWorkspacePage() {
                 )}
                 {status === "past_due" && (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("review")}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("review")}>
                       Back to Review
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={handleShareOnLinkedIn}
-                      disabled={publishing}
-                    >
-                      {publishing ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-                      )}
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareOnLinkedIn} disabled={publishing}>
+                      {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <LinkedInIcon className="size-3.5 text-[#0A66C2]" />}
                       {publishing ? "Publishing..." : linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                     </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => setMarkPostedOpen(true)}
-                    >
+                    <Button size="sm" className="gap-1.5" onClick={() => setMarkPostedOpen(true)}>
                       <Check className="size-3.5" />
                       Mark as Posted to LinkedIn
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      onClick={() => setScheduleDialogOpen(true)}
-                    >
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setScheduleDialogOpen(true)}>
                       Reschedule
                     </Button>
                   </>
@@ -1572,47 +1559,30 @@ export default function PostWorkspacePage() {
                         href={post.linkedin_post_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium text-[#0A66C2] hover:bg-muted transition-colors"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium text-[#0A66C2] hover:bg-hover-highlight transition-colors"
                       >
                         <LinkedInIcon className="size-3.5" />
                         View on LinkedIn
                       </a>
                     )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="gap-1.5"
-                      onClick={() => updateStatus("archived")}
-                    >
+                    <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => updateStatus("archived")}>
                       Archive
                     </Button>
                   </>
                 )}
                 {status === "archived" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("draft")}
-                  >
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatus("draft")}>
                     Restore to Draft
                   </Button>
                 )}
 
-                {/* Archive (for non-archived/non-posted statuses) */}
                 {!["archived", "posted"].includes(status) && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1.5"
-                    onClick={() => updateStatus("archived")}
-                  >
+                  <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => updateStatus("archived")}>
                     <Archive className="size-3.5" />
                     Archive
                   </Button>
                 )}
 
-                {/* Delete */}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -1625,37 +1595,19 @@ export default function PostWorkspacePage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden sm:inline">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Versions
                 </span>
 
-                {/* Save Version */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={saveVersion}
-                  disabled={savingVersion || !content.trim()}
-                >
-                  {savingVersion ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Save className="size-3.5" />
-                  )}
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={saveVersion} disabled={savingVersion || !content.trim()}>
+                  {savingVersion ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
                   Save Version
                 </Button>
 
-                {/* Save as New Post (creates standalone draft copy) */}
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => createPostFromVersion(activeVersion ?? undefined)}
-                        disabled={!content.trim()}
-                      />
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => createPostFromVersion(activeVersion ?? undefined)} disabled={!content.trim()} />
                     }
                   >
                     <FilePlus2 className="size-3.5" />
@@ -1666,25 +1618,15 @@ export default function PostWorkspacePage() {
                   </TooltipContent>
                 </Tooltip>
 
-                {/* Save as Template */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setSaveAsTemplateOpen(true)}
-                  disabled={!content.trim()}
-                >
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSaveAsTemplateOpen(true)} disabled={!content.trim()}>
                   <Tag className="size-3.5" />
                   Save as Template
                 </Button>
 
-                {/* View Versions Dropdown */}
                 {versions.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      render={
-                        <Button variant="outline" size="sm" className="gap-1.5" />
-                      }
+                      render={<Button variant="outline" size="sm" className="gap-1.5" />}
                     >
                       <ChevronDown className="size-3.5" />
                       {activeVersion
@@ -1699,18 +1641,14 @@ export default function PostWorkspacePage() {
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => requestLoadVersion(v)}
-                            className={cn(
-                              activeVersion?.id === v.id && "bg-accent font-semibold"
-                            )}
+                            className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
                           >
                             <div className="flex w-full flex-col">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">
                                   {v.label ?? `Version ${v.version_number}`}
                                 </span>
-                                {activeVersion?.id === v.id && (
-                                  <Check className="size-3.5 text-primary" />
-                                )}
+                                {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
                               </div>
                               <span className="text-xs text-muted-foreground">
                                 {new Date(v.created_at).toLocaleDateString("en-US", {
@@ -1729,12 +1667,187 @@ export default function PostWorkspacePage() {
                 )}
               </div>
             </div>
+
+            {/* Status bar + Version management — mobile dropdowns */}
+            <div className="flex lg:hidden items-center gap-2 pb-2">
+              {/* Status Actions dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="sm" className="gap-1.5" />}
+                >
+                  <MoreHorizontal className="size-3.5" />
+                  Actions
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                  {status === "draft" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("review")}>
+                        <Eye className="size-3.5 mr-2" />
+                        Move to Review
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "review" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                        Back to Draft
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
+                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        Schedule
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "scheduled" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("review")}>
+                        Back to Review
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
+                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "past_due" && (
+                    <>
+                      <DropdownMenuItem onClick={() => updateStatus("review")}>
+                        Back to Review
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
+                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
+                        <Check className="size-3.5 mr-2" />
+                        Mark as Posted
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        Reschedule
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "posted" && (
+                    <>
+                      {post?.linkedin_post_url && (
+                        <DropdownMenuItem onClick={() => window.open(post.linkedin_post_url!, "_blank")}>
+                          <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                          View on LinkedIn
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => updateStatus("archived")}>
+                        Archive
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {status === "archived" && (
+                    <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                      Restore to Draft
+                    </DropdownMenuItem>
+                  )}
+                  {!["archived", "posted"].includes(status) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => updateStatus("archived")}>
+                        <Archive className="size-3.5 mr-2" />
+                        Archive
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="size-3.5 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Version management dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="sm" className="gap-1.5" />}
+                >
+                  <Save className="size-3.5" />
+                  Versions
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                  <DropdownMenuItem onClick={saveVersion} disabled={savingVersion || !content.trim()}>
+                    <Save className="size-3.5 mr-2" />
+                    Save Version
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => createPostFromVersion(activeVersion ?? undefined)}
+                    disabled={!content.trim()}
+                  >
+                    <FilePlus2 className="size-3.5 mr-2" />
+                    Save as New Post
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!content.trim()}>
+                    <Tag className="size-3.5 mr-2" />
+                    Save as Template
+                  </DropdownMenuItem>
+                  {versions.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <span className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Version History</span>
+                      {versions.map((v) => (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onClick={() => requestLoadVersion(v)}
+                          className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
+                        >
+                          <div className="flex w-full flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {v.label ?? `Version ${v.version_number}`}
+                              </span>
+                              {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(v.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
         {/* ─── Right Panel: AI Chat ───────────────────────────────────────── */}
         {chatOpen && (
-          <div className="flex w-full flex-col overflow-hidden border-l pl-4 lg:w-[40%] min-h-0">
+          <div className={cn(
+            "flex flex-col overflow-hidden min-h-0",
+            isMobile
+              ? "fixed inset-0 z-50 bg-background p-4"
+              : "w-full border-l pl-4 lg:w-[40%]"
+          )}>
             {/* Chat header */}
             <div className="flex items-center justify-between pb-3">
               <div className="flex items-center gap-2">
@@ -2068,7 +2181,7 @@ export default function PostWorkspacePage() {
           style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
         >
           <button
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-hover-highlight"
             onClick={() => {
               autoSave(title, content, hashtags);
               setBrainstormOpen(true);
