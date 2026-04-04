@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Crown, Loader2, Sparkles, User } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, User, Building2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { SUBSCRIPTION_TIERS, type SubscriptionTier, type QuotaType } from "@/lib/constants";
@@ -29,6 +29,18 @@ const TIER_CONFIG: Record<
     color: "text-amber-500",
     borderColor: "border-l-amber-500",
     bgColor: "bg-amber-500/10",
+  },
+  team: {
+    icon: Building2,
+    color: "text-green-500",
+    borderColor: "border-l-green-500",
+    bgColor: "bg-green-500/10",
+  },
+  enterprise: {
+    icon: Shield,
+    color: "text-amber-600",
+    borderColor: "border-l-amber-600",
+    bgColor: "bg-amber-600/10",
   },
 };
 

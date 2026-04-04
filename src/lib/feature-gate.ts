@@ -4,6 +4,8 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
   free: 0,
   creator: 1,
   professional: 2,
+  team: 3,
+  enterprise: 4,
 };
 
 /**

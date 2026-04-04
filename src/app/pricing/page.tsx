@@ -11,18 +11,23 @@ import { Separator } from "@/components/ui/separator";
 import { TIER_FEATURES, SUBSCRIPTION_TIERS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const TIER_ORDER: SubscriptionTier[] = ["free", "creator", "professional"];
+const TIER_ORDER: SubscriptionTier[] = ["free", "creator", "professional", "team"];
+const ALL_TIERS: SubscriptionTier[] = ["free", "creator", "professional", "team", "enterprise"];
 
-const TIER_STYLE: Record<SubscriptionTier, { highlight: boolean; badge?: string; border: string }> = {
+const TIER_STYLE: Record<string, { highlight: boolean; badge?: string; border: string }> = {
   free: { highlight: false, border: "border-border" },
   creator: { highlight: true, badge: "Most Popular", border: "border-primary" },
   professional: { highlight: false, border: "border-border" },
+  team: { highlight: false, border: "border-border" },
+  enterprise: { highlight: false, border: "border-border" },
 };
 
-const ANNUAL_PRICES: Record<SubscriptionTier, string | null> = {
+const ANNUAL_PRICES: Record<string, string | null> = {
   free: null,
   creator: "$190/yr",
   professional: "$490/yr",
+  team: "$990/yr",
+  enterprise: null,
 };
 
 const FAQ = [
@@ -107,8 +112,8 @@ export default function PricingPage() {
         </section>
 
         {/* Pricing Cards */}
-        <section className="mx-auto max-w-5xl px-6 pb-20">
-          <div className="grid gap-6 lg:grid-cols-3">
+        <section className="mx-auto max-w-7xl px-6 pb-20">
+          <div className="grid gap-6 lg:grid-cols-4">
             {TIER_ORDER.map((tierKey) => {
               const tier = SUBSCRIPTION_TIERS[tierKey];
               const style = TIER_STYLE[tierKey];
@@ -118,7 +123,7 @@ export default function PricingPage() {
                 <Card
                   key={tierKey}
                   className={cn(
-                    "relative flex flex-col",
+                    "relative flex flex-col overflow-visible",
                     style.highlight && "border-2 border-primary shadow-lg"
                   )}
                 >
@@ -132,12 +137,31 @@ export default function PricingPage() {
                   <CardHeader className="text-center pb-2">
                     <h3 className="text-lg font-semibold">{tier.label}</h3>
                     <div className="mt-2">
-                      <span className="text-4xl font-bold">
-                        {tierKey === "free" ? "$0" : `$${tierKey === "creator" ? "19" : "49"}`}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {tierKey === "free" ? " forever" : "/mo"}
-                      </span>
+                      {tierKey === "free" && (
+                        <>
+                          <span className="text-4xl font-bold">$0</span>
+                          <span className="text-muted-foreground"> forever</span>
+                        </>
+                      )}
+                      {tierKey === "creator" && (
+                        <>
+                          <span className="text-4xl font-bold">$19</span>
+                          <span className="text-muted-foreground">/mo</span>
+                        </>
+                      )}
+                      {tierKey === "professional" && (
+                        <>
+                          <span className="text-4xl font-bold">$49</span>
+                          <span className="text-muted-foreground">/mo</span>
+                        </>
+                      )}
+                      {tierKey === "team" && (
+                        <>
+                          <span className="text-4xl font-bold">$99</span>
+                          <span className="text-muted-foreground">/mo</span>
+                          <p className="text-sm text-muted-foreground mt-0.5">+ $5.99 per user</p>
+                        </>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground h-4">
                       {annual ? `or ${annual} (save 17%)` : "\u00A0"}
@@ -184,6 +208,27 @@ export default function PricingPage() {
               );
             })}
           </div>
+
+          {/* Enterprise card */}
+          <div className="mt-8 mx-auto max-w-2xl">
+            <Card className="flex flex-col">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Enterprise</h3>
+                  <span className="text-lg font-bold text-muted-foreground">Custom Pricing</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">150+ users — everything in Team with dedicated support, custom integrations, SSO, and SLA guarantees</p>
+              </CardHeader>
+              <CardContent>
+                <Link
+                  href="mailto:sales@mypostpilot.app"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-input bg-background text-sm font-medium transition-colors hover:bg-muted"
+                >
+                  Contact Sales
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         {/* Feature Comparison Table (desktop) */}
@@ -197,7 +242,7 @@ export default function PricingPage() {
                 <thead>
                   <tr className="border-b">
                     <th className="pb-3 pr-4 text-left font-medium text-muted-foreground">Feature</th>
-                    {TIER_ORDER.map((t) => (
+                    {ALL_TIERS.map((t) => (
                       <th key={t} className="pb-3 px-4 text-center font-semibold">
                         {SUBSCRIPTION_TIERS[t].label}
                       </th>
@@ -208,10 +253,10 @@ export default function PricingPage() {
                   {TIER_FEATURES.map((feature) => (
                     <tr key={feature.key} className="border-b last:border-0">
                       <td className="py-3 pr-4 text-muted-foreground">{feature.name}</td>
-                      {TIER_ORDER.map((t) => (
+                      {ALL_TIERS.map((t) => (
                         <td key={t} className="py-3 px-4">
                           <div className="flex items-center justify-center">
-                            {renderValue(feature[t])}
+                            {renderValue(feature[t as keyof typeof feature])}
                           </div>
                         </td>
                       ))}

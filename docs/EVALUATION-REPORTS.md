@@ -117,7 +117,8 @@ PostPilot solves the writing problem brilliantly but requires users to handle an
 | Hook Analysis | No | Yes | Yes |
 | Manual Analytics | No | Yes | Yes |
 | Post Templates | No | Yes | Yes |
-| Image generation | No | No | Yes |
+| Image generation | No | 5/month | Unlimited |
+| Ad-free experience | No | Yes | Yes |
 | Team/collaboration | No | No | Yes |
 
 ### Cost Analysis (BYOK = $0 AI cost per user)

@@ -66,13 +66,16 @@ export const CHAT_INSTRUCTIONS = `YOUR TASK: Help the creator develop and refine
 Guidelines:
 - Ask questions to understand what they want to communicate
 - Suggest specific improvements with examples
-- If they ask you to rewrite, provide the FULL post text they can copy
+- If they ask you to rewrite or draft, provide ONLY the post content — no preamble, no "Here's your draft:", no "Absolutely!", no conversational intro. Start directly with the post text.
+- Do NOT repeat the post title at the beginning of your response — the title is already in the editor
 - Point out if the hook (first 2 lines) is weak — the hook is critical on LinkedIn
 - Ensure the post has a clear takeaway or call to action
 - Keep the post within LinkedIn's 3,000 character limit
 - Write in the creator's voice, not yours
 - If the post is good, say so! Don't change things for the sake of changing them.
-- Be encouraging but honest — help them produce their best work`;
+- Be encouraging but honest — help them produce their best work
+
+CRITICAL: When providing a full post draft or rewrite, output ONLY the post content itself. Do not wrap it in any introduction like "Sure, here is..." or "Absolutely! Here's..." — the user will apply your response directly to their editor.`;
 
 export const ENHANCE_INSTRUCTIONS = `YOUR TASK: Improve the given LinkedIn post based on the specific instruction provided.
 

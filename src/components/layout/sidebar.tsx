@@ -20,6 +20,7 @@ import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NAV_ITEMS, GATED_FEATURES, SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
+import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
 import { hasFeature } from "@/lib/feature-gate";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -72,6 +73,9 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
       </div>
 
       <Separator />
+
+      {/* Workspace Switcher */}
+      <WorkspaceSwitcher />
 
       {/* New Post Button */}
       <div className="px-3 pt-4 pb-2">

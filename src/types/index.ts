@@ -38,7 +38,7 @@ export interface CreatorProfile {
   linkedin_member_id: string | null;
   linkedin_connected_at: string | null;
   // Subscription
-  subscription_tier: "free" | "creator" | "professional";
+  subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
   created_at: string;
   updated_at: string;
 }
@@ -55,9 +55,37 @@ export interface UsageQuota {
   updated_at: string;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  owner_id: string;
+  brand_name: string | null;
+  brand_uvp: string | null;
+  brand_industry: string | null;
+  brand_product_or_service: string | null;
+  brand_target_audience: string | null;
+  brand_demographics: string | null;
+  brand_voice_guidelines: string | null;
+  brand_content_pillars: string[];
+  linkedin_account_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  role: "owner" | "admin" | "editor" | "member" | "viewer";
+  invited_by: string | null;
+  invited_at: string | null;
+  joined_at: string | null;
+}
+
 export interface Idea {
   id: string;
   user_id: string;
+  workspace_id: string | null;
   title: string;
   description: string | null;
   source: string | null;
@@ -72,6 +100,7 @@ export interface Idea {
 export interface Post {
   id: string;
   user_id: string;
+  workspace_id: string | null;
   idea_id: string | null;
   title: string | null;
   content: string;
@@ -119,6 +148,7 @@ export interface ReleaseNote {
   description: string;
   features: { title: string; description: string }[];
   bug_fixes: { title: string; description: string }[];
+  roadmap: { title: string; description: string }[];
   is_published: boolean;
   published_at: string;
   created_at: string;

@@ -7,7 +7,9 @@ import { ThemeSetting } from "./theme-setting";
 import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
 import { SubscriptionTierSetting } from "./subscription-tier";
+import { WorkspaceSettings } from "./workspace-settings";
 import type { SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -47,6 +49,18 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Workspace (Team+ only) */}
+      {hasFeature((profile?.subscription_tier as SubscriptionTier) ?? "free", "workspaces") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workspace</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WorkspaceSettings />
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Provider */}
       <Card>

@@ -87,7 +87,7 @@ export const SCHEDULING_SUGGESTIONS = [
 
 // ── Subscription Tiers & Quota Limits ─────────────────────────────────────────
 // -1 = unlimited
-export type SubscriptionTier = "free" | "creator" | "professional";
+export type SubscriptionTier = "free" | "creator" | "professional" | "team" | "enterprise";
 export type QuotaType = "posts" | "brainstorms" | "chat_messages" | "scheduled_posts";
 
 export const SUBSCRIPTION_TIERS: Record<
@@ -113,6 +113,16 @@ export const SUBSCRIPTION_TIERS: Record<
     price: "$49/mo",
     limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
   },
+  team: {
+    label: "Team",
+    price: "$99/mo + $5.99/user",
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+  },
+  enterprise: {
+    label: "Enterprise",
+    price: "Custom",
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+  },
 } as const;
 
 // Map quota DB columns to QuotaType keys
@@ -125,21 +135,25 @@ export const QUOTA_COLUMN_MAP: Record<QuotaType, string> = {
 
 // ── Tier Feature Matrix (used by pricing page + feature gating) ────────────────
 export const TIER_FEATURES = [
-  { key: "posts", name: "Posts / month", free: "3", creator: "Unlimited", professional: "Unlimited" },
-  { key: "brainstorms", name: "Brainstorms / month", free: "2", creator: "15", professional: "Unlimited" },
-  { key: "chat_messages", name: "AI Chat Messages / month", free: "20", creator: "200", professional: "Unlimited" },
-  { key: "scheduling", name: "Post Scheduling", free: "2", creator: "15", professional: "Unlimited" },
-  { key: "versions", name: "Post Versions", free: "1", creator: "5", professional: "Unlimited" },
-  { key: "image_generation", name: "AI Image Generation", free: false, creator: "5 / month", professional: "Unlimited" },
-  { key: "analytics", name: "Manual Analytics", free: false, creator: true, professional: true },
-  { key: "content_library", name: "Content Library", free: false, creator: true, professional: true },
-  { key: "hook_analysis", name: "Hook Analysis", free: false, creator: true, professional: true },
-  { key: "templates", name: "Post Templates", free: false, creator: true, professional: true },
-  { key: "calendar", name: "Content Calendar", free: "View only", creator: true, professional: true },
-  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: true, creator: true, professional: true },
-  { key: "ai_models", name: "All AI Models", free: true, creator: true, professional: true },
-  { key: "enhance", name: "Enhance & Hashtags", free: true, creator: true, professional: true },
-  { key: "support", name: "Support", free: "Community", creator: "Email", professional: "Priority" },
+  { key: "posts", name: "Posts / month", free: "3", creator: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "brainstorms", name: "Brainstorms / month", free: "2", creator: "15", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "chat_messages", name: "AI Chat Messages / month", free: "20", creator: "200", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "scheduling", name: "Post Scheduling", free: "2", creator: "15", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "versions", name: "Post Versions", free: "1", creator: "5", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "image_generation", name: "AI Image Generation", free: false, creator: "5 / month", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "analytics", name: "Manual Analytics", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "ad_free", name: "Ad-Free Experience", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "workspaces", name: "Team Workspaces", free: false, creator: false, professional: false, team: true, enterprise: true },
+  { key: "team_members", name: "Team Members", free: false, creator: false, professional: false, team: "5–150", enterprise: "150+" },
+  { key: "brand_onboarding", name: "Brand Onboarding", free: false, creator: false, professional: false, team: true, enterprise: true },
+  { key: "content_library", name: "Content Library", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "hook_analysis", name: "Hook Analysis", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "templates", name: "Post Templates", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "calendar", name: "Content Calendar", free: "View only", creator: true, professional: true, team: true, enterprise: true },
+  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "ai_models", name: "All AI Models", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "enhance", name: "Enhance & Hashtags", free: true, creator: true, professional: true, team: true, enterprise: true },
+  { key: "support", name: "Support", free: "Community", creator: "Email", professional: "Priority", team: "Priority", enterprise: "Dedicated" },
 ] as const;
 
 // Features that require a minimum tier (used by feature gating)
@@ -149,6 +163,8 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   templates: "creator",
   image_generation: "creator",
   analytics: "creator",
+  workspaces: "team",
+  brand_onboarding: "team",
 } as const;
 
 // ── Tier badge colors ─────────────────────────────────────────────────────────
@@ -156,7 +172,8 @@ export const TIER_BADGE_COLORS: Record<string, string> = {
   free: "bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300",
   creator: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
   professional: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-  business: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  team: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  enterprise: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
 } as const;
 
 export const CONTENT_LIBRARY_TYPES = {

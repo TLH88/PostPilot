@@ -878,16 +878,20 @@ export default function PostWorkspacePage() {
   }
 
   // ── AI Chat ───────────────────────────────────────────────────────────────
-  async function sendChatMessage(messageText: string) {
+  async function sendChatMessage(messageText: string, displayText?: string) {
     if (!messageText.trim() || chatStreaming) return;
 
+    // displayText: what the user sees in the chat bubble
+    // messageText: what gets sent to the AI (may include hidden instructions)
     const userMessage: AIMessage = {
       role: "user",
-      content: messageText.trim(),
+      content: displayText ?? messageText.trim(),
       timestamp: new Date().toISOString(),
     };
 
     const updatedMessages = [...chatMessages, userMessage];
+    // For the API, use the actual instruction text
+    const apiMessages = [...chatMessages, { role: "user" as const, content: messageText.trim(), timestamp: userMessage.timestamp }];
     setChatMessages(updatedMessages);
     setChatInput("");
     setChatStreaming(true);
@@ -905,7 +909,7 @@ export default function PostWorkspacePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: updatedMessages.map((m) => ({
+          messages: apiMessages.map((m) => ({
             role: m.role,
             content: m.content,
           })),
@@ -1026,8 +1030,29 @@ export default function PostWorkspacePage() {
   }
 
   function applyAIContent(messageContent: string) {
-    setContent(messageContent);
-    scheduleAutoSave(title, messageContent, hashtags);
+    // Strip common AI preamble patterns before applying to editor
+    let cleaned = messageContent;
+
+    // Remove opening filler lines like "Absolutely! Here's your draft:", "Sure, here is...", etc.
+    cleaned = cleaned.replace(
+      /^(?:(?:absolutely|sure|of course|here(?:'s| is| are)|great|certainly|perfect)[!.,]*[\s]*(?:here(?:'s| is| are))?[^:\n]*[:!.\n]?\s*\n?)+/i,
+      ""
+    );
+
+    // Remove repeated title at the start (if it matches current title)
+    if (title && title !== "Untitled Post") {
+      const titlePattern = new RegExp(
+        `^\\**${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\**\\s*\\n+`,
+        "i"
+      );
+      cleaned = cleaned.replace(titlePattern, "");
+    }
+
+    // Remove leading/trailing whitespace
+    cleaned = cleaned.trim();
+
+    setContent(cleaned);
+    scheduleAutoSave(title, cleaned, hashtags);
   }
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -1209,7 +1234,8 @@ export default function PostWorkspacePage() {
                       }
                       if (!chatOpen) setChatOpen(true);
                       sendChatMessage(
-                        `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only`
+                        `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only. Output ONLY the post content — no preamble, no title repetition.`,
+                        `Draft a post about "${title.trim()}"`
                       );
                     }}
                   >

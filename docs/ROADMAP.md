@@ -18,29 +18,32 @@ BYOK model means $0 AI cost per user. Break-even at ~8 paying Creator users ($19
 
 ## Revised Pricing Tiers (BYOK Default)
 
-All tiers require the user to bring their own AI API key (BYOK). PostPilot provides zero AI access — the user must have a key to complete onboarding.
+Paid tiers require the user to bring their own AI API key (BYOK). Free tier users can explore the app but cannot use AI features without upgrading.
 
-| Feature | Free | Creator ($19/mo) | Professional ($49/mo) |
-|---------|------|-------------------|----------------------|
-| BYOK (required) | Yes | Yes | Yes |
-| AI Models | All user's models | All | All |
-| Posts/month | 3 | Unlimited | Unlimited |
-| Brainstorms/month | 2 (10 ideas) | 15 | Unlimited |
-| AI Chat messages/month | 20 | 200 | Unlimited |
-| Enhance/Hashtags | Yes | Yes | Yes |
-| Post scheduling | 2 scheduled | 15 | Unlimited |
-| Content calendar | View only | Full | Full |
-| Post versions | 1 per post | 5 per post | Unlimited |
-| Post history | 30 days | 6 months | 1 year |
-| Content Library | No | Yes | Yes |
-| Hook Analysis | No | Yes | Yes |
-| Manual Analytics | No | Yes | Yes |
-| Post Templates | No | Yes | Yes |
-| Image generation | No | 5/month | Unlimited |
-| Team/collaboration | No | No | Yes (future) |
-| Support | Community | Email | Priority |
+| Feature | Free | Creator ($19/mo) | Professional ($49/mo) | Team ($99/mo + $5.99/user) | Enterprise |
+|---------|------|-------------------|----------------------|---------------|-----------|
+| BYOK (required) | No | Yes | Yes | Yes | Yes |
+| AI Models | — | All user's models | All | All | All |
+| Posts/month | 3 | Unlimited | Unlimited | Unlimited | Unlimited |
+| Brainstorms/month | 2 (10 ideas) | 15 | Unlimited | Unlimited | Unlimited |
+| AI Chat messages/month | 20 | 200 | Unlimited | Unlimited | Unlimited |
+| Enhance/Hashtags | Yes | Yes | Yes | Yes | Yes |
+| Post scheduling | 2 scheduled | 15 | Unlimited | Unlimited | Unlimited |
+| Content calendar | View only | Full | Full | Full | Full |
+| Post versions | 1 per post | 5 per post | Unlimited | Unlimited | Unlimited |
+| Post history | 30 days | 6 months | 1 year | 1 year | Unlimited |
+| Content Library | No | Yes | Yes | Yes | Yes |
+| Hook Analysis | No | Yes | Yes | Yes | Yes |
+| Manual Analytics | No | Yes | Yes | Yes | Yes |
+| Post Templates | No | Yes | Yes | Yes | Yes |
+| Image generation | No | 5/month | Unlimited | Unlimited | Unlimited |
+| Ad-free experience | No | Yes | Yes | Yes | Yes |
+| Team Workspaces | No | No | No | Yes | Yes |
+| Team Members | — | — | — | 5–150 | 150+ |
+| Brand Onboarding | No | No | No | Yes | Yes |
+| Support | Community | Email | Priority | Priority | Dedicated |
 
-**Annual pricing:** Creator $190/yr (17% off), Professional $490/yr (17% off)
+**Annual pricing:** Creator $190/yr, Professional $490/yr, Team $990/yr (all 17% off). Enterprise: custom pricing.
 
 ---
 

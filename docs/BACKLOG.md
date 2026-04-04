@@ -607,6 +607,27 @@ Users need the ability to manually change a post's status, particularly to mark 
 
 ---
 
+### BP-045: Third-Party Ad Integration (Free Tier)
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner request
+**Date Added:** 2026-04-04
+**Phase:** 1
+
+**Description:**
+Integrate a third-party ad network (e.g., Google AdSense) to display ads to free tier users. Paid tiers (Creator, Professional) are ad-free. Ad revenue supplements subscription revenue and helps offset infrastructure costs for free users.
+
+**Requirements:**
+- Ad slots in sidebar, dashboard, and between content sections for free tier users
+- Ads hidden for Creator and Professional tier users (use existing `hasFeature` gating)
+- Google AdSense or equivalent integration
+- Responsive ad units that work on desktop and mobile
+- Ad placements should not disrupt the core UX — no interstitials, no pop-ups
+- Track ad impressions/revenue via the ad network dashboard
+
+---
+
 ## Completed Items
 
 ### BP-008: Hook Analysis Feature
