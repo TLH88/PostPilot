@@ -3,6 +3,30 @@ import { decrypt } from "@/lib/encryption";
 import { createAIClient, type AIClient, type AIProvider } from "./providers";
 import type { CreatorProfile } from "@/types";
 
+// System-level API keys for managed/trial access (env vars, never exposed to browser)
+const SYSTEM_AI_KEYS: Partial<Record<AIProvider, string | undefined>> = {
+  openai: process.env.SYSTEM_AI_KEY_OPENAI,
+  anthropic: process.env.SYSTEM_AI_KEY_ANTHROPIC,
+  google: process.env.SYSTEM_AI_KEY_GOOGLE,
+  perplexity: process.env.SYSTEM_AI_KEY_PERPLEXITY,
+};
+
+/**
+ * Check if a user has valid managed AI access (trial or admin-granted).
+ */
+function hasManagedAccess(profile: CreatorProfile): boolean {
+  if (!profile.managed_ai_access) return false;
+  if (!profile.managed_ai_expires_at) return true; // no expiry = permanent (admin override)
+  return new Date(profile.managed_ai_expires_at) > new Date();
+}
+
+/**
+ * Get a system-level API key for the given provider, if available.
+ */
+function getSystemKey(provider: AIProvider): string | null {
+  return SYSTEM_AI_KEYS[provider] ?? null;
+}
+
 interface UserAIContext {
   client: AIClient;
   profile: CreatorProfile;
@@ -69,9 +93,15 @@ export async function getUserAIClient(
       authTag: creatorProfile.ai_api_key_auth_tag,
     });
   } else {
-    throw new Error(
-      `No API key configured for ${targetProvider}. Please add your API key in Settings.`
-    );
+    // Fallback: check managed AI access (trial/beta) with system keys
+    const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(targetProvider) : null;
+    if (systemKey) {
+      apiKey = systemKey;
+    } else {
+      throw new Error(
+        `No API key configured for ${targetProvider}. Please add your API key in Settings.`
+      );
+    }
   }
 
   const client = createAIClient(
@@ -142,6 +172,12 @@ export async function getProviderApiKey(
       }),
       profile: creatorProfile,
     };
+  }
+
+  // Fallback: managed AI access with system keys
+  const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(provider) : null;
+  if (systemKey) {
+    return { apiKey: systemKey, profile: creatorProfile };
   }
 
   throw new Error(

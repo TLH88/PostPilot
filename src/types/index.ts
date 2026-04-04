@@ -37,6 +37,9 @@ export interface CreatorProfile {
   linkedin_token_expires_at: string | null;
   linkedin_member_id: string | null;
   linkedin_connected_at: string | null;
+  // Managed AI access (trial / beta)
+  managed_ai_access: boolean;
+  managed_ai_expires_at: string | null;
   // Subscription
   subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
   created_at: string;
