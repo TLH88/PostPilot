@@ -24,12 +24,13 @@ export default async function AppLayout({
   // Check onboarding status and get user name
   const { data: profile } = await supabase
     .from("creator_profiles")
-    .select("onboarding_completed, full_name")
+    .select("onboarding_completed, full_name, subscription_tier")
     .eq("user_id", user.id)
     .single();
 
   const onboardingCompleted = profile?.onboarding_completed ?? false;
   const userName = profile?.full_name || user.email?.split("@")[0] || "User";
+  const userTier = (profile?.subscription_tier as "free" | "creator" | "professional") ?? "free";
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -37,11 +38,11 @@ export default async function AppLayout({
       <PastDueChecker />
       <ReleaseNotesModal />
       {/* Sidebar - hidden on mobile */}
-      <Sidebar userName={userName} />
+      <Sidebar userName={userName} userTier={userTier} />
 
       {/* Main content area */}
       <div className="lg:pl-64">
-        <TopBar userName={userName} />
+        <TopBar userName={userName} userTier={userTier} />
         <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
           {children}
         </main>

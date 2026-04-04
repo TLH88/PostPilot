@@ -9,6 +9,7 @@ import {
   FileText,
   BookOpen,
   Calendar,
+  Lock,
   Plus,
   Settings,
   HelpCircle,
@@ -24,7 +25,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, type SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -36,13 +38,18 @@ const iconMap: Record<string, LucideIcon> = {
   Calendar,
 };
 
+const NAV_GATE_MAP: Record<string, string> = {
+  "/library": "content_library",
+};
+
 interface MobileNavProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userName: string;
+  userTier?: SubscriptionTier;
 }
 
-export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
+export function MobileNav({ open, onOpenChange, userName, userTier = "free" }: MobileNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const name = userName || "User";
@@ -108,6 +115,9 @@ export function MobileNav({ open, onOpenChange, userName }: MobileNavProps) {
               >
                 {Icon && <Icon className="size-4 shrink-0" />}
                 {item.label}
+                {NAV_GATE_MAP[item.href] && !hasFeature(userTier, NAV_GATE_MAP[item.href]) && (
+                  <Lock className="size-3 ml-auto text-muted-foreground" />
+                )}
               </Link>
             );
           })}

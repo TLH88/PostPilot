@@ -70,10 +70,12 @@ import { GenerateImageDialog } from "@/components/posts/generate-image-dialog";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
-import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS } from "@/lib/constants";
+import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { classifyPillar } from "@/lib/classify-pillar";
+import { hasFeature } from "@/lib/feature-gate";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
@@ -123,6 +125,7 @@ export default function PostWorkspacePage() {
 
   // ── Profile state ─────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [userTier, setUserTier] = useState<SubscriptionTier>("free");
 
   // ── Chat state ────────────────────────────────────────────────────────────
   const [chatOpen, setChatOpen] = useState(false); // collapsed by default; opened on desktop via useEffect
@@ -270,6 +273,9 @@ export default function PostWorkspacePage() {
 
       if (profileData) {
         setProfile(profileData as CreatorProfile);
+        if (profileData.subscription_tier) {
+          setUserTier(profileData.subscription_tier as SubscriptionTier);
+        }
       }
 
       // Fetch versions
@@ -1298,20 +1304,29 @@ export default function PostWorkspacePage() {
 
             {/* Formatting helpers — desktop */}
             <div className="hidden lg:flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="xs"
-                className="gap-1"
-                onClick={analyzeHook}
-                disabled={analyzingHook || !content.trim() || content.length < 20}
-              >
-                {analyzingHook ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Zap className="size-3" />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="gap-1"
+                      onClick={analyzeHook}
+                      disabled={!hasFeature(userTier, "hook_analysis") || analyzingHook || !content.trim() || content.length < 20}
+                    />
+                  }
+                >
+                  {analyzingHook ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Zap className="size-3" />
+                  )}
+                  {analyzingHook ? "Analyzing..." : "Analyze Hook"}
+                </TooltipTrigger>
+                {!hasFeature(userTier, "hook_analysis") && (
+                  <TooltipContent>Creator plan required</TooltipContent>
                 )}
-                {analyzingHook ? "Analyzing..." : "Analyze Hook"}
-              </Button>
+              </Tooltip>
               <Button
                 variant="outline"
                 size="xs"
@@ -1340,7 +1355,7 @@ export default function PostWorkspacePage() {
                 size="xs"
                 className="gap-1"
                 onClick={() => setSaveToLibraryOpen(true)}
-                disabled={!content.trim()}
+                disabled={!hasFeature(userTier, "content_library") || !content.trim()}
               >
                 <BookOpen className="size-3" />
                 Save to Library
@@ -1372,10 +1387,11 @@ export default function PostWorkspacePage() {
                 <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
                   <DropdownMenuItem
                     onClick={analyzeHook}
-                    disabled={analyzingHook || !content.trim() || content.length < 20}
+                    disabled={!hasFeature(userTier, "hook_analysis") || analyzingHook || !content.trim() || content.length < 20}
                   >
                     <Zap className="size-3.5 mr-2" />
                     {analyzingHook ? "Analyzing..." : "Analyze Hook"}
+                    {!hasFeature(userTier, "hook_analysis") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => insertAtCursor("\n")}>
                     <Pilcrow className="size-3.5 mr-2" />
@@ -1388,10 +1404,11 @@ export default function PostWorkspacePage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setSaveToLibraryOpen(true)}
-                    disabled={!content.trim()}
+                    disabled={!hasFeature(userTier, "content_library") || !content.trim()}
                   >
                     <BookOpen className="size-3.5 mr-2" />
                     Save to Library
+                    {!hasFeature(userTier, "content_library") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={copyPostToClipboard}
@@ -1421,16 +1438,25 @@ export default function PostWorkspacePage() {
                   inline
                 />
                 <div className="flex-1" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setGenerateImageOpen(true)}
-                  disabled={!content.trim()}
-                >
-                  <Sparkles className="size-3.5" />
-                  {imageUrl ? "Replace with AI" : "Generate with AI"}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setGenerateImageOpen(true)}
+                        disabled={!hasFeature(userTier, "image_generation") || !content.trim()}
+                      />
+                    }
+                  >
+                    <Sparkles className="size-3.5" />
+                    {imageUrl ? "Replace with AI" : "Generate with AI"}
+                  </TooltipTrigger>
+                  {!hasFeature(userTier, "image_generation") && (
+                    <TooltipContent>Creator plan required</TooltipContent>
+                  )}
+                </Tooltip>
               </div>
               {imageUrl && (
                 <>
@@ -1637,7 +1663,7 @@ export default function PostWorkspacePage() {
                   </TooltipContent>
                 </Tooltip>
 
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSaveAsTemplateOpen(true)} disabled={!content.trim()}>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSaveAsTemplateOpen(true)} disabled={!hasFeature(userTier, "templates") || !content.trim()}>
                   <Tag className="size-3.5" />
                   Save as Template
                 </Button>
@@ -1819,9 +1845,10 @@ export default function PostWorkspacePage() {
                     <FilePlus2 className="size-3.5 mr-2" />
                     Save as New Post
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!content.trim()}>
+                  <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!hasFeature(userTier, "templates") || !content.trim()}>
                     <Tag className="size-3.5 mr-2" />
                     Save as Template
+                    {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
                   </DropdownMenuItem>
                   {versions.length > 0 && (
                     <>

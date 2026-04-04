@@ -61,6 +61,12 @@ export default function Home() {
           <nav className="flex items-center gap-3">
             <ThemeToggle />
             <Link
+              href="/pricing"
+              className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/login"
               className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
             >

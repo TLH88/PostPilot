@@ -18,7 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { SaveToLibraryDialog } from "@/components/library/save-to-library-dialog";
 import { createClient } from "@/lib/supabase/client";
-import { CONTENT_LIBRARY_TYPES } from "@/lib/constants";
+import { CONTENT_LIBRARY_TYPES, type SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { toast } from "sonner";
 import type { ContentLibraryItem } from "@/types";
 
@@ -31,6 +33,8 @@ export default function LibraryPage() {
   const [search, setSearch] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [contentPillars, setContentPillars] = useState<string[]>([]);
+  const [tier, setTier] = useState<SubscriptionTier>("free");
+  const canUseLibrary = hasFeature(tier, "content_library");
 
   const supabase = createClient();
 
@@ -49,15 +53,18 @@ export default function LibraryPage() {
 
     setItems(data ?? []);
 
-    // Fetch pillars for the save dialog
+    // Fetch pillars + tier for the save dialog
     const { data: profile } = await supabase
       .from("creator_profiles")
-      .select("content_pillars")
+      .select("content_pillars, subscription_tier")
       .eq("user_id", user.id)
       .single();
 
     if (profile?.content_pillars) {
       setContentPillars(profile.content_pillars);
+    }
+    if (profile?.subscription_tier) {
+      setTier(profile.subscription_tier as SubscriptionTier);
     }
 
     setLoading(false);
@@ -120,11 +127,16 @@ export default function LibraryPage() {
             Save and reuse your best hooks, CTAs, closings, and snippets.
           </p>
         </div>
-        <Button onClick={() => setSaveDialogOpen(true)} className="gap-2 shrink-0 self-start sm:self-center">
+        <Button onClick={() => setSaveDialogOpen(true)} className="gap-2 shrink-0 self-start sm:self-center" disabled={!canUseLibrary}>
           <Plus className="size-4" />
           Add to Library
         </Button>
       </div>
+
+      {/* Upgrade prompt for free tier */}
+      {!canUseLibrary && (
+        <UpgradePrompt feature="Content Library" requiredTier="creator" variant="banner" />
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

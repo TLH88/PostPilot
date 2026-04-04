@@ -11,13 +11,15 @@ import {
   Calendar,
   Settings,
   HelpCircle,
+  Lock,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, GATED_FEATURES, type SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -29,11 +31,17 @@ const iconMap: Record<string, LucideIcon> = {
   Calendar,
 };
 
+// Map nav item href to feature gate key
+const NAV_GATE_MAP: Record<string, string> = {
+  "/library": "content_library",
+};
+
 interface SidebarProps {
   userName: string;
+  userTier?: SubscriptionTier;
 }
 
-export function Sidebar({ userName }: SidebarProps) {
+export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -90,6 +98,9 @@ export function Sidebar({ userName }: SidebarProps) {
             >
               {Icon && <Icon className="size-4 shrink-0" />}
               {item.label}
+              {NAV_GATE_MAP[item.href] && !hasFeature(userTier, NAV_GATE_MAP[item.href]) && (
+                <Lock className="size-3 ml-auto text-muted-foreground" />
+              )}
             </Link>
           );
         })}

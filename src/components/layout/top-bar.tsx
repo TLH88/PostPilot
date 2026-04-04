@@ -26,9 +26,10 @@ function getPageTitle(pathname: string): string {
 
 interface TopBarProps {
   userName: string;
+  userTier?: "free" | "creator" | "professional";
 }
 
-export function TopBar({ userName }: TopBarProps) {
+export function TopBar({ userName, userTier = "free" }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -84,6 +85,7 @@ export function TopBar({ userName }: TopBarProps) {
         open={mobileNavOpen}
         onOpenChange={setMobileNavOpen}
         userName={userName}
+        userTier={userTier}
       />
     </>
   );

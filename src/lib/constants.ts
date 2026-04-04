@@ -122,6 +122,32 @@ export const QUOTA_COLUMN_MAP: Record<QuotaType, string> = {
   scheduled_posts: "scheduled_posts",
 } as const;
 
+// ── Tier Feature Matrix (used by pricing page + feature gating) ────────────────
+export const TIER_FEATURES = [
+  { key: "posts", name: "Posts / month", free: "3", creator: "Unlimited", professional: "Unlimited" },
+  { key: "brainstorms", name: "Brainstorms / month", free: "2", creator: "15", professional: "Unlimited" },
+  { key: "chat_messages", name: "AI Chat Messages / month", free: "20", creator: "200", professional: "Unlimited" },
+  { key: "scheduling", name: "Post Scheduling", free: "2", creator: "15", professional: "Unlimited" },
+  { key: "versions", name: "Post Versions", free: "1", creator: "5", professional: "Unlimited" },
+  { key: "image_generation", name: "AI Image Generation", free: false, creator: "5 / month", professional: "Unlimited" },
+  { key: "content_library", name: "Content Library", free: false, creator: true, professional: true },
+  { key: "hook_analysis", name: "Hook Analysis", free: false, creator: true, professional: true },
+  { key: "templates", name: "Post Templates", free: false, creator: true, professional: true },
+  { key: "calendar", name: "Content Calendar", free: "View only", creator: true, professional: true },
+  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: true, creator: true, professional: true },
+  { key: "ai_models", name: "All AI Models", free: true, creator: true, professional: true },
+  { key: "enhance", name: "Enhance & Hashtags", free: true, creator: true, professional: true },
+  { key: "support", name: "Support", free: "Community", creator: "Email", professional: "Priority" },
+] as const;
+
+// Features that require a minimum tier (used by feature gating)
+export const GATED_FEATURES: Record<string, SubscriptionTier> = {
+  content_library: "creator",
+  hook_analysis: "creator",
+  templates: "creator",
+  image_generation: "creator",
+} as const;
+
 export const CONTENT_LIBRARY_TYPES = {
   hook: { label: "Hook", color: "bg-orange-100 text-orange-700" },
   cta: { label: "CTA", color: "bg-blue-100 text-blue-700" },

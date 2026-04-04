@@ -36,7 +36,7 @@ All tiers require the user to bring their own AI API key (BYOK). PostPilot provi
 | Hook Analysis | No | Yes | Yes |
 | Manual Analytics | No | Yes | Yes |
 | Post Templates | No | Yes | Yes |
-| Image generation | No | No | Yes |
+| Image generation | No | 5/month | Unlimited |
 | Team/collaboration | No | No | Yes (future) |
 | Support | Community | Email | Priority |
 
