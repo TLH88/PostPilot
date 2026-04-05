@@ -4,6 +4,63 @@
 
 ---
 
+## 2026-04-04 (Session 4): System Admin Panel, Managed AI Access, Workspace Enhancements
+
+### BP-054: Managed AI Access
+- **New columns:** `managed_ai_access` (bool, default true) + `managed_ai_expires_at` (timestamptz, default now+14 days) on `creator_profiles`
+- **Updated:** `src/lib/ai/get-user-ai-client.ts` — fallback chain: personal key → managed system key (if active + not expired) → error
+- **New env vars:** `SYSTEM_AI_KEY_OPENAI`, `SYSTEM_AI_KEY_ANTHROPIC`, `SYSTEM_AI_KEY_GOOGLE`, `SYSTEM_AI_KEY_PERPLEXITY`
+- **New component:** `src/app/(app)/settings/managed-ai-status.tsx` — trial countdown with green/amber/red status
+- New accounts auto-receive 14-day managed AI access via DB defaults
+
+### System Admin Panel
+- **New route:** `/admin` — protected by `ADMIN_EMAILS` env var whitelist
+- **Admin client:** `src/lib/supabase/admin.ts` — service role client + `verifyAdmin()` + `isAdminEmail()`
+- **Admin Dashboard** (`/admin`):
+  - 5 metric cards (users, trials, paid, posts, workspaces)
+  - Alert bar for expiring trials and incomplete onboarding
+  - This month's usage totals (active users, posts, brainstorms, AI messages)
+  - Users by tier with colored badges
+  - Recent signups (last 5)
+  - Trials expiring soon (sorted by urgency)
+  - Top content creators table
+- **User Management** (`/admin/users`):
+  - Searchable user table with clickable rows for expandable details
+  - Inline tier change dropdown, AI access type dropdown (System Key/Personal Key/Team Key/Not Active)
+  - Trial duration controls (7/14/30/90 days, permanent, revoke)
+  - Team column showing workspace badges
+  - Expandable detail panel: activity, content stats, monthly quota usage, quick actions
+  - Workspace assignment/removal via Actions dropdown
+  - User impersonation (magic link in new tab)
+  - Optimistic state updates (no page reload)
+- **Workspace Management** (`/admin/workspaces`):
+  - Workspace table with owner, industry, members, posts, ideas
+  - Expandable details: brand info (name, industry, UVP), audience & voice (target audience, guidelines, pillars), usage stats, team member list with roles and tiers
+- **Announcements** (`/admin/announcements`):
+  - Create/edit/publish/unpublish release notes
+  - Title: Description format for features, bug fixes, and roadmap items
+  - Preview before publishing, save as draft
+- **System Settings** (`/admin/system`):
+  - System AI keys status (masked values, active/missing badges)
+  - Admin email whitelist display
+  - Environment variable status checker
+- **API Routes:**
+  - `GET/PATCH /api/admin/users` — list users with stats, update tier/AI access
+  - `PUT /api/admin/users` — workspace assignment/removal
+  - `GET /api/admin/workspaces` — enriched workspace list with members and usage
+  - `GET/POST/PATCH /api/admin/announcements` — release notes CRUD
+  - `POST /api/admin/impersonate` — magic link generation (logged)
+
+### Additional Changes
+- AI chat prompt: explicit "no preamble" instructions for drafts
+- Apply to Editor: client-side strip of AI filler and title repetition
+- sendChatMessage: displayText param hides system prompts from chat
+- What's New v1.2.0: roadmap section, scrollable modal
+- Idea Bank: default filter changed to Open Ideas
+- Middleware: `/pricing` added to public routes
+
+---
+
 ## 2026-04-04 (Session 2): BP-016 Usage Quota System
 
 ### Database

@@ -790,8 +790,9 @@ Create briefs before posts are written. Assign to writers with topic, key points
 
 ### BP-054: Managed AI Access — System Keys & Trial Access
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Critical
+**Completed:** 2026-04-04
 **Source:** Owner request (alpha/beta testing, trial experience)
 **Date Added:** 2026-04-04
 **Phase:** 1
@@ -813,8 +814,9 @@ Provide system-level AI access to free/trial users without requiring them to con
 
 ### BP-055: Managed AI Access — Settings & Onboarding UX
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
+**Completed:** 2026-04-04
 **Source:** Owner request
 **Date Added:** 2026-04-04
 **Phase:** 1
@@ -1153,4 +1155,9 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-039:** Image Upload to LinkedIn Posts (2026-04-03)
 - **BP-041:** Image Generation Requirements Spec (2026-04-03)
 - **BP-016:** Usage Quota System (2026-04-04)
+- **BP-017:** Pricing Page (2026-04-04)
+- **BP-018:** Feature Gating Logic (2026-04-04)
+- **BP-021:** Manual Analytics (2026-04-04)
 - **BP-038:** Manual Post Status Change (2026-04-03)
+- **BP-054:** Managed AI Access — System Keys & Trial (2026-04-04)
+- **BP-055:** Managed AI Access — Settings & Onboarding UX (2026-04-04)

@@ -127,11 +127,11 @@ All items done and deployed.
 
 *System-level AI keys that provide free/trial users with full AI functionality without configuring their own API keys.*
 
-- [ ] System-level API keys via environment variables (SYSTEM_AI_KEY_OPENAI, SYSTEM_AI_KEY_ANTHROPIC, etc.)
-- [ ] managed_ai_access flag + managed_ai_expires_at on creator_profiles (auto-granted to new accounts for 14 days)
-- [ ] AI client fallback chain: personal key → managed system key → error
-- [ ] Settings UI: "Trial AI Access" badge with expiry countdown
-- [ ] Manual override: admin can grant/revoke access per user via Supabase
+- [x] System-level API keys via environment variables (SYSTEM_AI_KEY_OPENAI, SYSTEM_AI_KEY_ANTHROPIC, etc.)
+- [x] managed_ai_access flag + managed_ai_expires_at on creator_profiles (auto-granted to new accounts for 14 days)
+- [x] AI client fallback chain: personal key → managed system key → error
+- [x] Settings UI: "Trial AI Access" badge with expiry countdown
+- [x] Admin panel: grant/revoke access, change tiers, manage users and workspaces, create announcements
 
 ---
 
