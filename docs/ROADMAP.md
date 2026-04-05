@@ -123,11 +123,62 @@ All items done and deployed.
 
 ---
 
-## Phase 4: Future Exploration (Not Currently Planned)
+## Managed AI Access (Trial & Beta System)
+
+*System-level AI keys that provide free/trial users with full AI functionality without configuring their own API keys.*
+
+- [x] System-level API keys via environment variables (SYSTEM_AI_KEY_OPENAI, SYSTEM_AI_KEY_ANTHROPIC, etc.)
+- [x] managed_ai_access flag + managed_ai_expires_at on creator_profiles (auto-granted to new accounts for 14 days)
+- [x] AI client fallback chain: personal key → managed system key → error
+- [x] Settings UI: "Trial AI Access" badge with expiry countdown
+- [x] Admin panel: grant/revoke access, change tiers, manage users and workspaces, create announcements
+
+---
+
+## Phase T1: Team Collaboration Core
+
+*Foundation for team-based content creation. Build first — these are early differentiators.*
+
+- [ ] Post assignment & ownership — assign posts to team members, "My Assignments" view, assignee on cards
+- [ ] In-app comments on posts — threaded comments, @mentions, resolve/unresolve
+- [ ] Activity feed — workspace-wide feed: who did what, when (created, edited, assigned, approved, published)
+- [ ] Notifications center — bell icon with unread count, assignment/mention/approval/comment/deadline alerts
+
+## Phase T2: Approval Workflows
+
+*Formalizes the review/approval process. Required for brand trust.*
+
+- [ ] Configurable approval workflow — workspace-level stages (Draft → Review → Approved → Publish), per-post approval tracking with feedback
+- [ ] Review queue — dedicated view for reviewers, quick approve/request changes, pending count badge
+- [ ] Approval history & audit trail — immutable log of who approved what version, when, with what feedback
+
+## Phase T3: Reporting & Governance (Enterprise)
+
+*Enterprise requirements for compliance, brand control, and team metrics.*
+
+- [ ] Team performance dashboard — posts per member, avg engagement per member, content velocity, bottleneck analysis
+- [ ] Brand consistency scoring — AI checks posts against brand voice guidelines, shows alignment score before publishing
+- [ ] Content briefs — create briefs with topic/key points/deadline, assign to writers, link to resulting posts
+- [ ] Content policies — automated pre-publish checks (min chars, requires image, brand score threshold)
+
+## Phase T4: Advanced Team Features
+
+*Nice-to-haves that round out the team experience.*
+
+- [ ] Calendar reservations — claim publishing slots before posts are written
+- [ ] Bulk review actions — select multiple posts, approve/reject/assign in batch
+- [ ] Custom approval workflows — different flows per content type
+- [ ] Email notifications — assignment/mention/approval emails, daily digest option
+- [ ] Publishing permissions — role-based publish restrictions (editors draft, only admins publish)
+- [ ] Deadline tracking — due dates on posts, overdue warnings, escalation
+
+---
+
+## Phase 5: Future Exploration (Not Currently Planned)
 
 These were identified in the product evaluation but are beyond current scope:
 
-- Multi-platform support (Twitter/X, Substack)
+- Multi-platform content creation and publishing (Facebook, Instagram, X/Twitter, TikTok, Substack) — adapt post format, character limits, and hashtag strategies per platform
 - Email newsletter creation
 - Zapier/Make integrations
 - Calendar app sync (Google Cal, Outlook)

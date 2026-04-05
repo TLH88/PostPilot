@@ -1691,7 +1691,7 @@ export default function PostWorkspacePage() {
                         type="number"
                         min={0}
                         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
-                        value={(post as Record<string, unknown>)[key] as number ?? ""}
+                        value={(post as unknown as Record<string, unknown>)[key] as number ?? ""}
                         onChange={(e) => {
                           const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
                           setPost({ ...post!, [key]: val });

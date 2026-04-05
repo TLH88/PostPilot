@@ -37,6 +37,9 @@ export interface CreatorProfile {
   linkedin_token_expires_at: string | null;
   linkedin_member_id: string | null;
   linkedin_connected_at: string | null;
+  // Managed AI access (trial / beta)
+  managed_ai_access: boolean;
+  managed_ai_expires_at: string | null;
   // Subscription
   subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
   created_at: string;
@@ -128,6 +131,17 @@ export interface Post {
   engagements: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PostImageVersion {
+  id: string;
+  post_id: string;
+  user_id: string;
+  storage_path: string;
+  image_url: string;
+  prompt: string | null;
+  source: "ai" | "upload";
+  created_at: string;
 }
 
 export interface PostVersion {

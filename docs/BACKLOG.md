@@ -628,6 +628,211 @@ Integrate a third-party ad network (e.g., Google AdSense) to display ads to free
 
 ---
 
+## Team & Enterprise Backlog (Phase T1–T4)
+
+### BP-046: Post Assignment & Ownership
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T1
+
+**Description:**
+Assign posts to specific team members. Posts show who's working on them. "My Assignments" filter view.
+
+**Requirements:**
+- Add `assigned_to`, `assigned_by`, `assigned_at` columns to posts table
+- "Assign to" dropdown in post Actions menu (lists workspace members)
+- Assignee avatar/name badge on post cards
+- "My Assignments" filter tab on Posts page
+- Dashboard: "Assigned to Me" section in workspace mode
+
+---
+
+### BP-047: In-App Comments on Posts
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T1
+
+**Description:**
+Threaded comments on any post. @mention teammates. Resolve comments when addressed.
+
+**Requirements:**
+- New `post_comments` table (id, post_id, user_id, content, parent_id for threads, resolved, resolved_by, timestamps)
+- Comment panel in post editor (collapsible section)
+- Comment count badge on post cards
+- @mention autocomplete from workspace members
+- Resolve/unresolve toggle per comment thread
+
+---
+
+### BP-048: Activity Feed
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T1
+
+**Description:**
+Real-time feed showing team activity: who did what, when.
+
+**Requirements:**
+- New `activity_log` table (id, workspace_id, user_id, post_id, action, details jsonb, created_at)
+- Activity feed in dashboard right column (workspace mode)
+- Per-post activity timeline in post editor
+- Actions tracked: created, edited, commented, assigned, status_changed, approved, published
+
+---
+
+### BP-049: Notifications Center
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T1
+
+**Description:**
+In-app notifications for assignments, mentions, approvals, comments, deadlines.
+
+**Requirements:**
+- New `notifications` table (id, user_id, workspace_id, type, title, body, post_id, read, created_at)
+- Bell icon in top bar with unread count badge
+- Dropdown panel with recent notifications
+- Click → navigate to relevant post
+- Mark as read / mark all as read
+
+---
+
+### BP-050: Configurable Approval Workflow
+
+**Status:** Backlog
+**Priority:** Critical
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T2
+
+**Description:**
+Posts must go through defined approval stages before publishing. Workspace owner configures required stages.
+
+**Requirements:**
+- New `post_approvals` table (id, post_id, stage, reviewer_id, decision, feedback, version_id, created_at)
+- Add `approval_stage` to posts, `approval_stages` jsonb to workspaces
+- New post statuses: `approved`, `changes_requested`
+- "Submit for Review" / "Approve" / "Request Changes" buttons
+- Review feedback form with version reference
+
+---
+
+### BP-051: Review Queue
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T2
+
+**Description:**
+Dedicated view for reviewers to see all posts awaiting their approval.
+
+**Requirements:**
+- New `/workspace/reviews` page
+- Filter: awaiting my review, all pending, recently approved
+- Quick approve/request changes inline
+- Badge count in sidebar nav
+- Side-by-side version diff view
+
+---
+
+### BP-052: Brand Consistency Scoring
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T3 (consider pulling forward as differentiator)
+
+**Description:**
+AI checks posts against brand voice guidelines before publishing. Shows alignment score.
+
+**Requirements:**
+- New API route `/api/ai/brand-check`
+- Sends post content + workspace brand_voice_guidelines + brand_content_pillars to AI
+- Returns score (0-100), flags, suggestions
+- Score badge on post card and in editor
+- Only runs for workspace posts
+
+---
+
+### BP-053: Content Briefs
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Team feature scoping
+**Date Added:** 2026-04-04
+**Phase:** T3
+
+**Description:**
+Create briefs before posts are written. Assign to writers with topic, key points, audience, deadline.
+
+**Requirements:**
+- New `content_briefs` table
+- Briefs list page at `/workspace/briefs`
+- "Start from Brief" option when creating new post
+- Brief status tracking (open, in_progress, completed)
+
+---
+
+### BP-054: Managed AI Access — System Keys & Trial Access
+
+**Status:** Done
+**Priority:** Critical
+**Completed:** 2026-04-04
+**Source:** Owner request (alpha/beta testing, trial experience)
+**Date Added:** 2026-04-04
+**Phase:** 1
+
+**Description:**
+Provide system-level AI access to free/trial users without requiring them to configure their own API keys. New accounts auto-receive 14-day managed AI access. Admin can manually grant/revoke per user.
+
+**Requirements:**
+- **Database:** Add `managed_ai_access` (boolean, default true) and `managed_ai_expires_at` (timestamptz, default now+14 days) to `creator_profiles`
+- **Environment:** System-level API keys as env vars (`SYSTEM_AI_KEY_OPENAI`, `SYSTEM_AI_KEY_ANTHROPIC`, `SYSTEM_AI_KEY_GOOGLE`, `SYSTEM_AI_KEY_PERPLEXITY`)
+- **AI Client:** Update `get-user-ai-client.ts` fallback chain: user's personal key → managed system key (if flag=true and not expired) → error
+- **Onboarding:** Auto-set managed_ai_access=true + expires_at=now()+14 days on new profile creation
+- **Settings UI:** Show "Trial AI Access" badge with expiry countdown when using managed keys. Show "Add your own API key" prompt when trial is expiring.
+- **Security:** System keys never exposed to browser — server-side only. User quotas still enforced.
+- **Admin:** Manual grant/revoke via Supabase (future: admin panel)
+- **Onboarding flow:** Skip the API key setup step when managed access is active — user can go straight to creating content
+
+---
+
+### BP-055: Managed AI Access — Settings & Onboarding UX
+
+**Status:** Done
+**Priority:** High
+**Completed:** 2026-04-04
+**Source:** Owner request
+**Date Added:** 2026-04-04
+**Phase:** 1
+
+**Description:**
+Update the Settings page and onboarding flow to reflect managed AI access status.
+
+**Requirements:**
+- Settings: "AI Access" card showing current source (Trial / Personal Key / Expired)
+- Trial countdown: "X days remaining" with progress bar
+- "Upgrade" CTA when trial is expiring or expired
+- Onboarding: AI key step becomes optional when managed access is active (show "Skip — you have trial access" option)
+- Help text explaining BYOK vs managed access
+
+---
+
 ## Completed Items
 
 ### BP-008: Hook Analysis Feature
@@ -950,4 +1155,9 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-039:** Image Upload to LinkedIn Posts (2026-04-03)
 - **BP-041:** Image Generation Requirements Spec (2026-04-03)
 - **BP-016:** Usage Quota System (2026-04-04)
+- **BP-017:** Pricing Page (2026-04-04)
+- **BP-018:** Feature Gating Logic (2026-04-04)
+- **BP-021:** Manual Analytics (2026-04-04)
 - **BP-038:** Manual Post Status Change (2026-04-03)
+- **BP-054:** Managed AI Access — System Keys & Trial (2026-04-04)
+- **BP-055:** Managed AI Access — Settings & Onboarding UX (2026-04-04)

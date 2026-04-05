@@ -8,6 +8,7 @@ import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
 import { SubscriptionTierSetting } from "./subscription-tier";
 import { WorkspaceSettings } from "./workspace-settings";
+import { ManagedAIStatus } from "./managed-ai-status";
 import type { SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 
@@ -61,6 +62,9 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Managed AI Access Status */}
+      <ManagedAIStatus />
 
       {/* AI Provider */}
       <Card>
