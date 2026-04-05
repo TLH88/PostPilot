@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Loader2, RefreshCw, Info, Braces, ChevronLeft, ChevronRight, Upload, Check } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw, Info, Braces, ChevronLeft, ChevronRight, ChevronDown, Upload, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +96,7 @@ export function GenerateImageDialog({
   const [imageText, setImageText] = useState("");
   const [generating, setGenerating] = useState(false);
   const [showFullPrompt, setShowFullPrompt] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
 
   // Versioning state
   const [versions, setVersions] = useState<PostImageVersion[]>([]);
@@ -453,40 +461,45 @@ export function GenerateImageDialog({
           {/* Art Style Selector */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Art Style</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {ART_STYLES.map((style) => (
-                <button
-                  key={style}
-                  type="button"
-                  onClick={() => setArtStyle(style)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    artStyle === style
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-                  }`}
-                >
-                  {style}
-                </button>
-              ))}
-            </div>
+            <Select value={artStyle} onValueChange={setArtStyle}>
+              <SelectTrigger className="w-full text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ART_STYLES.map((style) => (
+                  <SelectItem key={style} value={style} className="text-sm">
+                    {style}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Prompt */}
+          {/* Prompt (collapsible) */}
           <div className="space-y-2">
-            <Label htmlFor="img-prompt" className="text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setShowPrompt(!showPrompt)}
+              className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              <ChevronDown className={`size-3.5 transition-transform ${showPrompt ? "" : "-rotate-90"}`} />
               Image Prompt
-            </Label>
-            <textarea
-              id="img-prompt"
-              rows={3}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              placeholder="Describe the image you want..."
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Art style is appended automatically. Image generation costs apply to your AI provider account.
-            </p>
+            </button>
+            {showPrompt && (
+              <>
+                <textarea
+                  id="img-prompt"
+                  rows={3}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                  placeholder="Describe the image you want..."
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Art style is appended automatically. Image generation costs apply to your AI provider account.
+                </p>
+              </>
+            )}
           </div>
 
           {/* Generating spinner */}
