@@ -461,7 +461,7 @@ export function GenerateImageDialog({
           {/* Art Style Selector */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Art Style</Label>
-            <Select value={artStyle} onValueChange={setArtStyle}>
+            <Select value={artStyle} onValueChange={(v) => { if (v) setArtStyle(v); }}>
               <SelectTrigger className="w-full text-sm">
                 <SelectValue />
               </SelectTrigger>
