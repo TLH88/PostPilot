@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Sparkles, Loader2, RefreshCw, Info, Braces } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Sparkles, Loader2, RefreshCw, Info, Braces, ChevronLeft, ChevronRight, Upload, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import type { PostImageVersion } from "@/types";
 
 interface GenerateImageDialogProps {
   open: boolean;
@@ -48,10 +49,8 @@ const IMAGE_PROVIDER_CONFIG: Record<
       { value: "gemini-2.0-flash-preview-image-generation", label: "Gemini 2.0 Flash Image" },
     ],
   },
-  // Anthropic does not support native image generation via API
 };
 
-// Providers that support image generation (Anthropic does not support native image gen)
 const IMAGE_CAPABLE_PROVIDERS: ImageProvider[] = ["openai", "google"];
 
 type ImageFormat = "landscape" | "square";
@@ -89,8 +88,14 @@ export function GenerateImageDialog({
   const [includeText, setIncludeText] = useState(false);
   const [imageText, setImageText] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showFullPrompt, setShowFullPrompt] = useState(false);
+
+  // Versioning state
+  const [versions, setVersions] = useState<PostImageVersion[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [currentPostImagePath, setCurrentPostImagePath] = useState<string | null>(null);
+  const [versionsLoaded, setVersionsLoaded] = useState(false);
+  const thumbnailsRef = useRef<HTMLDivElement>(null);
 
   // Provider state
   const [provider, setProvider] = useState<ImageProvider | null>(null);
@@ -101,23 +106,21 @@ export function GenerateImageDialog({
   const supabase = createClient();
 
   useEffect(() => {
-    if (open && !configLoaded) {
-      loadConfig();
-    }
     if (open) {
       setPrompt(defaultPrompt);
-      setPreviewUrl(null);
+      if (!configLoaded) loadConfig();
+      loadVersions();
+    } else {
+      setVersionsLoaded(false);
     }
   }, [open]);
 
   async function loadConfig() {
     try {
-      // Fetch all configured provider keys
       const res = await fetch("/api/settings/provider-keys");
       if (!res.ok) return;
       const { keys } = await res.json();
 
-      // Also check legacy creator_profiles key as fallback
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: profile } = await supabase
@@ -126,10 +129,8 @@ export function GenerateImageDialog({
         .eq("user_id", user.id)
         .single();
 
-      // Build list of image-capable providers that have keys
       const available: ImageProvider[] = [];
 
-      // From new provider keys table
       for (const key of keys) {
         if (IMAGE_CAPABLE_PROVIDERS.includes(key.provider as ImageProvider)) {
           if (!available.includes(key.provider as ImageProvider)) {
@@ -138,7 +139,6 @@ export function GenerateImageDialog({
         }
       }
 
-      // Fallback: legacy key on creator_profiles
       if (
         profile?.ai_api_key_encrypted &&
         IMAGE_CAPABLE_PROVIDERS.includes(profile.ai_provider as ImageProvider) &&
@@ -149,7 +149,6 @@ export function GenerateImageDialog({
 
       setConfiguredProviders(available);
 
-      // Auto-select: active provider first, then first available
       const activeKey = keys.find((k: { is_active: boolean }) => k.is_active);
       if (activeKey && available.includes(activeKey.provider as ImageProvider)) {
         setProvider(activeKey.provider as ImageProvider);
@@ -161,10 +160,41 @@ export function GenerateImageDialog({
         setProvider(null);
       }
     } catch {
-      // Silently fail — show no providers
+      // Silently fail
     }
 
     setConfigLoaded(true);
+  }
+
+  async function loadVersions() {
+    try {
+      // Fetch versions and current post image path in parallel
+      const [versionsRes, postRes] = await Promise.all([
+        fetch(`/api/posts/image-versions?postId=${postId}`),
+        supabase
+          .from("posts")
+          .select("image_storage_path")
+          .eq("id", postId)
+          .single(),
+      ]);
+
+      if (versionsRes.ok) {
+        const { versions: v } = await versionsRes.json();
+        setVersions(v ?? []);
+        // Select the version that matches the post's current image, or default to first
+        const currentPath = postRes.data?.image_storage_path;
+        setCurrentPostImagePath(currentPath ?? null);
+        if (currentPath && v?.length) {
+          const idx = v.findIndex((ver: PostImageVersion) => ver.storage_path === currentPath);
+          setSelectedIndex(idx >= 0 ? idx : 0);
+        } else {
+          setSelectedIndex(0);
+        }
+      }
+    } catch {
+      // Silently fail — versions just won't show
+    }
+    setVersionsLoaded(true);
   }
 
   function handleProviderChange(p: ImageProvider) {
@@ -173,8 +203,8 @@ export function GenerateImageDialog({
   }
 
   const currentModels = provider ? IMAGE_PROVIDER_CONFIG[provider]?.models ?? [] : [];
-
   const availableProviders = configuredProviders;
+  const selectedVersion = versions[selectedIndex] ?? null;
 
   async function handleGenerate() {
     if (!provider) {
@@ -183,7 +213,6 @@ export function GenerateImageDialog({
     }
 
     setGenerating(true);
-    setPreviewUrl(null);
 
     try {
       const res = await fetch("/api/ai/generate-image", {
@@ -204,13 +233,27 @@ export function GenerateImageDialog({
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || "Failed to generate image", {
-          duration: 8000,
-        });
+        toast.error(data.error || "Failed to generate image", { duration: 8000 });
         return;
       }
 
-      setPreviewUrl(data.imageUrl);
+      // Prepend new version and select it
+      const newVersion: PostImageVersion = {
+        id: data.versionId,
+        post_id: postId,
+        user_id: "",
+        storage_path: data.storagePath,
+        image_url: data.imageUrl,
+        prompt: data.prompt,
+        source: "ai",
+        created_at: new Date().toISOString(),
+      };
+      setVersions((prev) => [newVersion, ...prev]);
+      setSelectedIndex(0);
+      // Scroll thumbnails to start
+      if (thumbnailsRef.current) {
+        thumbnailsRef.current.scrollLeft = 0;
+      }
     } catch {
       toast.error("Failed to generate image. Check your AI provider settings.");
     } finally {
@@ -218,7 +261,6 @@ export function GenerateImageDialog({
     }
   }
 
-  // Build full prompt exactly as the API will assemble it
   function getFullPrompt() {
     const fmt = imageFormat === "square"
       ? "square format (1:1, 1080x1080)"
@@ -229,13 +271,44 @@ export function GenerateImageDialog({
     return `${prompt} ${fmt}. In the style of: ${artStyle}. ${textInstruction}`;
   }
 
-  function handleUseImage() {
-    if (previewUrl) {
-      onImageGenerated(previewUrl);
+  async function handleUseImage() {
+    if (!selectedVersion) return;
+
+    try {
+      const res = await fetch("/api/posts/select-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId,
+          versionId: selectedVersion.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to select image");
+        return;
+      }
+
+      setCurrentPostImagePath(selectedVersion.storage_path);
+      onImageGenerated(selectedVersion.image_url);
       onOpenChange(false);
       toast.success("Image added to your post!");
+    } catch {
+      toast.error("Failed to select image");
     }
   }
+
+  function scrollThumbnails(direction: "left" | "right") {
+    if (!thumbnailsRef.current) return;
+    const amount = 200;
+    thumbnailsRef.current.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  }
+
+  const isCurrentlySelected = selectedVersion?.storage_path === currentPostImagePath;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -251,7 +324,7 @@ export function GenerateImageDialog({
         </DialogHeader>
 
         <div className="overflow-y-auto flex-1 min-h-0 space-y-4">
-          {/* Provider selector — only shows configured providers */}
+          {/* Provider selector */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Image AI Provider</Label>
             {availableProviders.length === 0 ? (
@@ -284,7 +357,6 @@ export function GenerateImageDialog({
                   ))}
                 </div>
 
-                {/* Model selector */}
                 {currentModels.length > 1 && (
                   <div className="flex flex-wrap gap-1.5">
                     {currentModels.map((m) => (
@@ -304,7 +376,6 @@ export function GenerateImageDialog({
                   </div>
                 )}
 
-                {/* Settings note */}
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Info className="size-3 shrink-0" />
                   To use a different provider for image generation, configure it in Settings. Your existing API key will be used.
@@ -418,7 +489,7 @@ export function GenerateImageDialog({
             </p>
           </div>
 
-          {/* Preview */}
+          {/* Generating spinner */}
           {generating && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="size-8 animate-spin text-primary" />
@@ -428,16 +499,103 @@ export function GenerateImageDialog({
             </div>
           )}
 
-          {previewUrl && !generating && (
+          {/* Main preview image */}
+          {selectedVersion && !generating && (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Generated Image</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  {versions.length > 1
+                    ? `Image ${selectedIndex + 1} of ${versions.length}`
+                    : "Generated Image"}
+                </Label>
+                {isCurrentlySelected && (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400">
+                    <Check className="size-3" />
+                    Currently used
+                  </span>
+                )}
+              </div>
               <div className="rounded-lg border overflow-hidden">
                 <img
-                  src={previewUrl}
+                  src={selectedVersion.image_url}
                   alt="Generated post image"
                   className="w-full object-cover"
                   style={{ maxHeight: "300px" }}
                 />
+              </div>
+              {selectedVersion.source === "ai" && selectedVersion.prompt && (
+                <p className="text-[10px] text-muted-foreground line-clamp-2">
+                  {selectedVersion.prompt}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Thumbnail carousel */}
+          {versions.length > 1 && !generating && (
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">All Versions</Label>
+              <div className="relative">
+                {/* Left arrow */}
+                <button
+                  type="button"
+                  onClick={() => scrollThumbnails("left")}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/90 border shadow-sm p-1 hover:bg-accent transition-colors"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </button>
+
+                {/* Thumbnails */}
+                <div
+                  ref={thumbnailsRef}
+                  className="flex gap-2 overflow-x-auto px-7 py-1 scrollbar-hide"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                  {versions.map((v, i) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setSelectedIndex(i)}
+                      className={`relative shrink-0 rounded-md overflow-hidden border-2 transition-all ${
+                        i === selectedIndex
+                          ? "border-primary ring-1 ring-primary/30"
+                          : v.storage_path === currentPostImagePath
+                            ? "border-green-500/50"
+                            : "border-transparent hover:border-foreground/20"
+                      }`}
+                      style={{ width: "72px", height: "54px" }}
+                    >
+                      <img
+                        src={v.image_url}
+                        alt={`Version ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Source badge */}
+                      <span className="absolute bottom-0.5 right-0.5 rounded-full bg-background/80 p-0.5">
+                        {v.source === "ai" ? (
+                          <Sparkles className="size-2.5 text-primary" />
+                        ) : (
+                          <Upload className="size-2.5 text-muted-foreground" />
+                        )}
+                      </span>
+                      {/* Active indicator */}
+                      {v.storage_path === currentPostImagePath && (
+                        <span className="absolute top-0.5 left-0.5 rounded-full bg-green-500 p-0.5">
+                          <Check className="size-2 text-white" />
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right arrow */}
+                <button
+                  type="button"
+                  onClick={() => scrollThumbnails("right")}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/90 border shadow-sm p-1 hover:bg-accent transition-colors"
+                >
+                  <ChevronRight className="size-3.5" />
+                </button>
               </div>
             </div>
           )}
@@ -473,34 +631,42 @@ export function GenerateImageDialog({
           </div>
 
           <div className="flex gap-2">
-            {previewUrl && !generating && (
-              <>
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={handleGenerate}
-                >
-                  <RefreshCw className="size-3.5" />
-                  Regenerate
-                </Button>
-                <Button className="gap-1.5" onClick={handleUseImage}>
-                  Use This Image
-                </Button>
-              </>
+            {/* Show Regenerate when there are versions or currently generating */}
+            {versions.length > 0 && !generating && (
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={handleGenerate}
+                disabled={!provider}
+              >
+                <RefreshCw className="size-3.5" />
+                Generate Another
+              </Button>
             )}
 
-            {!previewUrl && (
+            {/* Use This Image — only when a version is selected and it's not already the post's image */}
+            {selectedVersion && !generating && !isCurrentlySelected && (
+              <Button className="gap-1.5" onClick={handleUseImage}>
+                Use This Image
+              </Button>
+            )}
+
+            {/* Initial generate button when no versions exist yet */}
+            {versions.length === 0 && !generating && (
               <Button
                 className="gap-1.5"
                 onClick={handleGenerate}
-                disabled={generating || !prompt.trim() || !provider}
+                disabled={!prompt.trim() || !provider}
               >
-                {generating ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3.5" />
-                )}
-                {generating ? "Generating..." : "Generate Image"}
+                <Sparkles className="size-3.5" />
+                Generate Image
+              </Button>
+            )}
+
+            {generating && (
+              <Button disabled className="gap-1.5">
+                <Loader2 className="size-3.5 animate-spin" />
+                Generating...
               </Button>
             )}
           </div>

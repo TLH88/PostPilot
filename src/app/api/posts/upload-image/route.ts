@@ -60,11 +60,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // Build storage path
+    // Build unique storage path per upload
     const ext = file.name.split(".").pop() || "jpg";
-    const storagePath = `${user.id}/${postId}/image.${ext}`;
+    const storagePath = `${user.id}/${postId}/upload-${Date.now()}.${ext}`;
 
-    // Upload to Supabase Storage (overwrite if exists)
+    // Upload to Supabase Storage
     const fileBuffer = await file.arrayBuffer();
     const { error: uploadError } = await supabase.storage
       .from("post-images")
@@ -84,7 +84,19 @@ export async function POST(request: NextRequest) {
 
     const imageUrl = urlData.publicUrl;
 
-    // Update post record
+    // Insert version row
+    await supabase
+      .from("post_image_versions")
+      .insert({
+        post_id: postId,
+        user_id: user.id,
+        storage_path: storagePath,
+        image_url: imageUrl,
+        prompt: null,
+        source: "upload",
+      });
+
+    // Update post record (uploaded images are immediately selected)
     const { error: updateError } = await supabase
       .from("posts")
       .update({
@@ -111,7 +123,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE — remove image from post
+// DELETE — remove selected image from post (versions remain for re-selection; cron cleans up later)
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -131,22 +143,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get current image path
-    const { data: post } = await supabase
-      .from("posts")
-      .select("image_storage_path")
-      .eq("id", postId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (post?.image_storage_path) {
-      // Delete from storage
-      await supabase.storage
-        .from("post-images")
-        .remove([post.image_storage_path]);
-    }
-
-    // Clear image fields on post
+    // Clear image fields on post (don't delete storage — versions remain available)
     await supabase
       .from("posts")
       .update({
@@ -155,7 +152,8 @@ export async function DELETE(request: NextRequest) {
         image_alt_text: null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", postId);
+      .eq("id", postId)
+      .eq("user_id", user.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

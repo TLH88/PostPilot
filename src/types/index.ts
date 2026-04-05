@@ -133,6 +133,17 @@ export interface Post {
   updated_at: string;
 }
 
+export interface PostImageVersion {
+  id: string;
+  post_id: string;
+  user_id: string;
+  storage_path: string;
+  image_url: string;
+  prompt: string | null;
+  source: "ai" | "upload";
+  created_at: string;
+}
+
 export interface PostVersion {
   id: string;
   post_id: string;
