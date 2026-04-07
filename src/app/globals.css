@@ -131,6 +131,25 @@
   }
 }
 
+/* Theme-colored glow on modals, popups, and dropdowns */
+[data-slot="dialog-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="tooltip-content"] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 15%, transparent),
+    0 0 20px -4px color-mix(in oklch, var(--primary) 20%, transparent),
+    0 0 40px -8px color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.dark [data-slot="dialog-content"],
+.dark [data-slot="dropdown-menu-content"],
+.dark [data-slot="tooltip-content"] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent),
+    0 0 24px -4px color-mix(in oklch, var(--primary) 25%, transparent),
+    0 0 48px -8px color-mix(in oklch, var(--primary) 15%, transparent);
+}
+
 /* Active tab styling — matches Idea Bank filter pill style */
 [data-slot="tabs-trigger"][data-active] {
   border-color: var(--primary) !important;

@@ -2044,6 +2044,7 @@ export default function PostWorkspacePage() {
         authorName={profile?.full_name ?? "Your Name"}
         authorHeadline={profile?.headline ?? "Your headline"}
         onImageChange={setImageUrl}
+        onSchedule={() => setScheduleDialogOpen(true)}
         onPublished={(result) => {
           setStatus("posted");
           if (post) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, FileEdit } from "lucide-react";
+import { Loader2, ExternalLink, FileEdit, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +35,8 @@ interface PublishPreviewDialogProps {
   onTokenExpired?: () => void;
   /** Called when image changes */
   onImageChange?: (imageUrl: string | null) => void;
+  /** Called when user clicks Schedule */
+  onSchedule?: () => void;
 }
 
 export function PublishPreviewDialog({
@@ -51,6 +53,7 @@ export function PublishPreviewDialog({
   onPublished,
   onTokenExpired,
   onImageChange,
+  onSchedule,
 }: PublishPreviewDialogProps) {
   const [publishing, setPublishing] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(
@@ -191,6 +194,21 @@ export function PublishPreviewDialog({
           </div>
 
           <div className="flex gap-2">
+            {onSchedule && (
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => {
+                  onOpenChange(false);
+                  onSchedule();
+                }}
+                disabled={publishing}
+              >
+                <CalendarClock className="size-3.5" />
+                Schedule
+              </Button>
+            )}
+
             <ImageUpload
               postId={postId}
               imageUrl={currentImageUrl}
