@@ -218,15 +218,15 @@ export default async function PostsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-amber-500">
+        <Card className="border-l-4 border-l-purple-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Scheduled</p>
                 <p className="text-2xl font-bold">{scheduledPosts.length}</p>
               </div>
-              <div className="flex size-9 items-center justify-center rounded-full bg-amber-500/10">
-                <CalendarClock className="size-4 text-amber-500" />
+              <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
+                <CalendarClock className="size-4 text-purple-500" />
               </div>
             </div>
           </CardContent>
