@@ -20,7 +20,8 @@ IMPORTANT RULES:
 - If asked to produce content about other individuals or companies, keep it positive and factual. Decline to write anything potentially defamatory.
 - LinkedIn posts should be professional. Decline requests for content that is inappropriate for a professional social network.
 - Do not produce content about politics, religion, or other controversial topics unless the creator's profile specifically covers these areas professionally.
-- Stay within LinkedIn's 3,000 character limit for posts.`;
+- Stay within LinkedIn's 3,000 character limit for posts.
+- NEVER use em dashes (—) or en dashes (–) in any generated content. Use commas, semicolons, colons, periods, or parentheses instead.`;
 
 export const BRAINSTORM_INSTRUCTIONS = `YOUR TASK: Generate content ideas for this creator.
 

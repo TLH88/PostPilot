@@ -10,6 +10,7 @@ import { EnhanceInputSchema, logApiError, humanizeAIError } from "@/lib/api-util
 import { checkQuota, incrementQuota } from "@/lib/quota";
 
 export async function POST(request: NextRequest) {
+  let activeProvider: string | undefined;
   try {
     const body = await request.json();
 
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
     const { content, instruction } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
+    activeProvider = profile.ai_provider ?? undefined;
 
     // Quota check
     const quota = await checkQuota(profile.user_id, "chat_messages");
@@ -61,9 +63,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logApiError("api/ai/enhance", error);
 
-    const humanized = humanizeAIError(error);
+    const humanized = humanizeAIError(error, activeProvider);
     return new Response(
-      JSON.stringify({ error: humanized.message, action: humanized.action }),
+      JSON.stringify({ error: humanized.message, action: humanized.action, isCreditError: humanized.isCreditError, providerName: humanized.providerName, billingUrl: humanized.billingUrl }),
       { status: humanized.status, headers: { "Content-Type": "application/json" } }
     );
   }

@@ -34,6 +34,7 @@ interface PostItem {
   image_url: string | null;
   impressions: number | null;
   reactions: number | null;
+  scheduled_for: string | null;
 }
 
 function PostCard({ post }: { post: PostItem }) {
@@ -70,6 +71,17 @@ function PostCard({ post }: { post: PostItem }) {
               </Badge>
             )}
           </div>
+          {/* Scheduled clarification */}
+          {post.status === "scheduled" && post.scheduled_for && (
+            <p className="text-[10px] text-purple-600 dark:text-purple-400">
+              Will publish to LinkedIn on {formatDate(post.scheduled_for)} at{" "}
+              {new Date(post.scheduled_for).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })}
+            </p>
+          )}
 
           {/* Title */}
           <p className="text-sm font-semibold leading-snug line-clamp-2">
@@ -151,7 +163,7 @@ export default async function PostsPage() {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions")
+    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions, scheduled_for")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 

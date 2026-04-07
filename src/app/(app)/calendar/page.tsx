@@ -515,11 +515,8 @@ export default function CalendarPage() {
                       {displayTitle}
                     </p>
                     {scheduledDate && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <CalendarIcon className="size-3" />
-                        <span>{format(scheduledDate, "MMM d")}</span>
-                        <span>at</span>
-                        <span>{format(scheduledDate, "h:mm a")}</span>
+                      <div className="text-[10px] text-purple-600 dark:text-purple-400 leading-snug">
+                        Will publish to LinkedIn on {format(scheduledDate, "MMM d")} at {format(scheduledDate, "h:mm a")}
                       </div>
                     )}
                     {(post.content_pillars ?? []).map((pillar: string) => (

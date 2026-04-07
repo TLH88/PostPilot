@@ -211,6 +211,9 @@ export interface AIMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  isCreditError?: boolean;
+  providerName?: string;
+  billingUrl?: string;
 }
 
 export interface AIConversation {

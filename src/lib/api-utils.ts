@@ -85,28 +85,47 @@ function sanitizeString(str: string): string {
   return sanitized;
 }
 
+// ─── AI provider billing URLs ───────────────────────────────────────────────
+
+export const AI_PROVIDER_BILLING_URLS: Record<string, { name: string; url: string }> = {
+  openai: { name: "OpenAI", url: "https://platform.openai.com/settings/organization/billing" },
+  anthropic: { name: "Anthropic", url: "https://console.anthropic.com/settings/billing" },
+  google: { name: "Google AI", url: "https://aistudio.google.com/apikey" },
+  perplexity: { name: "Perplexity", url: "https://docs.perplexity.ai/guides/pricing" },
+};
+
 // ─── User-friendly AI error messages ────────────────────────────────────────
 
 interface HumanizedError {
   message: string;
   action: string;
   status: number;
+  isCreditError?: boolean;
+  providerName?: string;
+  billingUrl?: string;
 }
 
 /**
  * Convert raw AI SDK errors into user-friendly messages with actionable next steps.
  * The raw error is still logged separately via logApiError().
+ * Pass the AI provider name to get provider-specific billing links for credit errors.
  */
-export function humanizeAIError(error: unknown): HumanizedError {
+export function humanizeAIError(error: unknown, provider?: string): HumanizedError {
   const raw = error instanceof Error ? error.message : String(error);
   const lower = raw.toLowerCase();
+
+  const billing = provider ? AI_PROVIDER_BILLING_URLS[provider] : undefined;
+  const providerLabel = billing?.name || "your AI provider";
 
   // ── Auth & billing ────────────────────────────────────────────────────────
   if (lower.includes("credit balance") || lower.includes("purchase credits") || lower.includes("insufficient_quota") || lower.includes("billing")) {
     return {
-      message: "Your AI provider account has run out of credits.",
-      action: "Add credits in your AI provider's billing dashboard, or switch to a different provider in Settings.",
+      message: `You've used all your ${providerLabel} credits.`,
+      action: `To continue using AI tools, visit ${providerLabel} to purchase more credits, or switch to a different AI provider in Settings.`,
       status: 402,
+      isCreditError: true,
+      providerName: billing?.name,
+      billingUrl: billing?.url,
     };
   }
 

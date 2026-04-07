@@ -32,6 +32,9 @@ import {
   X,
   Menu,
   MoreHorizontal,
+  ExternalLink,
+  AlertTriangle,
+  CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -921,16 +924,26 @@ export default function PostWorkspacePage() {
       if (!response.ok) {
         let errMsg = "Something went wrong with the AI request.";
         let errAction = "Try again. If this keeps happening, check your API key in Settings.";
+        let isCreditError = false;
+        let billingUrl: string | undefined;
+        let providerName: string | undefined;
         try {
           const errData = await response.json();
           if (errData.error) errMsg = errData.error;
           if (errData.action) errAction = errData.action;
+          if (errData.isCreditError) isCreditError = true;
+          if (errData.billingUrl) billingUrl = errData.billingUrl;
+          if (errData.providerName) providerName = errData.providerName;
         } catch { /* ignore parse failure */ }
+
         setChatMessages((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = {
             ...updated[updated.length - 1],
-            content: `**${errMsg}**\n\n${errAction}`,
+            content: isCreditError ? errMsg : `${errMsg}\n\n${errAction}`,
+            isCreditError,
+            providerName,
+            billingUrl,
           };
           return updated;
         });
@@ -1194,6 +1207,23 @@ export default function PostWorkspacePage() {
           </Button>
         </div>
       </div>
+
+      {/* Scheduled status clarification banner */}
+      {status === "scheduled" && lastScheduledDate && (
+        <div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30 px-3 py-2 mb-3 text-sm text-purple-700 dark:text-purple-300">
+          <CalendarClock className="size-4 shrink-0" />
+          <span>
+            This post has not been published to LinkedIn yet. It will be automatically published on{" "}
+            <strong>
+              {lastScheduledDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </strong>{" "}
+            at{" "}
+            <strong>
+              {lastScheduledDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+            </strong>.
+          </span>
+        </div>
+      )}
 
       {/* Main two-panel layout */}
       <div className="flex flex-1 gap-4 overflow-hidden">
@@ -1791,7 +1821,38 @@ export default function PostWorkspacePage() {
                       )}
                     >
                       <div className="whitespace-pre-wrap break-words">
-                        {msg.content}
+                        {msg.isCreditError ? (
+                          <div className="space-y-2">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                              <span className="font-medium">{msg.content}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              To continue using AI tools, visit your provider to purchase more credits, or switch to a different AI provider in Settings.
+                            </p>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {msg.billingUrl && msg.providerName && (
+                                <a
+                                  href={msg.billingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                                >
+                                  <ExternalLink className="size-3" />
+                                  {msg.providerName} Credits
+                                </a>
+                              )}
+                              <a
+                                href="/settings"
+                                className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
+                              >
+                                Switch Provider
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          msg.content
+                        )}
                         {chatStreaming &&
                           i === chatMessages.length - 1 &&
                           msg.role === "assistant" &&

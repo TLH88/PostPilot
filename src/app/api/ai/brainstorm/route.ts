@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkQuota, incrementQuota } from "@/lib/quota";
 
 export async function POST(request: NextRequest) {
+  let activeProvider: string | undefined;
   try {
     const body = await request.json();
 
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
     const { topic, contentPillar, count } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
+    activeProvider = profile.ai_provider ?? undefined;
 
     // Quota check
     const quota = await checkQuota(profile.user_id, "brainstorms");
@@ -173,9 +175,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const humanized = humanizeAIError(error);
+    const humanized = humanizeAIError(error, activeProvider);
     return NextResponse.json(
-      { error: humanized.message, action: humanized.action },
+      { error: humanized.message, action: humanized.action, isCreditError: humanized.isCreditError, providerName: humanized.providerName, billingUrl: humanized.billingUrl },
       { status: humanized.status }
     );
   }
