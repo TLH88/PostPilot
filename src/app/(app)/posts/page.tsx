@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { POST_STATUSES, type SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { PostActions } from "@/components/posts/post-actions";
 
@@ -175,6 +176,7 @@ export default async function PostsPage() {
   ]);
 
   const userTier = (profileData?.subscription_tier as SubscriptionTier) ?? "free";
+  const canReview = hasFeature(userTier, "review_status");
   const allPosts: PostItem[] = posts ?? [];
 
   const draftPosts = allPosts.filter((p) => p.status === "draft");
@@ -202,7 +204,7 @@ export default async function PostsPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${canReview ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
         <Card className="border-l-4 border-l-blue-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
@@ -229,19 +231,21 @@ export default async function PostsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">In Review</p>
-                <p className="text-2xl font-bold">{reviewPosts.length}</p>
+        {canReview && (
+          <Card className="border-l-4 border-l-purple-500">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">In Review</p>
+                  <p className="text-2xl font-bold">{reviewPosts.length}</p>
+                </div>
+                <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
+                  <ClipboardCheck className="size-4 text-purple-500" />
+                </div>
               </div>
-              <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
-                <ClipboardCheck className="size-4 text-purple-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
         <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
@@ -269,9 +273,11 @@ export default async function PostsPage() {
           <TabsTrigger value="draft">
             Drafts ({draftPosts.length})
           </TabsTrigger>
-          <TabsTrigger value="review">
-            In Review ({reviewPosts.length})
-          </TabsTrigger>
+          {canReview && (
+            <TabsTrigger value="review">
+              In Review ({reviewPosts.length})
+            </TabsTrigger>
+          )}
           <TabsTrigger value="scheduled">
             Scheduled ({scheduledPosts.length})
           </TabsTrigger>
