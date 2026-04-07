@@ -1602,119 +1602,49 @@ export default function PostWorkspacePage() {
                   Actions
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
-                  {status === "draft" && (
-                    <>
-                      {hasFeature(userTier, "review_status") && (
-                        <DropdownMenuItem onClick={() => updateStatus("review")}>
-                          <Eye className="size-3.5 mr-2" />
-                          Move to Review
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
-                        <Check className="size-3.5 mr-2" />
-                        Manually Posted
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {status === "review" && (
-                    <>
-                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                        <FileEdit className="size-3.5 mr-2" />
-                        Revert to Draft
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
-                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
-                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
-                        <CalendarClock className="size-3.5 mr-2" />
-                        Schedule
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
-                        <Check className="size-3.5 mr-2" />
-                        Manually Posted
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {status === "scheduled" && (
-                    <>
-                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                        <FileEdit className="size-3.5 mr-2" />
-                        Revert to Draft
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
-                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
-                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
-                        <CalendarClock className="size-3.5 mr-2" />
-                        Reschedule
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
-                        <Check className="size-3.5 mr-2" />
-                        Manually Posted
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {status === "past_due" && (
-                    <>
-                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                        <FileEdit className="size-3.5 mr-2" />
-                        Revert to Draft
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
-                        <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
-                        {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
-                        <CalendarClock className="size-3.5 mr-2" />
-                        Reschedule
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
-                        <Check className="size-3.5 mr-2" />
-                        Manually Posted
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {status === "posted" && (
-                    <>
-                      {post?.linkedin_post_url && (
-                        <DropdownMenuItem onClick={() => window.open(post.linkedin_post_url!, "_blank")}>
-                          <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
-                          View on LinkedIn
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                        <FileEdit className="size-3.5 mr-2" />
-                        Revert to Draft
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
-                        <CalendarClock className="size-3.5 mr-2" />
-                        Schedule
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => updateStatus("archived")}>
-                        <Archive className="size-3.5 mr-2" />
-                        Archive
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {status === "archived" && (
+                  {/* Post to LinkedIn */}
+                  <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing || status === "posted" || status === "archived"}>
+                    <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
+                    Post to LinkedIn
+                  </DropdownMenuItem>
+
+                  {/* Schedule Post */}
+                  <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)} disabled={status === "archived"}>
+                    <CalendarClock className="size-3.5 mr-2" />
+                    Schedule Post
+                  </DropdownMenuItem>
+
+                  {/* Manually Posted */}
+                  <DropdownMenuItem onClick={() => setMarkPostedOpen(true)} disabled={status === "posted" || status === "archived"}>
+                    <Check className="size-3.5 mr-2" />
+                    Manually Posted
+                  </DropdownMenuItem>
+
+                  {/* View on LinkedIn */}
+                  <DropdownMenuItem
+                    onClick={() => post?.linkedin_post_url && window.open(post.linkedin_post_url, "_blank")}
+                    disabled={!post?.linkedin_post_url}
+                  >
+                    <ExternalLink className="size-3.5 mr-2" />
+                    View on LinkedIn
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Archive / Restore */}
+                  {status !== "archived" ? (
+                    <DropdownMenuItem onClick={() => updateStatus("archived")}>
+                      <Archive className="size-3.5 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                  ) : (
                     <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                      <FileEdit className="size-3.5 mr-2" />
                       Restore to Draft
                     </DropdownMenuItem>
                   )}
-                  {!["archived", "posted"].includes(status) && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => updateStatus("archived")}>
-                        <Archive className="size-3.5 mr-2" />
-                        Archive
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
+
+                  {/* Delete */}
                   <DropdownMenuItem
                     onClick={() => setDeleteDialogOpen(true)}
                     className="text-destructive focus:text-destructive"
