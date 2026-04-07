@@ -169,29 +169,25 @@ export function PublishPreviewDialog({
           />
         </div>
 
+        {/* Image selector */}
+        <div className="flex items-center gap-2 border-t pt-3">
+          <ImageUpload
+            postId={postId}
+            imageUrl={currentImageUrl}
+            onImageChange={handleImageChange}
+            compact
+          />
+        </div>
+
         {/* Actions */}
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => handleClose(false)}
-              disabled={publishing}
-            >
-              Cancel
-            </Button>
-
-            {showEditorLink && (
-              <Button
-                variant="outline"
-                className="gap-1.5"
-                onClick={handleOpenInEditor}
-                disabled={publishing}
-              >
-                <FileEdit className="size-3.5" />
-                Open in Editor
-              </Button>
-            )}
-          </div>
+          <Button
+            variant="outline"
+            onClick={() => handleClose(false)}
+            disabled={publishing}
+          >
+            Cancel
+          </Button>
 
           <div className="flex gap-2">
             {onSchedule && (
@@ -208,13 +204,6 @@ export function PublishPreviewDialog({
                 Schedule
               </Button>
             )}
-
-            <ImageUpload
-              postId={postId}
-              imageUrl={currentImageUrl}
-              onImageChange={handleImageChange}
-              compact
-            />
 
             <Button
               className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
