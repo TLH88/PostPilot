@@ -375,6 +375,23 @@ export default function PostWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post?.id, loading]);
 
+  // ── Handle action query params (from card dropdown navigation) ────────────
+  const actionHandled = useRef(false);
+  useEffect(() => {
+    if (!post?.id || loading || actionHandled.current) return;
+    const action = searchParams.get("action");
+    if (!action) return;
+
+    actionHandled.current = true;
+    if (action === "publish") {
+      setPublishPreviewOpen(true);
+    } else if (action === "schedule") {
+      setScheduleDialogOpen(true);
+    }
+    window.history.replaceState({}, "", `/posts/${postId}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.id, loading]);
+
   // ── Debounced auto-save ───────────────────────────────────────────────────
   const autoSave = useCallback(
     async (newTitle: string, newContent: string, newHashtags: string[]) => {
@@ -722,15 +739,8 @@ export default function PostWorkspacePage() {
 
   function handleShareOnLinkedIn() {
     if (!post) return;
-
-    // If LinkedIn API is connected, open preview dialog
-    if (linkedinConnected) {
-      setPublishPreviewOpen(true);
-      return;
-    }
-
-    // Fallback: open LinkedIn share redirect
-    openLinkedInShare(content, hashtags);
+    // Always open preview dialog to prevent accidental posting
+    setPublishPreviewOpen(true);
   }
 
   async function copyPostToClipboard() {

@@ -137,17 +137,23 @@ export function PostActions({
               className="w-48"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
             >
-              {/* Post to LinkedIn */}
+              {/* Post to LinkedIn — opens preview dialog */}
               <DropdownMenuItem
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPostNow?.(); }}
-                disabled={!onPostNow || status === "posted" || status === "archived"}
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  if (onPostNow) { onPostNow(); } else { router.push(`/posts/${postId}?action=publish`); }
+                }}
+                disabled={status === "posted" || status === "archived"}
               >
                 <Send className="size-4" /> Post to LinkedIn
               </DropdownMenuItem>
 
               {/* Schedule Post */}
               <DropdownMenuItem
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule?.(); }}
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  if (onReschedule) { onReschedule(); } else { router.push(`/posts/${postId}?action=schedule`); }
+                }}
                 disabled={status === "archived"}
               >
                 <CalendarClock className="size-4" /> Schedule Post
@@ -267,11 +273,14 @@ export function PostActions({
           className="w-52"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
-          {/* Post to LinkedIn */}
+          {/* Post to LinkedIn — opens preview dialog */}
           <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.postNow.text}>
             <DropdownMenuItem
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPostNow?.(); }}
-              disabled={!onPostNow || status === "posted" || status === "archived"}
+              onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (onPostNow) { onPostNow(); } else { router.push(`/posts/${postId}?action=publish`); }
+              }}
+              disabled={status === "posted" || status === "archived"}
             >
               <Send className="size-4" /> Post to LinkedIn
             </DropdownMenuItem>
@@ -280,7 +289,10 @@ export function PostActions({
           {/* Schedule Post */}
           <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.reschedule.text}>
             <DropdownMenuItem
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule?.(); }}
+              onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (onReschedule) { onReschedule(); } else { router.push(`/posts/${postId}?action=schedule`); }
+              }}
               disabled={status === "archived"}
             >
               <CalendarClock className="size-4" /> Schedule Post
