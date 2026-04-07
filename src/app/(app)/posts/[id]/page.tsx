@@ -1604,19 +1604,22 @@ export default function PostWorkspacePage() {
                 <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
                   {status === "draft" && (
                     <>
-                      <DropdownMenuItem onClick={() => updateStatus("review")}>
-                        <Eye className="size-3.5 mr-2" />
-                        Move to Review
-                      </DropdownMenuItem>
+                      {hasFeature(userTier, "review_status") && (
+                        <DropdownMenuItem onClick={() => updateStatus("review")}>
+                          <Eye className="size-3.5 mr-2" />
+                          Move to Review
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
                         <Check className="size-3.5 mr-2" />
-                        Mark as Posted
+                        Manually Posted
                       </DropdownMenuItem>
                     </>
                   )}
                   {status === "review" && (
                     <>
                       <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                        <FileEdit className="size-3.5 mr-2" />
                         Revert to Draft
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
@@ -1624,44 +1627,52 @@ export default function PostWorkspacePage() {
                         {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        <CalendarClock className="size-3.5 mr-2" />
                         Schedule
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
                         <Check className="size-3.5 mr-2" />
-                        Mark as Posted
+                        Manually Posted
                       </DropdownMenuItem>
                     </>
                   )}
                   {status === "scheduled" && (
                     <>
-                      <DropdownMenuItem onClick={() => updateStatus("review")}>
-                        Revert to Review
+                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                        <FileEdit className="size-3.5 mr-2" />
+                        Revert to Draft
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
                         <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
                         {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        <CalendarClock className="size-3.5 mr-2" />
+                        Reschedule
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
                         <Check className="size-3.5 mr-2" />
-                        Mark as Posted
+                        Manually Posted
                       </DropdownMenuItem>
                     </>
                   )}
                   {status === "past_due" && (
                     <>
-                      <DropdownMenuItem onClick={() => updateStatus("review")}>
-                        Revert to Review
+                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                        <FileEdit className="size-3.5 mr-2" />
+                        Revert to Draft
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
                         <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
                         {linkedinConnected ? "Publish to LinkedIn" : "Post to LinkedIn"}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        <CalendarClock className="size-3.5 mr-2" />
+                        Reschedule
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setMarkPostedOpen(true)}>
                         <Check className="size-3.5 mr-2" />
-                        Mark as Posted
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
-                        Reschedule
+                        Manually Posted
                       </DropdownMenuItem>
                     </>
                   )}
