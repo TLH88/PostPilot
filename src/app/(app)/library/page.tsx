@@ -22,6 +22,8 @@ import { CONTENT_LIBRARY_TYPES, type SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { toast } from "sonner";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import { LIBRARY_TOOLTIPS } from "@/lib/tooltip-content";
 import type { ContentLibraryItem } from "@/types";
 
 type LibraryType = keyof typeof CONTENT_LIBRARY_TYPES | "all";
@@ -142,20 +144,36 @@ export default function LibraryPage() {
       <div className="flex flex-wrap items-center gap-3">
         {/* Type pills */}
         <div className="flex flex-wrap gap-1.5">
-          {(["all", "hook", "cta", "closing", "snippet"] as LibraryType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setFilter(t)}
-              className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-                filter === t
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-              }`}
-            >
-              {t === "all" ? "All" : CONTENT_LIBRARY_TYPES[t].label} ({typeCounts[t]})
-            </button>
-          ))}
+          {(["all", "hook", "cta", "closing", "snippet"] as LibraryType[]).map((t) => {
+            const filterTooltipMap: Record<string, typeof LIBRARY_TOOLTIPS.filterHook | undefined> = {
+              hook: LIBRARY_TOOLTIPS.filterHook,
+              cta: LIBRARY_TOOLTIPS.filterCTA,
+              closing: LIBRARY_TOOLTIPS.filterClosing,
+              snippet: LIBRARY_TOOLTIPS.filterSnippet,
+            };
+            const tooltip = filterTooltipMap[t];
+            const pill = (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFilter(t)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                  filter === t
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                }`}
+              >
+                {t === "all" ? "All" : CONTENT_LIBRARY_TYPES[t].label} ({typeCounts[t]})
+              </button>
+            );
+            return tooltip ? (
+              <TooltipWrapper key={t} tooltip={tooltip}>
+                {pill}
+              </TooltipWrapper>
+            ) : (
+              pill
+            );
+          })}
         </div>
 
         {/* Search */}

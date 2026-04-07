@@ -1,4 +1,4 @@
-import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3 } from "lucide-react";
+import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbulb, BookOpen, Bot, CalendarDays } from "lucide-react";
 import { CollapsibleCard } from "@/components/collapsible-card";
 
 function StepList({ children }: { children: React.ReactNode }) {
@@ -382,6 +382,347 @@ export default function HelpPage() {
           You can repeat this process anytime to update your analytics with the latest data.
           PostPilot will update existing values rather than creating duplicates. For best results,
           import both impressions and engagements to get a complete picture of your post performance.
+        </Tip>
+      </CollapsibleCard>
+
+      {/* ─── Getting Started ─── */}
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <Lightbulb className="size-5 text-primary" />
+          <h2 id="getting-started" className="text-lg font-semibold">Getting Started</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          New to PostPilot? These guides walk you through the core workflow from brainstorming ideas
+          to publishing on LinkedIn.
+        </p>
+      </div>
+
+      <CollapsibleCard
+        title="How Ideas Work"
+        description="Generate, curate, and develop ideas into posts"
+        defaultOpen={false}
+      >
+        <p id="idea-generation" className="text-sm text-foreground/80 mb-3">
+          The Idea Bank is your brainstorming hub. Use AI to generate content ideas based on your
+          expertise and content pillars, then curate and develop the best ones into full posts.
+        </p>
+
+        <h4 className="text-sm font-semibold">The idea workflow</h4>
+        <StepList>
+          <li>
+            Click <strong>&quot;Generate Ideas&quot;</strong> on the Ideas page. Choose your content
+            pillars, set the number of ideas, and let AI brainstorm suggestions tailored to your
+            expertise.
+          </li>
+          <li>
+            Review the generated ideas. Each idea has a <strong>temperature badge</strong> &mdash;
+            Hot (timely, trend-driven), Warm (solid evergreen), or Cold (niche deep-dives) &mdash;
+            to help you prioritize.
+          </li>
+          <li>
+            <strong>Edit</strong> any idea to refine its title, description, or temperature.
+            <strong> Archive</strong> ideas you want to save for later.
+          </li>
+          <li>
+            When you&apos;re ready, click <strong>&quot;Develop&quot;</strong> to turn an idea into
+            a post draft. This creates a new post in your editor pre-filled with the idea title.
+          </li>
+        </StepList>
+
+        <Tip>
+          You can also add ideas manually without AI. Use the Idea Bank as a running list of content
+          topics so you never run out of things to write about.
+        </Tip>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Writing Your First Post"
+        description="Use the post editor, AI assistant, and formatting tools"
+        defaultOpen={false}
+      >
+        <p className="text-sm text-foreground/80 mb-3">
+          The post editor is where you draft, refine, and polish your LinkedIn content. It includes
+          AI-powered assistance, formatting tools, and a real-time character counter.
+        </p>
+
+        <h4 className="text-sm font-semibold">Editor basics</h4>
+        <StepList>
+          <li>
+            Create a new post from the <strong>Posts</strong> page or develop one from your Idea
+            Bank. The editor opens with a blank canvas (or your idea title if developed from an idea).
+          </li>
+          <li>
+            Write your content in the main text area. The character counter at the bottom shows
+            your post length &mdash; LinkedIn allows up to 3,000 characters.
+          </li>
+          <li>
+            Use the <strong>Format</strong> menu to insert line breaks, bullet points, analyze your
+            hook, or save sections to your Content Library.
+          </li>
+          <li>
+            Click <strong>&quot;Show AI&quot;</strong> to open the AI Assistant panel. Ask the AI to
+            help you draft, refine, or improve your post. Use the quick suggestion chips for common
+            requests.
+          </li>
+          <li>
+            Add hashtags using the hashtag section below the editor. Hashtags are appended to your
+            post when publishing.
+          </li>
+        </StepList>
+
+        <Tip>
+          Your post auto-saves as you type. Look for the cloud icon in the header to confirm your
+          changes are saved.
+        </Tip>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Publishing to LinkedIn"
+        description="Direct publish, scheduling, or manual copy-paste"
+        defaultOpen={false}
+      >
+        <p className="text-sm text-foreground/80 mb-3">
+          PostPilot gives you three ways to get your content onto LinkedIn, depending on your
+          preference and setup.
+        </p>
+
+        <h4 className="text-sm font-semibold">Option 1: Direct publish</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          If you&apos;ve connected your LinkedIn account in Settings, you can publish directly from
+          PostPilot. Click <strong>&quot;Publish to LinkedIn&quot;</strong> in the editor to send
+          your post immediately. You can also schedule it for a future date and time.
+        </p>
+
+        <h4 className="text-sm font-semibold">Option 2: Schedule for later</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          Click <strong>&quot;Schedule&quot;</strong> to set a specific date and time. Your post will
+          be automatically published at the scheduled time &mdash; it is <strong>not</strong> published
+          immediately when you schedule it.
+        </p>
+
+        <h4 className="text-sm font-semibold">Option 3: Manual copy-paste</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          Use the <strong>&quot;Copy Post&quot;</strong> button in the Format menu to copy your post
+          content and hashtags to your clipboard. Then open LinkedIn and paste it into a new post.
+          After pasting, come back and click <strong>&quot;Mark as Posted&quot;</strong> so PostPilot
+          tracks it as published.
+        </p>
+
+        <Tip>
+          Direct publish requires connecting your LinkedIn account under Settings. The connection
+          uses OAuth and does not store your LinkedIn password.
+        </Tip>
+      </CollapsibleCard>
+
+      {/* ─── Content Tools ─── */}
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <BookOpen className="size-5 text-primary" />
+          <h2 className="text-lg font-semibold">Content Tools</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Build a library of reusable content and leverage templates to speed up your writing.
+        </p>
+      </div>
+
+      <CollapsibleCard
+        title="Content Library"
+        description="Save and reuse your best hooks, CTAs, closings, and snippets"
+        defaultOpen={false}
+      >
+        <p id="content-library" className="text-sm text-foreground/80 mb-3">
+          The Content Library lets you save pieces of content you use frequently and insert them into
+          any post with one click.
+        </p>
+
+        <h4 className="text-sm font-semibold">Content types</h4>
+        <ul className="list-disc space-y-2 pl-5 text-sm text-foreground/90">
+          <li>
+            <strong>Hooks</strong> &mdash; Opening lines designed to stop readers from scrolling and
+            make them click &quot;see more.&quot;
+          </li>
+          <li>
+            <strong>CTAs (Calls-to-Action)</strong> &mdash; Phrases that encourage readers to engage,
+            comment, share, or take a next step.
+          </li>
+          <li>
+            <strong>Closings</strong> &mdash; Closing lines that wrap up your post with impact and
+            leave a lasting impression.
+          </li>
+          <li>
+            <strong>Snippets</strong> &mdash; Reusable text blocks like quotes, statistics,
+            transitions, or any content you use often.
+          </li>
+        </ul>
+
+        <h4 className="text-sm font-semibold mt-4">How to save and insert</h4>
+        <StepList>
+          <li>
+            <strong>Save from the editor:</strong> Select text in your post, click
+            the <strong>Format</strong> menu, then <strong>&quot;Save to Library.&quot;</strong> Choose
+            a type and give it a name.
+          </li>
+          <li>
+            <strong>Save from the Library page:</strong> Click <strong>&quot;Add to
+            Library&quot;</strong> and paste your content directly.
+          </li>
+          <li>
+            <strong>Insert into a post:</strong> In the editor, click the <strong>&quot;Insert from
+            Library&quot;</strong> button next to the Format menu. Browse or filter your saved items
+            and click to insert.
+          </li>
+        </StepList>
+
+        <Tip>
+          The Library page shows a usage count for each item, so you can track which content pieces
+          you rely on most.
+        </Tip>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Post Templates"
+        description="Use built-in templates or save your own post structures"
+        defaultOpen={false}
+      >
+        <p id="templates" className="text-sm text-foreground/80 mb-3">
+          Templates give you a head start on common post formats so you don&apos;t have to start
+          from a blank page every time.
+        </p>
+
+        <h4 className="text-sm font-semibold">Using templates</h4>
+        <StepList>
+          <li>
+            When creating a new post, you&apos;ll see a <strong>template picker</strong> with
+            built-in formats like Listicles, Story Posts, Hot Takes, and more.
+          </li>
+          <li>
+            Click a template to pre-fill your post editor with a proven structure. Replace the
+            placeholder text with your own content.
+          </li>
+          <li>
+            To <strong>save your own template</strong>, write a post you want to reuse as a
+            structure, then use the <strong>&quot;Save as Template&quot;</strong> option from the
+            editor menu.
+          </li>
+        </StepList>
+
+        <Tip>
+          Templates preserve the structure but not the specific content, so you can reuse the same
+          format across different topics.
+        </Tip>
+      </CollapsibleCard>
+
+      {/* ─── AI Assistant ─── */}
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <Bot className="size-5 text-primary" />
+          <h2 id="ai-assistant" className="text-lg font-semibold">AI Assistant</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          The AI Assistant helps you draft, refine, and improve your LinkedIn posts using your
+          personal voice and style.
+        </p>
+      </div>
+
+      <CollapsibleCard
+        title="Using the AI Assistant"
+        description="Voice profiles, quick suggestions, and applying AI drafts"
+        defaultOpen={false}
+      >
+        <h4 className="text-sm font-semibold">How AI uses your voice profile</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          When you set up your Creator Profile in Settings, the AI learns your writing style, tone,
+          expertise, and target audience. Every AI-generated draft is tailored to sound like you
+          &mdash; not generic LinkedIn content.
+        </p>
+
+        <h4 className="text-sm font-semibold">Quick suggestions vs. free-form chat</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          The AI panel shows <strong>quick suggestion chips</strong> like &quot;Add a hook,&quot;
+          &quot;Make it shorter,&quot; or &quot;Add a CTA&quot; for common requests. Click one to
+          get an instant improvement. You can also type any free-form instruction in the chat
+          input for more specific requests.
+        </p>
+
+        <h4 id="hook-analysis" className="text-sm font-semibold">Hook analysis</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          The <strong>&quot;Analyze Hook&quot;</strong> feature in the Format menu evaluates your
+          post&apos;s opening lines (the first ~210 characters visible before LinkedIn&apos;s
+          &quot;see more&quot; link). It scores your hook, identifies the technique used, and
+          suggests improvements.
+        </p>
+
+        <h4 className="text-sm font-semibold">Applying AI drafts</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          When the AI generates content, click the <strong>&quot;Apply to Editor&quot;</strong> button
+          on the message to replace your editor content with the AI draft. Your previous version is
+          auto-saved, so you can always undo the change.
+        </p>
+
+        <Tip>
+          The better your Creator Profile, the more personalized and on-brand the AI output will be.
+          Take time to fill in your expertise, tone, and example posts in Settings.
+        </Tip>
+      </CollapsibleCard>
+
+      {/* ─── Scheduling & Calendar ─── */}
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="size-5 text-primary" />
+          <h2 id="scheduling" className="text-lg font-semibold">Scheduling &amp; Calendar</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Plan your content calendar and let PostPilot publish your posts at the right time.
+        </p>
+      </div>
+
+      <CollapsibleCard
+        title="How Scheduling Works"
+        description="Schedule, reschedule, and manage your publishing calendar"
+        defaultOpen={false}
+      >
+        <h4 className="text-sm font-semibold">Scheduling a post</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          When you schedule a post, it is <strong>not</strong> published immediately. It is saved
+          with a future date and time, and PostPilot will automatically publish it to LinkedIn at
+          the scheduled moment. Until then, you can continue editing or reschedule it.
+        </p>
+
+        <h4 className="text-sm font-semibold">Rescheduling</h4>
+        <StepList>
+          <li>
+            Open the scheduled post in the editor or find it on the Posts page.
+          </li>
+          <li>
+            Click <strong>&quot;Reschedule&quot;</strong> to pick a new date and time.
+          </li>
+          <li>
+            You can also move it back to draft status if you want to postpone indefinitely.
+          </li>
+        </StepList>
+
+        <h4 className="text-sm font-semibold">Calendar views</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          The Calendar page shows all your scheduled posts across three views:
+        </p>
+        <ul className="list-disc space-y-2 pl-5 text-sm text-foreground/90">
+          <li>
+            <strong>Month view</strong> &mdash; See all scheduled posts for the entire month at a
+            glance. Great for spotting gaps in your content calendar.
+          </li>
+          <li>
+            <strong>Week view</strong> &mdash; See scheduled posts for the current week with more
+            detail and easier drag-to-reschedule.
+          </li>
+          <li>
+            <strong>Day view</strong> &mdash; See all posts scheduled for a specific day with hourly
+            timeslots.
+          </li>
+        </ul>
+
+        <Tip>
+          Posts that miss their scheduled publish time (e.g., if there was a connection issue) appear
+          as &quot;Past Due&quot; on the Posts page so you can quickly republish or reschedule them.
         </Tip>
       </CollapsibleCard>
     </div>

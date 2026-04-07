@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Archive,
   ArrowLeft,
@@ -77,12 +77,15 @@ import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import { EDITOR_TOOLTIPS } from "@/lib/tooltip-content";
 import { classifyPillar } from "@/lib/classify-pillar";
 import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
+import { PostProgressBar } from "@/components/posts/post-progress-bar";
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
@@ -105,6 +108,7 @@ function charCountColor(count: number): string {
 export default function PostWorkspacePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const postId = params.id as string;
   const supabase = createClient();
 
@@ -267,6 +271,9 @@ export default function PostWorkspacePage() {
       setStatus(p.status);
       setContentPillarsState(p.content_pillars ?? []);
       setImageUrl(p.image_url ?? null);
+      if (p.scheduled_for) {
+        setLastScheduledDate(new Date(p.scheduled_for));
+      }
 
       // Fetch profile
       const { data: profileData } = await supabase
@@ -338,6 +345,34 @@ export default function PostWorkspacePage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
+
+  // ── Auto-draft from Idea Bank / Welcome toast for new posts ──────────────
+  const ideaAutoTriggered = useRef(false);
+  useEffect(() => {
+    if (!post?.id || loading || ideaAutoTriggered.current) return;
+
+    const fromIdea = searchParams.get("fromIdea");
+    const ideaDescription = searchParams.get("ideaDescription");
+
+    if (fromIdea === "true" && title && !content) {
+      ideaAutoTriggered.current = true;
+      // Auto-open chat and trigger draft generation
+      setChatOpen(true);
+      const prompt = ideaDescription
+        ? `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${decodeURIComponent(ideaDescription)}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`
+        : `I am writing a LinkedIn post on the topic of "${title}". Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
+
+      sendChatMessage(prompt, `Draft a post about "${title}"`);
+      // Clean URL params
+      window.history.replaceState({}, "", `/posts/${postId}`);
+    } else if (!fromIdea && !content && chatMessages.length === 0) {
+      ideaAutoTriggered.current = true;
+      toast("Your AI Assistant is ready to help. Ask it to draft, brainstorm, or refine your post anytime.", {
+        duration: 6000,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.id, loading]);
 
   // ── Debounced auto-save ───────────────────────────────────────────────────
   const autoSave = useCallback(
@@ -918,6 +953,10 @@ export default function PostWorkspacePage() {
           })),
           postContent: content,
           postTitle: title,
+          postStatus: status,
+          contentPillar: contentPillars?.[0] || undefined,
+          hashtags: hashtags,
+          characterCount: content.length,
         }),
       });
 
@@ -1180,48 +1219,69 @@ export default function PostWorkspacePage() {
           </Button>
 
           {/* Chat panel toggle */}
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={() => setChatOpen(!chatOpen)}
-            className="lg:hidden"
-          >
-            {chatOpen ? (
-              <PanelRightClose className="size-4" />
-            ) : (
-              <PanelRightOpen className="size-4" />
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setChatOpen(!chatOpen)}
-            className="hidden gap-1.5 lg:inline-flex"
-          >
-            {chatOpen ? (
-              <PanelRightClose className="size-3.5" />
-            ) : (
-              <PanelRightOpen className="size-3.5" />
-            )}
-            {chatOpen ? "Hide AI" : "Show AI"}
-          </Button>
+          <TooltipWrapper tooltip={chatOpen ? EDITOR_TOOLTIPS.hideAI : EDITOR_TOOLTIPS.showAI}>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setChatOpen(!chatOpen)}
+              className="lg:hidden"
+            >
+              {chatOpen ? (
+                <PanelRightClose className="size-4" />
+              ) : (
+                <PanelRightOpen className="size-4" />
+              )}
+            </Button>
+          </TooltipWrapper>
+          <TooltipWrapper tooltip={chatOpen ? EDITOR_TOOLTIPS.hideAI : EDITOR_TOOLTIPS.showAI}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setChatOpen(!chatOpen)}
+              className="hidden gap-1.5 lg:inline-flex"
+            >
+              {chatOpen ? (
+                <PanelRightClose className="size-3.5" />
+              ) : (
+                <PanelRightOpen className="size-3.5" />
+              )}
+              {chatOpen ? "Hide AI" : "Show AI"}
+            </Button>
+          </TooltipWrapper>
         </div>
       </div>
 
+      {/* Post progress bar */}
+      <PostProgressBar
+        status={status}
+        userTier={profile?.subscription_tier as SubscriptionTier ?? userTier}
+        scheduledFor={lastScheduledDate}
+      />
+
       {/* Scheduled status clarification banner */}
-      {status === "scheduled" && lastScheduledDate && (
+      {(status === "scheduled" || status === "past_due") && lastScheduledDate && (
         <div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30 px-3 py-2 mb-3 text-sm text-purple-700 dark:text-purple-300">
           <CalendarClock className="size-4 shrink-0" />
-          <span>
-            This post has not been published to LinkedIn yet. It will be automatically published on{" "}
+          <span className="flex-1">
+            {status === "past_due" ? "This post was scheduled for" : "This post has not been published to LinkedIn yet. It will be automatically published on"}{" "}
             <strong>
               {lastScheduledDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </strong>{" "}
             at{" "}
             <strong>
               {lastScheduledDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-            </strong>.
+            </strong>
+            {status === "past_due" ? " but was not published." : "."}
           </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5 text-xs border-purple-300 text-purple-700 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900"
+            onClick={() => setScheduleDialogOpen(true)}
+          >
+            <CalendarClock className="size-3.5" />
+            Reschedule
+          </Button>
         </div>
       )}
 
@@ -1417,7 +1477,9 @@ export default function PostWorkspacePage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
+              <TooltipWrapper tooltip={EDITOR_TOOLTIPS.insertFromLibrary}>
+                <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
+              </TooltipWrapper>
             </div>
 
             <Separator />
@@ -1936,6 +1998,7 @@ export default function PostWorkspacePage() {
         open={scheduleDialogOpen}
         onOpenChange={setScheduleDialogOpen}
         onSchedule={schedulePost}
+        initialDate={(status === "scheduled" || status === "past_due") ? lastScheduledDate ?? undefined : undefined}
       />
 
       {/* Schedule confirmation dialog */}

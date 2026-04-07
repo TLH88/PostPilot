@@ -45,6 +45,9 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
+import { IdeaProcessFlow } from "@/components/ideas/idea-process-flow";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import { IDEAS_TOOLTIPS } from "@/lib/tooltip-content";
 
 // ---------------------------------------------------------------------------
 // Skeleton loader for initial load
@@ -394,7 +397,7 @@ export default function IdeasPage() {
       );
 
       toast.success("Post created! Redirecting to editor...");
-      router.push(`/posts/${post.id}`);
+      router.push(`/posts/${post.id}?fromIdea=true&ideaDescription=${encodeURIComponent(idea.description || "")}`);
     } catch (error) {
       console.error("Develop idea error:", error);
       toast.error("Failed to create post from idea.");
@@ -425,11 +428,24 @@ export default function IdeasPage() {
             Capture and organize content ideas. Click &quot;Generate Ideas&quot; to brainstorm with AI, or add your own manually.
           </p>
         </div>
-        <Button onClick={() => setGenerateOpen(true)} className="shrink-0 self-start sm:self-center">
-          <Sparkles className="size-4" />
-          Generate Ideas
-        </Button>
+        <TooltipWrapper tooltip={IDEAS_TOOLTIPS.generateIdeas} side="bottom">
+          <Button onClick={() => setGenerateOpen(true)} className="shrink-0 self-start sm:self-center">
+            <Sparkles className="size-4" />
+            Generate Ideas
+          </Button>
+        </TooltipWrapper>
       </div>
+
+      {/* Idea Process Flow */}
+      <IdeaProcessFlow
+        activeStep={
+          ideas.length === 0
+            ? 1
+            : ideas.some((i) => i.status === "captured" || i.status === "developing")
+              ? 2
+              : 3
+        }
+      />
 
       {/* Filter Bar */}
       <div className="space-y-3">
@@ -654,9 +670,19 @@ export default function IdeasPage() {
                   {/* Top row: temperature badge */}
                   <div className="flex items-center justify-between gap-2">
                     {temp && (
-                      <Badge variant="secondary" className={temp.color}>
-                        {temp.icon} {temp.label}
-                      </Badge>
+                      <TooltipWrapper
+                        tooltip={
+                          idea.temperature === "hot"
+                            ? IDEAS_TOOLTIPS.temperatureHot
+                            : idea.temperature === "warm"
+                              ? IDEAS_TOOLTIPS.temperatureWarm
+                              : IDEAS_TOOLTIPS.temperatureCold
+                        }
+                      >
+                        <Badge variant="secondary" className={temp.color}>
+                          {temp.icon} {temp.label}
+                        </Badge>
+                      </TooltipWrapper>
                     )}
                     {status && (
                       <Badge
@@ -708,26 +734,28 @@ export default function IdeasPage() {
 
                 {/* Actions */}
                 <CardFooter className="gap-2">
-                  <Button
-                    variant="default"
-                    size="xs"
-                    onClick={() => handleDevelop(idea)}
-                    disabled={
-                      isDeveloping || idea.status === "converted"
-                    }
-                  >
-                    {isDeveloping ? (
-                      <>
-                        <Loader2 className="size-3 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <ArrowRight className="size-3" />
-                        Develop
-                      </>
-                    )}
-                  </Button>
+                  <TooltipWrapper tooltip={IDEAS_TOOLTIPS.develop}>
+                    <Button
+                      variant="default"
+                      size="xs"
+                      onClick={() => handleDevelop(idea)}
+                      disabled={
+                        isDeveloping || idea.status === "converted"
+                      }
+                    >
+                      {isDeveloping ? (
+                        <>
+                          <Loader2 className="size-3 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowRight className="size-3" />
+                          Develop
+                        </>
+                      )}
+                    </Button>
+                  </TooltipWrapper>
                   <Button
                     variant="ghost"
                     size="xs"
