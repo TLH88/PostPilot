@@ -156,7 +156,7 @@ export default function HelpPage() {
             is fine), and click <strong>Create secret key</strong>.
           </li>
           <li>
-            Copy the key immediately &mdash; it starts with{" "}
+            Copy the key immediately. It starts with{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">sk-</code> and won&apos;t be
             shown again. Paste it into PostPilot.
           </li>
@@ -177,7 +177,7 @@ export default function HelpPage() {
             Settings &rarr; Billing
           </ExternalUrl>{" "}
           to add a payment method and purchase credits. A ChatGPT Plus subscription does{" "}
-          <strong>not</strong> include API credits &mdash; they must be purchased separately.
+          <strong>not</strong> include API credits. They must be purchased separately.
         </p>
 
         <Tip>
@@ -210,7 +210,7 @@ export default function HelpPage() {
           </li>
           <li>
             Click <strong>&quot;Create API key&quot;</strong>. You may be asked to select or create a
-            Google Cloud project &mdash; the default project is fine for getting started.
+            Google Cloud project. The default project is fine for getting started.
           </li>
           <li>
             Your key will be displayed. Copy it and paste it into PostPilot. Google API keys
@@ -318,7 +318,7 @@ export default function HelpPage() {
       >
         <p className="text-sm text-foreground/80 mb-3">
           LinkedIn provides analytics on your post performance including impressions and engagements.
-          You can import this data into PostPilot in two passes &mdash; one for impressions and one for
+          You can import this data into PostPilot in two passes : one for impressions and one for
           engagements. PostPilot will automatically match the data to your existing posts.
         </p>
 
@@ -415,9 +415,9 @@ export default function HelpPage() {
             expertise.
           </li>
           <li>
-            Review the generated ideas. Each idea has a <strong>temperature badge</strong> &mdash;
-            Hot (timely, trend-driven), Warm (solid evergreen), or Cold (niche deep-dives) &mdash;
-            to help you prioritize.
+            Review the generated ideas. Each idea has a <strong>temperature badge</strong>:
+            Hot (timely, trend-driven), Warm (solid evergreen), or Cold (niche deep-dives).
+            Use these to help you prioritize.
           </li>
           <li>
             <strong>Edit</strong> any idea to refine its title, description, or temperature.
@@ -453,7 +453,7 @@ export default function HelpPage() {
           </li>
           <li>
             Write your content in the main text area. The character counter at the bottom shows
-            your post length &mdash; LinkedIn allows up to 3,000 characters.
+            your post length. LinkedIn allows up to 3,000 characters.
           </li>
           <li>
             Use the <strong>Format</strong> menu to insert line breaks, bullet points, analyze your
@@ -496,7 +496,7 @@ export default function HelpPage() {
         <h4 className="text-sm font-semibold">Option 2: Schedule for later</h4>
         <p className="text-sm text-foreground/80 mb-3">
           Click <strong>&quot;Schedule&quot;</strong> to set a specific date and time. Your post will
-          be automatically published at the scheduled time &mdash; it is <strong>not</strong> published
+          be automatically published at the scheduled time. It is <strong>not</strong> published
           immediately when you schedule it.
         </p>
 
@@ -538,19 +538,19 @@ export default function HelpPage() {
         <h4 className="text-sm font-semibold">Content types</h4>
         <ul className="list-disc space-y-2 pl-5 text-sm text-foreground/90">
           <li>
-            <strong>Hooks</strong> &mdash; Opening lines designed to stop readers from scrolling and
+            <strong>Hooks</strong> : Opening lines designed to stop readers from scrolling and
             make them click &quot;see more.&quot;
           </li>
           <li>
-            <strong>CTAs (Calls-to-Action)</strong> &mdash; Phrases that encourage readers to engage,
+            <strong>CTAs (Calls-to-Action)</strong> : Phrases that encourage readers to engage,
             comment, share, or take a next step.
           </li>
           <li>
-            <strong>Closings</strong> &mdash; Closing lines that wrap up your post with impact and
+            <strong>Closings</strong> : Closing lines that wrap up your post with impact and
             leave a lasting impression.
           </li>
           <li>
-            <strong>Snippets</strong> &mdash; Reusable text blocks like quotes, statistics,
+            <strong>Snippets</strong> : Reusable text blocks like quotes, statistics,
             transitions, or any content you use often.
           </li>
         </ul>
@@ -633,7 +633,7 @@ export default function HelpPage() {
         <p className="text-sm text-foreground/80 mb-3">
           When you set up your Creator Profile in Settings, the AI learns your writing style, tone,
           expertise, and target audience. Every AI-generated draft is tailored to sound like you
-          &mdash; not generic LinkedIn content.
+          , not generic LinkedIn content.
         </p>
 
         <h4 className="text-sm font-semibold">Quick suggestions vs. free-form chat</h4>
@@ -707,15 +707,15 @@ export default function HelpPage() {
         </p>
         <ul className="list-disc space-y-2 pl-5 text-sm text-foreground/90">
           <li>
-            <strong>Month view</strong> &mdash; See all scheduled posts for the entire month at a
+            <strong>Month view</strong> : See all scheduled posts for the entire month at a
             glance. Great for spotting gaps in your content calendar.
           </li>
           <li>
-            <strong>Week view</strong> &mdash; See scheduled posts for the current week with more
+            <strong>Week view</strong> : See scheduled posts for the current week with more
             detail and easier drag-to-reschedule.
           </li>
           <li>
-            <strong>Day view</strong> &mdash; See all posts scheduled for a specific day with hourly
+            <strong>Day view</strong> : See all posts scheduled for a specific day with hourly
             timeslots.
           </li>
         </ul>

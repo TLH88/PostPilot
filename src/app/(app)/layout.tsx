@@ -6,6 +6,7 @@ import { OnboardingGuard } from "@/components/layout/onboarding-guard";
 import { PastDueChecker } from "@/components/past-due-checker";
 import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
+import { HelpSidebarProvider } from "@/components/help-sidebar";
 
 export default async function AppLayout({
   children,
@@ -34,21 +35,23 @@ export default async function AppLayout({
   const userTier = (profile?.subscription_tier as "free" | "creator" | "professional") ?? "free";
 
   return (
-    <div className="relative min-h-screen bg-background">
-      <OnboardingGuard onboardingCompleted={onboardingCompleted} />
-      <PastDueChecker />
-      <ReleaseNotesModal />
-      {/* Sidebar - hidden on mobile */}
-      <Sidebar userName={userName} userTier={userTier} />
+    <HelpSidebarProvider>
+      <div className="relative min-h-screen bg-background">
+        <OnboardingGuard onboardingCompleted={onboardingCompleted} />
+        <PastDueChecker />
+        <ReleaseNotesModal />
+        {/* Sidebar - hidden on mobile */}
+        <Sidebar userName={userName} userTier={userTier} />
 
-      {/* Main content area */}
-      <div className="lg:pl-64">
-        <TopBar userName={userName} userTier={userTier} />
-        <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
-          <LinkedInStatusBanner />
-          {children}
-        </main>
+        {/* Main content area */}
+        <div className="lg:pl-64">
+          <TopBar userName={userName} userTier={userTier} />
+          <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+            <LinkedInStatusBanner />
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </HelpSidebarProvider>
   );
 }
