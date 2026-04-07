@@ -54,6 +54,7 @@ const STEPS = [
   { label: "Expertise", icon: Target },
   { label: "Voice & Style", icon: Pen },
   { label: "AI Setup", icon: Sparkles },
+  { label: "Content Tools", icon: FlaskConical },
 ] as const;
 
 const AI_PROVIDERS = [
@@ -1059,6 +1060,80 @@ export default function OnboardingPage() {
                     to the browser or shared with third parties.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 6: Content Tools Introduction */}
+        {currentStep === 5 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Content Tools</CardTitle>
+              <CardDescription>
+                PostPilot includes powerful tools to help you create better content faster. Here&apos;s a quick overview.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Content Library */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300">
+                    <FlaskConical className="size-4" />
+                  </span>
+                  Content Library
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Save your best hooks, calls-to-action, closing lines, and reusable text snippets. Insert them into any post with one click.
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-md bg-orange-50 dark:bg-orange-950/30 p-2.5">
+                    <strong className="text-orange-700 dark:text-orange-300">Hooks</strong>
+                    <p className="text-muted-foreground mt-0.5">Opening lines that stop scrollers and make them click &quot;see more&quot;</p>
+                  </div>
+                  <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 p-2.5">
+                    <strong className="text-blue-700 dark:text-blue-300">CTAs</strong>
+                    <p className="text-muted-foreground mt-0.5">Calls-to-action that drive comments, shares, and engagement</p>
+                  </div>
+                  <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-2.5">
+                    <strong className="text-green-700 dark:text-green-300">Closings</strong>
+                    <p className="text-muted-foreground mt-0.5">Memorable sign-offs that leave a lasting impression</p>
+                  </div>
+                  <div className="rounded-md bg-purple-50 dark:bg-purple-950/30 p-2.5">
+                    <strong className="text-purple-700 dark:text-purple-300">Snippets</strong>
+                    <p className="text-muted-foreground mt-0.5">Reusable text blocks you find yourself typing often</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  We&apos;ve included built-in examples to get you started. Find your library in the sidebar.
+                </p>
+              </div>
+
+              {/* Post Templates */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+                    <Pen className="size-4" />
+                  </span>
+                  Post Templates
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Start your posts with proven structures instead of a blank page. Choose from 8 built-in templates or save your own.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {["Story Arc", "Hot Take", "How-To Guide", "Listicle", "Question Post", "Framework", "Lessons Learned", "Myth Buster"].map((t) => (
+                    <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  When creating a new post, click &quot;Use Template&quot; to pick a structure. You can also save any post as a template from the editor.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Tip:</strong> You can access the Content Library and Templates anytime from the sidebar and post editor. No need to memorize anything now.
+                </p>
               </div>
             </CardContent>
           </Card>

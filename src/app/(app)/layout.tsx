@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout/top-bar";
 import { OnboardingGuard } from "@/components/layout/onboarding-guard";
 import { PastDueChecker } from "@/components/past-due-checker";
 import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
+import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
 
 export default async function AppLayout({
   children,
@@ -44,6 +45,7 @@ export default async function AppLayout({
       <div className="lg:pl-64">
         <TopBar userName={userName} userTier={userTier} />
         <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+          <LinkedInStatusBanner />
           {children}
         </main>
       </div>
