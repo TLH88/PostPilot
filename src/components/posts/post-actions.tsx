@@ -120,7 +120,7 @@ export function PostActions({
           {/* Status actions */}
           {(status === "review" || status === "scheduled" || status === "past_due" || status === "posted") && (
             <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "draft")}>
-              <FileEdit className="size-3" /> Back to Draft
+              <FileEdit className="size-3" /> Revert to Draft
             </Button>
           )}
           {status === "draft" && canReview && (
@@ -252,7 +252,7 @@ export function PostActions({
             {(status === "review" || status === "scheduled" || status === "past_due" || status === "posted") && (
               <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.backToDraft.text}>
                 <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
-                  <FileEdit className="size-4" /> Back to Draft
+                  <FileEdit className="size-4" /> Revert to Draft
                 </DropdownMenuItem>
               </ActionTooltip>
             )}

@@ -1617,7 +1617,7 @@ export default function PostWorkspacePage() {
                   {status === "review" && (
                     <>
                       <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                        Back to Draft
+                        Revert to Draft
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
                         <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
@@ -1635,7 +1635,7 @@ export default function PostWorkspacePage() {
                   {status === "scheduled" && (
                     <>
                       <DropdownMenuItem onClick={() => updateStatus("review")}>
-                        Back to Review
+                        Revert to Review
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
                         <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
@@ -1650,7 +1650,7 @@ export default function PostWorkspacePage() {
                   {status === "past_due" && (
                     <>
                       <DropdownMenuItem onClick={() => updateStatus("review")}>
-                        Back to Review
+                        Revert to Review
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing}>
                         <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
@@ -1676,7 +1676,7 @@ export default function PostWorkspacePage() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => updateStatus("draft")}>
                         <FileEdit className="size-3.5 mr-2" />
-                        Back to Draft
+                        Revert to Draft
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
                         <CalendarClock className="size-3.5 mr-2" />

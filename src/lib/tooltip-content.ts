@@ -31,7 +31,7 @@ export const POSTS_TOOLTIPS = {
 
 export const POST_ACTION_TOOLTIPS = {
   moveToReview: { text: "Submit this post for team review before publishing. Available for Team and Enterprise plans." },
-  backToDraft: { text: "Move this post back to draft status for further editing" },
+  backToDraft: { text: "Revert this post to draft status for further editing" },
   manuallyPosted: { text: "Mark this post as already published to LinkedIn outside of PostPilot" },
   reschedule: { text: "Change the scheduled publish date and time for this post" },
   postNow: { text: "Publish this post to LinkedIn immediately" },
