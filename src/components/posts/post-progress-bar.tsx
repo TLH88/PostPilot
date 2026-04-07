@@ -44,7 +44,6 @@ export function PostProgressBar({
   // Map post status to step index
   function getActiveIndex(): number {
     const normalizedStatus = status === "posted" ? "published" : status;
-    // past_due maps to scheduled step
     const mappedStatus = normalizedStatus === "past_due" ? "scheduled" : normalizedStatus;
     const idx = steps.indexOf(mappedStatus);
     return idx === -1 ? 0 : idx;
@@ -54,7 +53,7 @@ export function PostProgressBar({
   const isPublished = status === "posted";
 
   return (
-    <div className="mb-4">
+    <div className="mb-4 rounded-xl bg-primary px-4 py-3 shadow-sm">
       <div className="flex items-center">
         {steps.map((step, i) => {
           const isCompleted = i < activeIndex || isPublished;
@@ -65,47 +64,48 @@ export function PostProgressBar({
               {/* Step circle + label */}
               <Tooltip>
                 <TooltipTrigger render={<div className="flex flex-col items-center gap-1 min-w-[70px] cursor-default" />}>
-                  <div
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
-                      isCompleted
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : isCurrent
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-muted-foreground/30 bg-background text-muted-foreground/50"
-                    )}
-                  >
-                    {isCompleted ? (
-                      <Check className="size-3.5" />
-                    ) : (
-                      i + 1
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium text-center leading-tight",
-                      isCompleted || isCurrent
-                        ? "text-foreground"
-                        : "text-muted-foreground/60"
-                    )}
-                  >
-                    {stepLabels[step]}
-                  </span>
-                  {step === "scheduled" && scheduledFor && (isCurrent || isCompleted) && (
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 leading-tight text-center">
-                      Publishing{" "}
-                      {scheduledFor.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      at{" "}
-                      {scheduledFor.toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
+                    <div
+                      className={cn(
+                        "flex size-7 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
+                        isCompleted
+                          ? "border-white bg-white text-primary"
+                          : isCurrent
+                            ? "border-white bg-white/20 text-white"
+                            : "border-white/30 bg-transparent text-white/40"
+                      )}
+                    >
+                      {isCompleted ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        i + 1
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[11px] font-medium text-center leading-tight",
+                        isCompleted || isCurrent
+                          ? "text-white"
+                          : "text-white/50"
+                      )}
+                    >
+                      {stepLabels[step]}
                     </span>
-                  )}
+                    {/* Show scheduled date/time below the Scheduled step */}
+                    {step === "scheduled" && scheduledFor && (isCurrent || isCompleted) && (
+                      <span className="text-[10px] text-white/80 leading-tight text-center">
+                        Publishing{" "}
+                        {scheduledFor.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        at{" "}
+                        {scheduledFor.toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </span>
+                    )}
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {STEP_TOOLTIPS[step]}
@@ -118,8 +118,8 @@ export function PostProgressBar({
                   className={cn(
                     "h-0.5 flex-1 mx-1 mt-[-24px]",
                     i < activeIndex || isPublished
-                      ? "bg-primary"
-                      : "bg-muted-foreground/20"
+                      ? "bg-white"
+                      : "bg-white/20"
                   )}
                 />
               )}
