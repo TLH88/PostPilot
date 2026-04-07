@@ -35,6 +35,7 @@ import {
   ExternalLink,
   AlertTriangle,
   CalendarClock,
+  FileEdit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1672,7 +1673,18 @@ export default function PostWorkspacePage() {
                           View on LinkedIn
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                        <FileEdit className="size-3.5 mr-2" />
+                        Back to Draft
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                        <CalendarClock className="size-3.5 mr-2" />
+                        Schedule
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => updateStatus("archived")}>
+                        <Archive className="size-3.5 mr-2" />
                         Archive
                       </DropdownMenuItem>
                     </>

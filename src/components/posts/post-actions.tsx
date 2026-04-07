@@ -118,7 +118,7 @@ export function PostActions({
       <>
         <div className="flex flex-wrap items-center gap-1 w-full">
           {/* Status actions */}
-          {status === "review" && (
+          {(status === "review" || status === "scheduled" || status === "past_due" || status === "posted") && (
             <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "draft")}>
               <FileEdit className="size-3" /> Back to Draft
             </Button>
@@ -126,11 +126,6 @@ export function PostActions({
           {status === "draft" && canReview && (
             <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "review")}>
               <Eye className="size-3" /> Move to Review
-            </Button>
-          )}
-          {(status === "scheduled" || status === "past_due") && (
-            <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "draft")}>
-              <FileEdit className="size-3" /> Back to Draft
             </Button>
           )}
 
@@ -254,7 +249,7 @@ export function PostActions({
           {/* ── Status ── */}
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</DropdownMenuLabel>
-            {(status === "review" || status === "scheduled" || status === "past_due") && (
+            {(status === "review" || status === "scheduled" || status === "past_due" || status === "posted") && (
               <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.backToDraft.text}>
                 <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
                   <FileEdit className="size-4" /> Back to Draft
@@ -265,6 +260,13 @@ export function PostActions({
               <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.moveToReview.text}>
                 <DropdownMenuItem onClick={(e) => handleStatusChange(e, "review")}>
                   <Eye className="size-4" /> Move to Review
+                </DropdownMenuItem>
+              </ActionTooltip>
+            )}
+            {status === "posted" && onReschedule && (
+              <ActionTooltip tooltip="Schedule this post for republishing at a future date and time">
+                <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule(); }}>
+                  <CalendarClock className="size-4" /> Schedule
                 </DropdownMenuItem>
               </ActionTooltip>
             )}
