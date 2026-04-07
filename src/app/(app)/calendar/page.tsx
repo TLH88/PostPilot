@@ -3,11 +3,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
   FileText,
+  Send,
 } from "lucide-react";
 import {
   startOfMonth,
@@ -35,6 +37,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { POST_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { ScheduleDialog } from "@/components/schedule-dialog";
+import { toast } from "sonner";
 import type { Post } from "@/types";
 
 const WEEKDAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -49,6 +58,40 @@ export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("month");
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Reschedule dialog state
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [reschedulePost, setReschedulePost] = useState<Post | null>(null);
+
+  async function handleReschedule(date: Date) {
+    if (!reschedulePost) return;
+    const { error } = await supabase
+      .from("posts")
+      .update({
+        status: "scheduled",
+        scheduled_for: date.toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", reschedulePost.id);
+
+    if (!error) {
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === reschedulePost.id
+            ? { ...p, status: "scheduled", scheduled_for: date.toISOString() }
+            : p
+        )
+      );
+      toast.success("Post rescheduled successfully!");
+    } else {
+      toast.error("Failed to reschedule post.");
+    }
+    setReschedulePost(null);
+  }
+
+  async function handlePostNow(post: Post) {
+    router.push(`/posts/${post.id}`);
+  }
 
   // Fetch posts with scheduled_for dates
   useEffect(() => {
@@ -168,24 +211,54 @@ export default function CalendarPage() {
       ? new Date(post.scheduled_for)
       : null;
 
+    const displayTitle = post.title || (post.content ? post.content.slice(0, 30) + "..." : "Untitled");
+    const previewContent = post.content ? post.content.slice(0, 200) : "";
+
     return (
-      <button
-        key={post.id}
-        onClick={() => router.push(`/posts/${post.id}`)}
-        className={cn(
-          "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
-          statusConfig?.color ?? "bg-gray-100 text-gray-700"
-        )}
-        title={post.title ?? "Untitled"}
-      >
-        {showTime && scheduledDate && (
-          <span className="mr-1">{format(scheduledDate, "h:mm a")}</span>
-        )}
-        {post.title ||
-          (post.content
-            ? post.content.slice(0, 30) + "..."
-            : "Untitled")}
-      </button>
+      <Tooltip key={post.id}>
+        <TooltipTrigger render={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/posts/${post.id}`);
+            }}
+            className={cn(
+              "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
+              statusConfig?.color ?? "bg-gray-100 text-gray-700"
+            )}
+          />
+        }>
+          {showTime && scheduledDate && (
+            <span className="mr-1">{format(scheduledDate, "h:mm a")}</span>
+          )}
+          {displayTitle}
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[260px] space-y-1.5 p-3 text-left">
+          <p className="font-semibold text-xs leading-snug">{displayTitle}</p>
+          {previewContent && (
+            <p className="text-[11px] opacity-80 leading-snug">
+              {previewContent}{post.content && post.content.length > 200 ? "..." : ""}
+            </p>
+          )}
+          {scheduledDate && (
+            <p className="text-[10px] opacity-70">
+              {format(scheduledDate, "MMM d, yyyy")} at {format(scheduledDate, "h:mm a")}
+            </p>
+          )}
+          <div className="flex items-center gap-1.5">
+            {statusConfig && (
+              <span className={cn("inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium", statusConfig.color)}>
+                {statusConfig.label}
+              </span>
+            )}
+            {(post.content_pillars ?? []).map((pillar: string) => (
+              <span key={pillar} className="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium">
+                {pillar}
+              </span>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -524,6 +597,33 @@ export default function CalendarPage() {
                         {pillar}
                       </Badge>
                     ))}
+                    <div className="flex gap-1.5 pt-1">
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="gap-1 text-[10px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReschedulePost(post);
+                          setRescheduleDialogOpen(true);
+                        }}
+                      >
+                        <CalendarClock className="size-3" />
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="gap-1 text-[10px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePostNow(post);
+                        }}
+                      >
+                        <Send className="size-3" />
+                        Post Now
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -531,6 +631,14 @@ export default function CalendarPage() {
           )}
         </div>
       </div>
+
+      {/* Reschedule dialog */}
+      <ScheduleDialog
+        open={rescheduleDialogOpen}
+        onOpenChange={setRescheduleDialogOpen}
+        onSchedule={handleReschedule}
+        initialDate={reschedulePost?.scheduled_for ? new Date(reschedulePost.scheduled_for) : undefined}
+      />
     </div>
   );
 }
