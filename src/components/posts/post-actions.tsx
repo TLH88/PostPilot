@@ -148,10 +148,20 @@ export function PostActions({
               {/* Schedule Post */}
               <DropdownMenuItem
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule?.(); }}
-                disabled={!onReschedule || status === "archived"}
+                disabled={status === "archived"}
               >
                 <CalendarClock className="size-4" /> Schedule Post
               </DropdownMenuItem>
+
+              {/* Move to Review — Team/Enterprise only */}
+              {canReview && (
+                <DropdownMenuItem
+                  onClick={(e) => handleStatusChange(e, "review")}
+                  disabled={status === "review" || status === "posted" || status === "archived"}
+                >
+                  <Eye className="size-4" /> Move to Review
+                </DropdownMenuItem>
+              )}
 
               {/* Manually Posted */}
               <DropdownMenuItem
@@ -257,96 +267,81 @@ export function PostActions({
           className="w-52"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
-          {/* ── Status ── */}
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</DropdownMenuLabel>
-            {(status === "review" || status === "scheduled" || status === "past_due" || status === "posted") && (
-              <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.backToDraft.text}>
-                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
-                  <FileEdit className="size-4" /> Revert to Draft
-                </DropdownMenuItem>
-              </ActionTooltip>
-            )}
-            {status === "draft" && canReview && (
-              <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.moveToReview.text}>
-                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "review")}>
-                  <Eye className="size-4" /> Move to Review
-                </DropdownMenuItem>
-              </ActionTooltip>
-            )}
-            {status === "posted" && onReschedule && (
-              <ActionTooltip tooltip="Schedule this post for republishing at a future date and time">
-                <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule(); }}>
-                  <CalendarClock className="size-4" /> Schedule
-                </DropdownMenuItem>
-              </ActionTooltip>
-            )}
-          </DropdownMenuGroup>
+          {/* Post to LinkedIn */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.postNow.text}>
+            <DropdownMenuItem
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPostNow?.(); }}
+              disabled={!onPostNow || status === "posted" || status === "archived"}
+            >
+              <Send className="size-4" /> Post to LinkedIn
+            </DropdownMenuItem>
+          </ActionTooltip>
 
-          {/* ── Publishing ── */}
-          {["draft", "review", "scheduled", "past_due"].includes(status) && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Publishing</DropdownMenuLabel>
-                {(status === "scheduled" || status === "past_due") && onReschedule && (
-                  <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.reschedule.text}>
-                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule(); }}>
-                      <CalendarClock className="size-4" /> Reschedule
-                    </DropdownMenuItem>
-                  </ActionTooltip>
-                )}
-                {(status === "scheduled" || status === "past_due") && onPostNow && (
-                  <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.postNow.text}>
-                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPostNow(); }}>
-                      <Send className="size-4" /> Post Now
-                    </DropdownMenuItem>
-                  </ActionTooltip>
-                )}
-                <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.manuallyPosted.text}>
-                  <DropdownMenuItem onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setManuallyPostedConfirmOpen(true);
-                  }}>
-                    <Check className="size-4" /> Manually Posted
-                  </DropdownMenuItem>
-                </ActionTooltip>
-              </DropdownMenuGroup>
-            </>
+          {/* Schedule Post */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.reschedule.text}>
+            <DropdownMenuItem
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule?.(); }}
+              disabled={status === "archived"}
+            >
+              <CalendarClock className="size-4" /> Schedule Post
+            </DropdownMenuItem>
+          </ActionTooltip>
+
+          {/* Move to Review — Team/Enterprise only */}
+          {canReview && (
+            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.moveToReview.text}>
+              <DropdownMenuItem
+                onClick={(e) => handleStatusChange(e, "review")}
+                disabled={status === "review" || status === "posted" || status === "archived"}
+              >
+                <Eye className="size-4" /> Move to Review
+              </DropdownMenuItem>
+            </ActionTooltip>
           )}
 
-          {/* ── Management ── */}
+          {/* Manually Posted */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.manuallyPosted.text}>
+            <DropdownMenuItem
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setManuallyPostedConfirmOpen(true); }}
+              disabled={status === "posted" || status === "archived"}
+            >
+              <Check className="size-4" /> Manually Posted
+            </DropdownMenuItem>
+          </ActionTooltip>
+
           <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Management</DropdownMenuLabel>
-            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.openInEditor.text}>
-              <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/posts/${postId}`); }}>
-                <ExternalLink className="size-4" /> Open in Editor
+
+          {/* Open in Editor */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.openInEditor.text}>
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/posts/${postId}`); }}>
+              <ExternalLink className="size-4" /> Open in Editor
+            </DropdownMenuItem>
+          </ActionTooltip>
+
+          {/* Archive / Restore */}
+          {status !== "archived" ? (
+            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.archive.text}>
+              <DropdownMenuItem onClick={(e) => handleStatusChange(e, "archived")}>
+                <Archive className="size-4" /> Archive
               </DropdownMenuItem>
             </ActionTooltip>
-            {status !== "archived" ? (
-              <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.archive.text}>
-                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "archived")}>
-                  <Archive className="size-4" /> Archive
-                </DropdownMenuItem>
-              </ActionTooltip>
-            ) : (
-              <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.restore.text}>
-                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
-                  <RotateCcw className="size-4" /> Restore to Draft
-                </DropdownMenuItem>
-              </ActionTooltip>
-            )}
-            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.delete.text}>
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true); }}
-              >
-                <Trash2 className="size-4" /> Delete
+          ) : (
+            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.restore.text}>
+              <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
+                <RotateCcw className="size-4" /> Restore to Draft
               </DropdownMenuItem>
             </ActionTooltip>
-          </DropdownMenuGroup>
+          )}
+
+          {/* Delete */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.delete.text}>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true); }}
+            >
+              <Trash2 className="size-4" /> Delete
+            </DropdownMenuItem>
+          </ActionTooltip>
         </DropdownMenuContent>
       </DropdownMenu>
 
