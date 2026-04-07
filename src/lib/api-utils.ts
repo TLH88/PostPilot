@@ -21,6 +21,11 @@ export const ChatInputSchema = z.object({
     .min(1, "Messages array must have at least one message"),
   postContent: z.string().optional(),
   postTitle: z.string().optional(),
+  postStatus: z.string().optional(),
+  contentPillar: z.string().optional(),
+  hashtags: z.array(z.string()).optional(),
+  wordCount: z.number().optional(),
+  characterCount: z.number().optional(),
 });
 
 export const BrainstormInputSchema = z.object({

@@ -203,7 +203,7 @@ export default function IdeaDetailPage({
         .eq("id", id);
 
       toast.success("Post created! Redirecting to editor...");
-      router.push(`/posts/${post.id}`);
+      router.push(`/posts/${post.id}?fromIdea=true&ideaDescription=${encodeURIComponent(description || "")}`);
     } catch (error) {
       console.error("Develop idea error:", error);
       toast.error("Failed to create post from idea.");

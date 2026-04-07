@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, postContent, postTitle } = parsed.data;
+    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount } = parsed.data;
 
     const { client, profile } = await getUserAIClient();
     activeProvider = profile.ai_provider ?? undefined;
@@ -41,9 +41,15 @@ export async function POST(request: NextRequest) {
 
     // Build system prompt with optional post context
     let additionalContext: string | undefined;
-    if (postContent) {
-      const title = postTitle ? ` titled '${postTitle}'` : "";
-      additionalContext = `The creator is working on a post${title}. Current draft:\n---\n${postContent}\n---`;
+    if (postContent || postTitle) {
+      const parts: string[] = [];
+      if (postTitle) parts.push(`Post title: "${postTitle}"`);
+      if (postStatus) parts.push(`Current status: ${postStatus}`);
+      if (contentPillar) parts.push(`Content pillar: ${contentPillar}`);
+      if (hashtags?.length) parts.push(`Hashtags: ${hashtags.join(", ")}`);
+      if (characterCount) parts.push(`Character count: ${characterCount}/3000`);
+      if (postContent) parts.push(`Current draft:\n---\n${postContent}\n---`);
+      additionalContext = `The creator is working on a LinkedIn post. Here's the current state:\n${parts.join("\n")}`;
     }
 
     const systemPrompt = buildSystemPrompt(
