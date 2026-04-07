@@ -113,65 +113,76 @@ export function PostActions({
     router.refresh();
   }
 
+  // Footer variant now uses the same dropdown as the default variant
   if (variant === "footer") {
     return (
       <>
-        <div className="flex flex-wrap items-center gap-1 w-full">
-          {/* Status actions */}
-          {(status === "review" || status === "scheduled" || status === "past_due" || status === "posted") && (
-            <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "draft")}>
-              <FileEdit className="size-3" /> Revert to Draft
-            </Button>
-          )}
-          {status === "draft" && canReview && (
-            <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "review")}>
-              <Eye className="size-3" /> Move to Review
-            </Button>
-          )}
-
-          {/* Archive / Restore */}
-          {status !== "archived" ? (
-            <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "archived")}>
-              <Archive className="size-3" /> Archive
-            </Button>
-          ) : (
-            <Button variant="ghost" size="xs" onClick={(e) => handleStatusChange(e, "draft")}>
-              <RotateCcw className="size-3" /> Restore
-            </Button>
-          )}
-
-          {/* Delete */}
-          <Button
-            variant="ghost"
-            size="xs"
-            className="text-destructive hover:text-destructive"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setDeleteDialogOpen(true);
-            }}
-          >
-            <Trash2 className="size-3" /> Delete
-          </Button>
-
-          {/* Manually Posted — pushed to far right */}
-          {["draft", "review", "scheduled", "past_due"].includes(status) && (
-            <>
-              <div className="flex-1" />
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setManuallyPostedConfirmOpen(true);
-                }}
+        <div className="flex w-full">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="gap-1 text-muted-foreground"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                />
+              }
+            >
+              <MoreVertical className="size-3" />
+              Actions
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-48"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              {/* Post to LinkedIn */}
+              <DropdownMenuItem
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPostNow?.(); }}
+                disabled={!onPostNow || status === "posted" || status === "archived"}
               >
-                <Check className="size-3" />
-                Manually Posted
-              </button>
-            </>
-          )}
+                <Send className="size-4" /> Post to LinkedIn
+              </DropdownMenuItem>
+
+              {/* Schedule Post */}
+              <DropdownMenuItem
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReschedule?.(); }}
+                disabled={!onReschedule || status === "archived"}
+              >
+                <CalendarClock className="size-4" /> Schedule Post
+              </DropdownMenuItem>
+
+              {/* Manually Posted */}
+              <DropdownMenuItem
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setManuallyPostedConfirmOpen(true); }}
+                disabled={status === "posted" || status === "archived"}
+              >
+                <Check className="size-4" /> Manually Posted
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {/* Archive / Restore */}
+              {status !== "archived" ? (
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "archived")}>
+                  <Archive className="size-4" /> Archive
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
+                  <RotateCcw className="size-4" /> Restore to Draft
+                </DropdownMenuItem>
+              )}
+
+              {/* Delete */}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true); }}
+              >
+                <Trash2 className="size-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Delete confirmation dialog */}
