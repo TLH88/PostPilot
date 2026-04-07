@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { POST_STATUSES } from "@/lib/constants";
+import { POST_STATUSES, type SubscriptionTier } from "@/lib/constants";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { PostActions } from "@/components/posts/post-actions";
 
@@ -37,7 +37,7 @@ interface PostItem {
   scheduled_for: string | null;
 }
 
-function PostCard({ post }: { post: PostItem }) {
+function PostCard({ post, userTier }: { post: PostItem; userTier: SubscriptionTier }) {
   const status = POST_STATUSES[post.status as keyof typeof POST_STATUSES];
   const displayTitle =
     post.title ||
@@ -126,7 +126,7 @@ function PostCard({ post }: { post: PostItem }) {
 
         {/* Action buttons */}
         <CardFooter className="gap-1">
-          <PostActions postId={post.id} status={post.status} title={post.title} variant="footer" />
+          <PostActions postId={post.id} status={post.status} title={post.title} variant="footer" userTier={userTier} />
         </CardFooter>
       </Card>
     </Link>
@@ -161,12 +161,20 @@ export default async function PostsPage() {
     redirect("/login");
   }
 
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions, scheduled_for")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false });
+  const [{ data: posts }, { data: profileData }] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions, scheduled_for")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("creator_profiles")
+      .select("subscription_tier")
+      .eq("user_id", user.id)
+      .single(),
+  ]);
 
+  const userTier = (profileData?.subscription_tier as SubscriptionTier) ?? "free";
   const allPosts: PostItem[] = posts ?? [];
 
   const draftPosts = allPosts.filter((p) => p.status === "draft");
@@ -291,7 +299,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {inWorkPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -305,7 +313,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {completePosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -317,7 +325,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {allPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -329,7 +337,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {draftPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -343,7 +351,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reviewPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -357,7 +365,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {scheduledPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -371,7 +379,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastDuePosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -385,7 +393,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {postedPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -399,7 +407,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {archivedPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
