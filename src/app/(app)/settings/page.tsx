@@ -6,7 +6,6 @@ import { SignOutButton } from "./sign-out-button";
 import { ThemeSetting } from "./theme-setting";
 import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
-import { SubscriptionTierSetting } from "./subscription-tier";
 import { WorkspaceSettings } from "./workspace-settings";
 import { ManagedAIStatus } from "./managed-ai-status";
 import type { SubscriptionTier } from "@/lib/constants";
@@ -35,21 +34,9 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground max-w-[80%]">
-          Manage your subscription plan, configure your AI provider and API key, connect your LinkedIn account for direct posting, and customize your theme preferences.
+          Configure your AI provider and API key, connect your LinkedIn account for direct posting, and customize your theme preferences.
         </p>
       </div>
-
-      {/* Subscription Plan */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Subscription Plan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SubscriptionTierSetting
-            currentTier={(profile?.subscription_tier as SubscriptionTier) ?? "free"}
-          />
-        </CardContent>
-      </Card>
 
       {/* Workspace (Team+ only) */}
       {hasFeature((profile?.subscription_tier as SubscriptionTier) ?? "free", "workspaces") && (
