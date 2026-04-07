@@ -38,7 +38,7 @@ export function HelpSidebarProvider({ children }: { children: React.ReactNode })
   return (
     <HelpSidebarContext.Provider value={{ openHelp }}>
       {children}
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={open} onOpenChange={setOpen} modal={false}>
         <SheetContent side="right" className="flex w-full max-w-lg flex-col p-0">
           <SheetHeader className="border-b px-5 py-4">
             <SheetTitle className="flex items-center gap-2">
