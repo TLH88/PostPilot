@@ -64,49 +64,48 @@ export function PostProgressBar({
             <div key={step} className="flex items-center flex-1 last:flex-initial">
               {/* Step circle + label */}
               <Tooltip>
-                <TooltipTrigger render={<div className="flex flex-col items-center gap-1 min-w-[70px]" />}>
-                    <div
-                      className={cn(
-                        "flex size-7 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
-                        isCompleted
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : isCurrent
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-muted-foreground/30 bg-background text-muted-foreground/50"
-                      )}
-                    >
-                      {isCompleted ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        i + 1
-                      )}
-                    </div>
-                    <span
-                      className={cn(
-                        "text-[11px] font-medium text-center leading-tight",
-                        isCompleted || isCurrent
-                          ? "text-foreground"
-                          : "text-muted-foreground/60"
-                      )}
-                    >
-                      {stepLabels[step]}
-                    </span>
-                    {/* Show scheduled date/time below the Scheduled step */}
-                    {step === "scheduled" && scheduledFor && (isCurrent || isCompleted) && (
-                      <span className="text-[10px] text-purple-600 dark:text-purple-400 leading-tight text-center">
-                        Publishing{" "}
-                        {scheduledFor.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        at{" "}
-                        {scheduledFor.toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
-                      </span>
+                <TooltipTrigger render={<div className="flex flex-col items-center gap-1 min-w-[70px] cursor-default" />}>
+                  <div
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
+                      isCompleted
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : isCurrent
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-muted-foreground/30 bg-background text-muted-foreground/50"
                     )}
+                  >
+                    {isCompleted ? (
+                      <Check className="size-3.5" />
+                    ) : (
+                      i + 1
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[11px] font-medium text-center leading-tight",
+                      isCompleted || isCurrent
+                        ? "text-foreground"
+                        : "text-muted-foreground/60"
+                    )}
+                  >
+                    {stepLabels[step]}
+                  </span>
+                  {step === "scheduled" && scheduledFor && (isCurrent || isCompleted) && (
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 leading-tight text-center">
+                      Publishing{" "}
+                      {scheduledFor.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      at{" "}
+                      {scheduledFor.toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </span>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {STEP_TOOLTIPS[step]}
