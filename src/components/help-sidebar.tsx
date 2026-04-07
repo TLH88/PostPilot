@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext } from "react";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -35,16 +36,33 @@ export function HelpSidebarProvider({ children }: { children: React.ReactNode })
     setOpen(true);
   }, []);
 
+  const closeHelp = useCallback(() => {
+    setOpen(false);
+  }, []);
+
   return (
     <HelpSidebarContext.Provider value={{ openHelp }}>
       {children}
-      <Sheet open={open} onOpenChange={setOpen} modal={false}>
-        <SheetContent side="right" className="flex w-full max-w-lg flex-col p-0">
+      <Sheet
+        open={open}
+        onOpenChange={(value) => {
+          // Only allow programmatic open; ignore outside-click dismiss
+          if (value) setOpen(true);
+        }}
+        modal={false}
+      >
+        <SheetContent side="right" className="flex w-full max-w-lg flex-col p-0" showCloseButton={false}>
           <SheetHeader className="border-b px-5 py-4">
-            <SheetTitle className="flex items-center gap-2">
-              <HelpCircle className="size-4 text-primary" />
-              Help Center
-            </SheetTitle>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2">
+                <HelpCircle className="size-4 text-primary" />
+                Help Center
+              </SheetTitle>
+              <Button variant="ghost" size="icon-sm" onClick={closeHelp}>
+                <X className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
           </SheetHeader>
           <ScrollArea className="flex-1">
             <div className="p-5">
