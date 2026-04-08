@@ -1657,6 +1657,24 @@ export default function PostWorkspacePage() {
 
                   <DropdownMenuSeparator />
 
+                  {/* Revert to Draft — shown for non-draft statuses */}
+                  {status !== "draft" && status !== "archived" && (
+                    <DropdownMenuItem onClick={() => updateStatus("draft")}>
+                      <FileEdit className="size-3.5 mr-2" />
+                      Revert to Draft
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Revert to Review — Team/Enterprise only, shown for scheduled/past_due/posted */}
+                  {hasFeature(userTier, "review_status") && ["scheduled", "past_due", "posted"].includes(status) && (
+                    <DropdownMenuItem onClick={() => updateStatus("review")}>
+                      <Eye className="size-3.5 mr-2" />
+                      Revert to Review
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuSeparator />
+
                   {/* Archive / Restore */}
                   {status !== "archived" ? (
                     <DropdownMenuItem onClick={() => updateStatus("archived")}>
