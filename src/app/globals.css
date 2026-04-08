@@ -131,6 +131,17 @@
   }
 }
 
+/* Onborda tour: ensure overlay and card render above sidebar (z-30) */
+[data-name="onborda-overlay"] {
+  z-index: 998 !important;
+}
+[data-name="onborda-pointer"] {
+  z-index: 999 !important;
+}
+[data-name="onborda-card"] {
+  z-index: 999 !important;
+}
+
 /* Theme-colored glow on modals, popups, and dropdowns */
 [data-slot="dialog-content"],
 [data-slot="dropdown-menu-content"],
