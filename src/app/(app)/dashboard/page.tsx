@@ -236,6 +236,7 @@ export default async function DashboardPage() {
           label="Start New Post"
         />
         <Link
+          id="tour-view-calendar"
           href="/calendar"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
         >
@@ -249,7 +250,7 @@ export default async function DashboardPage() {
         {/* Left column — 80% */}
         <div className="flex-1 min-w-0 space-y-6">
           {/* Recent Drafts — card grid */}
-          <div className="space-y-3">
+          <div id="tour-recent-drafts" className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="size-4 text-blue-500" />
@@ -383,7 +384,7 @@ export default async function DashboardPage() {
         <div className="w-full lg:w-[20%] shrink-0 space-y-3">
           {/* Spacer to align with "Recent Drafts" header row */}
           <div className="hidden lg:block h-5" />
-          <UsageSummary />
+          <div id="tour-usage-summary"><UsageSummary /></div>
           {contentPillars.length > 0 && (
             <ContentPillarBalance
               pillarCounts={pillarCounts}
