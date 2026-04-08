@@ -2,6 +2,15 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // Skip session refresh for magic-link callback so verifyOtp can set its own
+  // session cookies without the middleware overwriting them (used by admin impersonation).
+  if (
+    request.nextUrl.pathname === "/callback" &&
+    request.nextUrl.searchParams.has("token_hash")
+  ) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
