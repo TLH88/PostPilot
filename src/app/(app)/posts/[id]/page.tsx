@@ -72,6 +72,7 @@ import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog"
 import { ImageUpload } from "@/components/posts/image-upload";
 import { ImageViewer } from "@/components/posts/image-viewer";
 import { GenerateImageDialog } from "@/components/posts/generate-image-dialog";
+import { ImageVersionPicker } from "@/components/posts/image-version-picker";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
@@ -1537,6 +1538,11 @@ export default function PostWorkspacePage() {
                     className="w-full max-h-48 rounded-lg border object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => setImageViewerOpen(true)}
                     title="Click to view full resolution"
+                  />
+                  <ImageVersionPicker
+                    postId={postId}
+                    currentImageUrl={imageUrl}
+                    onImageChange={setImageUrl}
                   />
                   <ImageViewer
                     open={imageViewerOpen}

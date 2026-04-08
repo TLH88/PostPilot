@@ -15,6 +15,7 @@ import {
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ImageUpload } from "@/components/posts/image-upload";
+import { ImageVersionPicker } from "@/components/posts/image-version-picker";
 import { toast } from "sonner";
 
 interface PublishPreviewDialogProps {
@@ -169,13 +170,20 @@ export function PublishPreviewDialog({
           />
         </div>
 
-        {/* Image selector */}
-        <div className="flex items-center gap-2 border-t pt-3">
-          <ImageUpload
+        {/* Image selector + version history */}
+        <div className="space-y-2 border-t pt-3">
+          <div className="flex items-center gap-2">
+            <ImageUpload
+              postId={postId}
+              imageUrl={currentImageUrl}
+              onImageChange={handleImageChange}
+              compact
+            />
+          </div>
+          <ImageVersionPicker
             postId={postId}
-            imageUrl={currentImageUrl}
+            currentImageUrl={currentImageUrl}
             onImageChange={handleImageChange}
-            compact
           />
         </div>
 
