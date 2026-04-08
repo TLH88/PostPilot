@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { HelpCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useHelpSidebar } from "@/components/help-sidebar";
-import { markTourCompleted } from "@/lib/tours/tour-storage";
+import { useOnborda } from "onborda";
 import confetti from "canvas-confetti";
 import type { CardComponentProps } from "onborda";
 
@@ -21,12 +21,16 @@ export function TourCard({
   arrow,
 }: CardComponentProps) {
   const { openHelp } = useHelpSidebar();
+  const { closeOnborda } = useOnborda();
   const isFirst = currentStep === 0;
   const isLast = currentStep === totalSteps - 1;
 
+  const handleClose = useCallback(() => {
+    closeOnborda();
+  }, [closeOnborda]);
+
   const handleNext = useCallback(() => {
     if (isLast) {
-      // Fire confetti on tour completion
       confetti({
         particleCount: 120,
         spread: 80,
@@ -34,11 +38,11 @@ export function TourCard({
         colors: ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ffffff"],
         disableForReducedMotion: true,
       });
-      // Mark tour as completed (extract tour name from step data if available)
-      // The provider handles this via onComplete callback
+      closeOnborda();
+      return;
     }
     nextStep();
-  }, [isLast, nextStep]);
+  }, [isLast, nextStep, closeOnborda]);
 
   const handleHelp = useCallback(() => {
     // Access helpArticle from the step's content or icon metadata
@@ -63,9 +67,9 @@ export function TourCard({
             <h3 className="text-[15px] font-bold leading-snug">{step.title}</h3>
           </div>
           <button
-            onClick={nextStep}
+            onClick={handleClose}
             className="flex size-7 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors shrink-0 ml-2"
-            title="Skip tour"
+            title="Close tour"
           >
             <X className="size-3.5" />
           </button>
