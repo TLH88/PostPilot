@@ -333,7 +333,7 @@ export default function CalendarPage() {
               </div>
               <div className="flex items-center gap-1">
                 {/* View toggles */}
-                <div className="flex rounded-md border border-input mr-2">
+                <div id="tour-calendar-views" className="flex rounded-md border border-input mr-2">
                   {(["month", "week", "day"] as CalendarView[]).map((v) => (
                     <button
                       key={v}
@@ -528,7 +528,7 @@ export default function CalendarPage() {
         </Card>
 
         {/* Upcoming posts — right side */}
-        <div className="w-full lg:w-[390px] shrink-0 space-y-3">
+        <div id="tour-upcoming-posts" className="w-full lg:w-[390px] shrink-0 space-y-3">
           <div className="flex items-center gap-2 px-1">
             <Clock className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Upcoming Posts</h2>

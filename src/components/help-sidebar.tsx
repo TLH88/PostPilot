@@ -165,49 +165,29 @@ function HelpArticleLink({ id, title, description }: { id: string; title: string
 function GuidedToursSection() {
   const { startTour, resetTour } = useTour();
   const router = useRouter();
-  const supabase = createClient();
 
-  const tours = [
-    { name: TOUR_NAMES.WELCOME, label: "Welcome Tour", description: "Dashboard overview and navigation", route: "/dashboard" },
-    { name: TOUR_NAMES.IDEA_TO_POST, label: "Idea Workflow", description: "Generate, organize, and develop ideas", route: "/ideas" },
-    { name: TOUR_NAMES.POST_EDITOR, label: "Post Editor", description: "Writing, AI assistant, and publishing", route: "/posts", needsPostId: true },
-  ];
-
-  async function handleRestart(tourName: string, route: string, needsPostId?: boolean) {
-    resetTour(tourName);
-    let targetRoute = route;
-    if (needsPostId) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: posts } = await supabase.from("posts").select("id").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1);
-          if (posts?.[0]) targetRoute = `/posts/${posts[0].id}`;
-        }
-      } catch { /* fall back to /posts */ }
-    }
-    router.push(targetRoute);
-    setTimeout(() => startTour(tourName), 1200);
+  function handleRestart() {
+    resetTour(TOUR_NAMES.WELCOME);
+    router.push("/dashboard");
+    setTimeout(() => startTour(TOUR_NAMES.WELCOME), 1200);
   }
 
   return (
     <div className="rounded-lg border p-3 space-y-2">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Guided Tours</h4>
-      <p className="text-xs text-muted-foreground">Restart any guided tour to walk through features step by step.</p>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Guided Tour</h4>
+      <p className="text-xs text-muted-foreground">Walk through the complete PostPilot workflow step by step.</p>
       <div className="space-y-1.5">
-        {tours.map((t) => (
           <button
-            key={t.name}
             type="button"
-            onClick={() => handleRestart(t.name, t.route, t.needsPostId)}
+            onClick={handleRestart}
             className="flex items-center gap-2 w-full rounded-md px-2.5 py-2 text-left hover:bg-hover-highlight transition-colors"
           >
             <Play className="size-3.5 text-primary shrink-0" />
             <div>
-              <p className="text-xs font-medium">{t.label}</p>
-              <p className="text-[10px] text-muted-foreground">{t.description}</p>
+              <p className="text-xs font-medium">Full Product Walkthrough</p>
+              <p className="text-[10px] text-muted-foreground">Dashboard, ideas, post editor, calendar, and publishing</p>
             </div>
           </button>
-        ))}
       </div>
     </div>
   );

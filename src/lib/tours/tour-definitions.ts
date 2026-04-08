@@ -1,13 +1,10 @@
 /**
  * Tour step definitions for PostPilot guided onboarding.
  *
- * Each step uses element IDs as selectors (e.g., "#tour-dashboard-metrics").
- * The `helpArticle` field links to the help sidebar article for "Need help?" links.
+ * ONE end-to-end tour that walks users through the complete workflow:
+ * Dashboard → Idea Generator → Idea Bank → Post Editor → Calendar → Publishing
  *
- * Three progressive tours:
- * 1. "welcome" - Dashboard orientation after onboarding (5 steps)
- * 2. "idea-to-post" - Idea Bank workflow (4 steps)
- * 3. "post-editor" - Post editor features (6 steps)
+ * Uses Onborda's nextRoute/prevRoute for cross-page navigation.
  */
 
 export interface TourStepDef {
@@ -33,10 +30,11 @@ export const TOUR_DEFINITIONS: TourDef[] = [
   {
     tour: "welcome",
     steps: [
+      // ─── DASHBOARD (Steps 1-3) ──────────────────────────────────────
       {
-        icon: "🧭",
+        icon: "👋",
         title: "Welcome to PostPilot!",
-        content: "This is your navigation sidebar. Use it to move between pages: Ideas, Posts, Library, Calendar, and more. Each page has tooltips on buttons to help you along.",
+        content: "Let's walk through everything you need to create and publish great LinkedIn content. This tour takes about 2 minutes.",
         selector: "#tour-sidebar-nav",
         side: "right",
         showControls: true,
@@ -45,76 +43,45 @@ export const TOUR_DEFINITIONS: TourDef[] = [
         helpArticle: "getting-started",
       },
       {
-        icon: "⚙️",
-        title: "Settings, Help & Profile",
-        content: "Down here you'll find Settings (AI provider, LinkedIn connection, theme), Help Center (guides and tutorials), and your Profile (expertise, voice, and subscription plan).",
-        selector: "#tour-sidebar-settings",
-        side: "right",
-        showControls: true,
-        pointerPadding: 8,
-        pointerRadius: 12,
-      },
-      {
         icon: "🚀",
-        title: "Quick Actions",
-        content: "These are your main actions. Generate Ideas to brainstorm with AI, Start New Post to write from scratch, or View Calendar to see your publishing schedule.",
+        title: "Your Quick Actions",
+        content: "These are your main starting points: Generate Ideas with AI, Start a New Post from scratch, or View your Calendar to see scheduled posts.",
         selector: "#tour-quick-actions",
         side: "bottom",
         showControls: true,
         pointerPadding: 10,
         pointerRadius: 12,
-        helpArticle: "idea-generation",
       },
       {
-        icon: "📝",
-        title: "Recent Drafts",
-        content: "Your latest drafts appear here for quick access. Click any draft to jump straight into editing it.",
-        selector: "#tour-recent-drafts",
-        side: "top",
-        showControls: true,
-        pointerPadding: 8,
-        pointerRadius: 12,
-      },
-      {
-        icon: "📊",
-        title: "Monthly Usage",
-        content: "Track how much of your monthly plan you've used: posts created, brainstorms, AI messages, and scheduled posts. Upgrade anytime if you need more.",
-        selector: "#tour-usage-summary",
-        side: "left",
-        showControls: true,
-        pointerPadding: 8,
-        pointerRadius: 12,
-      },
-      {
-        icon: "🎉",
-        title: "Your Dashboard at a Glance",
-        content: "These cards show your content stats: total posts, scheduled, and published. You're all set! Explore at your own pace, and hover any button for a helpful tooltip.",
-        selector: "#tour-dashboard-metrics",
+        icon: "💡",
+        title: "Let's Generate Some Ideas",
+        content: "The best way to start is by brainstorming. Click \"Generate Ideas\" to open the AI Idea Generator. Let's try it!",
+        selector: "#tour-generate-ideas",
         side: "bottom",
         showControls: true,
-        pointerPadding: 12,
-        pointerRadius: 16,
+        pointerPadding: 10,
+        pointerRadius: 12,
+        helpArticle: "idea-generation",
+        nextRoute: "/ideas",
       },
-    ],
-  },
-  {
-    tour: "idea-to-post",
-    steps: [
+
+      // ─── IDEAS PAGE (Steps 4-7) ─────────────────────────────────────
       {
         icon: "🔄",
         title: "The Idea Workflow",
-        content: "Here's how it works: Generate ideas with AI, filter and organize your favorites, then develop the best ones into polished posts.",
+        content: "Here's how it works: Generate ideas with AI, filter and organize your favorites, then develop the best ones into polished LinkedIn posts.",
         selector: "#tour-idea-process-flow",
         side: "bottom",
         showControls: true,
         pointerPadding: 12,
         pointerRadius: 16,
         helpArticle: "idea-generation",
+        prevRoute: "/dashboard",
       },
       {
         icon: "✨",
-        title: "Generate Ideas",
-        content: "Click here to get AI-generated content ideas. Pick a content pillar and enter a topic to get started. The AI will suggest ideas based on your expertise.",
+        title: "Generate Ideas with AI",
+        content: "Click this button to open the Idea Generator. Pick a content pillar, enter a topic, and the AI will brainstorm ideas based on your expertise and audience.",
         selector: "#tour-generate-ideas-btn",
         side: "bottom",
         showControls: true,
@@ -125,7 +92,7 @@ export const TOUR_DEFINITIONS: TourDef[] = [
       {
         icon: "🔍",
         title: "Filter Your Ideas",
-        content: "Use these filters to sort your ideas. Filter by temperature (Hot, Warm, Cold) to find trending or evergreen topics, or by status (Open, Closed) to focus on what needs attention.",
+        content: "Use temperature filters (Hot = trending, Warm = evergreen, Cold = niche) and status filters (Open, Closed) to find the right ideas to work on.",
         selector: "#tour-idea-filters",
         side: "bottom",
         showControls: true,
@@ -134,8 +101,8 @@ export const TOUR_DEFINITIONS: TourDef[] = [
       },
       {
         icon: "🌡️",
-        title: "Browse Your Ideas",
-        content: "Each idea gets a temperature: Hot (trending topics), Warm (evergreen content), or Cold (niche deep-dives). Click \"Develop\" on any idea to turn it into a post. The AI will write a first draft for you!",
+        title: "Develop an Idea into a Post",
+        content: "When you find an idea you like, click \"Develop\" to turn it into a post. The AI will automatically write a first draft based on the idea's title and description!",
         selector: "#tour-idea-card",
         side: "top",
         showControls: true,
@@ -143,25 +110,12 @@ export const TOUR_DEFINITIONS: TourDef[] = [
         pointerRadius: 12,
         helpArticle: "idea-generation",
       },
-      {
-        icon: "🎉",
-        title: "That's the Idea Flow!",
-        content: "When you develop an idea, you'll land in the post editor where another quick tour will show you the tools. Ready to brainstorm?",
-        selector: "#tour-idea-process-flow",
-        side: "bottom",
-        showControls: true,
-        pointerPadding: 12,
-        pointerRadius: 16,
-      },
-    ],
-  },
-  {
-    tour: "post-editor",
-    steps: [
+
+      // ─── POST EDITOR (Steps 8-14) ──────────────────────────────────
       {
         icon: "📊",
         title: "Track Your Progress",
-        content: "This bar shows your post's journey from Draft to Scheduled to Published, with timestamps at each stage. It updates automatically as you work.",
+        content: "This progress bar shows your post's journey: Draft, Scheduled, Published. Each step shows a timestamp so you can see the full timeline.",
         selector: "#tour-progress-bar",
         side: "bottom",
         showControls: true,
@@ -172,9 +126,19 @@ export const TOUR_DEFINITIONS: TourDef[] = [
       {
         icon: "📝",
         title: "Write Your Post",
-        content: "This is your writing space. Use the Format menu above for line breaks, bullets, and to save your best lines to the Content Library for reuse later.",
+        content: "This is your writing space. Type your content here. It auto-saves as you type, so you never lose your work.",
         selector: "#tour-editor-content",
-        side: "right",
+        side: "top",
+        showControls: true,
+        pointerPadding: 8,
+        pointerRadius: 12,
+      },
+      {
+        icon: "🎨",
+        title: "Format & Library Tools",
+        content: "Use the emoji picker, Format menu (line breaks, bullets, hook analysis), and Insert from Library to add your saved hooks, CTAs, and closings.",
+        selector: "#tour-formatting-toolbar",
+        side: "bottom",
         showControls: true,
         pointerPadding: 8,
         pointerRadius: 12,
@@ -183,7 +147,7 @@ export const TOUR_DEFINITIONS: TourDef[] = [
       {
         icon: "🤖",
         title: "Your AI Writing Partner",
-        content: "Open the AI Assistant to get help. It knows your voice, style, and the full context of your post. Ask it to draft, refine, shorten, add a hook, or improve anything.",
+        content: "Open the AI Assistant panel. It knows your voice, style, and the full context of your post. Ask it to draft, shorten, add a hook, or improve anything.",
         selector: "#tour-ai-panel",
         side: "left",
         showControls: true,
@@ -192,20 +156,9 @@ export const TOUR_DEFINITIONS: TourDef[] = [
         helpArticle: "ai-assistant",
       },
       {
-        icon: "🚀",
-        title: "Publish or Schedule",
-        content: "All actions in one place. \"Post to LinkedIn\" opens a preview first (never posts without your confirmation). \"Schedule Post\" sets a future publish date. You're always in control.",
-        selector: "#tour-actions-menu",
-        side: "bottom",
-        showControls: true,
-        pointerPadding: 8,
-        pointerRadius: 12,
-        helpArticle: "post-actions",
-      },
-      {
         icon: "🖼️",
         title: "Add Images",
-        content: "Upload your own image or generate one with AI. Every image is saved as a version, so you can switch between them anytime. Posts with images get more engagement!",
+        content: "Upload your own image or generate one with AI. Every image is saved as a version so you can switch between them. Posts with images get more engagement!",
         selector: "#tour-image-section",
         side: "top",
         showControls: true,
@@ -214,14 +167,62 @@ export const TOUR_DEFINITIONS: TourDef[] = [
         helpArticle: "post-images",
       },
       {
-        icon: "🎉",
-        title: "You're Ready to Create!",
-        content: "That's everything you need. Hover any button for a tooltip, or click the help icon for detailed guides. Now go write something amazing!",
-        selector: "#tour-progress-bar",
+        icon: "#️⃣",
+        title: "Add Hashtags",
+        content: "Add hashtags to increase your post's reach. Click \"Suggest\" to let AI recommend relevant hashtags, or type your own.",
+        selector: "#tour-hashtags",
+        side: "top",
+        showControls: true,
+        pointerPadding: 8,
+        pointerRadius: 12,
+      },
+      {
+        icon: "🚀",
+        title: "Publish or Schedule",
+        content: "Use the Actions menu to: Post to LinkedIn (opens a preview first), Schedule for a future date, or mark as Manually Posted. You're always in control.",
+        selector: "#tour-actions-menu",
         side: "bottom",
         showControls: true,
         pointerPadding: 8,
-        pointerRadius: 16,
+        pointerRadius: 12,
+        helpArticle: "post-actions",
+        nextRoute: "/calendar",
+      },
+
+      // ─── CALENDAR (Steps 15-16) ─────────────────────────────────────
+      {
+        icon: "📅",
+        title: "Your Content Calendar",
+        content: "Switch between Month, Week, and Day views to see your scheduled posts. Hover any post for a quick preview.",
+        selector: "#tour-calendar-views",
+        side: "bottom",
+        showControls: true,
+        pointerPadding: 8,
+        pointerRadius: 12,
+        helpArticle: "scheduling",
+      },
+      {
+        icon: "⏰",
+        title: "Manage Upcoming Posts",
+        content: "Your upcoming scheduled posts are listed here. Use the Reschedule button to change the date, or Post Now to publish immediately.",
+        selector: "#tour-upcoming-posts",
+        side: "left",
+        showControls: true,
+        pointerPadding: 8,
+        pointerRadius: 12,
+        helpArticle: "scheduling",
+      },
+
+      // ─── FINISH (Step 17) ───────────────────────────────────────────
+      {
+        icon: "🎉",
+        title: "You're Ready!",
+        content: "That's the complete workflow! Generate ideas, develop posts, use AI to write, add images, schedule or publish. Hover any button for a tooltip, or click Help for detailed guides. Happy posting!",
+        selector: "#tour-calendar-views",
+        side: "bottom",
+        showControls: true,
+        pointerPadding: 8,
+        pointerRadius: 12,
       },
     ],
   },

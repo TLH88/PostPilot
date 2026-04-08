@@ -188,17 +188,8 @@ export default function PostWorkspacePage() {
   const [brainstormTopic, setBrainstormTopic] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
 
-  // ── Tour auto-start ─────────────────────────────────────────────────────
-  const { startTour, isTourCompleted } = useTour();
-  useEffect(() => {
-    if (!post?.id || loading) return;
-    const timer = setTimeout(() => {
-      if (!isTourCompleted("post-editor")) {
-        startTour("post-editor");
-      }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [post?.id, loading]);
+  // Tour hook kept for provider context (auto-start removed, single unified tour now)
+  useTour();
 
   // ── Responsive: open AI panel on desktop, keep collapsed on mobile ──────
   const [isMobile, setIsMobile] = useState(false);
@@ -1469,7 +1460,7 @@ export default function PostWorkspacePage() {
             )}
 
             {/* Formatting helpers */}
-            <div className="flex items-center gap-2">
+            <div id="tour-formatting-toolbar" className="flex items-center gap-2">
               <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -1582,7 +1573,7 @@ export default function PostWorkspacePage() {
             <Separator />
 
             {/* Hashtags section */}
-            <div className="space-y-2">
+            <div id="tour-hashtags" className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-sm font-medium">
                   <Hash className="size-3.5" />

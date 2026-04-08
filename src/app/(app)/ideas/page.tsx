@@ -253,16 +253,8 @@ export default function IdeasPage() {
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Tour auto-start
-  const { startTour, isTourCompleted } = useTour();
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isTourCompleted("idea-to-post")) {
-        startTour("idea-to-post");
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+  // Tour hook kept for provider context
+  useTour();
 
   // Dialog states
   const [generateOpen, setGenerateOpen] = useState(false);

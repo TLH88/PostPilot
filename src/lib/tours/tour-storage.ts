@@ -30,6 +30,4 @@ export function resetAllTours(): void {
 
 export const TOUR_NAMES = {
   WELCOME: "welcome",
-  IDEA_TO_POST: "idea-to-post",
-  POST_EDITOR: "post-editor",
 } as const;
