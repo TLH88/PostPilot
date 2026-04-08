@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import { useTour } from "@/lib/tours/tour-provider";
 import { TOUR_NAMES } from "@/lib/tours/tour-storage";
 
@@ -23,7 +24,8 @@ const TOURS = [
     name: TOUR_NAMES.POST_EDITOR,
     label: "Post Editor Tour",
     description: "Progress bar, writing, AI assistant, publishing, and images",
-    route: "/posts",
+    route: "/posts", // Will be resolved to a specific post at runtime
+    needsPostId: true,
   },
 ];
 
@@ -34,11 +36,34 @@ const TOURS = [
 function useRestartTour() {
   const { startTour, resetTour } = useTour();
   const router = useRouter();
+  const supabase = createClient();
 
-  return function restartTour(tourName: string, route: string) {
+  return async function restartTour(tourName: string, route: string, needsPostId?: boolean) {
     resetTour(tourName);
-    router.push(route);
-    // Delay to let the page render and tour target elements mount
+
+    let targetRoute = route;
+
+    // For the post editor tour, navigate to the most recent post
+    if (needsPostId) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: posts } = await supabase
+            .from("posts")
+            .select("id")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+          if (posts?.[0]) {
+            targetRoute = `/posts/${posts[0].id}`;
+          }
+        }
+      } catch {
+        // Fall back to posts list
+      }
+    }
+
+    router.push(targetRoute);
     setTimeout(() => {
       startTour(tourName);
     }, 1200);
@@ -71,7 +96,7 @@ export function TourRestartSection() {
             variant="outline"
             size="sm"
             className="gap-1.5 shrink-0"
-            onClick={() => restartTour(tour.name, tour.route)}
+            onClick={() => restartTour(tour.name, tour.route, (tour as { needsPostId?: boolean }).needsPostId)}
           >
             <RotateCcw className="size-3.5" />
             Restart
@@ -88,12 +113,14 @@ export function TourRestartSection() {
  */
 export function RunTourButton({ tourName, label = "Run guided tour" }: { tourName: string; label?: string }) {
   const restartTour = useRestartTour();
-  const route = TOURS.find((t) => t.name === tourName)?.route ?? "/dashboard";
+  const tour = TOURS.find((t) => t.name === tourName);
+  const route = tour?.route ?? "/dashboard";
+  const needsPostId = (tour as { needsPostId?: boolean } | undefined)?.needsPostId;
 
   return (
     <button
       type="button"
-      onClick={() => restartTour(tourName, route)}
+      onClick={() => restartTour(tourName, route, needsPostId)}
       className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
     >
       <Play className="size-3" />
