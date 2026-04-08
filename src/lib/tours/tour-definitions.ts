@@ -45,6 +45,16 @@ export const TOUR_DEFINITIONS: TourDef[] = [
         helpArticle: "getting-started",
       },
       {
+        icon: "⚙️",
+        title: "Settings, Help & Profile",
+        content: "Down here you'll find Settings (AI provider, LinkedIn connection, theme), Help Center (guides and tutorials), and your Profile (expertise, voice, and subscription plan).",
+        selector: "#tour-sidebar-settings",
+        side: "right",
+        showControls: true,
+        pointerPadding: 8,
+        pointerRadius: 12,
+      },
+      {
         icon: "💡",
         title: "Start with Ideas",
         content: "Click here to brainstorm content ideas with AI. It uses your expertise and content pillars to suggest topics tailored to your audience.",

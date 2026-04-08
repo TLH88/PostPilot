@@ -116,7 +116,7 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
       <Separator />
 
       {/* Settings & Help */}
-      <div className="space-y-1 px-3 py-2">
+      <div id="tour-sidebar-settings" className="space-y-1 px-3 py-2">
         <Link
           href="/settings"
           className={cn(
