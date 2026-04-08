@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useCallback, useState, useEffect } from "react";
-import { OnbordaProvider, Onborda, useOnborda } from "onborda";
+import { createContext, useContext, useCallback, useState } from "react";
+import { NextStepProvider, NextStep, useNextStep } from "nextstepjs";
 import { TourCard } from "@/components/tour/tour-card";
 import { TOUR_DEFINITIONS } from "./tour-definitions";
 import {
   markTourCompleted,
   isTourCompleted as checkCompleted,
+  resetTour as resetStorage,
 } from "./tour-storage";
 
 // ── Public API (abstraction layer) ──────────────────────────────────────────
@@ -31,48 +32,35 @@ export function useTour() {
   return useContext(TourContext);
 }
 
-// ── Inner component that uses Onborda's hook ────────────────────────────────
+// ── Inner component that uses NextStep's hook ───────────────────────────────
 
 function TourController({ children }: { children: React.ReactNode }) {
-  const { startOnborda, closeOnborda, currentTour, currentStep } = useOnborda();
+  const { startNextStep, closeNextStep } = useNextStep();
   const [activeTour, setActiveTour] = useState<string | null>(null);
-
-  // Track when a tour finishes (last step dismissed)
-  useEffect(() => {
-    if (activeTour && !currentTour) {
-      // Tour was closed - mark as completed
-      markTourCompleted(activeTour);
-      setActiveTour(null);
-    }
-  }, [currentTour, activeTour]);
 
   const startTour = useCallback(
     (name: string) => {
       setActiveTour(name);
-      startOnborda(name);
+      startNextStep(name);
     },
-    [startOnborda]
+    [startNextStep]
   );
 
   const closeTour = useCallback(() => {
     if (activeTour) {
       markTourCompleted(activeTour);
     }
-    closeOnborda();
+    closeNextStep();
     setActiveTour(null);
-  }, [closeOnborda, activeTour]);
+  }, [closeNextStep, activeTour]);
 
   const isTourCompleted = useCallback((name: string) => {
     return checkCompleted(name);
   }, []);
 
-  const resetTourFn = useCallback(
-    (name: string) => {
-      const { resetTour: resetStorage } = require("./tour-storage");
-      resetStorage(name);
-    },
-    []
-  );
+  const resetTourFn = useCallback((name: string) => {
+    resetStorage(name);
+  }, []);
 
   return (
     <TourContext.Provider
@@ -89,40 +77,46 @@ function TourController({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Provider wrapper ────────────────────────────────────────────────────────
+// ── Convert step definitions to NextStep format ─────────────────────────────
 
-// Convert our step definitions to Onborda's format
-const onbordaSteps = TOUR_DEFINITIONS.map((tour) => ({
+const nextStepTours = TOUR_DEFINITIONS.map((tour) => ({
   tour: tour.tour,
   steps: tour.steps.map((s) => ({
     icon: <>{s.icon}</>,
     title: s.title,
     content: <>{s.content}</>,
     selector: s.selector,
-    side: s.side,
+    side: s.side as "top" | "bottom" | "left" | "right",
     showControls: s.showControls,
+    showSkip: true,
     pointerPadding: s.pointerPadding,
     pointerRadius: s.pointerRadius,
     nextRoute: s.nextRoute,
     prevRoute: s.prevRoute,
-    // Pass helpArticle through as custom property
+    // Custom property for help article
     helpArticle: s.helpArticle,
   })),
 }));
 
+// ── Provider wrapper ────────────────────────────────────────────────────────
+
 export function TourProvider({ children }: { children: React.ReactNode }) {
   return (
-    <OnbordaProvider>
-      <Onborda
-        steps={onbordaSteps}
-        showOnborda={true}
+    <NextStepProvider>
+      <NextStep
+        steps={nextStepTours}
         shadowRgb="55,48,163"
         shadowOpacity="0.7"
         cardComponent={TourCard}
-        cardTransition={{ duration: 0.3, type: "tween" }}
+        onComplete={(tourName) => {
+          if (tourName) markTourCompleted(tourName);
+        }}
+        onSkip={(_step, tourName) => {
+          if (tourName) markTourCompleted(tourName);
+        }}
       >
         <TourController>{children}</TourController>
-      </Onborda>
-    </OnbordaProvider>
+      </NextStep>
+    </NextStepProvider>
   );
 }

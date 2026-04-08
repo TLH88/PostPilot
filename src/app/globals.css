@@ -131,18 +131,15 @@
   }
 }
 
-/* Onborda tour: ensure overlay and card render above sidebar (z-30) */
-[data-name="onborda-overlay"] {
+/* NextStepjs tour: ensure overlay and card render above sidebar (z-30) */
+[data-nextstep-overlay],
+.nextstep-overlay {
   z-index: 998 !important;
 }
-[data-name="onborda-pointer"] {
+[data-nextstep-card],
+.nextstep-card {
   z-index: 999 !important;
-}
-[data-name="onborda-card"] {
-  z-index: 999 !important;
-  /* Keep card within viewport bounds */
   max-width: calc(100vw - 2rem) !important;
-  overflow: visible !important;
 }
 
 /* Theme-colored glow on modals, popups, and dropdowns */
