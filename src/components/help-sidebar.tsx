@@ -197,7 +197,8 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
     description: "Draft, refine, and improve posts with AI-powered help",
     content: (
       <>
-        <p>The AI Assistant uses your Creator Profile to generate content that matches your voice and style.</p>
+        <p>The AI Assistant uses your Creator Profile to generate content that matches your voice and style. It has full context of your current post including title, content, status, hashtags, and content pillar.</p>
+        <p><strong>Auto-drafting:</strong> When you develop an idea from the Idea Bank, the AI automatically generates an initial draft for you.</p>
         <p><strong>Quick suggestions:</strong> Use the chips (Add a hook, Make it shorter, etc.) for instant improvements.</p>
         <p><strong>Free-form chat:</strong> Type any instruction for more specific requests.</p>
         <p><strong>Apply to Editor:</strong> Click this button on any AI response to replace your editor content with the AI draft. Your previous version is auto-saved.</p>
@@ -225,9 +226,11 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
     content: (
       <>
         <p>When you schedule a post, it is <strong>not</strong> published immediately. PostPilot will automatically publish it to LinkedIn at the scheduled date and time.</p>
-        <p><strong>To schedule:</strong> Click "Schedule Post" in the Actions menu and pick a date and time.</p>
-        <p><strong>To reschedule:</strong> Open the post and click "Schedule Post" again to pick a new time.</p>
-        <p><strong>Calendar views:</strong> Use Month, Week, or Day views to see your scheduled content at a glance.</p>
+        <p><strong>To schedule:</strong> Click "Schedule Post" in the Actions menu and pick a date and time. You can also schedule from the publish preview dialog.</p>
+        <p><strong>To reschedule:</strong> Open the post and click "Schedule Post" again, or use the Reschedule button on the Calendar page.</p>
+        <p><strong>To revert:</strong> Select "Revert to Draft" from the Actions menu to unschedule a post.</p>
+        <p><strong>Progress bar:</strong> The editor shows a progress bar tracking Draft, Scheduled, and Published stages with timestamps.</p>
+        <p><strong>Calendar views:</strong> Month (hover for previews), Week (with images), and Day (hourly timeslots).</p>
       </>
     ),
   },
@@ -242,6 +245,36 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
           <li><strong>Filter & Organize:</strong> Review ideas by temperature (Hot/Warm/Cold), edit, or archive</li>
           <li><strong>Develop:</strong> Click "Develop" on any idea to turn it into a post draft with AI assistance</li>
         </ol>
+      </>
+    ),
+  },
+  "post-images": {
+    title: "Post Images",
+    description: "Upload, generate, and manage images for your posts",
+    content: (
+      <>
+        <p>Add images to your LinkedIn posts to increase engagement. You can upload your own or generate images with AI.</p>
+        <p><strong>Upload:</strong> Click the upload button in the Post Image section of the editor to add your own image (JPG, PNG, GIF, or WebP, up to 10 MB).</p>
+        <p><strong>Generate with AI:</strong> Click "Generate with AI" to create an image using your AI provider. Choose the format (landscape or square), art style, and customize the prompt.</p>
+        <p><strong>Image history:</strong> Every uploaded and generated image is saved as a version. Use the thumbnail strip below the image to switch between previous images at any time.</p>
+        <p><strong>In the preview dialog:</strong> You can also add or switch images right before publishing using the image selector in the publish preview.</p>
+      </>
+    ),
+  },
+  "post-actions": {
+    title: "Post Actions & Workflow",
+    description: "Understanding the Actions menu and post statuses",
+    content: (
+      <>
+        <p>The <strong>Actions</strong> menu in the post editor provides all workflow actions in one place:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>Post to LinkedIn</strong> - Opens a preview dialog before publishing (never posts without confirmation)</li>
+          <li><strong>Schedule Post</strong> - Set a future date and time for automatic publishing</li>
+          <li><strong>Manually Posted</strong> - Mark a post as published when you posted it outside PostPilot</li>
+          <li><strong>View on LinkedIn</strong> - Open your published post on LinkedIn</li>
+          <li><strong>Revert to Draft</strong> - Move a scheduled or posted post back to draft for editing</li>
+          <li><strong>Archive / Delete</strong> - Remove posts from your active workflow</li>
+        </ul>
       </>
     ),
   },

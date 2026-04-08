@@ -425,7 +425,8 @@ export default function HelpPage() {
           </li>
           <li>
             When you&apos;re ready, click <strong>&quot;Develop&quot;</strong> to turn an idea into
-            a post draft. This creates a new post in your editor pre-filled with the idea title.
+            a post. The AI will automatically generate an initial draft based on your idea&apos;s
+            title and description, using your voice and style.
           </li>
         </StepList>
 
@@ -449,24 +450,35 @@ export default function HelpPage() {
         <StepList>
           <li>
             Create a new post from the <strong>Posts</strong> page or develop one from your Idea
-            Bank. The editor opens with a blank canvas (or your idea title if developed from an idea).
+            Bank. When developing an idea, the AI automatically generates a first draft for you.
           </li>
           <li>
-            Write your content in the main text area. The character counter at the bottom shows
-            your post length. LinkedIn allows up to 3,000 characters.
+            The <strong>progress bar</strong> at the top of the editor shows your post&apos;s workflow
+            status (Draft, Scheduled, Published) with timestamps for each stage.
+          </li>
+          <li>
+            Write your content in the main text area. The character counter shows your post
+            length (LinkedIn allows up to 3,000 characters).
           </li>
           <li>
             Use the <strong>Format</strong> menu to insert line breaks, bullet points, analyze your
             hook, or save sections to your Content Library.
           </li>
           <li>
-            Click <strong>&quot;Show AI&quot;</strong> to open the AI Assistant panel. Ask the AI to
-            help you draft, refine, or improve your post. Use the quick suggestion chips for common
-            requests.
+            Use the <strong>Actions</strong> menu to publish, schedule, revert status, archive,
+            or delete your post. All publishing actions are in one place.
           </li>
           <li>
-            Add hashtags using the hashtag section below the editor. Hashtags are appended to your
-            post when publishing.
+            Use the <strong>Versions</strong> menu to save versions of your post, create standalone
+            copies, or save as a reusable template.
+          </li>
+          <li>
+            Click <strong>&quot;Show AI&quot;</strong> to open the AI Assistant panel. The AI has
+            full context of your post (title, content, status, hashtags, content pillar) and can
+            help you draft, refine, or improve your writing.
+          </li>
+          <li>
+            Add hashtags, upload or generate images, and preview your post before publishing.
           </li>
         </StepList>
 
@@ -488,29 +500,41 @@ export default function HelpPage() {
 
         <h4 className="text-sm font-semibold">Option 1: Direct publish</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          If you&apos;ve connected your LinkedIn account in Settings, you can publish directly from
-          PostPilot. Click <strong>&quot;Publish to LinkedIn&quot;</strong> in the editor to send
-          your post immediately. You can also schedule it for a future date and time.
+          If you&apos;ve connected your LinkedIn account, click <strong>&quot;Post to LinkedIn&quot;</strong> in
+          the Actions menu. A <strong>preview dialog</strong> opens showing exactly how your post will
+          appear on LinkedIn. From the preview you can add or change the post image, schedule for later,
+          or click <strong>&quot;Approve &amp; Publish&quot;</strong> to post immediately. Posts are never
+          sent without your confirmation.
         </p>
 
         <h4 className="text-sm font-semibold">Option 2: Schedule for later</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          Click <strong>&quot;Schedule&quot;</strong> to set a specific date and time. Your post will
-          be automatically published at the scheduled time. It is <strong>not</strong> published
-          immediately when you schedule it.
+          Click <strong>&quot;Schedule Post&quot;</strong> in the Actions menu (or use the Schedule
+          button in the preview dialog) to set a specific date and time. Your post will be automatically
+          published at the scheduled time. It is <strong>not</strong> published immediately when you
+          schedule it. You can track the post&apos;s progress in the <strong>progress bar</strong> at the
+          top of the editor.
         </p>
 
         <h4 className="text-sm font-semibold">Option 3: Manual copy-paste</h4>
         <p className="text-sm text-foreground/80 mb-3">
           Use the <strong>&quot;Copy Post&quot;</strong> button in the Format menu to copy your post
           content and hashtags to your clipboard. Then open LinkedIn and paste it into a new post.
-          After pasting, come back and click <strong>&quot;Mark as Posted&quot;</strong> so PostPilot
-          tracks it as published.
+          After pasting, come back and select <strong>&quot;Manually Posted&quot;</strong> from the
+          Actions menu so PostPilot tracks it as published.
+        </p>
+
+        <h4 className="text-sm font-semibold">Post images</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          You can upload an image or generate one with AI before publishing. All images are saved
+          as versions, so you can switch between previous images at any time using the
+          <strong> image history strip</strong> below the image preview in the editor or the
+          publish preview dialog.
         </p>
 
         <Tip>
-          Direct publish requires connecting your LinkedIn account under Settings. The connection
-          uses OAuth and does not store your LinkedIn password.
+          LinkedIn posting is connected automatically after your first login. If the connection
+          is lost, a banner will appear at the top of every page with a quick reconnect button.
         </Tip>
       </CollapsibleCard>
 
@@ -538,19 +562,19 @@ export default function HelpPage() {
         <h4 className="text-sm font-semibold">Content types</h4>
         <ul className="list-disc space-y-2 pl-5 text-sm text-foreground/90">
           <li>
-            <strong>Hooks</strong> : Opening lines designed to stop readers from scrolling and
+            <strong>Hooks</strong> - Opening lines designed to stop readers from scrolling and
             make them click &quot;see more.&quot;
           </li>
           <li>
-            <strong>CTAs (Calls-to-Action)</strong> : Phrases that encourage readers to engage,
+            <strong>CTAs (Calls-to-Action)</strong> - Phrases that encourage readers to engage,
             comment, share, or take a next step.
           </li>
           <li>
-            <strong>Closings</strong> : Closing lines that wrap up your post with impact and
+            <strong>Closings</strong> - Closing lines that wrap up your post with impact and
             leave a lasting impression.
           </li>
           <li>
-            <strong>Snippets</strong> : Reusable text blocks like quotes, statistics,
+            <strong>Snippets</strong> - Reusable text blocks like quotes, statistics,
             transitions, or any content you use often.
           </li>
         </ul>
@@ -631,9 +655,10 @@ export default function HelpPage() {
       >
         <h4 className="text-sm font-semibold">How AI uses your voice profile</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          When you set up your Creator Profile in Settings, the AI learns your writing style, tone,
-          expertise, and target audience. Every AI-generated draft is tailored to sound like you
-          , not generic LinkedIn content.
+          When you set up your Creator Profile, the AI learns your writing style, tone,
+          expertise, and target audience. Every AI-generated draft is tailored to sound like you,
+          not generic LinkedIn content. The AI also has full context of your current post, including
+          title, content, status, hashtags, and content pillar.
         </p>
 
         <h4 className="text-sm font-semibold">Quick suggestions vs. free-form chat</h4>
@@ -691,13 +716,16 @@ export default function HelpPage() {
         <h4 className="text-sm font-semibold">Rescheduling</h4>
         <StepList>
           <li>
-            Open the scheduled post in the editor or find it on the Posts page.
+            Open the scheduled post in the editor and click <strong>&quot;Schedule Post&quot;</strong> in
+            the Actions menu to pick a new date and time.
           </li>
           <li>
-            Click <strong>&quot;Reschedule&quot;</strong> to pick a new date and time.
+            You can also reschedule from the <strong>Calendar page</strong> using the Reschedule
+            button on upcoming post cards.
           </li>
           <li>
-            You can also move it back to draft status if you want to postpone indefinitely.
+            To postpone indefinitely, select <strong>&quot;Revert to Draft&quot;</strong> from
+            the Actions menu.
           </li>
         </StepList>
 
@@ -707,15 +735,15 @@ export default function HelpPage() {
         </p>
         <ul className="list-disc space-y-2 pl-5 text-sm text-foreground/90">
           <li>
-            <strong>Month view</strong> : See all scheduled posts for the entire month at a
-            glance. Great for spotting gaps in your content calendar.
+            <strong>Month view</strong> - See all scheduled posts for the entire month at a
+            glance. Hover over any post to see a preview. Great for spotting gaps in your calendar.
           </li>
           <li>
-            <strong>Week view</strong> : See scheduled posts for the current week with more
-            detail and easier drag-to-reschedule.
+            <strong>Week view</strong> - See scheduled posts for the current week with more
+            detail including post images.
           </li>
           <li>
-            <strong>Day view</strong> : See all posts scheduled for a specific day with hourly
+            <strong>Day view</strong> - See all posts scheduled for a specific day with hourly
             timeslots.
           </li>
         </ul>

@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-04-07: Alpha Feedback Sprint - UX Overhaul, Tooltips, Workflow, AI Enhancements
+
+### Phase 1: Quick Wins
+- **No em dashes rule:** Added to AI GUARDRAILS, applies to all AI-generated content
+- **Credit exhaustion UX:** Provider-specific billing links, friendly inline card in chat panel instead of raw error toasts
+- **Scheduled status clarification:** Posts page, editor, and calendar now show "This post has not been published yet. It will be automatically published on [date] at [time]"
+
+### Phase 2: Tooltip System & Post Card Actions
+- **Centralized tooltip content map** (`src/lib/tooltip-content.ts`) with entries for all pages
+- **TooltipWrapper component** with optional "Learn more" links that open help sidebar
+- **Post card actions redesigned:** Single "Actions" dropdown replacing inline buttons; grouped sections with tooltips
+- **"Mark as Posted" renamed to "Manually Posted"** with confirmation modal explaining the action
+- **"Move to Review" gated to Team/Enterprise** via `review_status` feature gate
+- **In Review metric card and tab** hidden for Free/Creator/Pro users
+- **Product-wide tooltips** added to Ideas page, Library page, and Post editor
+- **Help system expanded:** 4 new sections (Getting Started, Content Tools, AI Assistant, Scheduling)
+
+### Phase 3: Workflow Improvements
+- **Post progress bar:** Blue-themed horizontal stepper (Draft > Scheduled > Published) with timeline dates showing created_at, scheduled_at, and published_at
+- **Review step** only shown for Team/Enterprise users
+- **Reschedule:** ScheduleDialog accepts initialDate prop; Reschedule button in editor and Calendar page
+- **Calendar hover preview:** Month view post pills show tooltip with content preview
+- **Calendar upcoming posts:** Reschedule and Post Now buttons added
+- **Idea process flow:** 3-step visualization at top of Ideas page (Generate > Filter > Develop)
+
+### Phase 4: AI Enhancements
+- **Deeper AI context:** Chat API now receives post status, content pillar, hashtags, and character count
+- **Auto-draft from Idea Bank:** Developing an idea auto-triggers AI initial draft with idea description
+- **New post toast:** "Your AI Assistant is ready to help" notification for posts created from scratch
+
+### Phase 5: LinkedIn & Onboarding
+- **LinkedIn auto-connect:** Automatically initiates posting OAuth after first login
+- **Persistent LinkedIn banner:** Appears on ALL pages when disconnected; "Reconnect Now" button (no redirect to settings)
+- **Content Tools onboarding step:** Introduces Content Library and Templates during setup
+- **Subscription plan moved** from Settings page to Profile/Account page
+
+### Phase 6: AI Cost Optimization
+- **Model router** (`src/lib/ai/model-router.ts`): Task-based routing (simple/standard/complex) with cost tier indicators
+
+### Additional Changes
+- **Unified editor Actions dropdown:** Post to LinkedIn, Schedule Post, Manually Posted, View on LinkedIn, Revert to Draft, Revert to Review (Team+), Archive, Delete
+- **Post to LinkedIn always opens preview dialog** to prevent accidental posting
+- **Revert to Draft/Review** added for scheduled, past_due, and posted statuses
+- **Scheduled card** uses purple color for consistency
+- **Image version picker:** Thumbnail strip in editor and preview dialog for switching between image versions
+- **Help sidebar:** Slide-out panel (non-modal, stays open while working) with article-based help system
+- **Theme-colored glow** on all modals, dropdowns, and tooltips
+- **Schedule button** added to publish preview dialog
+- **`scheduled_at` column** added to posts table for progress bar timeline
+- **Help content audit:** All articles updated for renamed actions, new features, and workflow changes
+
+### Database Migration
+- `posts.scheduled_at` (timestamptz) - tracks when the user scheduled the post
+
+### New Files
+- `src/lib/tooltip-content.ts` - Centralized tooltip text map
+- `src/components/ui/tooltip-wrapper.tsx` - Reusable tooltip wrapper
+- `src/components/posts/post-progress-bar.tsx` - Post workflow progress bar
+- `src/components/ideas/idea-process-flow.tsx` - Idea workflow visualization
+- `src/components/layout/linkedin-status-banner.tsx` - Persistent LinkedIn disconnect banner
+- `src/components/help-sidebar.tsx` - Slide-out help panel with article registry
+- `src/components/posts/image-version-picker.tsx` - Image history thumbnail strip
+- `src/lib/ai/model-router.ts` - Task-based AI model routing
+
+---
+
 ## 2026-04-04 (Session 4): System Admin Panel, Managed AI Access, Workspace Enhancements
 
 ### BP-054: Managed AI Access

@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-04
+> Last updated: 2026-04-07
 
 ## Status Key
 
@@ -1161,3 +1161,23 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-038:** Manual Post Status Change (2026-04-03)
 - **BP-054:** Managed AI Access — System Keys & Trial (2026-04-04)
 - **BP-055:** Managed AI Access — Settings & Onboarding UX (2026-04-04)
+- **BP-056:** Alpha Feedback — No Em Dashes AI Rule (2026-04-07)
+- **BP-057:** Alpha Feedback — Credit Exhaustion Error UX (2026-04-07)
+- **BP-058:** Alpha Feedback — Scheduled Status Clarification (2026-04-07)
+- **BP-059:** Alpha Feedback — Tooltip System & Post Card Actions Redesign (2026-04-07)
+- **BP-060:** Alpha Feedback — Product-Wide Tooltips Rollout (2026-04-07)
+- **BP-061:** Alpha Feedback — Help System Expansion (2026-04-07)
+- **BP-062:** Alpha Feedback — Post Progress Bar & Timeline (2026-04-07)
+- **BP-063:** Alpha Feedback — Reschedule Posts (2026-04-07)
+- **BP-064:** Alpha Feedback — Calendar Hover Preview & Post Now (2026-04-07)
+- **BP-065:** Alpha Feedback — Idea Process Flow Visualization (2026-04-07)
+- **BP-066:** Alpha Feedback — Deeper AI Editor Integration (2026-04-07)
+- **BP-067:** Alpha Feedback — Auto-Draft from Idea Bank (2026-04-07)
+- **BP-068:** Alpha Feedback — LinkedIn Auto-Connect & Disconnect Banner (2026-04-07)
+- **BP-069:** Alpha Feedback — Content Tools Onboarding Step (2026-04-07)
+- **BP-070:** Alpha Feedback — AI Cost Optimization Model Router (2026-04-07)
+- **BP-071:** Alpha Feedback — Unified Editor Actions Dropdown (2026-04-07)
+- **BP-072:** Alpha Feedback — Publish Preview Flow (2026-04-07)
+- **BP-073:** Alpha Feedback — Image Version Picker (2026-04-07)
+- **BP-074:** Alpha Feedback — Help Sidebar (Non-Modal Slide-Out) (2026-04-07)
+- **BP-075:** Alpha Feedback — Review Status Gated to Team/Enterprise (2026-04-07)
