@@ -123,6 +123,16 @@ export const TOUR_DEFINITIONS: TourDef[] = [
         helpArticle: "idea-generation",
       },
       {
+        icon: "🔍",
+        title: "Filter Your Ideas",
+        content: "Use these filters to sort your ideas. Filter by temperature (Hot, Warm, Cold) to find trending or evergreen topics, or by status (Open, Closed) to focus on what needs attention.",
+        selector: "#tour-idea-filters",
+        side: "bottom",
+        showControls: true,
+        pointerPadding: 10,
+        pointerRadius: 12,
+      },
+      {
         icon: "🌡️",
         title: "Browse Your Ideas",
         content: "Each idea gets a temperature: Hot (trending topics), Warm (evergreen content), or Cold (niche deep-dives). Click \"Develop\" on any idea to turn it into a post. The AI will write a first draft for you!",

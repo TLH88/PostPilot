@@ -462,7 +462,7 @@ export default function IdeasPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="space-y-3">
+      <div id="tour-idea-filters" className="space-y-3">
         {/* Temperature filter */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground mr-1">

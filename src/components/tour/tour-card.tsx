@@ -57,7 +57,7 @@ export function TourCard({
   }, [step, openHelp]);
 
   return (
-    <div className="relative z-[999] w-[340px] max-w-[calc(100vw-2rem)]">
+    <div className="relative z-[999] w-[300px] max-w-[calc(100vw-2rem)]">
       {/* Card */}
       <div className="rounded-2xl bg-primary text-white shadow-xl overflow-hidden">
         {/* Header */}
