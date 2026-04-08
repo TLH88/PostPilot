@@ -24,6 +24,7 @@ import { IDEA_TEMPERATURES, POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
+import { TourAutoStart } from "@/components/tour/tour-auto-start";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -153,6 +154,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <TourAutoStart tourName="welcome" />
       {/* Onboarding banner */}
       {profile && !profile.onboarding_completed && (
         <Card className="border-primary/20 bg-primary/5">
@@ -201,7 +203,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div id="tour-dashboard-metrics" className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -225,9 +227,11 @@ export default async function DashboardPage() {
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
         <GenerateIdeasButton
+          id="tour-generate-ideas"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
         />
         <NewPostButton
+          id="tour-new-post"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
           label="Start New Post"
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { IDEA_TEMPERATURES, IDEA_STATUSES } from "@/lib/constants";
@@ -48,6 +48,7 @@ import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { IdeaProcessFlow } from "@/components/ideas/idea-process-flow";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { IDEAS_TOOLTIPS } from "@/lib/tooltip-content";
+import { useTour } from "@/lib/tours/tour-provider";
 
 // ---------------------------------------------------------------------------
 // Skeleton loader for initial load
@@ -252,6 +253,17 @@ export default function IdeasPage() {
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Tour auto-start
+  const { startTour, isTourCompleted } = useTour();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isTourCompleted("idea-to-post")) {
+        startTour("idea-to-post");
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Dialog states
   const [generateOpen, setGenerateOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
@@ -429,7 +441,7 @@ export default function IdeasPage() {
           </p>
         </div>
         <TooltipWrapper tooltip={IDEAS_TOOLTIPS.generateIdeas} side="bottom">
-          <Button onClick={() => setGenerateOpen(true)} className="shrink-0 self-start sm:self-center">
+          <Button id="tour-generate-ideas-btn" onClick={() => setGenerateOpen(true)} className="shrink-0 self-start sm:self-center">
             <Sparkles className="size-4" />
             Generate Ideas
           </Button>
@@ -437,6 +449,7 @@ export default function IdeasPage() {
       </div>
 
       {/* Idea Process Flow */}
+      <div id="tour-idea-process-flow">
       <IdeaProcessFlow
         activeStep={
           ideas.length === 0
@@ -446,6 +459,7 @@ export default function IdeasPage() {
               : 3
         }
       />
+      </div>
 
       {/* Filter Bar */}
       <div className="space-y-3">
@@ -654,7 +668,7 @@ export default function IdeasPage() {
           </div>
         )
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div id="tour-idea-card" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredIdeas.map((idea) => {
             const temp =
               IDEA_TEMPERATURES[

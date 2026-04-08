@@ -10,7 +10,7 @@ import { toast } from "sonner";
 const SLOW_THRESHOLD_MS = 10_000; // 10 seconds — show "taking longer" message
 const FAIL_THRESHOLD_MS = 60_000; // 60 seconds — show error + log
 
-export function NewPostButton({ className, label }: { className?: string; label?: string }) {
+export function NewPostButton({ className, label, id }: { className?: string; label?: string; id?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isCreating, setIsCreating] = useState(false);
@@ -167,7 +167,7 @@ export function NewPostButton({ className, label }: { className?: string; label?
   }
 
   return (
-    <Button onClick={handleCreatePost} disabled={isCreating} className={className ?? "gap-2"}>
+    <Button id={id} onClick={handleCreatePost} disabled={isCreating} className={className ?? "gap-2"}>
       {isCreating ? (
         <Loader2 className="size-4 animate-spin" />
       ) : (

@@ -88,6 +88,7 @@ import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { PostProgressBar } from "@/components/posts/post-progress-bar";
+import { useTour } from "@/lib/tours/tour-provider";
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
@@ -186,6 +187,18 @@ export default function PostWorkspacePage() {
   const [brainstormOpen, setBrainstormOpen] = useState(false);
   const [brainstormTopic, setBrainstormTopic] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
+
+  // ── Tour auto-start ─────────────────────────────────────────────────────
+  const { startTour, isTourCompleted } = useTour();
+  useEffect(() => {
+    if (!post?.id || loading) return;
+    const timer = setTimeout(() => {
+      if (!isTourCompleted("post-editor")) {
+        startTour("post-editor");
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [post?.id, loading]);
 
   // ── Responsive: open AI panel on desktop, keep collapsed on mobile ──────
   const [isMobile, setIsMobile] = useState(false);
@@ -1254,6 +1267,7 @@ export default function PostWorkspacePage() {
           </TooltipWrapper>
           <TooltipWrapper tooltip={chatOpen ? EDITOR_TOOLTIPS.hideAI : EDITOR_TOOLTIPS.showAI}>
             <Button
+              id="tour-ai-panel"
               variant="outline"
               size="sm"
               onClick={() => setChatOpen(!chatOpen)}
@@ -1271,6 +1285,7 @@ export default function PostWorkspacePage() {
       </div>
 
       {/* Post progress bar */}
+      <div id="tour-progress-bar">
       <PostProgressBar
         status={status}
         userTier={profile?.subscription_tier as SubscriptionTier ?? userTier}
@@ -1279,6 +1294,7 @@ export default function PostWorkspacePage() {
         createdAt={post?.created_at ? new Date(post.created_at) : null}
         postedAt={post?.posted_at ? new Date(post.posted_at) : null}
       />
+      </div>
 
       {/* Scheduled status clarification banner */}
       {(status === "scheduled" || status === "past_due") && lastScheduledDate && (
@@ -1329,7 +1345,7 @@ export default function PostWorkspacePage() {
             <Separator />
 
             {/* Main content textarea */}
-            <div className="flex-1 flex">
+            <div id="tour-editor-content" className="flex-1 flex">
               {!content.trim() ? (
                 <div className="flex min-h-[300px] w-full flex-1 flex-col items-center justify-center gap-4">
                   <p className="text-sm text-muted-foreground">
@@ -1507,7 +1523,7 @@ export default function PostWorkspacePage() {
             <Separator />
 
             {/* Post Image */}
-            <div className="space-y-2">
+            <div id="tour-image-section" className="space-y-2">
               <div className="flex items-center gap-1.5 text-sm font-medium">
                 <ImagePlus className="size-3.5" />
                 Post Image
@@ -1622,7 +1638,7 @@ export default function PostWorkspacePage() {
               {/* Status Actions dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  render={<Button variant="outline" size="sm" className="gap-1.5" />}
+                  render={<Button id="tour-actions-menu" variant="outline" size="sm" className="gap-1.5" />}
                 >
                   <MoreHorizontal className="size-3.5" />
                   Actions

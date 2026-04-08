@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext } from "react";
-import { HelpCircle, X } from "lucide-react";
+import { HelpCircle, X, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTour } from "@/lib/tours/tour-provider";
+import { TOUR_NAMES } from "@/lib/tours/tour-storage";
 import {
   Sheet,
   SheetContent,
@@ -116,6 +118,10 @@ function HelpContent({ articleId }: { articleId?: string }) {
           </a>{" "}
           for detailed guides.
         </p>
+
+        {/* Guided Tours */}
+        <GuidedToursSection />
+
         <div className="space-y-2">
           {Object.entries(HELP_ARTICLES).map(([id, art]) => (
             <HelpArticleLink key={id} id={id} title={art.title} description={art.description} />
@@ -149,6 +155,46 @@ function HelpArticleLink({ id, title, description }: { id: string; title: string
       <p className="text-sm font-medium">{title}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
     </button>
+  );
+}
+
+// ── Guided Tours Section ────────────────────────────────────────────────────
+
+function GuidedToursSection() {
+  const { startTour, resetTour } = useTour();
+
+  const tours = [
+    { name: TOUR_NAMES.WELCOME, label: "Welcome Tour", description: "Dashboard overview and navigation" },
+    { name: TOUR_NAMES.IDEA_TO_POST, label: "Idea Workflow", description: "Generate, organize, and develop ideas" },
+    { name: TOUR_NAMES.POST_EDITOR, label: "Post Editor", description: "Writing, AI assistant, and publishing" },
+  ];
+
+  function handleRestart(tourName: string) {
+    resetTour(tourName);
+    startTour(tourName);
+  }
+
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Guided Tours</h4>
+      <p className="text-xs text-muted-foreground">Restart any guided tour to walk through features step by step.</p>
+      <div className="space-y-1.5">
+        {tours.map((t) => (
+          <button
+            key={t.name}
+            type="button"
+            onClick={() => handleRestart(t.name)}
+            className="flex items-center gap-2 w-full rounded-md px-2.5 py-2 text-left hover:bg-hover-highlight transition-colors"
+          >
+            <Play className="size-3.5 text-primary shrink-0" />
+            <div>
+              <p className="text-xs font-medium">{t.label}</p>
+              <p className="text-[10px] text-muted-foreground">{t.description}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -86,7 +86,7 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-2">
+      <nav id="tour-sidebar-nav" className="flex-1 space-y-1 px-3 py-2">
         {NAV_ITEMS.map((item) => {
           const Icon = iconMap[item.icon];
           const isActive =
