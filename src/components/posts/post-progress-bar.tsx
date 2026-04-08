@@ -14,6 +14,7 @@ interface PostProgressBarProps {
   status: string;
   userTier: SubscriptionTier;
   scheduledFor?: Date | null;
+  scheduledAt?: Date | null;
   createdAt?: Date | null;
   postedAt?: Date | null;
 }
@@ -33,6 +34,7 @@ export function PostProgressBar({
   status,
   userTier,
   scheduledFor,
+  scheduledAt,
   createdAt,
   postedAt,
 }: PostProgressBarProps) {
@@ -104,10 +106,10 @@ export function PostProgressBar({
                         {formatDateTime(createdAt)}
                       </span>
                     )}
-                    {/* Scheduled: show when it was scheduled */}
-                    {step === "scheduled" && scheduledFor && isCompleted && (
+                    {/* Scheduled: show when the user scheduled it */}
+                    {step === "scheduled" && isCompleted && (scheduledAt || scheduledFor) && (
                       <span className="text-[10px] text-white/70 leading-tight text-center">
-                        {formatDateTime(scheduledFor)}
+                        {formatDateTime(scheduledAt ?? scheduledFor!)}
                       </span>
                     )}
                     {/* Published: show publish date if posted, or upcoming date if scheduled */}

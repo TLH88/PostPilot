@@ -110,6 +110,7 @@ export interface Post {
   content_pillars: string[];
   status: "draft" | "review" | "scheduled" | "posted" | "past_due" | "archived";
   scheduled_for: string | null;
+  scheduled_at: string | null;
   posted_at: string | null;
   hashtags: string[];
   character_count: number;

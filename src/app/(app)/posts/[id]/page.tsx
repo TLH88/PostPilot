@@ -276,6 +276,9 @@ export default function PostWorkspacePage() {
       if (p.scheduled_for) {
         setLastScheduledDate(new Date(p.scheduled_for));
       }
+      if (p.scheduled_at) {
+        setScheduledAtDate(new Date(p.scheduled_at));
+      }
 
       // Fetch profile
       const { data: profileData } = await supabase
@@ -664,6 +667,7 @@ export default function PostWorkspacePage() {
 
   // ── Schedule post with date/time ────────────────────────────────────────
   const [lastScheduledDate, setLastScheduledDate] = useState<Date | null>(null);
+  const [scheduledAtDate, setScheduledAtDate] = useState<Date | null>(null);
 
   async function schedulePost(date: Date) {
     if (!post) return;
@@ -680,18 +684,21 @@ export default function PostWorkspacePage() {
       }
     } catch {}
 
+    const now = new Date();
     const { error } = await supabase
       .from("posts")
       .update({
         status: "scheduled",
         scheduled_for: date.toISOString(),
-        updated_at: new Date().toISOString(),
+        scheduled_at: now.toISOString(),
+        updated_at: now.toISOString(),
       })
       .eq("id", post.id);
 
     if (!error) {
       setStatus("scheduled");
       setLastScheduledDate(date);
+      setScheduledAtDate(now);
       setShareDialogOpen(true);
 
       // Increment scheduling quota
@@ -1268,6 +1275,7 @@ export default function PostWorkspacePage() {
         status={status}
         userTier={profile?.subscription_tier as SubscriptionTier ?? userTier}
         scheduledFor={lastScheduledDate}
+        scheduledAt={scheduledAtDate}
         createdAt={post?.created_at ? new Date(post.created_at) : null}
         postedAt={post?.posted_at ? new Date(post.posted_at) : null}
       />
