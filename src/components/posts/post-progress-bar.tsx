@@ -43,10 +43,10 @@ export function PostProgressBar({
 
   // Map post status to step index
   function getActiveIndex(): number {
-    const normalizedStatus = status === "posted" ? "published" : status;
-    const mappedStatus = normalizedStatus === "past_due" ? "scheduled" : normalizedStatus;
-    const idx = steps.indexOf(mappedStatus);
-    return idx === -1 ? 0 : idx;
+    if (status === "posted") return steps.length; // all complete
+    if (status === "scheduled" || status === "past_due") return steps.indexOf("published");
+    if (status === "review") return steps.indexOf("review");
+    return 0; // draft
   }
 
   const activeIndex = getActiveIndex();
@@ -90,8 +90,8 @@ export function PostProgressBar({
                     >
                       {stepLabels[step]}
                     </span>
-                    {/* Show scheduled date/time below the Scheduled step */}
-                    {step === "scheduled" && scheduledFor && (isCurrent || isCompleted) && (
+                    {/* Show publish date/time below the Published step when scheduled */}
+                    {step === "published" && scheduledFor && !isPublished && (isCurrent || isCompleted) && (
                       <span className="text-[10px] text-white/80 leading-tight text-center">
                         Publishing{" "}
                         {scheduledFor.toLocaleDateString("en-US", {
