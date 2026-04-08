@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, createContext, useContext } from "react";
+import { useRouter } from "next/navigation";
 import { HelpCircle, X, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTour } from "@/lib/tours/tour-provider";
@@ -162,16 +163,18 @@ function HelpArticleLink({ id, title, description }: { id: string; title: string
 
 function GuidedToursSection() {
   const { startTour, resetTour } = useTour();
+  const router = useRouter();
 
   const tours = [
-    { name: TOUR_NAMES.WELCOME, label: "Welcome Tour", description: "Dashboard overview and navigation" },
-    { name: TOUR_NAMES.IDEA_TO_POST, label: "Idea Workflow", description: "Generate, organize, and develop ideas" },
-    { name: TOUR_NAMES.POST_EDITOR, label: "Post Editor", description: "Writing, AI assistant, and publishing" },
+    { name: TOUR_NAMES.WELCOME, label: "Welcome Tour", description: "Dashboard overview and navigation", route: "/dashboard" },
+    { name: TOUR_NAMES.IDEA_TO_POST, label: "Idea Workflow", description: "Generate, organize, and develop ideas", route: "/ideas" },
+    { name: TOUR_NAMES.POST_EDITOR, label: "Post Editor", description: "Writing, AI assistant, and publishing", route: "/posts" },
   ];
 
-  function handleRestart(tourName: string) {
+  function handleRestart(tourName: string, route: string) {
     resetTour(tourName);
-    startTour(tourName);
+    router.push(route);
+    setTimeout(() => startTour(tourName), 1200);
   }
 
   return (
@@ -183,7 +186,7 @@ function GuidedToursSection() {
           <button
             key={t.name}
             type="button"
-            onClick={() => handleRestart(t.name)}
+            onClick={() => handleRestart(t.name, t.route)}
             className="flex items-center gap-2 w-full rounded-md px-2.5 py-2 text-left hover:bg-hover-highlight transition-colors"
           >
             <Play className="size-3.5 text-primary shrink-0" />

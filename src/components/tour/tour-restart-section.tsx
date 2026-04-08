@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTour } from "@/lib/tours/tour-provider";
@@ -10,33 +11,45 @@ const TOURS = [
     name: TOUR_NAMES.WELCOME,
     label: "Welcome Tour",
     description: "Dashboard overview, navigation, quick actions, and key areas",
-    page: "Dashboard",
+    route: "/dashboard",
   },
   {
     name: TOUR_NAMES.IDEA_TO_POST,
     label: "Idea Workflow Tour",
     description: "Generate ideas, filter by temperature/status, and develop into posts",
-    page: "Idea Bank",
+    route: "/ideas",
   },
   {
     name: TOUR_NAMES.POST_EDITOR,
     label: "Post Editor Tour",
     description: "Progress bar, writing, AI assistant, publishing, and images",
-    page: "Post Editor",
+    route: "/posts",
   },
 ];
 
 /**
+ * Navigate to the correct page, then start the tour after a delay
+ * so elements have time to mount.
+ */
+function useRestartTour() {
+  const { startTour, resetTour } = useTour();
+  const router = useRouter();
+
+  return function restartTour(tourName: string, route: string) {
+    resetTour(tourName);
+    router.push(route);
+    // Delay to let the page render and tour target elements mount
+    setTimeout(() => {
+      startTour(tourName);
+    }, 1200);
+  };
+}
+
+/**
  * Section for the Help page that lets users restart guided tours.
- * Must be a client component because it uses the useTour hook.
  */
 export function TourRestartSection() {
-  const { startTour, resetTour } = useTour();
-
-  function handleRestart(tourName: string) {
-    resetTour(tourName);
-    startTour(tourName);
-  }
+  const restartTour = useRestartTour();
 
   return (
     <div className="space-y-3">
@@ -58,7 +71,7 @@ export function TourRestartSection() {
             variant="outline"
             size="sm"
             className="gap-1.5 shrink-0"
-            onClick={() => handleRestart(tour.name)}
+            onClick={() => restartTour(tour.name, tour.route)}
           >
             <RotateCcw className="size-3.5" />
             Restart
@@ -71,19 +84,16 @@ export function TourRestartSection() {
 
 /**
  * Inline "Run this tour" button for embedding within help articles.
+ * Navigates to the correct page before starting the tour.
  */
 export function RunTourButton({ tourName, label = "Run guided tour" }: { tourName: string; label?: string }) {
-  const { startTour, resetTour } = useTour();
-
-  function handleRun() {
-    resetTour(tourName);
-    startTour(tourName);
-  }
+  const restartTour = useRestartTour();
+  const route = TOURS.find((t) => t.name === tourName)?.route ?? "/dashboard";
 
   return (
     <button
       type="button"
-      onClick={handleRun}
+      onClick={() => restartTour(tourName, route)}
       className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
     >
       <Play className="size-3" />
