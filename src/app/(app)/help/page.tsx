@@ -1,5 +1,6 @@
-import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbulb, BookOpen, Bot, CalendarDays } from "lucide-react";
+import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbulb, BookOpen, Bot, CalendarDays, Play } from "lucide-react";
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { TourRestartSection, RunTourButton } from "@/components/tour/tour-restart-section";
 
 function StepList({ children }: { children: React.ReactNode }) {
   return <ol className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-foreground/90">{children}</ol>;
@@ -64,6 +65,19 @@ export default function HelpPage() {
           your key with AES-256-GCM and only uses it server-side.
         </p>
       </div>
+
+      {/* ─── Guided Tours ─── */}
+      <div className="space-y-2 pt-2">
+        <div className="flex items-center gap-2">
+          <Play className="size-5 text-primary" />
+          <h2 className="text-lg font-semibold">Guided Tours</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Interactive walkthroughs that show you how each part of PostPilot works.
+          Restart any tour at any time.
+        </p>
+      </div>
+      <TourRestartSection />
 
       {/* ─── Anthropic ─── */}
       <CollapsibleCard
@@ -393,7 +407,8 @@ export default function HelpPage() {
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
           New to PostPilot? These guides walk you through the core workflow from brainstorming ideas
-          to publishing on LinkedIn.
+          to publishing on LinkedIn. You can also <RunTourButton tourName="welcome" label="run the Welcome tour" /> for
+          an interactive walkthrough of the dashboard.
         </p>
       </div>
 
@@ -434,6 +449,8 @@ export default function HelpPage() {
           You can also add ideas manually without AI. Use the Idea Bank as a running list of content
           topics so you never run out of things to write about.
         </Tip>
+
+        <RunTourButton tourName="idea-to-post" label="Run the Idea Workflow tour" />
       </CollapsibleCard>
 
       <CollapsibleCard
@@ -486,6 +503,8 @@ export default function HelpPage() {
           Your post auto-saves as you type. Look for the cloud icon in the header to confirm your
           changes are saved.
         </Tip>
+
+        <RunTourButton tourName="post-editor" label="Run the Post Editor tour" />
       </CollapsibleCard>
 
       <CollapsibleCard
