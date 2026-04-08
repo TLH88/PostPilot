@@ -57,7 +57,7 @@ export function TourCard({
   }, [step, openHelp]);
 
   return (
-    <div className="relative z-[999] w-[300px] max-w-[calc(100vw-2rem)]">
+    <div className="relative z-[999] w-[360px] max-w-[calc(100vw-2rem)]">
       {/* Card */}
       <div className="rounded-2xl bg-primary text-white shadow-xl overflow-hidden">
         {/* Header */}
@@ -82,23 +82,22 @@ export function TourCard({
           </p>
         </div>
 
+        {/* Progress bar */}
+        <div className="mx-5 mb-2">
+          <div className="h-1 rounded-full bg-white/20 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-white transition-all duration-500"
+              style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+            />
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="flex items-center justify-between px-5 pb-4 pt-1">
-          {/* Progress dots */}
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: totalSteps }).map((_, i) => (
-              <div
-                key={i}
-                className={`rounded-full transition-all duration-300 ${
-                  i === currentStep
-                    ? "w-5 h-2 bg-white"
-                    : i < currentStep
-                      ? "size-2 bg-white/60"
-                      : "size-2 bg-white/25"
-                }`}
-              />
-            ))}
-          </div>
+          {/* Step counter */}
+          <span className="text-[11px] text-white/70 font-medium">
+            Step {currentStep + 1} of {totalSteps}
+          </span>
 
           {/* Navigation buttons */}
           <div className="flex items-center gap-1.5">
