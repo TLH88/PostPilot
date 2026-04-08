@@ -1268,6 +1268,8 @@ export default function PostWorkspacePage() {
         status={status}
         userTier={profile?.subscription_tier as SubscriptionTier ?? userTier}
         scheduledFor={lastScheduledDate}
+        createdAt={post?.created_at ? new Date(post.created_at) : null}
+        postedAt={post?.posted_at ? new Date(post.posted_at) : null}
       />
 
       {/* Scheduled status clarification banner */}

@@ -14,6 +14,12 @@ interface PostProgressBarProps {
   status: string;
   userTier: SubscriptionTier;
   scheduledFor?: Date | null;
+  createdAt?: Date | null;
+  postedAt?: Date | null;
+}
+
+function formatDateTime(date: Date): string {
+  return `${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`;
 }
 
 const STEP_TOOLTIPS: Record<string, string> = {
@@ -27,6 +33,8 @@ export function PostProgressBar({
   status,
   userTier,
   scheduledFor,
+  createdAt,
+  postedAt,
 }: PostProgressBarProps) {
   const hasReview = hasFeature(userTier, "review_status");
 
@@ -90,20 +98,27 @@ export function PostProgressBar({
                     >
                       {stepLabels[step]}
                     </span>
-                    {/* Show publish date/time below the Published step when scheduled */}
-                    {step === "published" && scheduledFor && !isPublished && (isCurrent || isCompleted) && (
+                    {/* Draft: show created date */}
+                    {step === "draft" && createdAt && isCompleted && (
+                      <span className="text-[10px] text-white/70 leading-tight text-center">
+                        {formatDateTime(createdAt)}
+                      </span>
+                    )}
+                    {/* Scheduled: show when it was scheduled */}
+                    {step === "scheduled" && scheduledFor && isCompleted && (
+                      <span className="text-[10px] text-white/70 leading-tight text-center">
+                        {formatDateTime(scheduledFor)}
+                      </span>
+                    )}
+                    {/* Published: show publish date if posted, or upcoming date if scheduled */}
+                    {step === "published" && isPublished && postedAt && (
+                      <span className="text-[10px] text-white/70 leading-tight text-center">
+                        {formatDateTime(postedAt)}
+                      </span>
+                    )}
+                    {step === "published" && !isPublished && scheduledFor && isCurrent && (
                       <span className="text-[10px] text-white/80 leading-tight text-center">
-                        Publishing{" "}
-                        {scheduledFor.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        at{" "}
-                        {scheduledFor.toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
+                        Publishing {formatDateTime(scheduledFor)}
                       </span>
                     )}
                 </TooltipTrigger>
