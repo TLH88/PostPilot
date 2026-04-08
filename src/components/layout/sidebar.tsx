@@ -115,38 +115,39 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
 
       <Separator />
 
-      {/* Settings & Help */}
-      <div id="tour-sidebar-settings" className="space-y-1 px-3 py-2">
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-            pathname === "/settings"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          )}
-        >
-          <Settings className="size-4 shrink-0" />
-          Settings
-        </Link>
-        <Link
-          href="/help"
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-            pathname === "/help"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          )}
-        >
-          <HelpCircle className="size-4 shrink-0" />
-          Help
-        </Link>
-      </div>
+      {/* Settings, Help & Profile */}
+      <div id="tour-sidebar-settings">
+        <div className="space-y-1 px-3 py-2">
+          <Link
+            href="/settings"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/settings"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Settings className="size-4 shrink-0" />
+            Settings
+          </Link>
+          <Link
+            href="/help"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/help"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <HelpCircle className="size-4 shrink-0" />
+            Help
+          </Link>
+        </div>
 
-      <Separator />
+        <Separator />
 
-      {/* User profile with hover sign-out */}
-      <div className="group relative px-3 py-3">
+        {/* User profile with hover sign-out */}
+        <div className="group relative px-3 py-3">
         <Link
           href="/profile"
           className={cn(
@@ -179,6 +180,7 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
             <LogOut className="size-4" />
           </button>
         </Link>
+        </div>
       </div>
     </aside>
   );
