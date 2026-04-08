@@ -1,6 +1,6 @@
 import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbulb, BookOpen, Bot, CalendarDays, Play } from "lucide-react";
 import { CollapsibleCard } from "@/components/collapsible-card";
-import { TourRestartSection, RunTourButton } from "@/components/tour/tour-restart-section";
+import { TutorialRestartSection, RunTutorialButton } from "@/components/tutorial/tutorial-restart-section";
 
 function StepList({ children }: { children: React.ReactNode }) {
   return <ol className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-foreground/90">{children}</ol>;
@@ -77,7 +77,7 @@ export default function HelpPage() {
           Restart any tour at any time.
         </p>
       </div>
-      <TourRestartSection />
+      <TutorialRestartSection />
 
       {/* ─── Anthropic ─── */}
       <CollapsibleCard
@@ -407,7 +407,7 @@ export default function HelpPage() {
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
           New to PostPilot? These guides walk you through the core workflow from brainstorming ideas
-          to publishing on LinkedIn. You can also <RunTourButton tourName="welcome" label="run the Welcome tour" /> for
+          to publishing on LinkedIn. You can also <RunTutorialButton tutorialId="overview-app" label="run the App Overview tutorial" /> for
           an interactive walkthrough of the dashboard.
         </p>
       </div>
@@ -450,7 +450,7 @@ export default function HelpPage() {
           topics so you never run out of things to write about.
         </Tip>
 
-        <RunTourButton tourName="idea-to-post" label="Run the Idea Workflow tour" />
+        <RunTutorialButton tutorialId="howto-idea-generation" label="Run the Idea Generation tutorial" />
       </CollapsibleCard>
 
       <CollapsibleCard
@@ -504,7 +504,7 @@ export default function HelpPage() {
           changes are saved.
         </Tip>
 
-        <RunTourButton tourName="post-editor" label="Run the Post Editor tour" />
+        <RunTutorialButton tutorialId="howto-post-creation" label="Run the Post Creation tutorial" />
       </CollapsibleCard>
 
       <CollapsibleCard

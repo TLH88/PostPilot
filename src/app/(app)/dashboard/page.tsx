@@ -24,7 +24,7 @@ import { IDEA_TEMPERATURES, POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
-import { TourAutoStart } from "@/components/tour/tour-auto-start";
+import { TutorialAutoStart } from "@/components/tutorial/tutorial-auto-start";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <TourAutoStart tourName="welcome" />
+      <TutorialAutoStart tutorialId="overview-app" />
       {/* Onboarding banner */}
       {profile && !profile.onboarding_completed && (
         <Card className="border-primary/20 bg-primary/5">

@@ -48,7 +48,7 @@ import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { IdeaProcessFlow } from "@/components/ideas/idea-process-flow";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { IDEAS_TOOLTIPS } from "@/lib/tooltip-content";
-import { useTour } from "@/lib/tours/tour-provider";
+// Tutorial system - IDs on elements are used by the tutorial overlay
 
 // ---------------------------------------------------------------------------
 // Skeleton loader for initial load
@@ -253,8 +253,7 @@ export default function IdeasPage() {
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Tour hook kept for provider context
-  useTour();
+  // Tutorial target IDs are on elements for the tutorial overlay
 
   // Dialog states
   const [generateOpen, setGenerateOpen] = useState(false);

@@ -1,25 +1,35 @@
 "use client";
 
 import { useCallback } from "react";
-import { HelpCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { HelpCircle, ChevronLeft, ChevronRight, X, Loader2 } from "lucide-react";
 import { useHelpSidebar } from "@/components/help-sidebar";
-import type { CardComponentProps } from "nextstepjs";
 import confetti from "canvas-confetti";
+import type { TutorialStep } from "@/lib/tutorials/tutorial-engine";
+
+interface TutorialCardProps {
+  step: TutorialStep;
+  currentStep: number;
+  totalSteps: number;
+  onNext: () => void;
+  onPrev: () => void;
+  onClose: () => void;
+  waitingForAction: boolean;
+}
 
 /**
- * Custom tour card component for NextStepjs.
- * Uses theme primary color background with white text.
- * Includes progress bar, navigation, help link, and confetti on final step.
+ * Tutorial instruction card. Primary-colored with white text.
+ * Shows progress bar, navigation, help link, and confetti on finish.
+ * In interactive mode, shows "waiting" state when expecting user action.
  */
-export function TourCard({
+export function TutorialCard({
   step,
   currentStep,
   totalSteps,
-  nextStep,
-  prevStep,
-  skipTour,
-  arrow,
-}: CardComponentProps) {
+  onNext,
+  onPrev,
+  onClose,
+  waitingForAction,
+}: TutorialCardProps) {
   const { openHelp } = useHelpSidebar();
   const isFirst = currentStep === 0;
   const isLast = currentStep === totalSteps - 1;
@@ -33,25 +43,23 @@ export function TourCard({
         colors: ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ffffff"],
         disableForReducedMotion: true,
       });
-      skipTour?.(); // Close tour on finish
+      onClose();
       return;
     }
-    nextStep();
-  }, [isLast, nextStep, skipTour]);
+    onNext();
+  }, [isLast, onNext, onClose]);
 
   const handleHelp = useCallback(() => {
-    const helpArticle = (step as { helpArticle?: string }).helpArticle;
-    if (helpArticle) {
-      openHelp(helpArticle);
+    if (step.helpArticle) {
+      openHelp(step.helpArticle);
     } else {
       openHelp();
     }
-  }, [step, openHelp]);
+  }, [step.helpArticle, openHelp]);
 
   return (
-    <div className="relative z-[999] w-[360px] max-w-[calc(100vw-2rem)]">
-      {/* Card */}
-      <div className="rounded-2xl bg-primary text-white shadow-xl overflow-hidden">
+    <div className="w-[380px] max-w-[calc(100vw-2rem)]">
+      <div className="rounded-2xl bg-primary text-white shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-4 pb-2">
           <div className="flex items-center gap-2.5">
@@ -59,9 +67,9 @@ export function TourCard({
             <h3 className="text-[15px] font-bold leading-snug">{step.title}</h3>
           </div>
           <button
-            onClick={() => skipTour?.()}
+            onClick={onClose}
             className="flex size-7 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors shrink-0 ml-2"
-            title="Close tour"
+            title="Close tutorial"
           >
             <X className="size-3.5" />
           </button>
@@ -72,6 +80,13 @@ export function TourCard({
           <p className="text-[13px] leading-relaxed text-white/90">
             {step.content}
           </p>
+          {/* Waiting indicator for interactive mode */}
+          {waitingForAction && (
+            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg bg-white/10 text-[11px] text-white/80">
+              <Loader2 className="size-3 animate-spin" />
+              <span>Go ahead, try it! The tutorial will continue when you're done.</span>
+            </div>
+          )}
         </div>
 
         {/* Progress bar */}
@@ -105,20 +120,23 @@ export function TourCard({
             {/* Back */}
             {!isFirst && (
               <button
-                onClick={prevStep}
+                onClick={onPrev}
                 className="flex size-8 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
               >
                 <ChevronLeft className="size-4" />
               </button>
             )}
 
-            {/* Next / Finish */}
+            {/* Next / Finish (disabled when waiting for action) */}
             <button
               onClick={handleNext}
-              className="flex items-center gap-1 rounded-full bg-white text-primary px-3.5 py-1.5 text-xs font-semibold hover:bg-white/90 transition-colors"
+              disabled={waitingForAction}
+              className="flex items-center gap-1 rounded-full bg-white text-primary px-3.5 py-1.5 text-xs font-semibold hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLast ? (
                 "Finish"
+              ) : waitingForAction ? (
+                "Waiting..."
               ) : (
                 <>
                   Next
@@ -129,9 +147,6 @@ export function TourCard({
           </div>
         </div>
       </div>
-
-      {/* Arrow */}
-      {arrow}
     </div>
   );
 }

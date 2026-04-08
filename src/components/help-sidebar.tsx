@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { HelpCircle, X, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useTour } from "@/lib/tours/tour-provider";
-import { TOUR_NAMES } from "@/lib/tours/tour-storage";
+import { useTutorial } from "@/lib/tutorials/tutorial-provider";
+import { TUTORIAL_REGISTRY } from "@/lib/tutorials/tutorial-definitions";
 import {
   Sheet,
   SheetContent,
@@ -163,31 +163,47 @@ function HelpArticleLink({ id, title, description }: { id: string; title: string
 // ── Guided Tours Section ────────────────────────────────────────────────────
 
 function GuidedToursSection() {
-  const { startTour, resetTour } = useTour();
+  const { startTutorial, resetTutorial } = useTutorial();
   const router = useRouter();
 
-  function handleRestart() {
-    resetTour(TOUR_NAMES.WELCOME);
-    router.push("/dashboard");
-    setTimeout(() => startTour(TOUR_NAMES.WELCOME), 1200);
+  const tutorials = [
+    { id: "overview-app", label: "App Overview", description: "Navigation and workspace layout" },
+    { id: "howto-idea-generation", label: "Idea Generation", description: "Brainstorm to initial draft" },
+    { id: "howto-post-creation", label: "Post Creation", description: "Draft to published" },
+  ];
+
+  function handleStart(id: string) {
+    const tutorial = TUTORIAL_REGISTRY[id];
+    if (!tutorial) return;
+    resetTutorial(id);
+    const firstRoute = tutorial.steps[0]?.route;
+    if (firstRoute) {
+      router.push(firstRoute);
+      setTimeout(() => startTutorial(tutorial), 1200);
+    } else {
+      startTutorial(tutorial);
+    }
   }
 
   return (
     <div className="rounded-lg border p-3 space-y-2">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Guided Tour</h4>
-      <p className="text-xs text-muted-foreground">Walk through the complete PostPilot workflow step by step.</p>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tutorials</h4>
+      <p className="text-xs text-muted-foreground">Interactive walkthroughs that guide you step by step.</p>
       <div className="space-y-1.5">
+        {tutorials.map((t) => (
           <button
+            key={t.id}
             type="button"
-            onClick={handleRestart}
+            onClick={() => handleStart(t.id)}
             className="flex items-center gap-2 w-full rounded-md px-2.5 py-2 text-left hover:bg-hover-highlight transition-colors"
           >
             <Play className="size-3.5 text-primary shrink-0" />
             <div>
-              <p className="text-xs font-medium">Full Product Walkthrough</p>
-              <p className="text-[10px] text-muted-foreground">Dashboard, ideas, post editor, calendar, and publishing</p>
+              <p className="text-xs font-medium">{t.label}</p>
+              <p className="text-[10px] text-muted-foreground">{t.description}</p>
             </div>
           </button>
+        ))}
       </div>
     </div>
   );

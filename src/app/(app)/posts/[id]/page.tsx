@@ -88,7 +88,7 @@ import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { PostProgressBar } from "@/components/posts/post-progress-bar";
-import { useTour } from "@/lib/tours/tour-provider";
+// Tutorial target IDs on elements are used by the tutorial overlay
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
@@ -188,8 +188,7 @@ export default function PostWorkspacePage() {
   const [brainstormTopic, setBrainstormTopic] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
 
-  // Tour hook kept for provider context (auto-start removed, single unified tour now)
-  useTour();
+  // Tutorial target IDs on elements are used by the tutorial overlay
 
   // ── Responsive: open AI panel on desktop, keep collapsed on mobile ──────
   const [isMobile, setIsMobile] = useState(false);
