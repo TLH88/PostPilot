@@ -109,6 +109,7 @@ export async function getUserAIClient(
     // Route through Vercel AI Gateway if configured
     if (process.env.AI_GATEWAY_API_KEY) {
       const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
+      console.log(`[AI Gateway] Routing ${targetProvider}/${model} via Vercel AI Gateway`);
       const client = createGatewayClient(targetProvider, model);
       return { client, profile: creatorProfile };
     }
@@ -116,6 +117,7 @@ export async function getUserAIClient(
     // Fallback: direct system keys (local dev / gateway not configured)
     const systemKey = getSystemKey(targetProvider);
     if (systemKey) {
+      console.log(`[Direct] Using system key for ${targetProvider}`);
       apiKey = systemKey;
     } else {
       throw new Error(
