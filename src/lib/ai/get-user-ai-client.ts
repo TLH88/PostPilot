@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/encryption";
-import { createAIClient, type AIClient, type AIProvider } from "./providers";
+import {
+  createAIClient,
+  createGatewayClient,
+  getDefaultModel,
+  type AIClient,
+  type AIProvider,
+} from "./providers";
 import type { CreatorProfile } from "@/types";
 
 // System-level API keys for managed/trial access (env vars, never exposed to browser)
@@ -93,8 +99,22 @@ export async function getUserAIClient(
       authTag: creatorProfile.ai_api_key_auth_tag,
     });
   } else {
-    // Fallback: check managed AI access (trial/beta) with system keys
-    const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(targetProvider) : null;
+    // Managed AI access: prefer Vercel AI Gateway, fall back to direct system keys
+    if (!hasManagedAccess(creatorProfile)) {
+      throw new Error(
+        `No API key configured for ${targetProvider}. Please add your API key in Settings.`
+      );
+    }
+
+    // Route through Vercel AI Gateway if configured
+    if (process.env.AI_GATEWAY_API_KEY) {
+      const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
+      const client = createGatewayClient(targetProvider, model);
+      return { client, profile: creatorProfile };
+    }
+
+    // Fallback: direct system keys (local dev / gateway not configured)
+    const systemKey = getSystemKey(targetProvider);
     if (systemKey) {
       apiKey = systemKey;
     } else {

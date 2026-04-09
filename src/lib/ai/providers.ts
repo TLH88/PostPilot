@@ -172,9 +172,14 @@ class OpenAICompatibleClient implements AIClient {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, provider: "openai" | "google" | "perplexity", model?: string) {
+  constructor(
+    apiKey: string,
+    provider: "openai" | "google" | "perplexity",
+    model?: string,
+    baseURLOverride?: string
+  ) {
     const config = PROVIDER_CONFIG[provider];
-    this.client = new OpenAI({ apiKey, baseURL: config.baseURL });
+    this.client = new OpenAI({ apiKey, baseURL: baseURLOverride || config.baseURL });
     this.model = model || config.defaultModel;
   }
 
@@ -232,6 +237,30 @@ class OpenAICompatibleClient implements AIClient {
       },
     });
   }
+}
+
+// ── Gateway helpers ──────────────────────────────────────────────────────────
+
+export function toGatewayModelId(provider: AIProvider, modelId: string): string {
+  if (modelId.includes("/")) return modelId;
+  return `${provider}/${modelId}`;
+}
+
+export function createGatewayClient(
+  provider: AIProvider,
+  model: string
+): AIClient {
+  const gatewayApiKey = process.env.AI_GATEWAY_API_KEY;
+  if (!gatewayApiKey) {
+    throw new Error("AI_GATEWAY_API_KEY is not configured");
+  }
+  const gatewayModel = toGatewayModelId(provider, model);
+  return new OpenAICompatibleClient(
+    gatewayApiKey,
+    "openai",
+    gatewayModel,
+    "https://ai-gateway.vercel.sh/v1"
+  );
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────────
