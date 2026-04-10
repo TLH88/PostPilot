@@ -69,9 +69,14 @@ export async function getUserAIClient(
   const creatorProfile = profile as CreatorProfile;
   const targetProvider = forProvider || (creatorProfile.ai_provider as AIProvider);
 
+  // Gateway is available if either OIDC (preferred, project-attributed) or the
+  // team-scoped API key is configured.
+  const gatewayAvailable =
+    !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
+
   // Force AI Gateway: testing/dev toggle that bypasses BYOK keys entirely.
   // Takes precedence over all key lookups below.
-  if (creatorProfile.force_ai_gateway && process.env.AI_GATEWAY_API_KEY) {
+  if (creatorProfile.force_ai_gateway && gatewayAvailable) {
     const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
     console.log(`[AI Gateway] FORCED ${targetProvider}/${model} via user setting`);
     const client = createGatewayClient(targetProvider, model);
@@ -116,7 +121,7 @@ export async function getUserAIClient(
     }
 
     // Route through Vercel AI Gateway if configured
-    if (process.env.AI_GATEWAY_API_KEY) {
+    if (gatewayAvailable) {
       const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
       console.log(`[AI Gateway] Routing ${targetProvider}/${model} via Vercel AI Gateway`);
       const client = createGatewayClient(targetProvider, model);
