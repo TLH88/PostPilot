@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Key, FlaskConical, Check, AlertCircle, HelpCircle, Trash2 } from "lucide-react";
+import { Loader2, Key, FlaskConical, Check, AlertCircle, HelpCircle, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -29,12 +30,14 @@ interface AIProviderSettingsProps {
   currentProvider: string;
   currentModel: string | null;
   hasExistingKey: boolean;
+  currentForceGateway: boolean;
 }
 
 export function AIProviderSettings({
   currentProvider,
   currentModel,
   hasExistingKey,
+  currentForceGateway,
 }: AIProviderSettingsProps) {
   const [provider, setProvider] = useState(currentProvider);
   const [selectedModel, setSelectedModel] = useState<string | null>(currentModel);
@@ -48,6 +51,8 @@ export function AIProviderSettings({
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [savedModel, setSavedModel] = useState<string | null>(currentModel);
   const [keyConfigured, setKeyConfigured] = useState(hasExistingKey);
+  const [forceGateway, setForceGateway] = useState(currentForceGateway);
+  const [savingGateway, setSavingGateway] = useState(false);
 
   // Configured provider keys
   const [configuredKeys, setConfiguredKeys] = useState<
@@ -133,6 +138,33 @@ export function AIProviderSettings({
       toast.error(msg);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleToggleForceGateway(next: boolean) {
+    // Optimistic update
+    setForceGateway(next);
+    setSavingGateway(true);
+    try {
+      const res = await fetch("/api/settings/ai-provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forceAiGateway: next }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update setting");
+      }
+      toast.success(
+        next
+          ? "All AI requests will route through Vercel AI Gateway."
+          : "Gateway override disabled — using your configured keys."
+      );
+    } catch {
+      // Revert on failure
+      setForceGateway(!next);
+      toast.error("Failed to update gateway setting.");
+    } finally {
+      setSavingGateway(false);
     }
   }
 
@@ -316,6 +348,32 @@ export function AIProviderSettings({
           )}
           {testing ? "Testing..." : "Test Key"}
         </Button>
+      </div>
+
+      {/* Force AI Gateway (testing/dev aid) */}
+      <div className="space-y-2 pt-2 border-t">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Advanced
+        </Label>
+        <div className="flex items-start justify-between gap-3 rounded-md border px-3 py-2.5">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <Zap className="size-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="space-y-0.5 min-w-0">
+              <div className="text-sm font-medium">Force Vercel AI Gateway</div>
+              <p className="text-xs text-muted-foreground">
+                Route all AI requests through the gateway instead of your
+                configured keys. Useful for testing gateway routing without
+                removing your BYOK keys.
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={forceGateway}
+            onCheckedChange={handleToggleForceGateway}
+            disabled={savingGateway}
+            aria-label="Force Vercel AI Gateway"
+          />
+        </div>
       </div>
 
       {/* Configured providers list */}

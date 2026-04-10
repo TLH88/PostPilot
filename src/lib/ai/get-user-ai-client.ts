@@ -69,6 +69,15 @@ export async function getUserAIClient(
   const creatorProfile = profile as CreatorProfile;
   const targetProvider = forProvider || (creatorProfile.ai_provider as AIProvider);
 
+  // Force AI Gateway: testing/dev toggle that bypasses BYOK keys entirely.
+  // Takes precedence over all key lookups below.
+  if (creatorProfile.force_ai_gateway && process.env.AI_GATEWAY_API_KEY) {
+    const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
+    console.log(`[AI Gateway] FORCED ${targetProvider}/${model} via user setting`);
+    const client = createGatewayClient(targetProvider, model);
+    return { client, profile: creatorProfile };
+  }
+
   // Try to get key from ai_provider_keys table first
   const { data: providerKey } = await supabase
     .from("ai_provider_keys")
