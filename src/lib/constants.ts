@@ -36,7 +36,7 @@ export const IDEA_PRIORITIES = {
   medium: {
     label: "Medium",
     color:
-      "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/40",
+      "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-400/25 dark:text-amber-50 dark:border-amber-400/60",
     order: 2,
   },
   low: {
