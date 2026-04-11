@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { IDEA_STATUSES } from "@/lib/constants";
+import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority } from "@/lib/constants";
 import type { Idea } from "@/types";
+import { TagInput } from "@/components/ui/tag-input";
+import { CreateIdeaDialog } from "@/components/ideas/create-idea-dialog";
 import {
   Card,
   CardContent,
@@ -148,13 +150,25 @@ function EditIdeaDialog({
 }) {
   const [title, setTitle] = useState(idea.title);
   const [description, setDescription] = useState(idea.description ?? "");
+  const [priority, setPriority] = useState<IdeaPriority | null>(idea.priority ?? null);
+  const [tags, setTags] = useState<string[]>(idea.tags ?? []);
   const [saving, setSaving] = useState(false);
+
+  // Reset local state when a different idea is opened
+  useEffect(() => {
+    setTitle(idea.title);
+    setDescription(idea.description ?? "");
+    setPriority(idea.priority ?? null);
+    setTags(idea.tags ?? []);
+  }, [idea]);
 
   async function handleSave() {
     setSaving(true);
     await onSave({
       title,
       description: description || null,
+      priority,
+      tags,
     });
     setSaving(false);
     onOpenChange(false);
@@ -186,6 +200,39 @@ function EditIdeaDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="min-h-20"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Priority</Label>
+            <div className="flex flex-wrap gap-2">
+              <FilterPill
+                active={priority === null}
+                onClick={() => setPriority(null)}
+              >
+                None
+              </FilterPill>
+              {(Object.keys(IDEA_PRIORITIES) as IdeaPriority[])
+                .slice()
+                .sort((a, b) => IDEA_PRIORITIES[a].order - IDEA_PRIORITIES[b].order)
+                .map((key) => (
+                  <FilterPill
+                    key={key}
+                    active={priority === key}
+                    onClick={() => setPriority(key)}
+                  >
+                    {IDEA_PRIORITIES[key].label}
+                  </FilterPill>
+                ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-tags">Tags</Label>
+            <TagInput
+              id="edit-tags"
+              value={tags}
+              onChange={setTags}
+              placeholder="Type and press Enter to add..."
+              maxTags={20}
             />
           </div>
         </div>
@@ -226,12 +273,15 @@ export default function IdeasPage() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("open");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all"); // "all" | "none" | IdeaPriority
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Tutorial target IDs are on elements for the tutorial overlay
 
   // Dialog states
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [developingId, setDevelopingId] = useState<string | null>(null);
 
@@ -265,12 +315,41 @@ export default function IdeasPage() {
     loadData();
   }, [supabase]);
 
-  // Client-side filtering
+  // Unique tags across all ideas, alphabetized — used by the tag filter UI
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const idea of ideas) {
+      for (const tag of idea.tags ?? []) {
+        set.add(tag);
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [ideas]);
+
+  // Client-side filtering: status AND priority AND tags AND search
   const filteredIdeas = useMemo(() => {
     return ideas.filter((idea) => {
+      // Status
       if (statusFilter === "open" && !["captured", "developing"].includes(idea.status)) return false;
       if (statusFilter === "closed" && !["converted", "archived"].includes(idea.status)) return false;
       if (!["all", "open", "closed"].includes(statusFilter) && idea.status !== statusFilter) return false;
+
+      // Priority
+      if (priorityFilter !== "all") {
+        if (priorityFilter === "none" && idea.priority !== null) return false;
+        if (priorityFilter !== "none" && idea.priority !== priorityFilter) return false;
+      }
+
+      // Tags — AND semantics: idea must contain every selected filter tag
+      if (tagFilter.length > 0) {
+        const ideaTags = idea.tags ?? [];
+        const hasAll = tagFilter.every((t) =>
+          ideaTags.some((it) => it.toLowerCase() === t.toLowerCase())
+        );
+        if (!hasAll) return false;
+      }
+
+      // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesTitle = idea.title.toLowerCase().includes(q);
@@ -279,7 +358,17 @@ export default function IdeasPage() {
       }
       return true;
     });
-  }, [ideas, statusFilter, searchQuery]);
+  }, [ideas, statusFilter, priorityFilter, tagFilter, searchQuery]);
+
+  // Add/remove a tag from the filter (used by the click-tag-to-filter pattern)
+  function toggleTagFilter(tag: string) {
+    setTagFilter((prev) => {
+      const exists = prev.some((t) => t.toLowerCase() === tag.toLowerCase());
+      return exists
+        ? prev.filter((t) => t.toLowerCase() !== tag.toLowerCase())
+        : [...prev, tag];
+    });
+  }
 
   // Handlers
   async function handleEditSave(updated: Partial<Idea>) {
@@ -405,12 +494,21 @@ export default function IdeasPage() {
             Capture and organize content ideas. Click &quot;Generate Ideas&quot; to brainstorm with AI, or add your own manually.
           </p>
         </div>
-        <TooltipWrapper tooltip={IDEAS_TOOLTIPS.generateIdeas} side="bottom">
-          <Button id="tour-generate-ideas-btn" onClick={() => setGenerateOpen(true)} className="shrink-0 self-start sm:self-center">
-            <Sparkles className="size-4" />
-            Generate Ideas
+        <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-center">
+          <Button
+            variant="outline"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="size-4" />
+            Add Idea
           </Button>
-        </TooltipWrapper>
+          <TooltipWrapper tooltip={IDEAS_TOOLTIPS.generateIdeas} side="bottom">
+            <Button id="tour-generate-ideas-btn" onClick={() => setGenerateOpen(true)}>
+              <Sparkles className="size-4" />
+              Generate Ideas
+            </Button>
+          </TooltipWrapper>
+        </div>
       </div>
 
       {/* Idea Process Flow */}
@@ -563,6 +661,72 @@ export default function IdeasPage() {
           </FilterPill>
         </div>
 
+        {/* Priority filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground mr-1">
+            Priority:
+          </span>
+          <FilterPill
+            active={priorityFilter === "all"}
+            onClick={() => setPriorityFilter("all")}
+          >
+            All
+          </FilterPill>
+          {(Object.keys(IDEA_PRIORITIES) as IdeaPriority[])
+            .slice()
+            .sort((a, b) => IDEA_PRIORITIES[b].order - IDEA_PRIORITIES[a].order)
+            .map((key) => (
+              <FilterPill
+                key={key}
+                active={priorityFilter === key}
+                onClick={() => setPriorityFilter(key)}
+              >
+                {IDEA_PRIORITIES[key].label}
+              </FilterPill>
+            ))}
+          <FilterPill
+            active={priorityFilter === "none"}
+            onClick={() => setPriorityFilter("none")}
+          >
+            No Priority
+          </FilterPill>
+        </div>
+
+        {/* Tag filter (only shown when there are tags to filter by) */}
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground mr-1">
+              Tags:
+            </span>
+            {tagFilter.length === 0 ? (
+              <span className="text-xs text-muted-foreground italic">
+                Click a tag on any idea to filter
+              </span>
+            ) : (
+              tagFilter.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTagFilter(tag)}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                >
+                  {tag}
+                  <X className="size-3" />
+                </button>
+              ))
+            )}
+            {tagFilter.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setTagFilter([])}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Clear tags
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Search */}
         <div className="relative max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -598,6 +762,8 @@ export default function IdeasPage() {
               className="mt-2"
               onClick={() => {
                 setStatusFilter("all");
+                setPriorityFilter("all");
+                setTagFilter([]);
                 setSearchQuery("");
               }}
             >
@@ -610,20 +776,35 @@ export default function IdeasPage() {
           {filteredIdeas.map((idea) => {
             const status =
               IDEA_STATUSES[idea.status as keyof typeof IDEA_STATUSES];
+            const priorityInfo = idea.priority
+              ? IDEA_PRIORITIES[idea.priority]
+              : null;
             const isDeveloping = developingId === idea.id;
 
             return (
               <Card key={idea.id} className="flex flex-col">
                 <CardContent className="flex-1 space-y-2">
-                  {/* Top row: status badge */}
-                  {status && (
-                    <div className="flex items-center justify-end gap-2">
-                      <Badge
-                        variant="secondary"
-                        className={`${status.color} text-[10px]`}
-                      >
-                        {status.label}
-                      </Badge>
+                  {/* Top row: priority (left) + status (right) */}
+                  {(priorityInfo || status) && (
+                    <div className="flex items-center justify-between gap-2">
+                      {priorityInfo ? (
+                        <Badge
+                          variant="secondary"
+                          className={`${priorityInfo.color} text-[10px]`}
+                        >
+                          {priorityInfo.label} Priority
+                        </Badge>
+                      ) : (
+                        <span />
+                      )}
+                      {status && (
+                        <Badge
+                          variant="secondary"
+                          className={`${status.color} text-[10px]`}
+                        >
+                          {status.label}
+                        </Badge>
+                      )}
                     </div>
                   )}
 
@@ -639,23 +820,42 @@ export default function IdeasPage() {
                     </p>
                   )}
 
-                  {/* Content pillar & tags */}
-                  <div className="flex flex-wrap gap-1">
-                    {(idea.content_pillars ?? []).map((pillar: string) => (
-                      <Badge key={pillar} variant="outline" className="text-[10px] h-4">
-                        {pillar}
-                      </Badge>
-                    ))}
-                    {idea.tags?.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="text-[10px] h-4"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
+                  {/* Content pillars */}
+                  {idea.content_pillars && idea.content_pillars.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {idea.content_pillars.map((pillar: string) => (
+                        <Badge key={pillar} variant="outline" className="text-[10px] h-4">
+                          {pillar}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tags (clickable to filter) */}
+                  {idea.tags && idea.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {idea.tags.map((tag) => {
+                        const isInFilter = tagFilter.some(
+                          (t) => t.toLowerCase() === tag.toLowerCase()
+                        );
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleTagFilter(tag)}
+                            className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                              isInFilter
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
+                            }`}
+                            title={isInFilter ? `Remove "${tag}" from filter` : `Filter by "${tag}"`}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Date */}
                   <p className="text-[11px] text-muted-foreground">
@@ -721,6 +921,14 @@ export default function IdeasPage() {
         contentPillars={contentPillars}
         onIdeasSaved={handleIdeasSaved}
         onPillarsUpdated={(updated) => setContentPillars(updated)}
+      />
+
+      {/* Create Idea (manual) Dialog */}
+      <CreateIdeaDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        contentPillars={contentPillars}
+        onIdeaCreated={(newIdea) => setIdeas((prev) => [newIdea, ...prev])}
       />
 
       {/* Edit Idea Dialog */}

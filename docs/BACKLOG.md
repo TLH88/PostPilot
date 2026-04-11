@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-11 (BP-082, BP-083, BP-084 added)
+> Last updated: 2026-04-11 (BP-082 + BP-083 shipped; BP-084 scoped)
 
 ## Status Key
 
@@ -1265,10 +1265,11 @@ Removed the idea temperature feature (hot/warm/cold categorization) from the ent
 
 ### BP-082: Manual Idea Entry
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
 **Source:** Owner observation — Ideas page description promises manual entry but no UI exists
 **Date Added:** 2026-04-11
+**Completed:** 2026-04-11
 
 **Problem:**
 The Ideas page description at `src/app/(app)/ideas/page.tsx` says *"Click 'Generate Ideas' to brainstorm with AI, or add your own manually."* — but there is no "Add Idea" button. The only way to add an idea today is through the AI brainstorm dialog. Users who jot down ideas on their phone, hear something in a podcast, or want to capture a raw thought have no way to enter it without invoking the AI.
@@ -1308,10 +1309,11 @@ The Ideas page description at `src/app/(app)/ideas/page.tsx` says *"Click 'Gener
 
 ### BP-083: Idea Tagging & Prioritization
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
 **Source:** Owner observation — process flow step 2 promises "Rate, tag, and prioritize" but no such features exist
 **Date Added:** 2026-04-11
+**Completed:** 2026-04-11
 
 **Problem:**
 The `IdeaProcessFlow` component (`src/components/ideas/idea-process-flow.tsx:21`) promises users can *"Rate, tag, and prioritize your best ideas"* in step 2 of the workflow. None of those things exist today:
@@ -1733,3 +1735,5 @@ interface TutorialStep {
 - **BP-079:** Settings Copy Rewrite for Non-Technical Readers (2026-04-11)
 - **BP-080:** AI Provider Settings Collapsible Polish (2026-04-11)
 - **BP-081:** Remove Idea Temperature Feature (2026-04-11)
+- **BP-082:** Manual Idea Entry (2026-04-11)
+- **BP-083:** Idea Tagging & Prioritization (2026-04-11)

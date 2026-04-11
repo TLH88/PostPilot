@@ -23,6 +23,29 @@ export const IDEA_STATUSES = {
   archived: { label: "Archived", color: "bg-gray-100 text-gray-500" },
 } as const;
 
+// User-assigned priority for triaging ideas. Deliberately distinct from the
+// removed temperature feature: priority is user-set, reversible, and optional.
+// "No priority" (null) is a valid default state.
+export const IDEA_PRIORITIES = {
+  high: {
+    label: "High",
+    color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    order: 3,
+  },
+  medium: {
+    label: "Medium",
+    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    order: 2,
+  },
+  low: {
+    label: "Low",
+    color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    order: 1,
+  },
+} as const;
+
+export type IdeaPriority = keyof typeof IDEA_PRIORITIES;
+
 export const EXPERTISE_SUGGESTIONS = [
   "AI/ML",
   "Leadership",
