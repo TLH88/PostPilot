@@ -105,6 +105,7 @@ export function AIProviderSettings({
   const [imageKeys, setImageKeys] = useState<ConfiguredKey[]>([]);
 
   // Collapsible section state
+  const [textListOpen, setTextListOpen] = useState(false);
   const [textFormOpen, setTextFormOpen] = useState(false);
   const [imageFormOpen, setImageFormOpen] = useState(false);
 
@@ -578,14 +579,35 @@ export function AIProviderSettings({
             !byokUnlocked && "pointer-events-none select-none"
           )}
         >
-          {/* ── Section 2: Configured Text AI Providers ──────────────────── */}
+          {/* ── Section 2: Configured Text AI Providers (collapsible) ─── */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Text AI Providers
-            </Label>
-            <div className="space-y-1.5">
-              {TEXT_AI_PROVIDERS.map(renderTextProviderRow)}
-            </div>
+            <button
+              type="button"
+              onClick={() => setTextListOpen((v) => !v)}
+              aria-expanded={textListOpen}
+              className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Key className="size-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium">Text AI Providers</span>
+                {textKeys.length > 0 && (
+                  <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
+                    {textKeys.length} configured
+                  </span>
+                )}
+              </div>
+              {textListOpen ? (
+                <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+              ) : (
+                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+              )}
+            </button>
+
+            {textListOpen && (
+              <div className="space-y-1.5 rounded-md border p-3 bg-muted/30">
+                {TEXT_AI_PROVIDERS.map(renderTextProviderRow)}
+              </div>
+            )}
           </div>
 
           {/* ── Section 3: Text AI Config (collapsible) ──────────────────── */}
@@ -593,14 +615,20 @@ export function AIProviderSettings({
             <button
               type="button"
               onClick={() => setTextFormOpen((v) => !v)}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+              aria-expanded={textFormOpen}
+              className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
             >
+              <div className="flex items-center gap-2 min-w-0">
+                <FlaskConical className="size-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium">
+                  Configure Text AI Provider Key
+                </span>
+              </div>
               {textFormOpen ? (
-                <ChevronDown className="size-3.5" />
+                <ChevronDown className="size-4 text-muted-foreground shrink-0" />
               ) : (
-                <ChevronRight className="size-3.5" />
+                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
               )}
-              Configure Text AI Provider Key
             </button>
 
             {textFormOpen && (
@@ -754,14 +782,25 @@ export function AIProviderSettings({
             <button
               type="button"
               onClick={() => setImageFormOpen((v) => !v)}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+              aria-expanded={imageFormOpen}
+              className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
             >
+              <div className="flex items-center gap-2 min-w-0">
+                <Key className="size-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium">
+                  Image Generation Providers
+                </span>
+                {imageKeys.length > 0 && (
+                  <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
+                    {imageKeys.length} configured
+                  </span>
+                )}
+              </div>
               {imageFormOpen ? (
-                <ChevronDown className="size-3.5" />
+                <ChevronDown className="size-4 text-muted-foreground shrink-0" />
               ) : (
-                <ChevronRight className="size-3.5" />
+                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
               )}
-              Image Generation Providers
             </button>
 
             {imageFormOpen && (
