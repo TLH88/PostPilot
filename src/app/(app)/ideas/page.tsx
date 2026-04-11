@@ -277,6 +277,24 @@ export default function IdeasPage() {
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Sort
+  type SortMode =
+    | "created_desc"
+    | "created_asc"
+    | "updated_desc"
+    | "updated_asc"
+    | "priority_desc"
+    | "priority_asc";
+  const [sortMode, setSortMode] = useState<SortMode>("created_desc");
+  const SORT_LABELS: Record<SortMode, string> = {
+    created_desc: "Newest first",
+    created_asc: "Oldest first",
+    updated_desc: "Recently updated",
+    updated_asc: "Least recently updated",
+    priority_desc: "Priority: High → Low",
+    priority_asc: "Priority: Low → High",
+  };
+
   // Tutorial target IDs are on elements for the tutorial overlay
 
   // Dialog states
@@ -359,6 +377,76 @@ export default function IdeasPage() {
       return true;
     });
   }, [ideas, statusFilter, priorityFilter, tagFilter, searchQuery]);
+
+  // Sort the filtered list. Unprioritized ideas always fall to the bottom on
+  // priority sorts since "no priority" is the default state, not a rank.
+  const sortedIdeas = useMemo(() => {
+    const list = [...filteredIdeas];
+    const priorityRank = (p: Idea["priority"]): number => {
+      if (!p) return -1;
+      return IDEA_PRIORITIES[p].order;
+    };
+
+    switch (sortMode) {
+      case "created_asc":
+        list.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        break;
+      case "updated_desc":
+        list.sort(
+          (a, b) =>
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
+        break;
+      case "updated_asc":
+        list.sort(
+          (a, b) =>
+            new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+        );
+        break;
+      case "priority_desc":
+        // High -> Low, unprioritized last. Tie-break on newest first.
+        list.sort((a, b) => {
+          const pa = priorityRank(a.priority);
+          const pb = priorityRank(b.priority);
+          if (pa !== pb) {
+            // Push unprioritized (-1) to bottom regardless of direction
+            if (pa === -1) return 1;
+            if (pb === -1) return -1;
+            return pb - pa;
+          }
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+        break;
+      case "priority_asc":
+        // Low -> High, unprioritized last. Tie-break on newest first.
+        list.sort((a, b) => {
+          const pa = priorityRank(a.priority);
+          const pb = priorityRank(b.priority);
+          if (pa !== pb) {
+            if (pa === -1) return 1;
+            if (pb === -1) return -1;
+            return pa - pb;
+          }
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+        break;
+      case "created_desc":
+      default:
+        list.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        break;
+    }
+    return list;
+  }, [filteredIdeas, sortMode]);
 
   // Add/remove a tag from the filter (used by the click-tag-to-filter pattern)
   function toggleTagFilter(tag: string) {
@@ -727,28 +815,66 @@ export default function IdeasPage() {
           </div>
         )}
 
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search ideas..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:text-foreground"
+        {/* Search + Sort row */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search ideas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground shrink-0">
+              Sort by:
+            </span>
+            <Select
+              value={sortMode}
+              onValueChange={(v) => {
+                if (v) setSortMode(v as SortMode);
+              }}
             >
-              <X className="size-3.5" />
-            </button>
-          )}
+              <SelectTrigger className="w-[220px]">
+                <SelectValue>{SORT_LABELS[sortMode]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_desc">
+                  {SORT_LABELS.created_desc}
+                </SelectItem>
+                <SelectItem value="created_asc">
+                  {SORT_LABELS.created_asc}
+                </SelectItem>
+                <SelectItem value="updated_desc">
+                  {SORT_LABELS.updated_desc}
+                </SelectItem>
+                <SelectItem value="updated_asc">
+                  {SORT_LABELS.updated_asc}
+                </SelectItem>
+                <SelectItem value="priority_desc">
+                  {SORT_LABELS.priority_desc}
+                </SelectItem>
+                <SelectItem value="priority_asc">
+                  {SORT_LABELS.priority_asc}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       {/* Ideas Grid */}
-      {filteredIdeas.length === 0 ? (
+      {sortedIdeas.length === 0 ? (
         ideas.length === 0 ? (
           <EmptyState onGenerate={() => setGenerateOpen(true)} />
         ) : (
@@ -773,7 +899,7 @@ export default function IdeasPage() {
         )
       ) : (
         <div id="tour-idea-card" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredIdeas.map((idea) => {
+          {sortedIdeas.map((idea) => {
             const status =
               IDEA_STATUSES[idea.status as keyof typeof IDEA_STATUSES];
             const priorityInfo = idea.priority
