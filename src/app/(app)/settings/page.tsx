@@ -25,16 +25,19 @@ export default async function SettingsPage() {
   // Fetch AI provider settings + subscription tier
   const { data: profile } = await supabase
     .from("creator_profiles")
-    .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier")
+    .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier, force_ai_gateway")
     .eq("user_id", user.id)
     .single();
+
+  const subscriptionTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground max-w-[80%]">
-          Configure your AI provider and API key, connect your LinkedIn account for direct posting, and customize your theme preferences.
+          Manage your AI provider settings and connect your LinkedIn account so
+          PostPilot can post on your behalf and auto-publish scheduled posts.
         </p>
       </div>
 
@@ -60,13 +63,19 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Choose your AI provider and enter your API key. Your key is
-            encrypted at rest and never exposed to the browser.
+            PostPilot includes built-in AI for everyone, so most users don&apos;t
+            need to do anything here. If you&apos;re on the Professional or
+            Enterprise plan and prefer to use your own AI account (for example,
+            your own OpenAI or Anthropic account), you can add your personal
+            access keys below. This is sometimes called &ldquo;BYOK&rdquo; or
+            &ldquo;Bring Your Own Key.&rdquo;
           </p>
           <AIProviderSettings
             currentProvider={profile?.ai_provider ?? "anthropic"}
             currentModel={profile?.ai_model ?? null}
             hasExistingKey={!!profile?.ai_api_key_encrypted}
+            currentForceGateway={profile?.force_ai_gateway ?? true}
+            subscriptionTier={subscriptionTier}
           />
         </CardContent>
       </Card>

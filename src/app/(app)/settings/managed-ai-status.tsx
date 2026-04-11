@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, Clock, AlertTriangle, Check } from "lucide-react";
+import { Sparkles, Clock, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,6 @@ type AccessStatus = "active" | "expiring_soon" | "expired" | "personal_key" | "l
 export function ManagedAIStatus() {
   const [status, setStatus] = useState<AccessStatus>("loading");
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
-  const [hasPersonalKey, setHasPersonalKey] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -19,24 +18,28 @@ export function ManagedAIStatus() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // SECURITY: never fetch ciphertext columns from the browser. The
+      // /api/settings/provider-keys endpoint returns only safe metadata
+      // (id, provider, is_active, etc) — no encrypted key fields.
       const { data: profile } = await supabase
         .from("creator_profiles")
-        .select("managed_ai_access, managed_ai_expires_at, ai_api_key_encrypted")
+        .select("managed_ai_access, managed_ai_expires_at")
         .eq("user_id", user.id)
         .single();
 
       if (!profile) return;
 
-      // Check if user has their own API key
-      const { data: keys } = await supabase
-        .from("ai_provider_keys")
-        .select("id")
-        .eq("user_id", user.id)
-        .limit(1);
-
-      const hasKey = !!(keys?.length || profile.ai_api_key_encrypted);
-      setHasPersonalKey(hasKey);
-
+      // Check if user has their own API key via the safe API route
+      let hasKey = false;
+      try {
+        const res = await fetch("/api/settings/provider-keys?keyType=text");
+        if (res.ok) {
+          const { keys } = await res.json();
+          hasKey = Array.isArray(keys) && keys.length > 0;
+        }
+      } catch {
+        // If the check fails, fall through to managed-access UI — safer default
+      }
       if (hasKey) {
         setStatus("personal_key");
         return;

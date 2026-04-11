@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-07
+> Last updated: 2026-04-11 (BP-082, BP-083, BP-084 added)
 
 ## Status Key
 
@@ -1124,6 +1124,552 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 
 ---
 
+### BP-076: Vercel AI Gateway Integration
+
+**Status:** Done
+**Priority:** High
+**Source:** Owner strategic decision
+**Date Added:** 2026-04-10
+**Completed:** 2026-04-10
+
+**Description:**
+Route managed-access (non-BYOK) AI requests through the Vercel AI Gateway instead of directly to provider APIs. Gives us unified billing, automatic provider fallbacks, prompt caching, per-project usage tracking, and zero markup on tokens. $5/mo free credits per Vercel team help offset the system-key cost for Free/Creator trial users.
+
+**Requirements:**
+- Route all managed AI access requests through `https://ai-gateway.vercel.sh/v1` when `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` is configured
+- Fall back to direct `SYSTEM_AI_KEY_*` env vars if the gateway is not available (local dev)
+- Model IDs must be converted to gateway format (`provider/model-id`) on the fly
+- Frontend SSE streaming format (`data: {"text":"..."}`) must remain unchanged
+- Image generation excluded from gateway in Phase 1 — provider-specific image APIs still go direct
+- Must be zero new dependencies (reuse existing `openai` SDK, not the Vercel AI SDK)
+
+**Implementation:**
+- New `createGatewayClient(provider, model)` factory and `toGatewayModelId` helper in `src/lib/ai/providers.ts`
+- `OpenAICompatibleClient` constructor extended with optional `baseURLOverride` and `defaultHeaders`
+- `src/lib/ai/get-user-ai-client.ts` managed-access fallback branch now routes through the gateway when configured
+- Prefers `VERCEL_OIDC_TOKEN` over `AI_GATEWAY_API_KEY` in deployments for project-scoped attribution
+- Sends `x-title: PostPilot` and `http-referer` headers for app attribution
+
+---
+
+### BP-077: Force AI Gateway Toggle
+
+**Status:** Done
+**Priority:** Medium
+**Source:** Testing need
+**Date Added:** 2026-04-10
+**Completed:** 2026-04-10
+
+**Description:**
+Add a user-facing toggle in Settings that forces all AI requests through the Vercel AI Gateway, bypassing any configured BYOK keys. This supports testing gateway routing without removing existing keys, and allows users to opt into the managed gateway experience even when they have their own keys saved.
+
+**Requirements:**
+- New `creator_profiles.force_ai_gateway` boolean column (default `true`)
+- Existing users migrated to `force_ai_gateway = true`
+- Toggle in Settings > AI Provider card that calls `/api/settings/ai-provider` POST with `forceAiGateway` field
+- When `true`, the gateway routing check takes precedence over all BYOK key lookups in `getUserAIClient`
+- Server-side routing log: `[AI Gateway] FORCED {provider}/{model} via user setting`
+- Toggle is locked ON for Free/Creator tiers (they cannot opt out)
+
+---
+
+### BP-078: AI Provider Settings Card Overhaul
+
+**Status:** Done
+**Priority:** High
+**Source:** Owner UX request
+**Date Added:** 2026-04-10
+**Completed:** 2026-04-10
+
+**Description:**
+Reorganize the AI Provider card in Settings around the new gateway-first flow. Move the gateway toggle to the top, reorganize configured providers as a first-class list with Setup Provider / Switch to / Configured states, make the text AI key form collapsible, add a new collapsible Image Generation Providers section for dedicated image keys, and gate all BYOK configuration to Professional+.
+
+**Requirements:**
+- Gateway toggle at the top with user-friendly copy describing the function
+- Configured Text AI Providers list shows all 4 providers (Anthropic, OpenAI, Google, Perplexity); row shows Setup Provider / Switch to / Configured badges based on state
+- Text AI key configuration form is collapsible (collapsed by default), auto-opens when clicking Setup Provider
+- New collapsible Image Generation Providers section with its own provider/model/key form; stores keys with `key_type='image'`
+- Free and Creator tiers see the gateway toggle locked ON and an upgrade overlay covering the rest of the card; BYOK available on Professional+
+- Persist "tested" state via a new `tested_at` column on `ai_provider_keys` so users can see which providers have been validated across sessions
+- Security: no ciphertext columns fetched client-side
+
+**Implementation:**
+- Database: `ai_provider_keys` extended with `key_type` + `tested_at`, new composite unique constraint `(user_id, provider, key_type)`
+- New feature gates `byok_ai_keys: "professional"` and `byok_image_keys: "professional"`
+- `/api/settings/provider-keys` accepts `keyType` query/body param on all methods, enforces tier gating on mutating endpoints
+- `/api/settings/test-ai-key` persists `tested_at` on successful test
+- `/api/ai/generate-image` prefers `key_type='image'` keys with fallback to text keys
+- Full rewrite of `src/app/(app)/settings/ai-provider-settings.tsx`
+
+**Related Security Cleanup:**
+- `src/app/(app)/settings/managed-ai-status.tsx`: stopped fetching `ai_api_key_encrypted` from the browser; uses `/api/settings/provider-keys` metadata instead
+- `src/components/posts/generate-image-dialog.tsx`: stopped fetching `ai_api_key_encrypted` from the browser; `loadConfig` now uses the safe API route
+- Verified zero client components reference ciphertext columns after cleanup
+- Verified RLS enabled with proper `auth.uid() = user_id` policies on `creator_profiles` and `ai_provider_keys` via `pg_policies`
+
+---
+
+### BP-079: Settings Copy Rewrite for Non-Technical Readers
+
+**Status:** Done
+**Priority:** Low
+**Source:** Owner UX request
+**Date Added:** 2026-04-11
+**Completed:** 2026-04-11
+
+**Description:**
+Rewrote the Settings page intro and AI Provider card description so a person who may not know what an API key is can still understand what the card does. The AI Provider card now leads with "built-in AI for everyone, so most users don't need to do anything here", names concrete brands (OpenAI, Anthropic), and treats "BYOK" as a side note rather than a feature name.
+
+---
+
+### BP-080: AI Provider Settings Collapsible Polish
+
+**Status:** Done
+**Priority:** Low
+**Source:** Owner UX request
+**Date Added:** 2026-04-11
+**Completed:** 2026-04-11
+
+**Description:**
+Collapse the Text AI Providers list by default and make all 3 collapsible sections visually distinct from plain labels. Replaced the small uppercase muted-text headers with bordered card-style buttons that include section icons, labels, configured-count badges, and a chevron that flips on expand. Added `aria-expanded` to all collapsible triggers for accessibility.
+
+---
+
+### BP-081: Remove Idea Temperature Feature
+
+**Status:** Done
+**Priority:** Medium
+**Source:** Owner decision (no observed product value)
+**Date Added:** 2026-04-11
+**Completed:** 2026-04-11
+
+**Description:**
+Removed the idea temperature feature (hot/warm/cold categorization) from the entire system. It added UI clutter and required an unnecessary taxonomy without helping users prioritize.
+
+**Scope:**
+- Database: dropped `ideas.temperature` column (nullable text, default `'warm'`, 30 rows) via migration `20260411_remove_idea_temperature.sql`
+- Types: removed `temperature` field from the `Idea` interface
+- Constants: deleted `IDEA_TEMPERATURES` constant
+- AI prompt: removed "Temperature distribution" block and `suggestedTemperature` field from `BRAINSTORM_INSTRUCTIONS`. Replaced with a single line asking the AI to vary timely/evergreen/niche angles without a formal taxonomy.
+- Tooltips: removed `temperatureHot` / `temperatureWarm` / `temperatureCold` entries
+- UI: removed temperature filters, badges, edit selectors, and all `IDEA_TEMPERATURES` imports across Ideas page, idea detail page, generate-ideas-dialog, and dashboard
+- Docs/tutorials: updated help page, help sidebar, and tutorial definitions to drop temperature mentions
+
+**Verification:**
+- `tsc --noEmit`: clean
+- `grep -rn "temperature|IDEA_TEMPERATURES|tempFilter" src/`: zero matches
+- All affected pages (`/dashboard`, `/ideas`, `/ideas/[id]`, `/settings`) return 200 with no console errors after Turbopack cache flush
+- Ideas table schema confirmed to have 11 columns (temperature removed)
+
+---
+
+### BP-082: Manual Idea Entry
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner observation — Ideas page description promises manual entry but no UI exists
+**Date Added:** 2026-04-11
+
+**Problem:**
+The Ideas page description at `src/app/(app)/ideas/page.tsx` says *"Click 'Generate Ideas' to brainstorm with AI, or add your own manually."* — but there is no "Add Idea" button. The only way to add an idea today is through the AI brainstorm dialog. Users who jot down ideas on their phone, hear something in a podcast, or want to capture a raw thought have no way to enter it without invoking the AI.
+
+**Requirements:**
+- Add an **"Add Idea"** button to the Ideas page header row (next to "Generate Ideas"). Secondary/outline variant so it doesn't compete with the primary AI action.
+- Clicking opens a lightweight modal dialog with these fields:
+  - **Title** (required, text, max ~150 chars)
+  - **Description** (optional, textarea, no hard limit — same as AI-generated ideas)
+  - **Content Pillar** (optional, single-select from the user's configured pillars — same pattern as the current Generate Ideas dialog)
+  - **Tags** (optional) — *deferred until BP-083 ships a reusable tag input component; ship without tags first if BP-083 isn't ready*
+- On save:
+  - Insert into `ideas` table with `source: 'manual'`, `status: 'captured'`, `workspace_id` from current context
+  - Close dialog, add the new idea to the in-memory list (optimistic), show success toast
+  - Keep the user on the Ideas page (no redirect)
+- No AI calls, no quota impact — manual entry is always free
+- Same validation as the existing `EditIdeaDialog` (title required and non-empty after trim)
+
+**Implementation Notes:**
+- **Reusable pattern:** extend the existing `EditIdeaDialog` component (`src/app/(app)/ideas/page.tsx:138-214`) or create a sibling `CreateIdeaDialog`. The existing dialog only handles title + description — a new form needs content pillar selection too. Recommended to create a new `CreateIdeaDialog` component in `src/components/ideas/create-idea-dialog.tsx` so the Add and Edit flows can diverge cleanly.
+- **Button row:** The current "Generate Ideas" button lives at `src/app/(app)/ideas/page.tsx:408-413`. Add the new button immediately to its left with `variant="outline"` and a `Plus` icon.
+- **DB insert:** Mirror the shape of the current `handleSaveIdea` in `generate-ideas-dialog.tsx:206-216` but with `source: 'manual'` and whatever the user entered. `tags: []` and `content_pillars: []` are both safe defaults.
+- **No schema changes needed** — the ideas table already supports all fields this feature needs.
+- **Telemetry:** track `source='manual'` count in admin/usage dashboards if that becomes useful later (not required for MVP).
+
+**Tier gating:**
+- Available on all tiers. Manual entry has zero cost to us and should never be locked behind a paywall.
+
+**Acceptance:**
+1. An "Add Idea" button is visible next to "Generate Ideas" on the Ideas page
+2. Clicking it opens a modal with Title, Description, and Content Pillar fields
+3. Saving creates an idea with `source='manual'`, `status='captured'`, visible in the list immediately
+4. Closing/cancelling discards the form with no DB write
+5. Works for both personal and workspace users (respects current `workspace_id` context)
+
+---
+
+### BP-083: Idea Tagging & Prioritization
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner observation — process flow step 2 promises "Rate, tag, and prioritize" but no such features exist
+**Date Added:** 2026-04-11
+
+**Problem:**
+The `IdeaProcessFlow` component (`src/components/ideas/idea-process-flow.tsx:21`) promises users can *"Rate, tag, and prioritize your best ideas"* in step 2 of the workflow. None of those things exist today:
+
+- **Rate/prioritize:** no column, no UI, no concept in the codebase
+- **Tag:** a `tags text[]` column exists and is populated by AI brainstorm occasionally, but there is no way to view, edit, filter, or add tags from the UI. The copy is currently aspirational.
+
+This is a trust gap — the feature walkthrough describes something we don't deliver.
+
+**Scope:**
+Deliver a working tag and priority system for ideas that matches the process flow copy, including:
+1. A priority column + UI (3-level enum: Low / Medium / High)
+2. A tag editor + filter on the Ideas page
+3. A reusable tag input component for use here, in the manual entry dialog (BP-082), and in any future tag use cases (post tagging, etc.)
+
+### Proposed Database Changes
+
+**Migration:** `20260412_add_idea_priority.sql`
+```sql
+ALTER TABLE ideas
+  ADD COLUMN IF NOT EXISTS priority text
+    CHECK (priority IN ('low', 'medium', 'high'));
+-- Nullable, no default. Unset priority means "no priority" — users
+-- shouldn't be forced to triage everything they capture.
+```
+
+**No migration needed for tags** — `ideas.tags text[]` already exists and is populated by AI. We're just adding UI.
+
+### New Constants
+
+`src/lib/constants.ts` — add:
+```ts
+export const IDEA_PRIORITIES = {
+  high:   { label: "High",   color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",       order: 3 },
+  medium: { label: "Medium", color: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300", order: 2 },
+  low:    { label: "Low",    color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", order: 1 },
+} as const;
+```
+
+Deliberately **NOT reusing** the removed temperature color palette (hot/warm/cold). This is a different concept: priority is user-assigned and reversible; temperature was AI-assigned and confusing.
+
+### UX Mockup: Idea Card with Tags & Priority
+
+```
+┌─────────────────────────────────────────────────┐
+│ [High Priority]                    [ Captured ] │  ← priority badge left, status badge right
+│                                                 │
+│ The 5 mistakes I made as a first-time founder   │  ← title
+│                                                 │
+│ A post-mortem style write-up about the specific │  ← description (line-clamp-2)
+│ decisions that cost me time and money...        │
+│                                                 │
+│ [Leadership] [Startups]                         │  ← content pillars (outline badges)
+│                                                 │
+│ #founderjourney  #lessonsLearned  #startup      │  ← tags (secondary badges, smaller)
+│                                                 │
+│                           [Edit]  [Develop →]   │  ← actions
+└─────────────────────────────────────────────────┘
+```
+
+**Visual hierarchy:**
+- **Priority badge:** top-left, always visible when set; color-coded (red/amber/slate). Hidden entirely when unset — no "None" badge.
+- **Status badge:** top-right (current behavior)
+- **Content pillars:** just under the description (current behavior)
+- **Tags:** new row under pillars, smaller text, `bg-muted` subtle style so they don't compete with pillars
+- **No tag row** when the idea has zero tags
+
+### UX Mockup: Edit/Create Idea Dialog
+
+```
+┌─ Edit Idea ──────────────────────────────── × ─┐
+│                                                 │
+│ Title                                           │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ The 5 mistakes I made as a first-time fou…  │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Description                                     │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ A post-mortem style write-up about the      │ │
+│ │ specific decisions that cost me time...     │ │
+│ │                                             │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Content Pillar                                  │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Leadership                                ▼ │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Priority                                        │
+│ ( ) None  ( ) Low  ( ) Medium  (●) High         │  ← radio pills
+│                                                 │
+│ Tags                                            │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ [founderjourney ×] [lessonsLearned ×]       │ │
+│ │ [startup ×]  Type and press Enter to add... │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│                          [ Cancel ]  [ Save ]   │
+└─────────────────────────────────────────────────┘
+```
+
+**Tag input behavior:**
+- Type freely, press **Enter** or **,** (comma) to commit a tag
+- **Backspace** on empty input removes the last tag
+- **Click ×** on a tag chip to remove it
+- No duplicates (case-insensitive); silently dedupes
+- No hard limit, but soft-warn at 10+ tags ("That's a lot of tags — consider consolidating.")
+- No `#` prefix auto-added — tags are stored as plain words; display formatting is up to the consumer
+
+### UX Mockup: Filter Bar (Ideas Page)
+
+Extend the existing filter bar under the header with two new rows:
+
+```
+Status:   [ Open Ideas ▼ ]  [ Closed Ideas ]  [ All ]
+
+Priority: [ All ] [ 🔴 High ] [ 🟡 Medium ] [ ⚪ Low ] [ ☐ No Priority ]
+
+Tags:     [ All ] [ founderjourney × ] [ lessonsLearned × ]  + Add filter
+          ↑ clicking a tag badge anywhere on the page adds it here
+
+Search:   [ 🔍 Search ideas...                              ]
+```
+
+**Filter behavior:**
+- **Priority filter:** single-select pills. "All" is default. "No Priority" matches `priority IS NULL`.
+- **Tag filter:** multi-select. Multiple selected tags are combined with **AND** (must have all selected tags). Clicking a tag badge on any idea card **adds it to the filter** — low-friction discovery.
+- **All three filter rows are additive** — status + priority + tags + search are ANDed together (current behavior for status + search; just extended).
+- **Clear filters** button appears when any non-default filter is active.
+
+### Example User Workflow: "I just generated 10 ideas, now I want to triage them"
+
+1. **User lands on Ideas page** after clicking "Generate Ideas" → 10 new cards appear at the top, all with status "Captured" and no priority set.
+2. **User skims the cards.** The first one looks great — *"The 5 mistakes I made as a first-time founder"*.
+3. **User clicks "Edit"** on that card → dialog opens.
+4. **User sets Priority to High**, adds tags `founderjourney, lessonsLearned, startup`, clicks Save.
+5. The card now shows a red **[High Priority]** badge and three tag chips under the content pillars.
+6. **User skims more cards.** A weaker one — *"Generic productivity tip"* — gets **Low** priority.
+7. **Another idea is unclear** — user doesn't set priority at all. It stays in the "No Priority" bucket (the default).
+8. **User clicks the Priority filter: High** → list narrows to the 2-3 high-priority ideas.
+9. **User clicks "Develop →"** on the top one to turn it into a post draft.
+10. **Next week**, user comes back, clicks Priority: **Medium** to pick up the next tier, then **Low** when they need filler content.
+
+### Implementation Notes
+
+- **Tag input component:** Build `src/components/ui/tag-input.tsx` as a reusable shadcn-style primitive. Props: `value: string[]`, `onChange: (tags: string[]) => void`, `placeholder?: string`, `maxTags?: number`. Use controlled state. No external library — the hashtag editor in `src/app/(app)/posts/[id]/page.tsx:1600-1621` is a close precedent to model the chip-removal UX on.
+- **Priority radio:** simple button-group pills. `{null, 'low', 'medium', 'high'}` — 4 states. Use the existing `FilterPill` component pattern from the Ideas page.
+- **Filter UI:** extend the existing filter bar in `src/app/(app)/ideas/page.tsx:430-564`. Add priority filter pills right after the status row, tag filter after that.
+- **Filter state:** add `priorityFilter: string` and `tagFilter: string[]` to the existing filter state block. Extend `filteredIdeas` useMemo with both.
+- **Sort by priority:** optionally add a "Sort by priority" option to show high → medium → low → none order. Could default to this when the priority filter is "All" so users see high priority first naturally. (Nice-to-have, not required.)
+- **Update IdeaProcessFlow copy:** once this ships, the step 2 copy is no longer a lie. No copy change needed — it already matches.
+
+### Tier Gating
+
+All of this should be available on **all tiers**. Tagging and prioritization are organization features that help users get value — not premium upsells. BYOK and AI quotas are the right place for gating; organizational metadata is not.
+
+### Acceptance Criteria
+
+1. `ideas.priority` column exists, nullable, constrained to `('low', 'medium', 'high')`
+2. Edit Idea dialog has Priority radio pills (None/Low/Medium/High) and a Tags input with chip removal
+3. Create Idea dialog (BP-082) gets the same Priority + Tags fields
+4. Idea cards show a priority badge (when set) and a tag row (when non-empty)
+5. Filter bar on Ideas page supports priority filter + multi-select tag filter, combinable with existing status + search filters
+6. Clicking a tag on any card adds it to the active tag filter
+7. Reusable `<TagInput />` component in `src/components/ui/tag-input.tsx` with documented props
+8. Zero breaking changes to the existing AI brainstorm flow (which will continue populating tags opportunistically)
+9. `tsc --noEmit` clean, no new console errors
+
+### Out of Scope
+
+- **Tag management screen** (renaming, merging, deleting tags globally) — future BP if tag sprawl becomes an issue
+- **Tag auto-complete** from previously-used tags — nice-to-have, could be added later
+- **Priority on posts** — posts have their own lifecycle (draft/review/scheduled/etc.), priority there is a separate conversation
+- **Custom priority levels** beyond 3 — keep it simple
+
+---
+
+### BP-084: Tutorial Card Visual Redesign
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner UX direction with reference mockups
+**Date Added:** 2026-04-11
+
+**Problem:**
+The current tutorial card (`src/components/tutorial/tutorial-card.tsx`) is a compact, all-primary-blue dialog with white text, an emoji icon in the header, and a small progress bar at the bottom. It doesn't match the rest of the app's theme, has no space for visual content, and feels cramped. Users learn better with visual aids (screenshots, short animations, or clips demonstrating the feature), but there's nowhere to put them today.
+
+The owner provided two reference mockups (light and dark theme) showing a redesigned card that:
+- Uses the system theme colors (bg-card, border, text-foreground) instead of a solid primary color
+- Has a prominent, dedicated media area above the title for images/gifs/videos
+- Replaces the bottom progress bar with a "STEP X OF Y" pill badge at the top
+- Uses a full-width primary CTA button ("Next →" / "Finish")
+- Adds a clear "SKIP TUTORIAL" text link below the CTA
+
+**Note:** The owner has flagged that the tutorial system overall is not functioning properly. This BP is scoped to the *visual redesign only*. Functional bugs (state management, targeting, wait-for-action detection, etc.) are a separate future task. The redesign should land in a way that is isolated from behavior changes so the cleanup work can proceed independently.
+
+### Reference Mockups
+
+The owner provided two screenshots showing the target design (light + dark theme). Save them to:
+- `docs/images/tutorial-card-light.png` — light theme reference
+- `docs/images/tutorial-card-dark.png` — dark theme reference
+
+Both are also embedded in the design spec section of `docs/GUIDED-TOURS-REQUIREMENTS.md`.
+
+### Visual Specification
+
+```
+┌─ Tutorial Card ────────────────────────────────┐
+│                                                 │
+│  ┌─ STEP 1 OF 3 ─┐                        [ × ] │  ← step pill (top-left) + close (top-right)
+│  └───────────────┘                              │
+│                                                 │
+│  ┌───────────────────────────────────────────┐ │
+│  │                                             │ │
+│  │                                             │ │
+│  │              [  ICON / MEDIA  ]             │ │  ← media slot: image, gif, video, or placeholder icon
+│  │                                             │ │
+│  │                                             │ │
+│  └───────────────────────────────────────────┘ │
+│                                                 │
+│  Meet Draft Posts                               │  ← bold title (text-xl)
+│                                                 │
+│  Your private sanctuary for refining thoughts. │  ← description (text-sm, muted-foreground)
+│  Save ideas, polish tone, and schedule for the │
+│  perfect moment.                                │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │            Next  →                       │   │  ← full-width primary button
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│              SKIP TUTORIAL                      │  ← small uppercase muted text link
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+**Card dimensions:** `w-[420px] max-w-[calc(100vw-2rem)]` (slightly wider than current 380 to accommodate media)
+**Card styling:**
+- Background: `bg-card` with subtle `border border-border`
+- Corner radius: `rounded-2xl`
+- Shadow: `shadow-2xl` (keep the elevation)
+- Padding: ~`p-6` inside the card
+
+**Step pill:**
+- Position: top-left
+- Styling: `bg-primary/10 text-primary dark:bg-primary/20` rounded-full pill
+- Typography: `text-[11px] font-bold uppercase tracking-wider`
+- Format: `STEP {currentStep + 1} OF {totalSteps}`
+
+**Close button:**
+- Position: top-right
+- Styling: no background, `text-muted-foreground hover:text-foreground` transition
+- Icon: `X` from lucide-react, `size-5`
+
+**Media slot:**
+- Aspect ratio: 16:9 (approx `aspect-video`)
+- Background: `bg-muted` when empty
+- Corner radius: `rounded-xl`
+- **Empty state:** centered placeholder icon (`step.icon` or a default) inside a white/card rounded tile on top of the muted background
+- **Image state:** full-bleed `object-cover` image
+- **Video/gif state:** same as image, autoplay muted loop for gifs/webp; controls-free `<video autoPlay muted loop playsInline>` for video
+- The slot is always rendered — when a step has no media, the placeholder icon is shown (matches the mockup exactly)
+
+**Title:**
+- Typography: `text-xl font-bold text-foreground`
+- Line-height: `leading-tight`
+- Margin-top: `mt-5` after the media slot
+
+**Description:**
+- Typography: `text-sm text-muted-foreground leading-relaxed`
+- Margin-top: `mt-2` after the title
+
+**Primary CTA:**
+- Full-width (`w-full`)
+- Height: ~`h-12`
+- Gradient or solid `bg-primary text-primary-foreground` with `rounded-xl`
+- Large font: `text-base font-semibold`
+- Right-arrow icon (`ArrowRight` from lucide) trailing the label with `gap-2`
+- Label: `"Next"` on mid-steps, `"Finish"` on the final step
+- Disabled state when `waitingForAction` is true: show `"Waiting..."` with reduced opacity
+
+**Skip link:**
+- Small button below the CTA
+- Typography: `text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground`
+- Label: `"SKIP TUTORIAL"`
+- Invokes the same `onClose` handler as the X button
+
+**Theme support:**
+- All colors use CSS variables from the existing theme (`--card`, `--border`, `--muted`, `--muted-foreground`, `--primary`, `--primary-foreground`)
+- Light and dark themes must both look correct without any theme-specific hardcoded colors
+- Test against both themes during implementation; owner provided both mockups
+
+### Component API Changes
+
+**`TutorialStep` type** (in `src/lib/tutorials/tutorial-engine.ts` or wherever it currently lives — find via grep):
+
+Add an optional `media` field so steps can specify visual content:
+
+```ts
+interface TutorialStep {
+  // ... existing fields
+  icon: string;              // emoji or icon name, used as fallback placeholder
+  title: string;
+  content: string;           // description text
+  selector?: string;
+  waitFor?: "click" | "input" | "manual" | string;
+
+  // NEW: optional media slot content
+  media?: {
+    type: "image" | "video" | "gif";
+    src: string;             // public URL or /images/... path
+    alt?: string;            // for images only (a11y)
+    poster?: string;         // optional still frame for videos
+  };
+}
+```
+
+**`TutorialCard` props** — no breaking changes; the new `media` field is read off the `step` prop.
+
+**Existing tutorial definitions** (`src/lib/tutorials/tutorial-definitions.ts`):
+- No changes required — they will render with the placeholder icon in the media slot until media is added later
+- This is intentional: ship the redesign now, add media assets per-step incrementally over time
+
+### Implementation Notes
+
+- **File:** rewrite `src/components/tutorial/tutorial-card.tsx` entirely. The current file is 152 lines; the replacement should be similar length.
+- **Fix pre-existing lint error:** the current file has `react/no-unescaped-entities` on line 87 (`you're` needs escaping). Clean this up as part of the rewrite.
+- **Keep the confetti** on final-step finish — the owner liked that.
+- **Drop the horizontal progress bar** (lines 92-100 of the current file). The step pill replaces it.
+- **Drop the old footer layout** (lines 102-148 of the current file) — replaced by the full-width CTA + skip link structure.
+- **`canvas-confetti` import** stays.
+- **Icon handling:** the current card uses `step.icon` as an emoji in the header. In the new design it becomes the placeholder in the media slot. Update any tutorial step definitions that use emoji-as-icon to something that renders well centered in a rounded tile — or switch to lucide icons. Owner preference: keep it simple and use lucide icons consistently across steps.
+- **No schema changes** — this is pure frontend.
+- **Responsive:** on screens narrower than 440px, the card should respect `max-w-[calc(100vw-2rem)]` and the media slot should shrink proportionally.
+
+### Out of Scope (separate future BPs)
+
+- **Tutorial state machine / functional bugs:** reported as broken by the owner, will be addressed separately. This BP is visual-only.
+- **Creating actual media assets** (screenshots, gifs, videos) for each tutorial step. That's a content task that can happen incrementally after the new card ships with placeholder support.
+- **Tutorial analytics** (completion rates, drop-off by step).
+- **Multi-language tutorial content.**
+
+### Acceptance Criteria
+
+1. `src/components/tutorial/tutorial-card.tsx` rewritten to match the provided mockups in both light and dark themes
+2. New `media` field supported on `TutorialStep` type; when unset, the media slot shows a placeholder icon
+3. "STEP X OF Y" pill at the top-left, close button top-right
+4. Full-width primary CTA button with "Next →" / "Finish" states
+5. "SKIP TUTORIAL" text link below the CTA
+6. Uses system theme colors only (no hardcoded blues, no primary-colored card background)
+7. Existing tutorial flows still launch and navigate correctly (no regressions to the engine — this is UI-only)
+8. Confetti still fires on the final step
+9. `tsc --noEmit` clean
+10. Pre-existing lint error on the old card file (line 87) is resolved in the rewrite
+11. Owner signs off after visual review on both themes
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -1181,3 +1727,9 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-073:** Alpha Feedback — Image Version Picker (2026-04-07)
 - **BP-074:** Alpha Feedback — Help Sidebar (Non-Modal Slide-Out) (2026-04-07)
 - **BP-075:** Alpha Feedback — Review Status Gated to Team/Enterprise (2026-04-07)
+- **BP-076:** Vercel AI Gateway Integration (2026-04-10)
+- **BP-077:** Force AI Gateway Toggle (2026-04-10)
+- **BP-078:** AI Provider Settings Card Overhaul (2026-04-10)
+- **BP-079:** Settings Copy Rewrite for Non-Technical Readers (2026-04-11)
+- **BP-080:** AI Provider Settings Collapsible Polish (2026-04-11)
+- **BP-081:** Remove Idea Temperature Feature (2026-04-11)

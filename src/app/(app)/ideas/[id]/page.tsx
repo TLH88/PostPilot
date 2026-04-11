@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { IDEA_TEMPERATURES, IDEA_STATUSES } from "@/lib/constants";
+import { IDEA_STATUSES } from "@/lib/constants";
 import type { Idea } from "@/types";
 import {
   Card,
@@ -83,7 +83,6 @@ export default function IdeaDetailPage({
   // Editable fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [temperature, setTemperature] = useState<Idea["temperature"]>("warm");
   const [contentPillar, setContentPillar] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -119,7 +118,6 @@ export default function IdeaDetailPage({
       const idea = ideaResult.data as Idea;
       setTitle(idea.title);
       setDescription(idea.description ?? "");
-      setTemperature(idea.temperature);
       setContentPillar((idea.content_pillars ?? [])[0] ?? "");
       setTags(idea.tags ?? []);
       setStatus(idea.status);
@@ -147,7 +145,6 @@ export default function IdeaDetailPage({
         .update({
           title: title.trim(),
           description: description.trim() || null,
-          temperature,
           content_pillars: contentPillar ? [contentPillar] : [],
           tags,
           updated_at: new Date().toISOString(),
@@ -247,7 +244,6 @@ export default function IdeaDetailPage({
     return <IdeaDetailSkeleton />;
   }
 
-  const temp = IDEA_TEMPERATURES[temperature];
   const statusInfo = IDEA_STATUSES[status];
 
   return (
@@ -266,18 +262,13 @@ export default function IdeaDetailPage({
       {/* Page Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            {temp && (
-              <Badge variant="secondary" className={temp.color}>
-                {temp.icon} {temp.label}
-              </Badge>
-            )}
-            {statusInfo && (
+          {statusInfo && (
+            <div className="flex items-center gap-2">
               <Badge variant="secondary" className={statusInfo.color}>
                 {statusInfo.label}
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Created{" "}
             {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
@@ -340,33 +331,6 @@ export default function IdeaDetailPage({
               placeholder="Describe your idea in more detail..."
               className="min-h-28"
             />
-          </div>
-
-          {/* Temperature */}
-          <div className="space-y-2">
-            <Label>Temperature</Label>
-            <Select
-              value={temperature}
-              onValueChange={(v) => {
-                if (v) setTemperature(v as Idea["temperature"]);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  Object.keys(IDEA_TEMPERATURES) as Array<
-                    keyof typeof IDEA_TEMPERATURES
-                  >
-                ).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {IDEA_TEMPERATURES[key].icon}{" "}
-                    {IDEA_TEMPERATURES[key].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Content Pillar */}

@@ -172,9 +172,19 @@ class OpenAICompatibleClient implements AIClient {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, provider: "openai" | "google" | "perplexity", model?: string) {
+  constructor(
+    apiKey: string,
+    provider: "openai" | "google" | "perplexity",
+    model?: string,
+    baseURLOverride?: string,
+    defaultHeaders?: Record<string, string>
+  ) {
     const config = PROVIDER_CONFIG[provider];
-    this.client = new OpenAI({ apiKey, baseURL: config.baseURL });
+    this.client = new OpenAI({
+      apiKey,
+      baseURL: baseURLOverride || config.baseURL,
+      defaultHeaders,
+    });
     this.model = model || config.defaultModel;
   }
 
@@ -232,6 +242,49 @@ class OpenAICompatibleClient implements AIClient {
       },
     });
   }
+}
+
+// ── Gateway helpers ──────────────────────────────────────────────────────────
+
+export function toGatewayModelId(provider: AIProvider, modelId: string): string {
+  if (modelId.includes("/")) return modelId;
+  return `${provider}/${modelId}`;
+}
+
+export function createGatewayClient(
+  provider: AIProvider,
+  model: string
+): AIClient {
+  // Prefer the Vercel-issued OIDC token in deployments — it automatically
+  // associates requests with this Vercel project in the AI Gateway dashboard.
+  // Fall back to the team-scoped AI_GATEWAY_API_KEY for local dev.
+  const gatewayAuth =
+    process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
+  if (!gatewayAuth) {
+    throw new Error(
+      "AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN is not configured"
+    );
+  }
+  const gatewayModel = toGatewayModelId(provider, model);
+
+  // App attribution headers (featured apps + better observability)
+  const refererUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  const attributionHeaders: Record<string, string> = {
+    "x-title": "PostPilot",
+  };
+  if (refererUrl) {
+    attributionHeaders["http-referer"] = refererUrl;
+  }
+
+  return new OpenAICompatibleClient(
+    gatewayAuth,
+    "openai",
+    gatewayModel,
+    "https://ai-gateway.vercel.sh/v1",
+    attributionHeaders
+  );
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────────

@@ -430,12 +430,12 @@ export default function HelpPage() {
             expertise.
           </li>
           <li>
-            Review the generated ideas. Each idea has a <strong>temperature badge</strong>:
-            Hot (timely, trend-driven), Warm (solid evergreen), or Cold (niche deep-dives).
-            Use these to help you prioritize.
+            Review the generated ideas and save the ones you want to keep. Each idea
+            shows its title, description, and content pillar so you can pick what
+            fits your audience best.
           </li>
           <li>
-            <strong>Edit</strong> any idea to refine its title, description, or temperature.
+            <strong>Edit</strong> any idea to refine its title or description.
             <strong> Archive</strong> ideas you want to save for later.
           </li>
           <li>

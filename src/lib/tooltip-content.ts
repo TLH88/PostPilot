@@ -71,9 +71,6 @@ export const EDITOR_TOOLTIPS = {
 export const IDEAS_TOOLTIPS = {
   generateIdeas: { text: "Use AI to brainstorm content ideas based on your expertise and content pillars", helpUrl: "/help#idea-generation" },
   develop: { text: "Turn this idea into a post draft. The AI will create an initial draft based on this idea." },
-  temperatureHot: { text: "Timely, high-engagement potential. Trend-driven or contrarian takes that spark conversation." },
-  temperatureWarm: { text: "Solid evergreen content. Reliably valuable with strong audience relevance." },
-  temperatureCold: { text: "Niche deep-dives. Unconventional angles that are thought-provoking for a narrower audience." },
   archiveIdea: { text: "Remove this idea from your active bank. You can filter to see archived ideas." },
 } satisfies Record<string, TooltipEntry>;
 

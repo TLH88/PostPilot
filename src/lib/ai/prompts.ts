@@ -30,20 +30,13 @@ Consider:
 - Topics their target audience cares about
 - Current trends in their industries
 - Different content formats: personal stories, lessons learned, contrarian takes, how-to tips, behind-the-scenes, questions to the audience, industry analysis
-
-CRITICAL — Temperature distribution (YOU MUST FOLLOW THIS):
-You are REQUIRED to distribute temperatures across the ideas. DO NOT make all ideas "warm". The distribution MUST be:
-- At least 1 idea MUST be "hot" (timely, high-engagement potential, trend-driven, contrarian takes that spark conversation)
-- At least 1 idea MUST be "cold" (niche deep-dives, unconventional angles, thought-provoking but narrower audience)
-- The remaining ideas should be "warm" (solid evergreen content, reliably valuable, strong audience relevance)
-If generating 5+ ideas: include at least 2 hot and 2 cold. NEVER return all ideas as the same temperature.
+- Variety across the set: mix timely/trend-driven angles with evergreen content and niche deep-dives so the user has options to choose from.
 
 For each idea, respond with a JSON object. Each idea should have:
 - "title": A compelling hook or title (under 100 chars)
 - "description": A 2-3 sentence description of what the post would cover
 - "suggestedPillars": An array of content pillars this idea fits (can be one or multiple, e.g. ["AI & Technology", "Leadership"])
-- "suggestedTemperature": "hot", "warm", or "cold" (follow the distribution above)
-- "reasoning": Brief note on why this idea suits this creator and why you assigned this temperature
+- "reasoning": Brief note on why this idea suits this creator
 
 Respond ONLY with valid JSON: { "ideas": [...] }`;
 

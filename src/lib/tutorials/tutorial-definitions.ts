@@ -119,14 +119,14 @@ const OVERVIEW_IDEAS: TutorialDefinition = {
     {
       icon: "🔍",
       title: "Filter & Search",
-      content: "Use temperature filters to sort by urgency: Hot (trending now), Warm (solid evergreen), Cold (niche deep-dives). Use status filters to see Open or Closed ideas.",
+      content: "Use the status filters to switch between Open ideas (Captured, Developing) and Closed ideas (Converted, Archived), or search by keyword.",
       selector: "#tour-idea-filters",
       side: "bottom",
     },
     {
       icon: "💡",
       title: "Your Idea Cards",
-      content: "Each idea card shows the title, description, temperature badge, and content pillar. Use the buttons to Edit, Archive, or Develop an idea into a full post.",
+      content: "Each idea card shows the title, description, status, and content pillar. Use the buttons to Edit, Archive, or Develop an idea into a full post.",
       selector: "#tour-idea-card",
       side: "top",
     },
@@ -299,7 +299,7 @@ const HOWTO_IDEA_GENERATION: TutorialDefinition = {
     {
       icon: "🌡️",
       title: "Review Your Ideas",
-      content: "Here are your new ideas! Each one has a temperature badge: Hot (timely), Warm (evergreen), or Cold (niche). Read through them and pick one you like.",
+      content: "Here are your new ideas! Read through them and pick one you'd like to save or develop into a post.",
       selector: "#tour-idea-card",
       side: "top",
       waitFor: "manual",

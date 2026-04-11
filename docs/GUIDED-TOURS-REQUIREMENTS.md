@@ -1,6 +1,6 @@
 # PostPilot Guided Tours & Tutorials - Requirements Document
 
-> Version: 1.0 | Created: 2026-04-08 | Status: Primary Execution Document
+> Version: 1.1 | Created: 2026-04-08 | Last updated: 2026-04-11 | Status: Primary Execution Document
 
 This document defines the complete set of guided tours and step-by-step tutorials for PostPilot. It serves as the primary reference for implementation regardless of which tour library or approach is used.
 
@@ -13,7 +13,124 @@ This document defines the complete set of guided tours and step-by-step tutorial
 - **Help integration:** Every tour ends with a link to related help center articles and how-to tutorials.
 - **Accessibility:** Always skippable, re-launchable from Help Center, keyboard navigable.
 - **Theme:** Cards use system theme colors, compatible with light and dark modes.
+- **Visual aids:** Every step can optionally include an image, gif, or short video in a dedicated media slot above the text. Steps without media display a clean placeholder icon so the layout is consistent.
 - **Completion:** Each tour tracks completion in localStorage. Confetti animation on final step.
+
+---
+
+## Tutorial Card Visual Design (v1.1 — pending implementation, BP-084)
+
+> **Status:** The current tutorial card (`src/components/tutorial/tutorial-card.tsx`) does **not** match this spec yet. The redesign is tracked in BP-084 as a high-priority task. This section is the target state.
+
+### Reference Mockups
+
+Light and dark theme reference screenshots are stored at:
+
+- `docs/images/tutorial-card-light.png`
+- `docs/images/tutorial-card-dark.png`
+
+If the files are missing, they are attached to the 2026-04-11 session in the activity log.
+
+### Layout
+
+```
+┌─ Tutorial Card ────────────────────────────────┐
+│                                                 │
+│  ┌─ STEP 1 OF 3 ─┐                        [ × ] │
+│  └───────────────┘                              │
+│                                                 │
+│  ┌───────────────────────────────────────────┐ │
+│  │                                             │ │
+│  │              [  ICON / MEDIA  ]             │ │
+│  │                                             │ │
+│  └───────────────────────────────────────────┘ │
+│                                                 │
+│  Meet Draft Posts                               │
+│                                                 │
+│  Your private sanctuary for refining thoughts. │
+│  Save ideas, polish tone, and schedule for the │
+│  perfect moment.                                │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │            Next  →                       │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│              SKIP TUTORIAL                      │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+### Structure (top to bottom)
+
+1. **Header row**
+   - **Step pill** (top-left): `STEP {n} OF {total}` badge, uppercase bold text on a soft primary-tinted background (`bg-primary/10 text-primary`)
+   - **Close button** (top-right): minimal `X` icon, no background, muted-foreground color
+
+2. **Media slot** (16:9 aspect ratio)
+   - Rendered for every step regardless of whether media is provided
+   - When a step has a `media` field: shows an image, autoplay-muted-loop gif, or video
+   - When a step has no media: shows a centered placeholder icon inside a small rounded tile on top of a muted background
+   - Rounded corners (`rounded-xl`), uses `bg-muted` for the empty state
+
+3. **Title** — `text-xl font-bold`, tight line-height, left-aligned under the media
+
+4. **Description** — `text-sm text-muted-foreground leading-relaxed`, 2-4 lines typical, can wrap longer
+
+5. **Primary CTA button**
+   - Full-width, prominent (`h-12`, `rounded-xl`, `bg-primary text-primary-foreground`)
+   - Label: `Next →` on middle steps, `Finish` on the last step
+   - Disabled state when the engine is waiting for a user action (`Waiting...`)
+
+6. **Skip link** — small uppercase `SKIP TUTORIAL` button below the CTA, muted color. Invokes the same close handler as the X button.
+
+### Theme support
+
+All colors must use CSS variables from the existing theme system. Explicit rules:
+
+- **Card surface:** `bg-card`, not primary. The previous all-primary-blue style is retired.
+- **Border:** `border border-border`
+- **Shadow:** keep `shadow-2xl` for elevation
+- **Text:** `text-foreground` for title, `text-muted-foreground` for description
+- **Step pill:** `bg-primary/10 text-primary dark:bg-primary/20`
+- **Media slot empty state:** `bg-muted` background with a `bg-card` rounded tile holding the placeholder icon
+- **CTA button:** `bg-primary text-primary-foreground hover:bg-primary/90`
+- **Skip link:** `text-muted-foreground hover:text-foreground`
+
+Both light and dark themes must be verified visually against the reference mockups during implementation.
+
+### TutorialStep schema (new `media` field)
+
+```ts
+interface TutorialStep {
+  // ... existing fields (id, title, content, selector, waitFor, etc.)
+
+  icon: string | LucideIcon;   // used as the media-slot placeholder when media is unset
+  title: string;
+  content: string;             // description body
+
+  // NEW: optional visual content shown in the media slot
+  media?: {
+    type: "image" | "video" | "gif";
+    src: string;               // URL or /images/... path
+    alt?: string;              // required for type="image", for a11y
+    poster?: string;           // optional still frame for type="video"
+  };
+}
+```
+
+### Backwards compatibility
+
+- All existing tutorial step definitions in `src/lib/tutorials/tutorial-definitions.ts` continue to work without changes. They will render with the placeholder icon in the media slot until individual steps are updated to include `media` content.
+- Media assets should be added incrementally, one tour at a time, rather than blocking the visual redesign on a full content-production pass.
+
+### Out of scope for the redesign
+
+These items are tracked separately:
+
+- **Tutorial engine/state bugs** — the owner has reported the tutorial system is not functioning properly. Those fixes are not part of BP-084. BP-084 ships the new card UI only; behavior work lands in a follow-up BP.
+- **Content production** (actual screenshots, gifs, videos per step)
+- **Tutorial analytics / drop-off tracking**
+- **Per-user tutorial completion sync** (currently localStorage-only)
 
 ---
 

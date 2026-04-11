@@ -40,6 +40,8 @@ export interface CreatorProfile {
   // Managed AI access (trial / beta)
   managed_ai_access: boolean;
   managed_ai_expires_at: string | null;
+  // Force all AI requests through Vercel AI Gateway (bypasses BYOK keys)
+  force_ai_gateway: boolean;
   // Subscription
   subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
   created_at: string;
@@ -92,7 +94,6 @@ export interface Idea {
   title: string;
   description: string | null;
   source: string | null;
-  temperature: "hot" | "warm" | "cold";
   content_pillars: string[];
   tags: string[];
   status: "captured" | "developing" | "converted" | "archived";

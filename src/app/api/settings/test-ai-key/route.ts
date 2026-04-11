@@ -4,14 +4,23 @@ import { decrypt } from "@/lib/encryption";
 import { createAIClient, type AIProvider } from "@/lib/ai/providers";
 import { logApiError } from "@/lib/api-utils";
 
-const VALID_PROVIDERS = ["anthropic", "openai", "google", "perplexity"];
+const VALID_TEXT_PROVIDERS = ["anthropic", "openai", "google", "perplexity"];
+const VALID_IMAGE_PROVIDERS = ["openai", "google"];
+
+function parseKeyType(value: unknown): "text" | "image" {
+  return value === "image" ? "image" : "text";
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { provider, apiKey: providedKey, aiModel } = body;
+    const { provider, apiKey: providedKey, aiModel, keyType: rawKeyType } = body;
+    const keyType = parseKeyType(rawKeyType);
 
-    if (!provider || !VALID_PROVIDERS.includes(provider)) {
+    const validProviders =
+      keyType === "image" ? VALID_IMAGE_PROVIDERS : VALID_TEXT_PROVIDERS;
+
+    if (!provider || !validProviders.includes(provider)) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
 
@@ -25,20 +34,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Use provided key or fall back to saved encrypted key
+    // Use provided key or fall back to saved encrypted key from ai_provider_keys
     let apiKey = providedKey;
 
     if (!apiKey) {
-      const { data: profile } = await supabase
-        .from("creator_profiles")
-        .select("ai_api_key_encrypted, ai_api_key_iv, ai_api_key_auth_tag")
+      const { data: storedKey } = await supabase
+        .from("ai_provider_keys")
+        .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
         .eq("user_id", user.id)
+        .eq("provider", provider)
+        .eq("key_type", keyType)
         .single();
 
       if (
-        !profile?.ai_api_key_encrypted ||
-        !profile?.ai_api_key_iv ||
-        !profile?.ai_api_key_auth_tag
+        !storedKey?.api_key_encrypted ||
+        !storedKey?.api_key_iv ||
+        !storedKey?.api_key_auth_tag
       ) {
         return NextResponse.json(
           { error: "No API key saved. Please enter a key." },
@@ -47,14 +58,19 @@ export async function POST(request: NextRequest) {
       }
 
       apiKey = decrypt({
-        ciphertext: profile.ai_api_key_encrypted,
-        iv: profile.ai_api_key_iv,
-        authTag: profile.ai_api_key_auth_tag,
+        ciphertext: storedKey.api_key_encrypted,
+        iv: storedKey.api_key_iv,
+        authTag: storedKey.api_key_auth_tag,
       });
     }
 
-    // Make a minimal test call
-    const client = createAIClient(provider as AIProvider, apiKey, aiModel || undefined);
+    // Image keys can't be validated with a chat message, so we just do a
+    // minimal auth check by hitting the chat completions endpoint. Image
+    // providers (OpenAI, Google) both support chat completions with the same
+    // key, so this verifies the key is valid for the account.
+    const testProvider = (keyType === "image" ? provider : provider) as AIProvider;
+
+    const client = createAIClient(testProvider, apiKey, aiModel || undefined);
     const response = await client.createMessage({
       systemPrompt: "You are a helpful assistant.",
       messages: [{ role: "user", content: "Say 'ok'" }],
@@ -67,6 +83,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Persist test success timestamp. This UPDATE is a no-op if the key
+    // wasn't saved yet (user testing before saving), which is fine.
+    await supabase
+      .from("ai_provider_keys")
+      .update({ tested_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .eq("provider", provider)
+      .eq("key_type", keyType);
 
     const providerLabel =
       provider === "anthropic"

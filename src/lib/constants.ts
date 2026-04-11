@@ -16,12 +16,6 @@ export const POST_STATUSES = {
   archived: { label: "Archived", color: "bg-gray-100 text-gray-800" },
 } as const;
 
-export const IDEA_TEMPERATURES = {
-  hot: { label: "Hot", color: "bg-red-100 text-red-700", icon: "🔥" },
-  warm: { label: "Warm", color: "bg-orange-100 text-orange-700", icon: "☀️" },
-  cold: { label: "Cold", color: "bg-blue-100 text-blue-700", icon: "❄️" },
-} as const;
-
 export const IDEA_STATUSES = {
   captured: { label: "Captured", color: "bg-gray-100 text-gray-700" },
   developing: { label: "Developing", color: "bg-yellow-100 text-yellow-700" },
@@ -163,6 +157,8 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   templates: "creator",
   image_generation: "creator",
   analytics: "creator",
+  byok_ai_keys: "professional",
+  byok_image_keys: "professional",
   review_status: "team",
   workspaces: "team",
   brand_onboarding: "team",

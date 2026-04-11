@@ -4,6 +4,147 @@
 
 ---
 
+## 2026-04-11: Settings Copy Polish, Collapsible UI Tightening, Idea Temperature Removal, Idea Bank Scoping, Tutorial Card Redesign Scoping
+
+### Idea Bank Scoping (BP-082, BP-083)
+- Scoped **manual idea entry** (BP-082) as a medium-priority feature. Ideas page copy promises manual entry but no UI exists today. Scoped as a lightweight `CreateIdeaDialog` with title/description/pillar fields that writes `source='manual'` to the existing ideas table — no schema changes required.
+- Scoped **idea tagging and prioritization** (BP-083) to match the "Rate, tag, and prioritize your best ideas" copy on step 2 of the idea process flow. Includes a new `ideas.priority` column (low/medium/high, nullable), a reusable `<TagInput />` component, priority + multi-select tag filter rows on the Ideas page, and a click-tag-to-filter discovery pattern. Full mockups for the idea card, edit dialog, and filter bar included in the backlog entry, along with an end-to-end example user workflow for triaging freshly-brainstormed ideas.
+
+### Tutorial Card Redesign Scoping (BP-084)
+- Owner provided light and dark theme reference mockups for a redesigned tutorial card. Current card is solid-primary-blue with white text, compact header, small bottom progress bar, and no media slot.
+- Scoped **BP-084 (high priority)** to replace the current card with a system-themed design: `bg-card` + border, top-left "STEP X OF Y" pill, top-right close button, prominent 16:9 media slot (image/gif/video + placeholder fallback), bold title, muted description, full-width primary CTA (`Next →` / `Finish`), and a `SKIP TUTORIAL` text link below.
+- Added a new `media?: { type, src, alt?, poster? }` field to the `TutorialStep` schema so steps can optionally include visual content. Backwards compatible — existing steps render with a placeholder icon until media is added incrementally.
+- Updated `docs/GUIDED-TOURS-REQUIREMENTS.md` to v1.1 with a full "Tutorial Card Visual Design" section containing the layout spec, theme rules, schema changes, and reference mockup paths (`docs/images/tutorial-card-light.png` and `docs/images/tutorial-card-dark.png` — owner to save the attached screenshots to those paths).
+- BP-084 is scoped to the **visual redesign only**. The owner has flagged that the tutorial system overall is not functioning properly (state bugs, targeting issues) — those fixes are a separate future BP.
+
+---
+
+## 2026-04-11: Settings Copy Polish, Collapsible UI Tightening, Idea Temperature Removal
+
+### Settings Page Copy (BP-079)
+- Rewrote the Settings page intro and the AI Provider card description for non-technical readers. The AI Provider card now leads with "PostPilot includes built-in AI for everyone, so most users don't need to do anything here", names OpenAI and Anthropic by name instead of jargon, and treats "BYOK" as a side note rather than a feature name users need to learn.
+
+### AI Provider Collapsibles (BP-080)
+- Collapsed the Text AI Providers list by default (was always-open).
+- Replaced the small uppercase muted-text section headers with bordered card-style buttons that include a section icon, label, a configured-count badge where applicable, and a chevron that flips on expand. Applies to all 3 collapsibles: Text AI Providers, Configure Text AI Provider Key, Image Generation Providers.
+- All headers now expose `aria-expanded` for accessibility.
+
+### Idea Temperature Removal (BP-081)
+Removed the idea temperature feature (hot/warm/cold) entirely. It provided no clear product value and added UI clutter + extra AI constraints without helping users prioritize.
+
+**Database:** `20260411_remove_idea_temperature.sql` drops `ideas.temperature` (was nullable text defaulting to `'warm'`). Applied via Supabase MCP.
+
+**Code removed or simplified:**
+- `src/types/index.ts` — removed `temperature` field from the `Idea` interface
+- `src/lib/constants.ts` — deleted the `IDEA_TEMPERATURES` constant
+- `src/lib/ai/prompts.ts` — removed the "CRITICAL — Temperature distribution" block and `suggestedTemperature` field from `BRAINSTORM_INSTRUCTIONS`. The brainstorm prompt now simply asks for a mix of timely/evergreen/niche angles without a formal taxonomy.
+- `src/lib/tooltip-content.ts` — deleted `temperatureHot`, `temperatureWarm`, `temperatureCold` tooltip entries
+- `src/app/api/ai/brainstorm/route.ts` — dropped `temperature` from the recent-ideas history select
+- `src/components/ideas/generate-ideas-dialog.tsx` — removed temperature mapping and badge display
+- `src/app/(app)/ideas/page.tsx` — removed temperature edit dialog, filter pills, filter state, card badge, and `tempFilter` state
+- `src/app/(app)/ideas/[id]/page.tsx` — removed temperature state, select UI, save payload field, and header badge
+- `src/app/(app)/dashboard/page.tsx` — removed `IDEA_TEMPERATURES` import, temperature from the recent ideas select, and the badge render
+- `src/app/(app)/help/page.tsx`, `src/components/help-sidebar.tsx`, `src/lib/tutorials/tutorial-definitions.ts` — updated copy to drop mentions of the temperature feature
+
+**Verification:**
+- TypeScript `tsc --noEmit`: clean
+- `grep -rn "temperature|IDEA_TEMPERATURES|tempFilter" src/` returns zero matches (AI model sampling temperature params were never used in the codebase)
+- Dev server restarted with cleared Turbopack cache to flush stale compile errors
+- `/dashboard`, `/ideas`, `/ideas/[id]`, `/settings` all return 200 with no console errors
+- Ideas table schema confirmed: 11 columns, `temperature` removed
+
+---
+
+## 2026-04-10: Vercel AI Gateway Integration & AI Provider Settings Overhaul
+
+### Phase 1: AI Gateway Core Integration (BP-076)
+- **Evaluated Vercel AI Gateway** vs. current direct-to-provider implementation. Key benefits: unified billing for managed-access users, automatic provider fallbacks, prompt caching, per-project usage/spend tracking, zero markup on tokens, $5/mo free credits per Vercel team.
+- **Zero-dependency approach:** reused existing `OpenAICompatibleClient` with a gateway `baseURL` override instead of installing the Vercel AI SDK. The gateway speaks OpenAI Chat Completions, so the existing streaming code path (SSE `data: {"text":"..."}`) works unchanged.
+- **New helpers in `src/lib/ai/providers.ts`:**
+  - `toGatewayModelId(provider, modelId)` maps `claude-sonnet-4-6` → `anthropic/claude-sonnet-4-6`
+  - `createGatewayClient(provider, model)` returns an `AIClient` pointed at `https://ai-gateway.vercel.sh/v1`
+  - `OpenAICompatibleClient` constructor extended with optional `baseURLOverride` and `defaultHeaders` params
+- **Routing logic in `src/lib/ai/get-user-ai-client.ts`:** managed-access (non-BYOK) requests now route through the gateway when `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` is set. Falls back to direct `SYSTEM_AI_KEY_*` env vars if neither is configured.
+- **OIDC token preferred over API key** in deployments — `VERCEL_OIDC_TOKEN` is auto-injected by Vercel and associates gateway requests with the PostPilot project in the gateway dashboard (fixes the "No Project" attribution issue). API key remains the fallback for local dev.
+- **App attribution headers:** `x-title: PostPilot` and `http-referer` sent with every gateway request for observability + featured-app listings.
+- **Routing logs** added: `[AI Gateway] FORCED {provider}/{model} via user setting` and `[AI Gateway] Routing {provider}/{model} via Vercel AI Gateway` for Vercel function log visibility.
+
+### Phase 2: Force Gateway Toggle (BP-077)
+- **New column:** `creator_profiles.force_ai_gateway` (boolean, default true) — testing/dev toggle that bypasses BYOK keys entirely and forces all AI requests through the gateway.
+- **UI toggle** added to Settings > AI Provider card; writes to `force_ai_gateway` via `/api/settings/ai-provider` POST. Takes precedence over all BYOK key lookups in `getUserAIClient`.
+- **Migration flipped all existing users to `force_ai_gateway = true`** so the gateway becomes the default routing path going forward. Users can opt back out via the toggle if they prefer direct BYOK.
+
+### Phase 3: Settings Page Overhaul (BP-078)
+- **Gateway toggle moved to the top of the AI Provider card** with user-friendly copy: *"Route AI requests through PostPilot's managed gateway for automatic provider fallbacks, unified billing, and the best reliability."*
+- **Configured Text AI Providers list** now shows all 4 providers (Anthropic, OpenAI, Google, Perplexity) in a fixed order. Each row shows:
+  - Green **Configured** badge when `tested_at` is set
+  - Blue **Active** badge for the currently-selected provider
+  - **Setup Provider** button for unconfigured providers (auto-expands the config form and selects the provider)
+  - **Switch to** / Trash buttons for configured-but-inactive providers
+- **Text AI key configuration form** is now collapsible (collapsed by default). Opens automatically when clicking Setup Provider.
+- **New Image Generation Providers section** (collapsible, collapsed by default) for configuring dedicated image API keys. Writes to `ai_provider_keys` with `key_type='image'`, separate from text AI keys.
+- **Tier gating:** entire BYOK config (everything below the gateway toggle) is gated to **Professional+**. Free and Creator tiers see the gateway toggle locked ON and an upgrade overlay with a link to /pricing.
+
+### Phase 4: Database Schema Extensions
+- **`ai_provider_keys` extended:**
+  - New `key_type` column (`'text' | 'image'`, default `'text'`)
+  - New `tested_at` column (nullable timestamptz) — set on successful key test, cleared on save
+  - Replaced `UNIQUE(user_id, provider)` with `UNIQUE(user_id, provider, key_type)` so users can have separate text + image keys for the same provider
+- **`creator_profiles.force_ai_gateway`** default changed from `false` to `true`, existing rows migrated.
+- **All 3 existing provider keys** for the owner account correctly migrated to `key_type='text'`, `tested_at=null`.
+
+### Phase 5: Backend API Updates
+- **`/api/settings/provider-keys`** — all methods now accept a `keyType` query/body param (default `'text'`). Mutating endpoints (POST/DELETE/PATCH) enforce `hasFeature(tier, 'byok_ai_keys')`, returning 403 for Free/Creator tiers. GET still returns only safe metadata (`id, provider, key_type, is_active, tested_at, timestamps`) — no ciphertext.
+- **`/api/settings/test-ai-key`** — persists `tested_at` on successful test. Accepts `keyType` param.
+- **`/api/ai/generate-image`** — prefers `key_type='image'` keys in `ai_provider_keys`, falls back to `key_type='text'` if no image-specific key is configured. Added `[Image Gen]` routing logs.
+- **`getProviderApiKey(provider, keyType?)`** — now keyType-aware. For `keyType='image'`, the legacy fallback correctly checks `creator_profiles.image_ai_*` columns instead of `ai_api_key_*`.
+- **New feature gates** in `src/lib/constants.ts`: `byok_ai_keys: "professional"`, `byok_image_keys: "professional"`.
+
+### Phase 6: Security Audit & Cleanup
+- **Full security audit** of client-side data exposure. Findings:
+  - ✅ RLS enabled with correct `auth.uid() = user_id` policies on `creator_profiles` and `ai_provider_keys` (verified via `pg_policies`)
+  - ✅ No API route returns encrypted/ciphertext fields
+  - ✅ No `NEXT_PUBLIC_*` env vars leak secrets; `ENCRYPTION_KEY`, `AI_GATEWAY_API_KEY`, `SYSTEM_AI_KEY_*` are all server-only
+  - ✅ LinkedIn tokens decrypted server-side; only metadata returned to client
+  - ✅ Admin `/api/admin/users` explicitly scrubs `ai_api_key_encrypted: undefined` before returning
+  - ⚠️ **2 client components were fetching `ai_api_key_encrypted` directly via the browser Supabase client** (RLS-safe but best-practice violation). Fixed below.
+- **`src/app/(app)/settings/managed-ai-status.tsx`:** removed `ai_api_key_encrypted` from the Supabase select. Uses `/api/settings/provider-keys?keyType=text` (safe metadata) to detect whether the user has a personal key.
+- **`src/components/posts/generate-image-dialog.tsx`:** removed direct Supabase query for `ai_api_key_encrypted`. `loadConfig()` now fetches both text and image keys via the safe API route and builds the configured-provider list from metadata only.
+- **Grep audit confirmed zero client components (`"use client"`) reference `api_key_encrypted` columns** after cleanup. All remaining references are in server components, server-only API routes, or type definitions.
+
+### Database Migrations
+- `20260410_force_ai_gateway.sql` — adds `creator_profiles.force_ai_gateway` boolean
+- `20260410_extend_ai_provider_keys.sql` — adds `key_type` + `tested_at`, replaces unique constraint
+- `20260410_default_force_ai_gateway_on.sql` — flips default to true and migrates existing users
+
+### Files Modified
+- `src/lib/ai/providers.ts` — gateway client factory, baseURL override, attribution headers
+- `src/lib/ai/get-user-ai-client.ts` — gateway routing, force toggle, keyType-aware `getProviderApiKey`
+- `src/lib/constants.ts` — new `byok_ai_keys` / `byok_image_keys` feature gates
+- `src/app/api/settings/provider-keys/route.ts` — full rewrite for keyType support + tier gating
+- `src/app/api/settings/test-ai-key/route.ts` — `tested_at` persistence + keyType support
+- `src/app/api/settings/ai-provider/route.ts` — `forceAiGateway` field
+- `src/app/api/ai/generate-image/route.ts` — image-type key preference
+- `src/app/(app)/settings/page.tsx` — pass subscription tier + force-gateway to component
+- `src/app/(app)/settings/ai-provider-settings.tsx` — major reorganization (~995 lines, 400+ lines changed)
+- `src/app/(app)/settings/managed-ai-status.tsx` — security cleanup + unused import removal
+- `src/components/posts/generate-image-dialog.tsx` — security cleanup of loadConfig
+- `src/types/index.ts` — `force_ai_gateway` field on CreatorProfile
+
+### Environment Variables Added (optional)
+- `AI_GATEWAY_API_KEY` — team-scoped Vercel AI Gateway API key (local dev fallback)
+- `VERCEL_OIDC_TOKEN` — auto-injected by Vercel in deployments (project-scoped attribution)
+- `NEXT_PUBLIC_APP_URL` — optional, used for `http-referer` attribution header
+- The existing `SYSTEM_AI_KEY_*` env vars are kept as a fallback and can be removed once gateway routing is proven stable across all environments.
+
+### Cleanup & Housekeeping
+- Removed unused `Check` import from `managed-ai-status.tsx`
+- TypeScript `tsc --noEmit`: clean
+- ESLint scoped to touched files: 0 errors, 0 warnings
+- `depcheck` flagged `pdf-parse` as unused across all of `src/` — confirmed only appears in `node_modules`. Left in place for now; should be removed in a separate cleanup PR if the resume PDF feature is confirmed gone.
+
+---
+
 ## 2026-04-07: Alpha Feedback Sprint - UX Overhaul, Tooltips, Workflow, AI Enhancements
 
 ### Phase 1: Quick Wins

@@ -58,10 +58,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // Get profile to determine provider
+    // Get profile to determine provider. Prefer image_ai_provider (dedicated
+    // image setting) and fall back to the text ai_provider.
     const { data: profileData } = await supabase
       .from("creator_profiles")
-      .select("ai_provider, ai_model")
+      .select("ai_provider, image_ai_provider, image_ai_model")
       .eq("user_id", user.id)
       .single();
 
@@ -69,19 +70,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const provider = (requestProvider || profileData.ai_provider) as AIProvider;
-    const imageModel = requestModel;
+    const provider = (requestProvider ||
+      profileData.image_ai_provider ||
+      profileData.ai_provider) as AIProvider;
+    const imageModel = requestModel || profileData.image_ai_model;
 
-    // Get API key for the selected provider
+    // Get API key for the selected provider — look up image keys first
+    // (key_type='image' in ai_provider_keys), then fall back to text keys
+    // so users with only a text key configured can still generate images.
     let apiKey: string;
     try {
-      const result = await getProviderApiKey(provider);
+      const result = await getProviderApiKey(provider, "image");
       apiKey = result.apiKey;
+      console.log(`[Image Gen] Using image-type key for ${provider}`);
     } catch {
-      return NextResponse.json(
-        { error: `No API key configured for ${provider}. Please add it in Settings.` },
-        { status: 400 }
-      );
+      try {
+        const result = await getProviderApiKey(provider, "text");
+        apiKey = result.apiKey;
+        console.log(`[Image Gen] Falling back to text-type key for ${provider}`);
+      } catch {
+        return NextResponse.json(
+          { error: `No API key configured for ${provider}. Please add it in Settings.` },
+          { status: 400 }
+        );
+      }
     }
     const hook = post.content?.slice(0, 210) ?? "";
     const selectedStyle = artStyle || ART_STYLES[0];
