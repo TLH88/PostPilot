@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-04-11: Settings Copy Polish, Collapsible UI Tightening, Idea Temperature Removal, Idea Bank Scoping, Tutorial Card Redesign Scoping
+
+### Idea Bank Scoping (BP-082, BP-083)
+- Scoped **manual idea entry** (BP-082) as a medium-priority feature. Ideas page copy promises manual entry but no UI exists today. Scoped as a lightweight `CreateIdeaDialog` with title/description/pillar fields that writes `source='manual'` to the existing ideas table — no schema changes required.
+- Scoped **idea tagging and prioritization** (BP-083) to match the "Rate, tag, and prioritize your best ideas" copy on step 2 of the idea process flow. Includes a new `ideas.priority` column (low/medium/high, nullable), a reusable `<TagInput />` component, priority + multi-select tag filter rows on the Ideas page, and a click-tag-to-filter discovery pattern. Full mockups for the idea card, edit dialog, and filter bar included in the backlog entry, along with an end-to-end example user workflow for triaging freshly-brainstormed ideas.
+
+### Tutorial Card Redesign Scoping (BP-084)
+- Owner provided light and dark theme reference mockups for a redesigned tutorial card. Current card is solid-primary-blue with white text, compact header, small bottom progress bar, and no media slot.
+- Scoped **BP-084 (high priority)** to replace the current card with a system-themed design: `bg-card` + border, top-left "STEP X OF Y" pill, top-right close button, prominent 16:9 media slot (image/gif/video + placeholder fallback), bold title, muted description, full-width primary CTA (`Next →` / `Finish`), and a `SKIP TUTORIAL` text link below.
+- Added a new `media?: { type, src, alt?, poster? }` field to the `TutorialStep` schema so steps can optionally include visual content. Backwards compatible — existing steps render with a placeholder icon until media is added incrementally.
+- Updated `docs/GUIDED-TOURS-REQUIREMENTS.md` to v1.1 with a full "Tutorial Card Visual Design" section containing the layout spec, theme rules, schema changes, and reference mockup paths (`docs/images/tutorial-card-light.png` and `docs/images/tutorial-card-dark.png` — owner to save the attached screenshots to those paths).
+- BP-084 is scoped to the **visual redesign only**. The owner has flagged that the tutorial system overall is not functioning properly (state bugs, targeting issues) — those fixes are a separate future BP.
+
+---
+
 ## 2026-04-11: Settings Copy Polish, Collapsible UI Tightening, Idea Temperature Removal
 
 ### Settings Page Copy (BP-079)

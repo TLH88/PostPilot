@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-11 (BP-082, BP-083 added)
+> Last updated: 2026-04-11 (BP-082, BP-083, BP-084 added)
 
 ## Status Key
 
@@ -1487,6 +1487,186 @@ All of this should be available on **all tiers**. Tagging and prioritization are
 - **Tag auto-complete** from previously-used tags — nice-to-have, could be added later
 - **Priority on posts** — posts have their own lifecycle (draft/review/scheduled/etc.), priority there is a separate conversation
 - **Custom priority levels** beyond 3 — keep it simple
+
+---
+
+### BP-084: Tutorial Card Visual Redesign
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner UX direction with reference mockups
+**Date Added:** 2026-04-11
+
+**Problem:**
+The current tutorial card (`src/components/tutorial/tutorial-card.tsx`) is a compact, all-primary-blue dialog with white text, an emoji icon in the header, and a small progress bar at the bottom. It doesn't match the rest of the app's theme, has no space for visual content, and feels cramped. Users learn better with visual aids (screenshots, short animations, or clips demonstrating the feature), but there's nowhere to put them today.
+
+The owner provided two reference mockups (light and dark theme) showing a redesigned card that:
+- Uses the system theme colors (bg-card, border, text-foreground) instead of a solid primary color
+- Has a prominent, dedicated media area above the title for images/gifs/videos
+- Replaces the bottom progress bar with a "STEP X OF Y" pill badge at the top
+- Uses a full-width primary CTA button ("Next →" / "Finish")
+- Adds a clear "SKIP TUTORIAL" text link below the CTA
+
+**Note:** The owner has flagged that the tutorial system overall is not functioning properly. This BP is scoped to the *visual redesign only*. Functional bugs (state management, targeting, wait-for-action detection, etc.) are a separate future task. The redesign should land in a way that is isolated from behavior changes so the cleanup work can proceed independently.
+
+### Reference Mockups
+
+The owner provided two screenshots showing the target design (light + dark theme). Save them to:
+- `docs/images/tutorial-card-light.png` — light theme reference
+- `docs/images/tutorial-card-dark.png` — dark theme reference
+
+Both are also embedded in the design spec section of `docs/GUIDED-TOURS-REQUIREMENTS.md`.
+
+### Visual Specification
+
+```
+┌─ Tutorial Card ────────────────────────────────┐
+│                                                 │
+│  ┌─ STEP 1 OF 3 ─┐                        [ × ] │  ← step pill (top-left) + close (top-right)
+│  └───────────────┘                              │
+│                                                 │
+│  ┌───────────────────────────────────────────┐ │
+│  │                                             │ │
+│  │                                             │ │
+│  │              [  ICON / MEDIA  ]             │ │  ← media slot: image, gif, video, or placeholder icon
+│  │                                             │ │
+│  │                                             │ │
+│  └───────────────────────────────────────────┘ │
+│                                                 │
+│  Meet Draft Posts                               │  ← bold title (text-xl)
+│                                                 │
+│  Your private sanctuary for refining thoughts. │  ← description (text-sm, muted-foreground)
+│  Save ideas, polish tone, and schedule for the │
+│  perfect moment.                                │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │            Next  →                       │   │  ← full-width primary button
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│              SKIP TUTORIAL                      │  ← small uppercase muted text link
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+**Card dimensions:** `w-[420px] max-w-[calc(100vw-2rem)]` (slightly wider than current 380 to accommodate media)
+**Card styling:**
+- Background: `bg-card` with subtle `border border-border`
+- Corner radius: `rounded-2xl`
+- Shadow: `shadow-2xl` (keep the elevation)
+- Padding: ~`p-6` inside the card
+
+**Step pill:**
+- Position: top-left
+- Styling: `bg-primary/10 text-primary dark:bg-primary/20` rounded-full pill
+- Typography: `text-[11px] font-bold uppercase tracking-wider`
+- Format: `STEP {currentStep + 1} OF {totalSteps}`
+
+**Close button:**
+- Position: top-right
+- Styling: no background, `text-muted-foreground hover:text-foreground` transition
+- Icon: `X` from lucide-react, `size-5`
+
+**Media slot:**
+- Aspect ratio: 16:9 (approx `aspect-video`)
+- Background: `bg-muted` when empty
+- Corner radius: `rounded-xl`
+- **Empty state:** centered placeholder icon (`step.icon` or a default) inside a white/card rounded tile on top of the muted background
+- **Image state:** full-bleed `object-cover` image
+- **Video/gif state:** same as image, autoplay muted loop for gifs/webp; controls-free `<video autoPlay muted loop playsInline>` for video
+- The slot is always rendered — when a step has no media, the placeholder icon is shown (matches the mockup exactly)
+
+**Title:**
+- Typography: `text-xl font-bold text-foreground`
+- Line-height: `leading-tight`
+- Margin-top: `mt-5` after the media slot
+
+**Description:**
+- Typography: `text-sm text-muted-foreground leading-relaxed`
+- Margin-top: `mt-2` after the title
+
+**Primary CTA:**
+- Full-width (`w-full`)
+- Height: ~`h-12`
+- Gradient or solid `bg-primary text-primary-foreground` with `rounded-xl`
+- Large font: `text-base font-semibold`
+- Right-arrow icon (`ArrowRight` from lucide) trailing the label with `gap-2`
+- Label: `"Next"` on mid-steps, `"Finish"` on the final step
+- Disabled state when `waitingForAction` is true: show `"Waiting..."` with reduced opacity
+
+**Skip link:**
+- Small button below the CTA
+- Typography: `text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground`
+- Label: `"SKIP TUTORIAL"`
+- Invokes the same `onClose` handler as the X button
+
+**Theme support:**
+- All colors use CSS variables from the existing theme (`--card`, `--border`, `--muted`, `--muted-foreground`, `--primary`, `--primary-foreground`)
+- Light and dark themes must both look correct without any theme-specific hardcoded colors
+- Test against both themes during implementation; owner provided both mockups
+
+### Component API Changes
+
+**`TutorialStep` type** (in `src/lib/tutorials/tutorial-engine.ts` or wherever it currently lives — find via grep):
+
+Add an optional `media` field so steps can specify visual content:
+
+```ts
+interface TutorialStep {
+  // ... existing fields
+  icon: string;              // emoji or icon name, used as fallback placeholder
+  title: string;
+  content: string;           // description text
+  selector?: string;
+  waitFor?: "click" | "input" | "manual" | string;
+
+  // NEW: optional media slot content
+  media?: {
+    type: "image" | "video" | "gif";
+    src: string;             // public URL or /images/... path
+    alt?: string;            // for images only (a11y)
+    poster?: string;         // optional still frame for videos
+  };
+}
+```
+
+**`TutorialCard` props** — no breaking changes; the new `media` field is read off the `step` prop.
+
+**Existing tutorial definitions** (`src/lib/tutorials/tutorial-definitions.ts`):
+- No changes required — they will render with the placeholder icon in the media slot until media is added later
+- This is intentional: ship the redesign now, add media assets per-step incrementally over time
+
+### Implementation Notes
+
+- **File:** rewrite `src/components/tutorial/tutorial-card.tsx` entirely. The current file is 152 lines; the replacement should be similar length.
+- **Fix pre-existing lint error:** the current file has `react/no-unescaped-entities` on line 87 (`you're` needs escaping). Clean this up as part of the rewrite.
+- **Keep the confetti** on final-step finish — the owner liked that.
+- **Drop the horizontal progress bar** (lines 92-100 of the current file). The step pill replaces it.
+- **Drop the old footer layout** (lines 102-148 of the current file) — replaced by the full-width CTA + skip link structure.
+- **`canvas-confetti` import** stays.
+- **Icon handling:** the current card uses `step.icon` as an emoji in the header. In the new design it becomes the placeholder in the media slot. Update any tutorial step definitions that use emoji-as-icon to something that renders well centered in a rounded tile — or switch to lucide icons. Owner preference: keep it simple and use lucide icons consistently across steps.
+- **No schema changes** — this is pure frontend.
+- **Responsive:** on screens narrower than 440px, the card should respect `max-w-[calc(100vw-2rem)]` and the media slot should shrink proportionally.
+
+### Out of Scope (separate future BPs)
+
+- **Tutorial state machine / functional bugs:** reported as broken by the owner, will be addressed separately. This BP is visual-only.
+- **Creating actual media assets** (screenshots, gifs, videos) for each tutorial step. That's a content task that can happen incrementally after the new card ships with placeholder support.
+- **Tutorial analytics** (completion rates, drop-off by step).
+- **Multi-language tutorial content.**
+
+### Acceptance Criteria
+
+1. `src/components/tutorial/tutorial-card.tsx` rewritten to match the provided mockups in both light and dark themes
+2. New `media` field supported on `TutorialStep` type; when unset, the media slot shows a placeholder icon
+3. "STEP X OF Y" pill at the top-left, close button top-right
+4. Full-width primary CTA button with "Next →" / "Finish" states
+5. "SKIP TUTORIAL" text link below the CTA
+6. Uses system theme colors only (no hardcoded blues, no primary-colored card background)
+7. Existing tutorial flows still launch and navigate correctly (no regressions to the engine — this is UI-only)
+8. Confetti still fires on the final step
+9. `tsc --noEmit` clean
+10. Pre-existing lint error on the old card file (line 87) is resolved in the rewrite
+11. Owner signs off after visual review on both themes
 
 ---
 
