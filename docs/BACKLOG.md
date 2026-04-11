@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-07
+> Last updated: 2026-04-10
 
 ## Status Key
 
@@ -1124,6 +1124,91 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 
 ---
 
+### BP-076: Vercel AI Gateway Integration
+
+**Status:** Done
+**Priority:** High
+**Source:** Owner strategic decision
+**Date Added:** 2026-04-10
+**Completed:** 2026-04-10
+
+**Description:**
+Route managed-access (non-BYOK) AI requests through the Vercel AI Gateway instead of directly to provider APIs. Gives us unified billing, automatic provider fallbacks, prompt caching, per-project usage tracking, and zero markup on tokens. $5/mo free credits per Vercel team help offset the system-key cost for Free/Creator trial users.
+
+**Requirements:**
+- Route all managed AI access requests through `https://ai-gateway.vercel.sh/v1` when `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` is configured
+- Fall back to direct `SYSTEM_AI_KEY_*` env vars if the gateway is not available (local dev)
+- Model IDs must be converted to gateway format (`provider/model-id`) on the fly
+- Frontend SSE streaming format (`data: {"text":"..."}`) must remain unchanged
+- Image generation excluded from gateway in Phase 1 — provider-specific image APIs still go direct
+- Must be zero new dependencies (reuse existing `openai` SDK, not the Vercel AI SDK)
+
+**Implementation:**
+- New `createGatewayClient(provider, model)` factory and `toGatewayModelId` helper in `src/lib/ai/providers.ts`
+- `OpenAICompatibleClient` constructor extended with optional `baseURLOverride` and `defaultHeaders`
+- `src/lib/ai/get-user-ai-client.ts` managed-access fallback branch now routes through the gateway when configured
+- Prefers `VERCEL_OIDC_TOKEN` over `AI_GATEWAY_API_KEY` in deployments for project-scoped attribution
+- Sends `x-title: PostPilot` and `http-referer` headers for app attribution
+
+---
+
+### BP-077: Force AI Gateway Toggle
+
+**Status:** Done
+**Priority:** Medium
+**Source:** Testing need
+**Date Added:** 2026-04-10
+**Completed:** 2026-04-10
+
+**Description:**
+Add a user-facing toggle in Settings that forces all AI requests through the Vercel AI Gateway, bypassing any configured BYOK keys. This supports testing gateway routing without removing existing keys, and allows users to opt into the managed gateway experience even when they have their own keys saved.
+
+**Requirements:**
+- New `creator_profiles.force_ai_gateway` boolean column (default `true`)
+- Existing users migrated to `force_ai_gateway = true`
+- Toggle in Settings > AI Provider card that calls `/api/settings/ai-provider` POST with `forceAiGateway` field
+- When `true`, the gateway routing check takes precedence over all BYOK key lookups in `getUserAIClient`
+- Server-side routing log: `[AI Gateway] FORCED {provider}/{model} via user setting`
+- Toggle is locked ON for Free/Creator tiers (they cannot opt out)
+
+---
+
+### BP-078: AI Provider Settings Card Overhaul
+
+**Status:** Done
+**Priority:** High
+**Source:** Owner UX request
+**Date Added:** 2026-04-10
+**Completed:** 2026-04-10
+
+**Description:**
+Reorganize the AI Provider card in Settings around the new gateway-first flow. Move the gateway toggle to the top, reorganize configured providers as a first-class list with Setup Provider / Switch to / Configured states, make the text AI key form collapsible, add a new collapsible Image Generation Providers section for dedicated image keys, and gate all BYOK configuration to Professional+.
+
+**Requirements:**
+- Gateway toggle at the top with user-friendly copy describing the function
+- Configured Text AI Providers list shows all 4 providers (Anthropic, OpenAI, Google, Perplexity); row shows Setup Provider / Switch to / Configured badges based on state
+- Text AI key configuration form is collapsible (collapsed by default), auto-opens when clicking Setup Provider
+- New collapsible Image Generation Providers section with its own provider/model/key form; stores keys with `key_type='image'`
+- Free and Creator tiers see the gateway toggle locked ON and an upgrade overlay covering the rest of the card; BYOK available on Professional+
+- Persist "tested" state via a new `tested_at` column on `ai_provider_keys` so users can see which providers have been validated across sessions
+- Security: no ciphertext columns fetched client-side
+
+**Implementation:**
+- Database: `ai_provider_keys` extended with `key_type` + `tested_at`, new composite unique constraint `(user_id, provider, key_type)`
+- New feature gates `byok_ai_keys: "professional"` and `byok_image_keys: "professional"`
+- `/api/settings/provider-keys` accepts `keyType` query/body param on all methods, enforces tier gating on mutating endpoints
+- `/api/settings/test-ai-key` persists `tested_at` on successful test
+- `/api/ai/generate-image` prefers `key_type='image'` keys with fallback to text keys
+- Full rewrite of `src/app/(app)/settings/ai-provider-settings.tsx`
+
+**Related Security Cleanup:**
+- `src/app/(app)/settings/managed-ai-status.tsx`: stopped fetching `ai_api_key_encrypted` from the browser; uses `/api/settings/provider-keys` metadata instead
+- `src/components/posts/generate-image-dialog.tsx`: stopped fetching `ai_api_key_encrypted` from the browser; `loadConfig` now uses the safe API route
+- Verified zero client components reference ciphertext columns after cleanup
+- Verified RLS enabled with proper `auth.uid() = user_id` policies on `creator_profiles` and `ai_provider_keys` via `pg_policies`
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -1181,3 +1266,6 @@ The system frequently loses its connection to LinkedIn, requiring users to manua
 - **BP-073:** Alpha Feedback — Image Version Picker (2026-04-07)
 - **BP-074:** Alpha Feedback — Help Sidebar (Non-Modal Slide-Out) (2026-04-07)
 - **BP-075:** Alpha Feedback — Review Status Gated to Team/Enterprise (2026-04-07)
+- **BP-076:** Vercel AI Gateway Integration (2026-04-10)
+- **BP-077:** Force AI Gateway Toggle (2026-04-10)
+- **BP-078:** AI Provider Settings Card Overhaul (2026-04-10)
