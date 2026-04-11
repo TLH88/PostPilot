@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-11
+> Last updated: 2026-04-11 (BP-082, BP-083 added)
 
 ## Status Key
 
@@ -1260,6 +1260,233 @@ Removed the idea temperature feature (hot/warm/cold categorization) from the ent
 - `grep -rn "temperature|IDEA_TEMPERATURES|tempFilter" src/`: zero matches
 - All affected pages (`/dashboard`, `/ideas`, `/ideas/[id]`, `/settings`) return 200 with no console errors after Turbopack cache flush
 - Ideas table schema confirmed to have 11 columns (temperature removed)
+
+---
+
+### BP-082: Manual Idea Entry
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner observation — Ideas page description promises manual entry but no UI exists
+**Date Added:** 2026-04-11
+
+**Problem:**
+The Ideas page description at `src/app/(app)/ideas/page.tsx` says *"Click 'Generate Ideas' to brainstorm with AI, or add your own manually."* — but there is no "Add Idea" button. The only way to add an idea today is through the AI brainstorm dialog. Users who jot down ideas on their phone, hear something in a podcast, or want to capture a raw thought have no way to enter it without invoking the AI.
+
+**Requirements:**
+- Add an **"Add Idea"** button to the Ideas page header row (next to "Generate Ideas"). Secondary/outline variant so it doesn't compete with the primary AI action.
+- Clicking opens a lightweight modal dialog with these fields:
+  - **Title** (required, text, max ~150 chars)
+  - **Description** (optional, textarea, no hard limit — same as AI-generated ideas)
+  - **Content Pillar** (optional, single-select from the user's configured pillars — same pattern as the current Generate Ideas dialog)
+  - **Tags** (optional) — *deferred until BP-083 ships a reusable tag input component; ship without tags first if BP-083 isn't ready*
+- On save:
+  - Insert into `ideas` table with `source: 'manual'`, `status: 'captured'`, `workspace_id` from current context
+  - Close dialog, add the new idea to the in-memory list (optimistic), show success toast
+  - Keep the user on the Ideas page (no redirect)
+- No AI calls, no quota impact — manual entry is always free
+- Same validation as the existing `EditIdeaDialog` (title required and non-empty after trim)
+
+**Implementation Notes:**
+- **Reusable pattern:** extend the existing `EditIdeaDialog` component (`src/app/(app)/ideas/page.tsx:138-214`) or create a sibling `CreateIdeaDialog`. The existing dialog only handles title + description — a new form needs content pillar selection too. Recommended to create a new `CreateIdeaDialog` component in `src/components/ideas/create-idea-dialog.tsx` so the Add and Edit flows can diverge cleanly.
+- **Button row:** The current "Generate Ideas" button lives at `src/app/(app)/ideas/page.tsx:408-413`. Add the new button immediately to its left with `variant="outline"` and a `Plus` icon.
+- **DB insert:** Mirror the shape of the current `handleSaveIdea` in `generate-ideas-dialog.tsx:206-216` but with `source: 'manual'` and whatever the user entered. `tags: []` and `content_pillars: []` are both safe defaults.
+- **No schema changes needed** — the ideas table already supports all fields this feature needs.
+- **Telemetry:** track `source='manual'` count in admin/usage dashboards if that becomes useful later (not required for MVP).
+
+**Tier gating:**
+- Available on all tiers. Manual entry has zero cost to us and should never be locked behind a paywall.
+
+**Acceptance:**
+1. An "Add Idea" button is visible next to "Generate Ideas" on the Ideas page
+2. Clicking it opens a modal with Title, Description, and Content Pillar fields
+3. Saving creates an idea with `source='manual'`, `status='captured'`, visible in the list immediately
+4. Closing/cancelling discards the form with no DB write
+5. Works for both personal and workspace users (respects current `workspace_id` context)
+
+---
+
+### BP-083: Idea Tagging & Prioritization
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner observation — process flow step 2 promises "Rate, tag, and prioritize" but no such features exist
+**Date Added:** 2026-04-11
+
+**Problem:**
+The `IdeaProcessFlow` component (`src/components/ideas/idea-process-flow.tsx:21`) promises users can *"Rate, tag, and prioritize your best ideas"* in step 2 of the workflow. None of those things exist today:
+
+- **Rate/prioritize:** no column, no UI, no concept in the codebase
+- **Tag:** a `tags text[]` column exists and is populated by AI brainstorm occasionally, but there is no way to view, edit, filter, or add tags from the UI. The copy is currently aspirational.
+
+This is a trust gap — the feature walkthrough describes something we don't deliver.
+
+**Scope:**
+Deliver a working tag and priority system for ideas that matches the process flow copy, including:
+1. A priority column + UI (3-level enum: Low / Medium / High)
+2. A tag editor + filter on the Ideas page
+3. A reusable tag input component for use here, in the manual entry dialog (BP-082), and in any future tag use cases (post tagging, etc.)
+
+### Proposed Database Changes
+
+**Migration:** `20260412_add_idea_priority.sql`
+```sql
+ALTER TABLE ideas
+  ADD COLUMN IF NOT EXISTS priority text
+    CHECK (priority IN ('low', 'medium', 'high'));
+-- Nullable, no default. Unset priority means "no priority" — users
+-- shouldn't be forced to triage everything they capture.
+```
+
+**No migration needed for tags** — `ideas.tags text[]` already exists and is populated by AI. We're just adding UI.
+
+### New Constants
+
+`src/lib/constants.ts` — add:
+```ts
+export const IDEA_PRIORITIES = {
+  high:   { label: "High",   color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",       order: 3 },
+  medium: { label: "Medium", color: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300", order: 2 },
+  low:    { label: "Low",    color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", order: 1 },
+} as const;
+```
+
+Deliberately **NOT reusing** the removed temperature color palette (hot/warm/cold). This is a different concept: priority is user-assigned and reversible; temperature was AI-assigned and confusing.
+
+### UX Mockup: Idea Card with Tags & Priority
+
+```
+┌─────────────────────────────────────────────────┐
+│ [High Priority]                    [ Captured ] │  ← priority badge left, status badge right
+│                                                 │
+│ The 5 mistakes I made as a first-time founder   │  ← title
+│                                                 │
+│ A post-mortem style write-up about the specific │  ← description (line-clamp-2)
+│ decisions that cost me time and money...        │
+│                                                 │
+│ [Leadership] [Startups]                         │  ← content pillars (outline badges)
+│                                                 │
+│ #founderjourney  #lessonsLearned  #startup      │  ← tags (secondary badges, smaller)
+│                                                 │
+│                           [Edit]  [Develop →]   │  ← actions
+└─────────────────────────────────────────────────┘
+```
+
+**Visual hierarchy:**
+- **Priority badge:** top-left, always visible when set; color-coded (red/amber/slate). Hidden entirely when unset — no "None" badge.
+- **Status badge:** top-right (current behavior)
+- **Content pillars:** just under the description (current behavior)
+- **Tags:** new row under pillars, smaller text, `bg-muted` subtle style so they don't compete with pillars
+- **No tag row** when the idea has zero tags
+
+### UX Mockup: Edit/Create Idea Dialog
+
+```
+┌─ Edit Idea ──────────────────────────────── × ─┐
+│                                                 │
+│ Title                                           │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ The 5 mistakes I made as a first-time fou…  │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Description                                     │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ A post-mortem style write-up about the      │ │
+│ │ specific decisions that cost me time...     │ │
+│ │                                             │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Content Pillar                                  │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Leadership                                ▼ │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Priority                                        │
+│ ( ) None  ( ) Low  ( ) Medium  (●) High         │  ← radio pills
+│                                                 │
+│ Tags                                            │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ [founderjourney ×] [lessonsLearned ×]       │ │
+│ │ [startup ×]  Type and press Enter to add... │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│                          [ Cancel ]  [ Save ]   │
+└─────────────────────────────────────────────────┘
+```
+
+**Tag input behavior:**
+- Type freely, press **Enter** or **,** (comma) to commit a tag
+- **Backspace** on empty input removes the last tag
+- **Click ×** on a tag chip to remove it
+- No duplicates (case-insensitive); silently dedupes
+- No hard limit, but soft-warn at 10+ tags ("That's a lot of tags — consider consolidating.")
+- No `#` prefix auto-added — tags are stored as plain words; display formatting is up to the consumer
+
+### UX Mockup: Filter Bar (Ideas Page)
+
+Extend the existing filter bar under the header with two new rows:
+
+```
+Status:   [ Open Ideas ▼ ]  [ Closed Ideas ]  [ All ]
+
+Priority: [ All ] [ 🔴 High ] [ 🟡 Medium ] [ ⚪ Low ] [ ☐ No Priority ]
+
+Tags:     [ All ] [ founderjourney × ] [ lessonsLearned × ]  + Add filter
+          ↑ clicking a tag badge anywhere on the page adds it here
+
+Search:   [ 🔍 Search ideas...                              ]
+```
+
+**Filter behavior:**
+- **Priority filter:** single-select pills. "All" is default. "No Priority" matches `priority IS NULL`.
+- **Tag filter:** multi-select. Multiple selected tags are combined with **AND** (must have all selected tags). Clicking a tag badge on any idea card **adds it to the filter** — low-friction discovery.
+- **All three filter rows are additive** — status + priority + tags + search are ANDed together (current behavior for status + search; just extended).
+- **Clear filters** button appears when any non-default filter is active.
+
+### Example User Workflow: "I just generated 10 ideas, now I want to triage them"
+
+1. **User lands on Ideas page** after clicking "Generate Ideas" → 10 new cards appear at the top, all with status "Captured" and no priority set.
+2. **User skims the cards.** The first one looks great — *"The 5 mistakes I made as a first-time founder"*.
+3. **User clicks "Edit"** on that card → dialog opens.
+4. **User sets Priority to High**, adds tags `founderjourney, lessonsLearned, startup`, clicks Save.
+5. The card now shows a red **[High Priority]** badge and three tag chips under the content pillars.
+6. **User skims more cards.** A weaker one — *"Generic productivity tip"* — gets **Low** priority.
+7. **Another idea is unclear** — user doesn't set priority at all. It stays in the "No Priority" bucket (the default).
+8. **User clicks the Priority filter: High** → list narrows to the 2-3 high-priority ideas.
+9. **User clicks "Develop →"** on the top one to turn it into a post draft.
+10. **Next week**, user comes back, clicks Priority: **Medium** to pick up the next tier, then **Low** when they need filler content.
+
+### Implementation Notes
+
+- **Tag input component:** Build `src/components/ui/tag-input.tsx` as a reusable shadcn-style primitive. Props: `value: string[]`, `onChange: (tags: string[]) => void`, `placeholder?: string`, `maxTags?: number`. Use controlled state. No external library — the hashtag editor in `src/app/(app)/posts/[id]/page.tsx:1600-1621` is a close precedent to model the chip-removal UX on.
+- **Priority radio:** simple button-group pills. `{null, 'low', 'medium', 'high'}` — 4 states. Use the existing `FilterPill` component pattern from the Ideas page.
+- **Filter UI:** extend the existing filter bar in `src/app/(app)/ideas/page.tsx:430-564`. Add priority filter pills right after the status row, tag filter after that.
+- **Filter state:** add `priorityFilter: string` and `tagFilter: string[]` to the existing filter state block. Extend `filteredIdeas` useMemo with both.
+- **Sort by priority:** optionally add a "Sort by priority" option to show high → medium → low → none order. Could default to this when the priority filter is "All" so users see high priority first naturally. (Nice-to-have, not required.)
+- **Update IdeaProcessFlow copy:** once this ships, the step 2 copy is no longer a lie. No copy change needed — it already matches.
+
+### Tier Gating
+
+All of this should be available on **all tiers**. Tagging and prioritization are organization features that help users get value — not premium upsells. BYOK and AI quotas are the right place for gating; organizational metadata is not.
+
+### Acceptance Criteria
+
+1. `ideas.priority` column exists, nullable, constrained to `('low', 'medium', 'high')`
+2. Edit Idea dialog has Priority radio pills (None/Low/Medium/High) and a Tags input with chip removal
+3. Create Idea dialog (BP-082) gets the same Priority + Tags fields
+4. Idea cards show a priority badge (when set) and a tag row (when non-empty)
+5. Filter bar on Ideas page supports priority filter + multi-select tag filter, combinable with existing status + search filters
+6. Clicking a tag on any card adds it to the active tag filter
+7. Reusable `<TagInput />` component in `src/components/ui/tag-input.tsx` with documented props
+8. Zero breaking changes to the existing AI brainstorm flow (which will continue populating tags opportunistically)
+9. `tsc --noEmit` clean, no new console errors
+
+### Out of Scope
+
+- **Tag management screen** (renaming, merging, deleting tags globally) — future BP if tag sprawl becomes an issue
+- **Tag auto-complete** from previously-used tags — nice-to-have, could be added later
+- **Priority on posts** — posts have their own lifecycle (draft/review/scheduled/etc.), priority there is a separate conversation
+- **Custom priority levels** beyond 3 — keep it simple
 
 ---
 
