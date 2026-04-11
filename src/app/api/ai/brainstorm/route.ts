@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           .limit(15),
         supabase
           .from("ideas")
-          .select("title, content_pillars, temperature")
+          .select("title, content_pillars")
           .eq("user_id", user.id)
           .neq("status", "archived")
           .order("created_at", { ascending: false })

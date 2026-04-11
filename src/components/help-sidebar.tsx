@@ -299,7 +299,7 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
         <p>The Idea Bank is your brainstorming hub. The workflow is:</p>
         <ol className="list-decimal pl-5 space-y-1">
           <li><strong>Generate:</strong> Click "Generate Ideas" to get AI-powered content suggestions based on your expertise</li>
-          <li><strong>Filter & Organize:</strong> Review ideas by temperature (Hot/Warm/Cold), edit, or archive</li>
+          <li><strong>Filter & Organize:</strong> Filter ideas by status, edit their details, or archive the ones you don&apos;t need</li>
           <li><strong>Develop:</strong> Click "Develop" on any idea to turn it into a post draft with AI assistance</li>
         </ol>
       </>

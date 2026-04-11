@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { IDEA_TEMPERATURES, IDEA_STATUSES } from "@/lib/constants";
+import { IDEA_STATUSES } from "@/lib/constants";
 import type { Idea } from "@/types";
 import {
   Card,
@@ -148,7 +148,6 @@ function EditIdeaDialog({
 }) {
   const [title, setTitle] = useState(idea.title);
   const [description, setDescription] = useState(idea.description ?? "");
-  const [temperature, setTemperature] = useState(idea.temperature);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -156,7 +155,6 @@ function EditIdeaDialog({
     await onSave({
       title,
       description: description || null,
-      temperature,
     });
     setSaving(false);
     onOpenChange(false);
@@ -189,28 +187,6 @@ function EditIdeaDialog({
               onChange={(e) => setDescription(e.target.value)}
               className="min-h-20"
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Temperature</Label>
-            <Select
-              value={temperature}
-              onValueChange={(v) => {
-                if (v) setTemperature(v as Idea["temperature"]);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(IDEA_TEMPERATURES) as Array<keyof typeof IDEA_TEMPERATURES>).map(
-                  (key) => (
-                    <SelectItem key={key} value={key}>
-                      {IDEA_TEMPERATURES[key].icon} {IDEA_TEMPERATURES[key].label}
-                    </SelectItem>
-                  )
-                )}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -249,7 +225,6 @@ export default function IdeasPage() {
   const [contentPillars, setContentPillars] = useState<string[]>([]);
 
   // Filters
-  const [tempFilter, setTempFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -293,7 +268,6 @@ export default function IdeasPage() {
   // Client-side filtering
   const filteredIdeas = useMemo(() => {
     return ideas.filter((idea) => {
-      if (tempFilter !== "all" && idea.temperature !== tempFilter) return false;
       if (statusFilter === "open" && !["captured", "developing"].includes(idea.status)) return false;
       if (statusFilter === "closed" && !["converted", "archived"].includes(idea.status)) return false;
       if (!["all", "open", "closed"].includes(statusFilter) && idea.status !== statusFilter) return false;
@@ -305,7 +279,7 @@ export default function IdeasPage() {
       }
       return true;
     });
-  }, [ideas, tempFilter, statusFilter, searchQuery]);
+  }, [ideas, statusFilter, searchQuery]);
 
   // Handlers
   async function handleEditSave(updated: Partial<Idea>) {
@@ -454,32 +428,6 @@ export default function IdeasPage() {
 
       {/* Filter Bar */}
       <div id="tour-idea-filters" className="space-y-3">
-        {/* Temperature filter */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground mr-1">
-            Temperature:
-          </span>
-          <FilterPill
-            active={tempFilter === "all"}
-            onClick={() => setTempFilter("all")}
-          >
-            All
-          </FilterPill>
-          {(
-            Object.keys(IDEA_TEMPERATURES) as Array<
-              keyof typeof IDEA_TEMPERATURES
-            >
-          ).map((key) => (
-            <FilterPill
-              key={key}
-              active={tempFilter === key}
-              onClick={() => setTempFilter(key)}
-            >
-              {IDEA_TEMPERATURES[key].icon} {IDEA_TEMPERATURES[key].label}
-            </FilterPill>
-          ))}
-        </div>
-
         {/* Status filter */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground mr-1">
@@ -649,7 +597,6 @@ export default function IdeasPage() {
               size="sm"
               className="mt-2"
               onClick={() => {
-                setTempFilter("all");
                 setStatusFilter("all");
                 setSearchQuery("");
               }}
@@ -661,10 +608,6 @@ export default function IdeasPage() {
       ) : (
         <div id="tour-idea-card" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredIdeas.map((idea) => {
-            const temp =
-              IDEA_TEMPERATURES[
-                idea.temperature as keyof typeof IDEA_TEMPERATURES
-              ];
             const status =
               IDEA_STATUSES[idea.status as keyof typeof IDEA_STATUSES];
             const isDeveloping = developingId === idea.id;
@@ -672,32 +615,17 @@ export default function IdeasPage() {
             return (
               <Card key={idea.id} className="flex flex-col">
                 <CardContent className="flex-1 space-y-2">
-                  {/* Top row: temperature badge */}
-                  <div className="flex items-center justify-between gap-2">
-                    {temp && (
-                      <TooltipWrapper
-                        tooltip={
-                          idea.temperature === "hot"
-                            ? IDEAS_TOOLTIPS.temperatureHot
-                            : idea.temperature === "warm"
-                              ? IDEAS_TOOLTIPS.temperatureWarm
-                              : IDEAS_TOOLTIPS.temperatureCold
-                        }
-                      >
-                        <Badge variant="secondary" className={temp.color}>
-                          {temp.icon} {temp.label}
-                        </Badge>
-                      </TooltipWrapper>
-                    )}
-                    {status && (
+                  {/* Top row: status badge */}
+                  {status && (
+                    <div className="flex items-center justify-end gap-2">
                       <Badge
                         variant="secondary"
                         className={`${status.color} text-[10px]`}
                       >
                         {status.label}
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Title */}
                   <p className="text-sm font-semibold leading-snug">

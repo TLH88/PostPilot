@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-10
+> Last updated: 2026-04-11
 
 ## Status Key
 
@@ -1209,6 +1209,60 @@ Reorganize the AI Provider card in Settings around the new gateway-first flow. M
 
 ---
 
+### BP-079: Settings Copy Rewrite for Non-Technical Readers
+
+**Status:** Done
+**Priority:** Low
+**Source:** Owner UX request
+**Date Added:** 2026-04-11
+**Completed:** 2026-04-11
+
+**Description:**
+Rewrote the Settings page intro and AI Provider card description so a person who may not know what an API key is can still understand what the card does. The AI Provider card now leads with "built-in AI for everyone, so most users don't need to do anything here", names concrete brands (OpenAI, Anthropic), and treats "BYOK" as a side note rather than a feature name.
+
+---
+
+### BP-080: AI Provider Settings Collapsible Polish
+
+**Status:** Done
+**Priority:** Low
+**Source:** Owner UX request
+**Date Added:** 2026-04-11
+**Completed:** 2026-04-11
+
+**Description:**
+Collapse the Text AI Providers list by default and make all 3 collapsible sections visually distinct from plain labels. Replaced the small uppercase muted-text headers with bordered card-style buttons that include section icons, labels, configured-count badges, and a chevron that flips on expand. Added `aria-expanded` to all collapsible triggers for accessibility.
+
+---
+
+### BP-081: Remove Idea Temperature Feature
+
+**Status:** Done
+**Priority:** Medium
+**Source:** Owner decision (no observed product value)
+**Date Added:** 2026-04-11
+**Completed:** 2026-04-11
+
+**Description:**
+Removed the idea temperature feature (hot/warm/cold categorization) from the entire system. It added UI clutter and required an unnecessary taxonomy without helping users prioritize.
+
+**Scope:**
+- Database: dropped `ideas.temperature` column (nullable text, default `'warm'`, 30 rows) via migration `20260411_remove_idea_temperature.sql`
+- Types: removed `temperature` field from the `Idea` interface
+- Constants: deleted `IDEA_TEMPERATURES` constant
+- AI prompt: removed "Temperature distribution" block and `suggestedTemperature` field from `BRAINSTORM_INSTRUCTIONS`. Replaced with a single line asking the AI to vary timely/evergreen/niche angles without a formal taxonomy.
+- Tooltips: removed `temperatureHot` / `temperatureWarm` / `temperatureCold` entries
+- UI: removed temperature filters, badges, edit selectors, and all `IDEA_TEMPERATURES` imports across Ideas page, idea detail page, generate-ideas-dialog, and dashboard
+- Docs/tutorials: updated help page, help sidebar, and tutorial definitions to drop temperature mentions
+
+**Verification:**
+- `tsc --noEmit`: clean
+- `grep -rn "temperature|IDEA_TEMPERATURES|tempFilter" src/`: zero matches
+- All affected pages (`/dashboard`, `/ideas`, `/ideas/[id]`, `/settings`) return 200 with no console errors after Turbopack cache flush
+- Ideas table schema confirmed to have 11 columns (temperature removed)
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -1269,3 +1323,6 @@ Reorganize the AI Provider card in Settings around the new gateway-first flow. M
 - **BP-076:** Vercel AI Gateway Integration (2026-04-10)
 - **BP-077:** Force AI Gateway Toggle (2026-04-10)
 - **BP-078:** AI Provider Settings Card Overhaul (2026-04-10)
+- **BP-079:** Settings Copy Rewrite for Non-Technical Readers (2026-04-11)
+- **BP-080:** AI Provider Settings Collapsible Polish (2026-04-11)
+- **BP-081:** Remove Idea Temperature Feature (2026-04-11)

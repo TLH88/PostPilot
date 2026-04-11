@@ -94,7 +94,6 @@ export interface Idea {
   title: string;
   description: string | null;
   source: string | null;
-  temperature: "hot" | "warm" | "cold";
   content_pillars: string[];
   tags: string[];
   status: "captured" | "developing" | "converted" | "archived";

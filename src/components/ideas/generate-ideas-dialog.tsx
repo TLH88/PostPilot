@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { IDEA_TEMPERATURES } from "@/lib/constants";
 import type { Idea } from "@/types";
 import {
   Card,
@@ -29,7 +28,6 @@ import { toast } from "sonner";
 interface GeneratedIdea {
   title: string;
   description: string;
-  temperature: "hot" | "warm" | "cold";
   content_pillars?: string[];
   tags?: string[];
 }
@@ -183,10 +181,6 @@ export function GenerateIdeasDialog({
             (item.content_pillar ? [item.content_pillar] : null) ||
             (item.suggestedPillar ? [item.suggestedPillar] : null) ||
             undefined,
-          temperature:
-            item.temperature ||
-            item.suggestedTemperature ||
-            "warm",
         })
       );
       setGeneratedIdeas(ideas);
@@ -215,7 +209,6 @@ export function GenerateIdeasDialog({
           user_id: user.id,
           title: idea.title,
           description: idea.description || null,
-          temperature: idea.temperature || "warm",
           content_pillars: idea.content_pillars?.length ? idea.content_pillars : [],
           tags: idea.tags || [],
           status: "captured",
@@ -361,10 +354,6 @@ export function GenerateIdeasDialog({
                 Generated Ideas
               </p>
               {generatedIdeas.map((idea, index) => {
-                const temp =
-                  IDEA_TEMPERATURES[
-                    idea.temperature as keyof typeof IDEA_TEMPERATURES
-                  ] ?? IDEA_TEMPERATURES.warm;
                 const isSaved = savedIndices.has(index);
                 const isSaving = savingIndex === index;
 
@@ -373,19 +362,15 @@ export function GenerateIdeasDialog({
                     <CardContent className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge
-                              variant="secondary"
-                              className={temp.color}
-                            >
-                              {temp.icon} {temp.label}
-                            </Badge>
-                            {idea.content_pillars?.map((pillar) => (
-                              <Badge key={pillar} variant="outline">
-                                {pillar}
-                              </Badge>
-                            ))}
-                          </div>
+                          {idea.content_pillars && idea.content_pillars.length > 0 && (
+                            <div className="flex items-center gap-2 mb-1">
+                              {idea.content_pillars.map((pillar) => (
+                                <Badge key={pillar} variant="outline">
+                                  {pillar}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-sm font-semibold">
                             {idea.title}
                           </p>

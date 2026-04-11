@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-04-11: Settings Copy Polish, Collapsible UI Tightening, Idea Temperature Removal
+
+### Settings Page Copy (BP-079)
+- Rewrote the Settings page intro and the AI Provider card description for non-technical readers. The AI Provider card now leads with "PostPilot includes built-in AI for everyone, so most users don't need to do anything here", names OpenAI and Anthropic by name instead of jargon, and treats "BYOK" as a side note rather than a feature name users need to learn.
+
+### AI Provider Collapsibles (BP-080)
+- Collapsed the Text AI Providers list by default (was always-open).
+- Replaced the small uppercase muted-text section headers with bordered card-style buttons that include a section icon, label, a configured-count badge where applicable, and a chevron that flips on expand. Applies to all 3 collapsibles: Text AI Providers, Configure Text AI Provider Key, Image Generation Providers.
+- All headers now expose `aria-expanded` for accessibility.
+
+### Idea Temperature Removal (BP-081)
+Removed the idea temperature feature (hot/warm/cold) entirely. It provided no clear product value and added UI clutter + extra AI constraints without helping users prioritize.
+
+**Database:** `20260411_remove_idea_temperature.sql` drops `ideas.temperature` (was nullable text defaulting to `'warm'`). Applied via Supabase MCP.
+
+**Code removed or simplified:**
+- `src/types/index.ts` — removed `temperature` field from the `Idea` interface
+- `src/lib/constants.ts` — deleted the `IDEA_TEMPERATURES` constant
+- `src/lib/ai/prompts.ts` — removed the "CRITICAL — Temperature distribution" block and `suggestedTemperature` field from `BRAINSTORM_INSTRUCTIONS`. The brainstorm prompt now simply asks for a mix of timely/evergreen/niche angles without a formal taxonomy.
+- `src/lib/tooltip-content.ts` — deleted `temperatureHot`, `temperatureWarm`, `temperatureCold` tooltip entries
+- `src/app/api/ai/brainstorm/route.ts` — dropped `temperature` from the recent-ideas history select
+- `src/components/ideas/generate-ideas-dialog.tsx` — removed temperature mapping and badge display
+- `src/app/(app)/ideas/page.tsx` — removed temperature edit dialog, filter pills, filter state, card badge, and `tempFilter` state
+- `src/app/(app)/ideas/[id]/page.tsx` — removed temperature state, select UI, save payload field, and header badge
+- `src/app/(app)/dashboard/page.tsx` — removed `IDEA_TEMPERATURES` import, temperature from the recent ideas select, and the badge render
+- `src/app/(app)/help/page.tsx`, `src/components/help-sidebar.tsx`, `src/lib/tutorials/tutorial-definitions.ts` — updated copy to drop mentions of the temperature feature
+
+**Verification:**
+- TypeScript `tsc --noEmit`: clean
+- `grep -rn "temperature|IDEA_TEMPERATURES|tempFilter" src/` returns zero matches (AI model sampling temperature params were never used in the codebase)
+- Dev server restarted with cleared Turbopack cache to flush stale compile errors
+- `/dashboard`, `/ideas`, `/ideas/[id]`, `/settings` all return 200 with no console errors
+- Ideas table schema confirmed: 11 columns, `temperature` removed
+
+---
+
 ## 2026-04-10: Vercel AI Gateway Integration & AI Provider Settings Overhaul
 
 ### Phase 1: AI Gateway Core Integration (BP-076)

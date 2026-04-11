@@ -20,7 +20,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { IDEA_TEMPERATURES, POST_STATUSES } from "@/lib/constants";
+import { POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
@@ -109,7 +109,7 @@ export default async function DashboardPage() {
   const [recentIdeasResult, recentDraftsResult] = await Promise.all([
     supabase
       .from("ideas")
-      .select("id, title, temperature, created_at")
+      .select("id, title, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5),
@@ -341,28 +341,17 @@ export default async function DashboardPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {recentIdeas.map((idea) => {
-                    const temp =
-                      IDEA_TEMPERATURES[
-                        idea.temperature as keyof typeof IDEA_TEMPERATURES
-                      ];
-                    return (
-                      <Link
-                        key={idea.id}
-                        href={`/ideas/${idea.id}`}
-                        className="flex items-center justify-between gap-3 rounded-lg p-1 transition-colors hover:bg-hover-highlight"
-                      >
-                        <p className="truncate text-sm font-medium">
-                          {idea.title}
-                        </p>
-                        {temp && (
-                          <Badge variant="secondary" className={temp.color}>
-                            {temp.icon} {temp.label}
-                          </Badge>
-                        )}
-                      </Link>
-                    );
-                  })}
+                  {recentIdeas.map((idea) => (
+                    <Link
+                      key={idea.id}
+                      href={`/ideas/${idea.id}`}
+                      className="flex items-center justify-between gap-3 rounded-lg p-1 transition-colors hover:bg-hover-highlight"
+                    >
+                      <p className="truncate text-sm font-medium">
+                        {idea.title}
+                      </p>
+                    </Link>
+                  ))}
                 </div>
               )}
               {recentIdeas.length > 0 && (
