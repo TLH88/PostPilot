@@ -36,7 +36,8 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground max-w-[80%]">
-          Configure and manage AI Provider information and your LinkedIn connection (enables posting directly and auto-publishing of scheduled posts.).
+          Manage your AI provider settings and connect your LinkedIn account so
+          PostPilot can post on your behalf and auto-publish scheduled posts.
         </p>
       </div>
 
@@ -62,10 +63,12 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Free and Creator accounts are configured to use the PostPilot AI
-            Gateway by default. Pro and Enterprise accounts have the option to
-            configure and use their own API keys known as BYOK or Bring Your
-            Own Key.
+            PostPilot includes built-in AI for everyone, so most users don&apos;t
+            need to do anything here. If you&apos;re on the Professional or
+            Enterprise plan and prefer to use your own AI account (for example,
+            your own OpenAI or Anthropic account), you can add your personal
+            access keys below. This is sometimes called &ldquo;BYOK&rdquo; or
+            &ldquo;Bring Your Own Key.&rdquo;
           </p>
           <AIProviderSettings
             currentProvider={profile?.ai_provider ?? "anthropic"}
