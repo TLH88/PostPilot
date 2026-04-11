@@ -29,17 +29,20 @@ export const IDEA_STATUSES = {
 export const IDEA_PRIORITIES = {
   high: {
     label: "High",
-    color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    color:
+      "bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/20 dark:text-red-200 dark:border-red-500/40",
     order: 3,
   },
   medium: {
     label: "Medium",
-    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    color:
+      "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/40",
     order: 2,
   },
   low: {
     label: "Low",
-    color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    color:
+      "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-500/25 dark:text-slate-200 dark:border-slate-500/40",
     order: 1,
   },
 } as const;
