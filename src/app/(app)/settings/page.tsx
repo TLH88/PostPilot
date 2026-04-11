@@ -36,7 +36,7 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground max-w-[80%]">
-          Configure your AI provider and API key, connect your LinkedIn account for direct posting, and customize your theme preferences.
+          Configure and manage AI Provider information and your LinkedIn connection (enables posting directly and auto-publishing of scheduled posts.).
         </p>
       </div>
 
@@ -62,8 +62,10 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Choose your AI provider and enter your API key. Your key is
-            encrypted at rest and never exposed to the browser.
+            Free and Creator accounts are configured to use the PostPilot AI
+            Gateway by default. Pro and Enterprise accounts have the option to
+            configure and use their own API keys known as BYOK or Bring Your
+            Own Key.
           </p>
           <AIProviderSettings
             currentProvider={profile?.ai_provider ?? "anthropic"}
