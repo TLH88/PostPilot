@@ -125,45 +125,60 @@ export function GenerateImageDialog({
 
   async function loadConfig() {
     try {
-      const res = await fetch("/api/settings/provider-keys");
-      if (!res.ok) return;
-      const { keys } = await res.json();
+      // SECURITY: all provider key lookups go through the safe metadata API.
+      // Never fetch ciphertext columns from the browser.
+      const [imageRes, textRes] = await Promise.all([
+        fetch("/api/settings/provider-keys?keyType=image"),
+        fetch("/api/settings/provider-keys?keyType=text"),
+      ]);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase
-        .from("creator_profiles")
-        .select("ai_provider, ai_api_key_encrypted")
-        .eq("user_id", user.id)
-        .single();
+      const imageKeys: Array<{ provider: string; is_active: boolean }> =
+        imageRes.ok ? (await imageRes.json()).keys ?? [] : [];
+      const textKeys: Array<{ provider: string; is_active: boolean }> =
+        textRes.ok ? (await textRes.json()).keys ?? [] : [];
 
       const available: ImageProvider[] = [];
 
-      for (const key of keys) {
-        if (IMAGE_CAPABLE_PROVIDERS.includes(key.provider as ImageProvider)) {
-          if (!available.includes(key.provider as ImageProvider)) {
-            available.push(key.provider as ImageProvider);
-          }
+      // Image-specific keys take priority
+      for (const key of imageKeys) {
+        if (
+          IMAGE_CAPABLE_PROVIDERS.includes(key.provider as ImageProvider) &&
+          !available.includes(key.provider as ImageProvider)
+        ) {
+          available.push(key.provider as ImageProvider);
         }
       }
 
-      if (
-        profile?.ai_api_key_encrypted &&
-        IMAGE_CAPABLE_PROVIDERS.includes(profile.ai_provider as ImageProvider) &&
-        !available.includes(profile.ai_provider as ImageProvider)
-      ) {
-        available.push(profile.ai_provider as ImageProvider);
+      // Fall back to any text keys that happen to be for image-capable
+      // providers (OpenAI / Google) — users can use their text key for
+      // image gen too if no dedicated image key is configured
+      for (const key of textKeys) {
+        if (
+          IMAGE_CAPABLE_PROVIDERS.includes(key.provider as ImageProvider) &&
+          !available.includes(key.provider as ImageProvider)
+        ) {
+          available.push(key.provider as ImageProvider);
+        }
       }
 
       setConfiguredProviders(available);
 
-      const activeKey = keys.find((k: { is_active: boolean }) => k.is_active);
-      if (activeKey && available.includes(activeKey.provider as ImageProvider)) {
-        setProvider(activeKey.provider as ImageProvider);
-        setModel(IMAGE_PROVIDER_CONFIG[activeKey.provider as ImageProvider].models[0].value);
-      } else if (available.length > 0) {
-        setProvider(available[0]);
-        setModel(IMAGE_PROVIDER_CONFIG[available[0]].models[0].value);
+      // Prefer the active image key, then active text key, then first available
+      const activeImageKey = imageKeys.find((k) => k.is_active);
+      const activeTextKey = textKeys.find(
+        (k) =>
+          k.is_active &&
+          IMAGE_CAPABLE_PROVIDERS.includes(k.provider as ImageProvider)
+      );
+
+      const pick =
+        (activeImageKey?.provider as ImageProvider | undefined) ||
+        (activeTextKey?.provider as ImageProvider | undefined) ||
+        available[0];
+
+      if (pick && available.includes(pick)) {
+        setProvider(pick);
+        setModel(IMAGE_PROVIDER_CONFIG[pick].models[0].value);
       } else {
         setProvider(null);
       }

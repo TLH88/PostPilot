@@ -163,6 +163,8 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   templates: "creator",
   image_generation: "creator",
   analytics: "creator",
+  byok_ai_keys: "professional",
+  byok_image_keys: "professional",
   review_status: "team",
   workspaces: "team",
   brand_onboarding: "team",

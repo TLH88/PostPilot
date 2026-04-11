@@ -29,6 +29,8 @@ export default async function SettingsPage() {
     .eq("user_id", user.id)
     .single();
 
+  const subscriptionTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -67,7 +69,8 @@ export default async function SettingsPage() {
             currentProvider={profile?.ai_provider ?? "anthropic"}
             currentModel={profile?.ai_model ?? null}
             hasExistingKey={!!profile?.ai_api_key_encrypted}
-            currentForceGateway={profile?.force_ai_gateway ?? false}
+            currentForceGateway={profile?.force_ai_gateway ?? true}
+            subscriptionTier={subscriptionTier}
           />
         </CardContent>
       </Card>

@@ -152,9 +152,14 @@ export async function getUserAIClient(
 /**
  * Get the decrypted API key for a specific provider.
  * Useful for image generation and other non-chat uses.
+ *
+ * @param provider  The AI provider to fetch a key for
+ * @param keyType   'text' (default) or 'image' — image generation uses
+ *                  separate keys stored with key_type='image'
  */
 export async function getProviderApiKey(
-  provider: AIProvider
+  provider: AIProvider,
+  keyType: "text" | "image" = "text"
 ): Promise<{ apiKey: string; profile: CreatorProfile }> {
   const supabase = await createClient();
 
@@ -174,12 +179,13 @@ export async function getProviderApiKey(
 
   const creatorProfile = profile as CreatorProfile;
 
-  // Try provider keys table first
+  // Try provider keys table first (filtered by key_type)
   const { data: providerKey } = await supabase
     .from("ai_provider_keys")
     .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
     .eq("user_id", user.id)
     .eq("provider", provider)
+    .eq("key_type", keyType)
     .single();
 
   if (providerKey) {
@@ -193,8 +199,24 @@ export async function getProviderApiKey(
     };
   }
 
-  // Fall back to legacy key if provider matches
-  if (
+  // Fall back to legacy single-slot keys on creator_profiles
+  if (keyType === "image") {
+    if (
+      creatorProfile.image_ai_provider === provider &&
+      creatorProfile.image_ai_api_key_encrypted &&
+      creatorProfile.image_ai_api_key_iv &&
+      creatorProfile.image_ai_api_key_auth_tag
+    ) {
+      return {
+        apiKey: decrypt({
+          ciphertext: creatorProfile.image_ai_api_key_encrypted,
+          iv: creatorProfile.image_ai_api_key_iv,
+          authTag: creatorProfile.image_ai_api_key_auth_tag,
+        }),
+        profile: creatorProfile,
+      };
+    }
+  } else if (
     creatorProfile.ai_provider === provider &&
     creatorProfile.ai_api_key_encrypted &&
     creatorProfile.ai_api_key_iv &&
@@ -210,7 +232,8 @@ export async function getProviderApiKey(
     };
   }
 
-  // Fallback: managed AI access with system keys
+  // Fallback: managed AI access with system keys (text only — image gen
+  // does not go through the gateway in Phase 1)
   const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(provider) : null;
   if (systemKey) {
     return { apiKey: systemKey, profile: creatorProfile };
