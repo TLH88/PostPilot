@@ -18,6 +18,7 @@ import {
 import { KpiCard } from "@/components/admin/usage/kpi-card";
 import { DateRangeSelect } from "@/components/admin/usage/date-range-select";
 import { UsageNav } from "@/components/admin/usage/usage-nav";
+import { ChartBackground } from "@/components/ui/chart-background";
 import { Badge } from "@/components/ui/badge";
 import { TIER_BADGE_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -282,33 +283,36 @@ export default function AdminUsagePage() {
                 </div>
               </div>
               {dailyCostData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={dailyCostData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="day" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} width={65} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      formatter={(v) => formatUsd(Number(v ?? 0))}
-                      contentStyle={{
-                        borderRadius: "8px",
-                        border: "1px solid var(--border)",
-                        backgroundColor: "var(--card)",
-                        fontSize: "12px",
-                      }}
-                    />
-                    {providers.map((p, i) => (
-                      <Line
-                        key={p}
-                        type="monotone"
-                        dataKey={p}
-                        stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 4, strokeWidth: 2, fill: "var(--card)" }}
+                <div className="relative">
+                  <ChartBackground top={20} bottom={25} left={75} right={10} />
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={dailyCostData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="day" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} width={65} tickLine={false} axisLine={false} />
+                      <Tooltip
+                        formatter={(v) => formatUsd(Number(v ?? 0))}
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "1px solid var(--border)",
+                          backgroundColor: "var(--card)",
+                          fontSize: "12px",
+                        }}
                       />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+                      {providers.map((p, i) => (
+                        <Line
+                          key={p}
+                          type="monotone"
+                          dataKey={p}
+                          stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                          strokeWidth={2.5}
+                          dot={false}
+                          activeDot={{ r: 4, strokeWidth: 2, fill: "var(--card)" }}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-[260px] text-xs text-muted-foreground">
                   No data for this period

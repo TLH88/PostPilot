@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2 } from "lucide-react";
+import { ChartBackground } from "@/components/ui/chart-background";
 import {
   Select,
   SelectContent,
@@ -121,50 +122,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
 
       {/* Chart area with gradient dots background */}
       <div className="relative px-2 pb-4">
-        {/* Gradient dots background — constrained to chart plot area only.
-            Left inset ~55px (container px-2 + chart margin-left 10 + YAxis width 35).
-            Right inset ~30px (container px-2 + chart margin-right 20).
-            Top inset 10px (chart margin-top).
-            Bottom inset ~74px (x-axis labels + tick height + chart margin + legend row). */}
-        <div className="absolute top-[10px] bottom-[74px] left-[55px] right-[30px] overflow-hidden rounded-sm">
-          {/* Blue dots layer (left) */}
-          <div
-            className="absolute inset-0 opacity-[0.28]"
-            style={{
-              backgroundImage: `radial-gradient(circle, #6366f1 1px, transparent 1px)`,
-              backgroundSize: "16px 16px",
-              maskImage: "linear-gradient(to right, black, transparent 60%), linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, black, transparent 60%), linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          />
-          {/* Purple dots layer (center) */}
-          <div
-            className="absolute inset-0 opacity-[0.28]"
-            style={{
-              backgroundImage: `radial-gradient(circle, #8b5cf6 1px, transparent 1px)`,
-              backgroundSize: "16px 16px",
-              backgroundPosition: "8px 8px",
-              maskImage: "linear-gradient(to right, transparent 20%, black 50%, transparent 80%), linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent 20%, black 50%, transparent 80%), linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          />
-          {/* Green dots layer (right) */}
-          <div
-            className="absolute inset-0 opacity-[0.28]"
-            style={{
-              backgroundImage: `radial-gradient(circle, #22c55e 1px, transparent 1px)`,
-              backgroundSize: "16px 16px",
-              maskImage: "linear-gradient(to right, transparent 40%, black), linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent 40%, black), linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          />
-        </div>
+        <ChartBackground top={10} bottom={74} left={55} right={30} />
 
         {loading ? (
           <div className="flex items-center justify-center h-[200px]">
