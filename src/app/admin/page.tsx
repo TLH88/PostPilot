@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Badge } from "@/components/ui/badge";
+import { UsageTrendsChart } from "@/components/admin/usage-trends-chart";
 import {
   Users,
   Sparkles,
@@ -211,41 +212,15 @@ export default async function AdminDashboard() {
 
       {/* This Month's Usage + Users by Tier */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* This Month's Usage — spans 2 columns */}
-        <div className="lg:col-span-2 rounded-xl border bg-card p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-base font-semibold">This Month&apos;s Usage</h3>
-            </div>
-            <Badge variant="secondary" className="text-[10px]">Last 30 Days</Badge>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-3xl font-bold tracking-tight">{activeUsersThisMonth}</p>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
-                Active Users
-              </p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold tracking-tight">{totalPostsThisMonth}</p>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
-                Posts Created
-              </p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold tracking-tight">{totalBrainstormsThisMonth}</p>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
-                Brainstorms
-              </p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold tracking-tight">{totalChatMessagesThisMonth}</p>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
-                AI Messages
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* This Month's Usage with trends chart — spans 2 columns */}
+        <UsageTrendsChart
+          currentMetrics={{
+            activeUsers: activeUsersThisMonth,
+            posts: totalPostsThisMonth,
+            brainstorms: totalBrainstormsThisMonth,
+            aiMessages: totalChatMessagesThisMonth,
+          }}
+        />
 
         {/* Users by Tier */}
         <div className="rounded-xl border bg-card p-5">

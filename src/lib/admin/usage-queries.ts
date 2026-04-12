@@ -455,3 +455,94 @@ export async function getUserUsageDetail(
     })),
   };
 }
+
+// ── Usage trends (for admin dashboard chart) ──────────────────────────────
+
+export type TrendPeriod = "week" | "month" | "quarter" | "year";
+
+export interface TrendPoint {
+  label: string;
+  activeUsers: number;
+  posts: number;
+  brainstorms: number;
+  aiMessages: number;
+}
+
+export async function getUsageTrends(period: TrendPeriod): Promise<TrendPoint[]> {
+  const supabase = createAdminClient();
+
+  const { data } = await supabase
+    .from("usage_quotas")
+    .select("user_id, posts_created, brainstorms_used, chat_messages_used, period_start")
+    .order("period_start", { ascending: true });
+
+  if (!data?.length) return [];
+
+  // Determine how many buckets and how to group
+  const now = new Date();
+  const buckets: Record<string, { users: Set<string>; posts: number; brainstorms: number; ai: number }> = {};
+
+  for (const row of data) {
+    const d = new Date(row.period_start);
+    let key: string;
+
+    switch (period) {
+      case "week": {
+        // Last 12 weeks, bucket by ISO week
+        const weekStart = new Date(d);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        key = weekStart.toISOString().slice(0, 10);
+        break;
+      }
+      case "month": {
+        // Bucket by YYYY-MM
+        key = row.period_start.slice(0, 7);
+        break;
+      }
+      case "quarter": {
+        // Bucket by YYYY-QN
+        const q = Math.floor(d.getMonth() / 3) + 1;
+        key = `${d.getFullYear()}-Q${q}`;
+        break;
+      }
+      case "year": {
+        key = `${d.getFullYear()}`;
+        break;
+      }
+    }
+
+    if (!buckets[key]) buckets[key] = { users: new Set(), posts: 0, brainstorms: 0, ai: 0 };
+    const b = buckets[key];
+    const activity = row.posts_created + row.brainstorms_used + row.chat_messages_used;
+    if (activity > 0) b.users.add(row.user_id);
+    b.posts += row.posts_created;
+    b.brainstorms += row.brainstorms_used;
+    b.ai += row.chat_messages_used;
+  }
+
+  // Limit to recent buckets based on period
+  const maxBuckets = { week: 12, month: 12, quarter: 8, year: 5 }[period];
+  const sortedKeys = Object.keys(buckets).sort();
+  const recentKeys = sortedKeys.slice(-maxBuckets);
+
+  // Format labels
+  return recentKeys.map((key) => {
+    const b = buckets[key];
+    let label = key;
+    if (period === "week") {
+      label = key.slice(5); // MM-DD
+    } else if (period === "month") {
+      const [, m] = key.split("-");
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      label = months[parseInt(m, 10) - 1] ?? key;
+    }
+
+    return {
+      label,
+      activeUsers: b.users.size,
+      posts: b.posts,
+      brainstorms: b.brainstorms,
+      aiMessages: b.ai,
+    };
+  });
+}
