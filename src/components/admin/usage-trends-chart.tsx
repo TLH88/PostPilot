@@ -122,9 +122,11 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
       {/* Chart area with gradient dots background */}
       <div className="relative px-2 pb-4">
         {/* Gradient dots background — constrained to chart plot area only.
-            Left inset ~55px (chart margin-left 10 + YAxis width 35 + padding 10).
-            Right inset ~30px (chart margin-right 20 + padding 10). */}
-        <div className="absolute top-[10px] bottom-[30px] left-[55px] right-[30px] overflow-hidden rounded-lg">
+            Left inset ~55px (container px-2 + chart margin-left 10 + YAxis width 35).
+            Right inset ~30px (container px-2 + chart margin-right 20).
+            Top inset 10px (chart margin-top).
+            Bottom inset ~74px (x-axis labels + tick height + chart margin + legend row). */}
+        <div className="absolute top-[10px] bottom-[74px] left-[55px] right-[30px] overflow-hidden rounded-sm">
           {/* Blue dots layer (left) */}
           <div
             className="absolute inset-0 opacity-[0.28]"
