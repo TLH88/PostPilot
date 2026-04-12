@@ -81,7 +81,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
       {/* Header with metrics */}
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold">This Month&apos;s Usage</h3>
+          <h3 className="text-base font-semibold">Usage Trends</h3>
           <Select value={period} onValueChange={(v) => setPeriod(v as TrendPeriod)}>
             <SelectTrigger className="w-[200px] h-8 text-xs">
               <SelectValue>
@@ -121,8 +121,8 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
 
       {/* Chart area with gradient dots background */}
       <div className="relative px-2 pb-4">
-        {/* Gradient dots background — blue/purple/green blend */}
-        <div className="absolute inset-0 overflow-hidden">
+        {/* Gradient dots background — constrained to chart plot area only */}
+        <div className="absolute left-2 right-2 top-0 h-[200px] overflow-hidden rounded-lg">
           {/* Blue dots layer (left) */}
           <div
             className="absolute inset-0 opacity-[0.28]"
