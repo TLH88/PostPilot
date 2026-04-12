@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ShieldCheck, Layers } from "lucide-react";
+import { BarChart3, ShieldCheck, Layers, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const USAGE_NAV = [
   { href: "/admin/usage", label: "Overview", icon: BarChart3 },
   { href: "/admin/usage/reliability", label: "Reliability", icon: ShieldCheck },
   { href: "/admin/usage/features", label: "Features ROI", icon: Layers },
+  { href: "/admin/usage/users", label: "Users", icon: Users },
 ];
 
 export function UsageNav() {

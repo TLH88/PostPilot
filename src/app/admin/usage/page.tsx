@@ -23,6 +23,13 @@ import { TIER_BADGE_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "@/lib/admin/usage-queries";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   LineChart,
   Line,
   XAxis,
@@ -33,7 +40,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from "recharts";
 
 const CHART_COLORS = [
@@ -64,19 +70,42 @@ interface DashboardData {
     priorRequests: number;
   };
   timeSeries: Array<{ day: string; provider: string; cost: number; requests: number }>;
-  topUsers: Array<{ userId: string; email?: string; fullName?: string; tier?: string; totalCost: number; totalRequests: number }>;
+  topUsers: Array<{
+    userId: string;
+    email?: string;
+    fullName?: string;
+    tier?: string;
+    totalCost: number;
+    totalRequests: number;
+    avgCostPerRequest: number;
+    errorCount: number;
+    errorRate: number;
+    cacheSavings: number;
+    lastActive?: string;
+  }>;
   routeCosts: Array<{ route: string; totalCost: number; requests: number; uniqueUsers: number }>;
 }
 
+type UserSortMetric = "cost" | "requests" | "avg_cost" | "errors" | "cache_savings";
+
+const USER_SORT_OPTIONS: { value: UserSortMetric; label: string }[] = [
+  { value: "cost", label: "Total Cost" },
+  { value: "requests", label: "Total Requests" },
+  { value: "avg_cost", label: "Avg Cost / Request" },
+  { value: "errors", label: "Error Count" },
+  { value: "cache_savings", label: "Cache Savings" },
+];
+
 export default function AdminUsagePage() {
   const [range, setRange] = useState<DateRange>("30d");
+  const [userSort, setUserSort] = useState<UserSortMetric>("cost");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/usage/summary?range=${range}`);
+      const res = await fetch(`/api/admin/usage/summary?range=${range}&userSort=${userSort}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       setData(json);
@@ -85,7 +114,7 @@ export default function AdminUsagePage() {
     } finally {
       setLoading(false);
     }
-  }, [range]);
+  }, [range, userSort]);
 
   useEffect(() => {
     fetchData();
@@ -359,10 +388,27 @@ export default function AdminUsagePage() {
           <div className="rounded-xl border bg-card">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <div>
-                <h3 className="text-base font-semibold">Top Users by Cost</h3>
+                <h3 className="text-base font-semibold">Top Users</h3>
                 <p className="text-xs text-muted-foreground">
-                  Expenditure tracking per unique identifier
+                  Top 20 users ranked by selected metric
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0">Sort by:</span>
+                <Select value={userSort} onValueChange={(v) => setUserSort(v as UserSortMetric)}>
+                  <SelectTrigger className="w-[180px] h-8 text-xs">
+                    <SelectValue>
+                      {USER_SORT_OPTIONS.find((o) => o.value === userSort)?.label}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USER_SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {data.topUsers.length > 0 ? (
@@ -382,6 +428,15 @@ export default function AdminUsagePage() {
                       <th className="px-5 py-3 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         Cost
                       </th>
+                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        {userSort === "avg_cost"
+                          ? "Avg / Req"
+                          : userSort === "errors"
+                            ? "Errors"
+                            : userSort === "cache_savings"
+                              ? "Saved"
+                              : "Avg / Req"}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -392,6 +447,18 @@ export default function AdminUsagePage() {
                         .join("")
                         .toUpperCase()
                         .slice(0, 2);
+
+                      // Dynamic 5th column based on sort
+                      let metricValue: string;
+                      let metricAlert = false;
+                      if (userSort === "errors") {
+                        metricValue = `${user.errorCount} (${user.errorRate.toFixed(1)}%)`;
+                        metricAlert = user.errorCount > 0;
+                      } else if (userSort === "cache_savings") {
+                        metricValue = formatUsd(user.cacheSavings);
+                      } else {
+                        metricValue = formatUsd(user.avgCostPerRequest);
+                      }
 
                       return (
                         <tr
@@ -435,15 +502,27 @@ export default function AdminUsagePage() {
                           <td className="px-5 py-3 text-right font-semibold tabular-nums">
                             {formatUsd(user.totalCost)}
                           </td>
+                          <td className={cn(
+                            "px-5 py-3 text-right tabular-nums",
+                            metricAlert && "text-red-600 dark:text-red-400 font-medium"
+                          )}>
+                            {metricValue}
+                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-                <div className="px-5 py-3 border-t text-center">
+                <div className="px-5 py-3 border-t flex items-center justify-between">
                   <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
                     Showing 1 to {data.topUsers.length} of {data.topUsers.length} users
                   </p>
+                  <Link
+                    href="/admin/usage/users"
+                    className="text-xs text-primary font-medium hover:underline"
+                  >
+                    View all users &rarr;
+                  </Link>
                 </div>
               </>
             ) : (

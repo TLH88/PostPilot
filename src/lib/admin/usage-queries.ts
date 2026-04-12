@@ -147,6 +147,8 @@ export async function getCostTimeSeries(range: DateRange): Promise<TimeSeriesPoi
 
 // ── Top users ──────────────────────────────────────────────────────────────
 
+export type TopUserMetric = "cost" | "requests" | "avg_cost" | "errors" | "cache_savings";
+
 export interface TopUser {
   userId: string;
   email?: string;
@@ -154,32 +156,64 @@ export interface TopUser {
   tier?: string;
   totalCost: number;
   totalRequests: number;
+  avgCostPerRequest: number;
+  errorCount: number;
+  errorRate: number;
+  cacheSavings: number;
+  lastActive?: string;
 }
 
-export async function getTopUsers(range: DateRange, limit: number = 10): Promise<TopUser[]> {
+export async function getTopUsers(
+  range: DateRange,
+  limit: number = 20,
+  sortBy: TopUserMetric = "cost"
+): Promise<TopUser[]> {
   const supabase = createAdminClient();
   const ms = { "1d": 86400000, "7d": 604800000, "30d": 2592000000, "90d": 7776000000 }[range] ?? 2592000000;
   const since = new Date(Date.now() - ms);
 
   const { data } = await supabase
     .from("ai_usage_events")
-    .select("user_id, cost_usd")
+    .select("user_id, cost_usd, cached_savings_usd, success, created_at")
     .gte("created_at", since.toISOString());
 
   if (!data?.length) return [];
 
   // Aggregate by user
-  const userCosts: Record<string, { cost: number; requests: number }> = {};
+  const userStats: Record<string, {
+    cost: number;
+    requests: number;
+    errors: number;
+    cacheSavings: number;
+    lastActive: string;
+  }> = {};
   for (const row of data) {
-    if (!userCosts[row.user_id]) userCosts[row.user_id] = { cost: 0, requests: 0 };
-    userCosts[row.user_id].cost += Number(row.cost_usd ?? 0);
-    userCosts[row.user_id].requests += 1;
+    if (!userStats[row.user_id]) {
+      userStats[row.user_id] = { cost: 0, requests: 0, errors: 0, cacheSavings: 0, lastActive: row.created_at };
+    }
+    const u = userStats[row.user_id];
+    u.cost += Number(row.cost_usd ?? 0);
+    u.requests += 1;
+    if (!row.success) u.errors += 1;
+    u.cacheSavings += Number(row.cached_savings_usd ?? 0);
+    if (row.created_at > u.lastActive) u.lastActive = row.created_at;
   }
 
-  // Sort and limit
-  const sorted = Object.entries(userCosts)
-    .sort((a, b) => b[1].cost - a[1].cost)
-    .slice(0, limit);
+  // Sort by requested metric
+  const entries = Object.entries(userStats);
+  const sorters: Record<TopUserMetric, (a: [string, typeof userStats[string]], b: [string, typeof userStats[string]]) => number> = {
+    cost: (a, b) => b[1].cost - a[1].cost,
+    requests: (a, b) => b[1].requests - a[1].requests,
+    avg_cost: (a, b) => {
+      const avgA = a[1].requests > 0 ? a[1].cost / a[1].requests : 0;
+      const avgB = b[1].requests > 0 ? b[1].cost / b[1].requests : 0;
+      return avgB - avgA;
+    },
+    errors: (a, b) => b[1].errors - a[1].errors,
+    cache_savings: (a, b) => b[1].cacheSavings - a[1].cacheSavings,
+  };
+
+  const sorted = entries.sort(sorters[sortBy]).slice(0, limit);
 
   // Enrich with user info
   const userIds = sorted.map(([id]) => id);
@@ -206,6 +240,11 @@ export async function getTopUsers(range: DateRange, limit: number = 10): Promise
     tier: profileMap[userId]?.subscription_tier,
     totalCost: stats.cost,
     totalRequests: stats.requests,
+    avgCostPerRequest: stats.requests > 0 ? stats.cost / stats.requests : 0,
+    errorCount: stats.errors,
+    errorRate: stats.requests > 0 ? (stats.errors / stats.requests) * 100 : 0,
+    cacheSavings: stats.cacheSavings,
+    lastActive: stats.lastActive,
   }));
 }
 
