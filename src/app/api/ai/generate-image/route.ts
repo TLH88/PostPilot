@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProviderApiKey } from "@/lib/ai/get-user-ai-client";
 import { logApiError } from "@/lib/api-utils";
 import { checkQuota, incrementQuota } from "@/lib/quota";
+import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
 
@@ -18,6 +19,10 @@ const ART_STYLES = [
 ] as const;
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let imgProvider: string | undefined;
+  let imgModel: string | undefined;
+  let userId: string | undefined;
   try {
     const { postId, prompt: customPrompt, artStyle, imageFormat, includeText, imageText, imageProvider: requestProvider, imageModel: requestModel } = await request.json();
 
@@ -74,6 +79,9 @@ export async function POST(request: NextRequest) {
       profileData.image_ai_provider ||
       profileData.ai_provider) as AIProvider;
     const imageModel = requestModel || profileData.image_ai_model;
+    imgProvider = provider;
+    imgModel = imageModel;
+    userId = user.id;
 
     // Get API key for the selected provider — look up image keys first
     // (key_type='image' in ai_provider_keys), then fall back to text keys
@@ -242,6 +250,17 @@ export async function POST(request: NextRequest) {
 
     await incrementQuota(user.id, "chat_messages");
 
+    logAiUsage({
+      userId: user.id,
+      route: "generate-image",
+      provider,
+      model: imageModel ?? "unknown",
+      source: "byok",
+      success: true,
+      imageCount: 1,
+      latencyMs: Date.now() - startTime,
+    });
+
     return NextResponse.json({
       imageUrl,
       storagePath,
@@ -250,6 +269,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logApiError("api/ai/generate-image", error);
+
+    logAiUsage({
+      userId: userId ?? "unknown",
+      route: "generate-image",
+      provider: imgProvider ?? "unknown",
+      model: imgModel ?? "unknown",
+      source: "byok",
+      success: false,
+      errorCode: classifyAiError(error),
+      latencyMs: Date.now() - startTime,
+    });
 
     const msg =
       error instanceof Error ? error.message : "Failed to generate image";

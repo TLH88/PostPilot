@@ -9,9 +9,11 @@ import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
 import { checkQuota, incrementQuota } from "@/lib/quota";
+import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
+  const startTime = Date.now();
   try {
     const body = await request.json();
 
@@ -25,8 +27,8 @@ export async function POST(request: NextRequest) {
 
     const { topic, contentPillar, count } = parsed.data;
 
-    const { client, profile } = await getUserAIClient();
-    activeProvider = profile.ai_provider ?? undefined;
+    const { client, profile, source, provider, model } = await getUserAIClient();
+    activeProvider = provider;
 
     // Quota check
     const quota = await checkQuota(profile.user_id, "brainstorms");
@@ -164,9 +166,32 @@ export async function POST(request: NextRequest) {
     // Increment quota after successful brainstorm
     await incrementQuota(profile.user_id, "brainstorms");
 
+    logAiUsage({
+      userId: profile.user_id,
+      route: "brainstorm",
+      provider,
+      model,
+      source,
+      usage: response.usage,
+      generationId: response.generationId,
+      success: true,
+      latencyMs: Date.now() - startTime,
+    });
+
     return NextResponse.json(validated.data);
   } catch (error) {
     logApiError("api/ai/brainstorm", error);
+
+    logAiUsage({
+      userId: "unknown",
+      route: "brainstorm",
+      provider: activeProvider ?? "unknown",
+      model: "unknown",
+      source: "gateway",
+      success: false,
+      errorCode: classifyAiError(error),
+      latencyMs: Date.now() - startTime,
+    });
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
