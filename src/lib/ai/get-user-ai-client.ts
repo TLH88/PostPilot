@@ -33,9 +33,14 @@ function getSystemKey(provider: AIProvider): string | null {
   return SYSTEM_AI_KEYS[provider] ?? null;
 }
 
-interface UserAIContext {
+export type AISource = "gateway" | "byok" | "system_key";
+
+export interface UserAIContext {
   client: AIClient;
   profile: CreatorProfile;
+  source: AISource;
+  provider: AIProvider;
+  model: string;
 }
 
 /**
@@ -74,13 +79,15 @@ export async function getUserAIClient(
   const gatewayAvailable =
     !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
 
+  // Resolve the model string used for logging + gateway model ID
+  const resolvedModel = creatorProfile.ai_model || getDefaultModel(targetProvider);
+
   // Force AI Gateway: testing/dev toggle that bypasses BYOK keys entirely.
   // Takes precedence over all key lookups below.
   if (creatorProfile.force_ai_gateway && gatewayAvailable) {
-    const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
-    console.log(`[AI Gateway] FORCED ${targetProvider}/${model} via user setting`);
-    const client = createGatewayClient(targetProvider, model);
-    return { client, profile: creatorProfile };
+    console.log(`[AI Gateway] FORCED ${targetProvider}/${resolvedModel} via user setting`);
+    const client = createGatewayClient(targetProvider, resolvedModel);
+    return { client, profile: creatorProfile, source: "gateway", provider: targetProvider, model: resolvedModel };
   }
 
   // Try to get key from ai_provider_keys table first
@@ -122,10 +129,9 @@ export async function getUserAIClient(
 
     // Route through Vercel AI Gateway if configured
     if (gatewayAvailable) {
-      const model = creatorProfile.ai_model || getDefaultModel(targetProvider);
-      console.log(`[AI Gateway] Routing ${targetProvider}/${model} via Vercel AI Gateway`);
-      const client = createGatewayClient(targetProvider, model);
-      return { client, profile: creatorProfile };
+      console.log(`[AI Gateway] Routing ${targetProvider}/${resolvedModel} via Vercel AI Gateway`);
+      const client = createGatewayClient(targetProvider, resolvedModel);
+      return { client, profile: creatorProfile, source: "gateway", provider: targetProvider, model: resolvedModel };
     }
 
     // Fallback: direct system keys (local dev / gateway not configured)
@@ -140,13 +146,20 @@ export async function getUserAIClient(
     }
   }
 
+  // Determine source: BYOK if we found a personal key, system_key if we fell through to managed access
+  const source: AISource = (providerKey ||
+    (creatorProfile.ai_api_key_encrypted &&
+      creatorProfile.ai_provider === targetProvider))
+    ? "byok"
+    : "system_key";
+
   const client = createAIClient(
     targetProvider,
     apiKey,
     creatorProfile.ai_model
   );
 
-  return { client, profile: creatorProfile };
+  return { client, profile: creatorProfile, source, provider: targetProvider, model: resolvedModel };
 }
 
 /**
