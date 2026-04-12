@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-11 (BP-082, BP-083, BP-084 added)
+> Last updated: 2026-04-11 (BP-085 scoped)
 
 ## Status Key
 
@@ -1265,10 +1265,11 @@ Removed the idea temperature feature (hot/warm/cold categorization) from the ent
 
 ### BP-082: Manual Idea Entry
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
 **Source:** Owner observation — Ideas page description promises manual entry but no UI exists
 **Date Added:** 2026-04-11
+**Completed:** 2026-04-11
 
 **Problem:**
 The Ideas page description at `src/app/(app)/ideas/page.tsx` says *"Click 'Generate Ideas' to brainstorm with AI, or add your own manually."* — but there is no "Add Idea" button. The only way to add an idea today is through the AI brainstorm dialog. Users who jot down ideas on their phone, hear something in a podcast, or want to capture a raw thought have no way to enter it without invoking the AI.
@@ -1308,10 +1309,11 @@ The Ideas page description at `src/app/(app)/ideas/page.tsx` says *"Click 'Gener
 
 ### BP-083: Idea Tagging & Prioritization
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** Medium
 **Source:** Owner observation — process flow step 2 promises "Rate, tag, and prioritize" but no such features exist
 **Date Added:** 2026-04-11
+**Completed:** 2026-04-11
 
 **Problem:**
 The `IdeaProcessFlow` component (`src/components/ideas/idea-process-flow.tsx:21`) promises users can *"Rate, tag, and prioritize your best ideas"* in step 2 of the workflow. None of those things exist today:
@@ -1670,6 +1672,536 @@ interface TutorialStep {
 
 ---
 
+### BP-085: AI Usage Monitoring, Cost Analysis & Budget Enforcement (Admin Portal)
+
+**Status:** Backlog
+**Priority:** High
+**Source:** Owner — need visibility into AI spend, abuse detection, and upsell opportunities
+**Date Added:** 2026-04-11
+
+**Problem:**
+Right now we have zero visibility into what AI requests actually cost the business. The `usage_quotas` table tracks *counts* (posts, brainstorms, chat messages) but not *dollars*. Since the Vercel AI Gateway rollout, most non-BYOK requests route through a single billed endpoint — we have the raw data, we just aren't capturing or displaying it. We also have no mechanism to stop a runaway user from bleeding us dry, and no data-driven way to identify users who are ripe for an upgrade.
+
+This BP delivers the operational dashboard + enforcement + upsell intelligence layer we'll need before we open the gates more broadly.
+
+### Goals
+
+1. **Visibility:** See what we're spending on AI by user, tier, provider, model, route, time period
+2. **Protection:** Detect and auto-pause abuse before it costs us real money
+3. **Growth:** Identify users whose actual usage justifies a tier upgrade
+
+### Architecture Overview
+
+```
+┌────────────────────────────────────────────────────┐
+│              AI route handlers                      │
+│  (draft, chat, enhance, hashtags, brainstorm, …)    │
+└──────────────┬──────────────────────────────────────┘
+               │ after each request, log event
+               ▼
+┌────────────────────────────────────────────────────┐
+│           ai_usage_events table                     │
+│   Every AI call: user, provider, model, tokens,     │
+│   cost_usd, source, success, generation_id          │
+└──────────────┬──────────────────────────────────────┘
+               │ aggregation queries (cached)
+               ▼
+┌────────────────────────────────────────────────────┐
+│     /admin/usage dashboard + budget enforcer        │
+│  KPIs • charts • drilldowns • budgets • alerts      │
+└────────────────────────────────────────────────────┘
+```
+
+### Phase 1 — Data Capture (foundational, nothing visible)
+
+**New migration:** `ai_usage_events` table
+
+```sql
+CREATE TABLE ai_usage_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL,
+
+  -- What ran
+  route text NOT NULL,                  -- 'draft', 'chat', 'enhance', 'hashtags', 'brainstorm', 'analyze-hook', 'generate-image'
+  provider text NOT NULL,               -- 'anthropic', 'openai', 'google', 'perplexity'
+  model text NOT NULL,                  -- 'claude-sonnet-4-6', 'gpt-4.1', etc.
+  source text NOT NULL,                 -- 'gateway' | 'byok' | 'system_key'
+
+  -- Token accounting
+  input_tokens integer,
+  output_tokens integer,
+  cached_tokens integer,                -- from prompt caching (Item #1 savings tracker)
+  reasoning_tokens integer,             -- for o-series / thinking models
+
+  -- Cost
+  cost_usd numeric(10,6),               -- exact from gateway, estimated for BYOK direct
+  cached_savings_usd numeric(10,6),     -- Item #1: what cost_usd *would* have been without cache hits
+
+  -- Outcome
+  success boolean NOT NULL DEFAULT true,
+  error_code text,                      -- 'rate_limit' | 'auth' | 'content_policy' | 'timeout' | ...
+
+  -- Provider fallback monitoring (Item #10)
+  -- Gateway may retry failed providers transparently; capture this when present in generation metadata
+  attempted_providers text[],           -- e.g. ['anthropic', 'bedrock'] when fallback occurred
+  final_provider text,                  -- the provider that actually served the response
+
+  -- Correlation
+  generation_id text,                   -- gen_<ulid> from Vercel AI Gateway
+  latency_ms integer,
+
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ai_usage_events_user_created_idx ON ai_usage_events (user_id, created_at DESC);
+CREATE INDEX ai_usage_events_created_idx ON ai_usage_events (created_at DESC);
+CREATE INDEX ai_usage_events_provider_created_idx ON ai_usage_events (provider, created_at DESC);
+CREATE INDEX ai_usage_events_route_created_idx ON ai_usage_events (route, created_at DESC);
+CREATE INDEX ai_usage_events_error_idx ON ai_usage_events (error_code, created_at DESC) WHERE error_code IS NOT NULL;
+
+ALTER TABLE ai_usage_events ENABLE ROW LEVEL SECURITY;
+-- Users can read their own events (for future "my usage" page)
+CREATE POLICY "Users read own usage" ON ai_usage_events FOR SELECT USING (auth.uid() = user_id);
+-- Inserts happen via server-side routes only, which use the service role and bypass RLS
+```
+
+**New helper:** `src/lib/ai/usage-logger.ts`
+
+```ts
+export async function logAiUsage(event: {
+  userId: string;
+  workspaceId?: string | null;
+  route: string;
+  provider: AIProvider;
+  model: string;
+  source: "gateway" | "byok" | "system_key";
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedTokens?: number;
+  reasoningTokens?: number;
+  costUsd?: number;
+  cachedSavingsUsd?: number;      // Item #1
+  attemptedProviders?: string[];  // Item #10
+  finalProvider?: string;         // Item #10
+  success: boolean;
+  errorCode?: string;
+  generationId?: string;
+  latencyMs?: number;
+}): Promise<void>;
+```
+
+**Wire-up:** every AI route (draft, chat, enhance, hashtags, brainstorm, analyze-hook, generate-image) calls `logAiUsage` after the provider call. For gateway requests, extract cost and provider-fallback metadata from `providerMetadata` or the `/v1/generation?id=...` lookup. For BYOK direct calls, estimate cost from a server-side rate table (`src/lib/ai/cost-table.ts`) keyed by `provider/model` with per-input-token and per-output-token rates.
+
+**Prompt cache savings calculation (Item #1):** when the gateway reports `cached_tokens > 0`, compute `cached_savings_usd = cached_tokens * (standard_input_rate - cache_read_rate)` using the rate table. Stored alongside `cost_usd` so dashboards can surface "cache savings this month = $X".
+
+**Do NOT block the response on logging** — fire-and-forget with error swallowed. A failed log row is better than a failed user request.
+
+### Phase 2 — Admin Usage Dashboard
+
+**New routes:**
+- `/admin/usage` — main dashboard
+- `/admin/usage/[userId]` — per-user drill-down
+- `/admin/usage/reliability` — error rate + provider fallback sub-page (Items #2, #10)
+- `/admin/usage/features` — cost-per-feature ROI sub-page (Item #3)
+
+**New API routes** (admin-gated):
+- `GET /api/admin/usage/summary?range=30d&tier=creator&provider=openai` — aggregated KPIs
+- `GET /api/admin/usage/timeseries?range=30d&groupBy=day&tier=creator` — chart data
+- `GET /api/admin/usage/top-users?range=30d&metric=cost_usd&limit=20` — leaderboard
+- `GET /api/admin/usage/user/[userId]?range=30d` — per-user breakdown
+- `GET /api/admin/usage/reliability?range=30d` — error rates + fallback counts by provider (Items #2, #10)
+- `GET /api/admin/usage/features?range=30d` — cost grouped by route joined with engagement metrics (Item #3)
+
+**Dashboard KPI cards** (top of page):
+- **Total AI spend** (period) — sum of `cost_usd`, compared to prior period
+- **Total requests** — count, compared to prior period
+- **Avg cost per request** — trend
+- **Active AI users** — distinct `user_id` count
+- **Most expensive route** — sum of cost grouped by route
+- **Gateway vs BYOK mix** — % of requests routed through gateway
+- **Prompt cache savings** (Item #1) — sum of `cached_savings_usd` this period, rendered as "saved $X via prompt caching this month"
+- **Overall success rate** — `success=true` count / total, with red indicator if below 97%
+
+**Filter bar:**
+- Date range picker (today, 7d, 30d, 90d, custom)
+- Tier filter (free / creator / pro / team / enterprise)
+- Provider filter
+- Route filter
+- Source filter (gateway / byok / system_key)
+
+**Charts (main dashboard):**
+- **Line chart:** daily cost over time (stacked by provider or route, togglable)
+- **Stacked bar chart:** total cost by tier, grouped by provider
+- **Horizontal bar chart:** top 10 users by cost (click → drill down)
+- **Pie/donut:** cost split by route (draft vs chat vs image gen etc)
+- **Cache savings line chart (Item #1):** `cached_savings_usd` over time — proves the gateway is earning its keep
+
+**Reliability sub-page (`/admin/usage/reliability`, Items #2 + #10):**
+- **Error rate panel:** stacked bar chart of error counts per provider over time, grouped by `error_code`. Highlights providers whose rate crosses a threshold (e.g. >5%).
+- **Provider fallback counts:** "In the last 30 days, Anthropic was the primary provider 8,432 times, failed 47 times (0.56%), and the gateway successfully fell back to Bedrock/Vertex/etc. N times with zero user impact." Data sourced from `attempted_providers` + `final_provider` columns.
+- **Fallback chain visualization:** simple table showing primary → fallback pairs and counts. Lets us decide when to reorder the gateway provider chain.
+- **Stale-provider warning banner:** if any provider has uptime <95% in the last 7 days, show a red banner at the top of `/admin/usage` with a link here.
+
+**Cost-per-feature ROI sub-page (`/admin/usage/features`, Item #3):**
+- **Table:** one row per AI route (draft, chat, enhance, hashtags, brainstorm, analyze-hook, generate-image) with columns:
+  - Total spend in period
+  - Requests in period
+  - Unique users
+  - Cost per request
+  - **Downstream engagement metric** — e.g. for image generation, "% of generated images that got applied to a post that was then published to LinkedIn". For draft, "% of drafts that became published posts". For chat, "avg chat session length".
+  - **Engagement-weighted cost** — cost / published outcomes, i.e. the dollars spent per published post that actually used this feature
+- **Callout cards** above the table:
+  - "Most cost-effective feature" — lowest cost per published outcome
+  - "Cost sink" — highest cost per published outcome (i.e. where we're spending money that isn't driving value)
+- **Use case:** "Image gen cost $120 last month but only 8 users actually published images → gate harder, improve UX, or retire the feature." This is exactly the kind of decision this page should support.
+- **Implementation note:** requires a join between `ai_usage_events` and `posts` on `user_id` + time window. For image gen specifically, join with `post_image_versions.source='ai'` to find the ones that got used.
+
+**Per-user drill-down page** (`/admin/usage/[userId]`):
+- User header: name, email, tier, managed_ai_access status, signup date, last active
+- Their monthly cost + margin calculation (see Phase 4)
+- Full request history table (paginated)
+- Usage heatmap (requests per day for the last 90 days)
+- **Their cache savings** — how much we saved on this specific user via prompt caching
+- **Their provider mix** — which providers served them and how often
+- Action buttons: Pause managed AI, Adjust budget, Send upgrade email, View as this user
+
+### Phase 3 — Budget Enforcement + Auto-Pause + Alerts + Safety Net
+
+**New migration:** extend `creator_profiles` with budget + pause fields
+
+```sql
+ALTER TABLE creator_profiles
+  ADD COLUMN IF NOT EXISTS monthly_ai_budget_usd numeric(10,2),        -- null = use tier default
+  ADD COLUMN IF NOT EXISTS managed_ai_paused_at timestamptz,
+  ADD COLUMN IF NOT EXISTS managed_ai_pause_reason text;               -- 'budget_exceeded' | 'abuse_detected' | 'rate_limit' | 'trial_abuse' | 'admin_manual'
+```
+
+**New migration:** `ai_usage_alerts` table for the alert feed
+
+```sql
+CREATE TABLE ai_usage_alerts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  kind text NOT NULL,                   -- 'budget_warning_80' | 'budget_exceeded' | 'anomaly_rate' | 'anomaly_cost' | 'abuse_signature' | 'rate_limit_hit' | 'trial_abuse_suspected'
+  severity text NOT NULL,               -- 'info' | 'warning' | 'critical'
+  message text NOT NULL,
+  context jsonb,                        -- snapshot of event data
+  acknowledged boolean NOT NULL DEFAULT false,
+  acknowledged_by uuid REFERENCES auth.users(id),
+  acknowledged_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ai_usage_alerts_unack_idx ON ai_usage_alerts (acknowledged, created_at DESC) WHERE acknowledged = false;
+```
+
+**Tier default budgets** in `src/lib/constants.ts`:
+```ts
+export const TIER_AI_BUDGETS_USD: Record<SubscriptionTier, number> = {
+  free:         0.50,   // ~14-day trial worth of AI
+  creator:      3.00,   // Creator plan margin target
+  professional: 10.00,  // Pro plan margin target
+  team:         30.00,  // Team scale
+  enterprise:   Infinity, // Custom billing
+};
+```
+
+Owner can override per-user via `creator_profiles.monthly_ai_budget_usd`.
+
+**Pre-request budget check** (in `getUserAIClient` or a new `enforceAiBudget` helper):
+- Before any managed AI request, compute current-month spend for the user
+- If `current_month_spend >= budget`: set `managed_ai_paused_at = now()`, `pause_reason = 'budget_exceeded'`, insert alert, reject with 402 error + friendly message
+- If `current_month_spend >= 80% of budget`: insert info alert, allow request
+
+#### Rate Limiter (Item #7) — pre-budget safety net
+
+`usage_quotas` tracks monthly counts but a single user can burn their whole month's quota in 10 minutes. The rate limiter sits *in front of* the budget check and stops runaway traffic before it even registers as spend.
+
+**New migration:** `ai_rate_limit_buckets` (Postgres-based sliding window, minimal infra)
+
+```sql
+CREATE TABLE ai_rate_limit_buckets (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  window_start timestamptz NOT NULL,     -- bucket start (minute or hour granularity)
+  window_kind text NOT NULL,             -- 'minute' | 'hour'
+  request_count integer NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, window_kind, window_start)
+);
+CREATE INDEX ai_rate_limit_recent_idx ON ai_rate_limit_buckets (user_id, window_kind, window_start DESC);
+```
+
+**Default limits** (in `src/lib/constants.ts`, overridable per-user via a future column if needed):
+```ts
+export const AI_RATE_LIMITS = {
+  perMinute: 20,   // burst protection
+  perHour:   200,  // sustained abuse
+} as const;
+```
+
+**Enforcement helper** (`src/lib/ai/rate-limit.ts`):
+- `checkAndIncrementRateLimit(userId)` — atomically increments the current minute + hour bucket
+- Returns `{ allowed: boolean, limit: number, window: 'minute' | 'hour', resetAt: Date }`
+- If `!allowed`, reject with 429 + friendly error, insert `rate_limit_hit` alert if the user hits the limit 3+ times in a rolling 10 min window (once per user, to avoid alert spam)
+- **Cleanup:** a nightly cron (or PostgreSQL `pg_cron`) purges bucket rows older than 24 hours
+
+**Wire-up:** called at the very top of every AI route handler, *before* the budget check. Order of operations:
+1. Auth check
+2. **Rate limit check** (this)
+3. Quota check (existing)
+4. Budget check (new)
+5. Provider call
+
+Rejection at step 2 never touches the AI provider so it's essentially free. If Phase 3 rate limiting proves insufficient under real load, we can swap to Upstash Redis later with no API change.
+
+**Trial abuse detection (Item #9)** — runs on signup + first AI request
+
+Cheap heuristics to catch the obvious cases of users creating multiple free-tier accounts for the 14-day trial:
+
+- **Signup-time checks** (added to the signup flow):
+  - Same IP address has created 3+ accounts in the last 7 days
+  - Email domain matches a disposable-email blocklist (small hardcoded list: `tempmail.com`, `10minutemail.com`, etc. — can be expanded)
+  - Email has a `+N` suffix matching an existing user's base (`tony+1@`, `tony+2@`)
+  - Browser fingerprint (simple: user agent + language + screen dims hashed) matches an existing account
+
+- **On first AI request** (cheaper to check here than every request):
+  - Same IP as another account with `managed_ai_access=true` and recent usage
+  - Account created within the last 24 hours + already hit 50% of trial budget
+
+- **Action on any trigger:**
+  - Insert `trial_abuse_suspected` alert with severity `warning`
+  - For high-confidence triggers (3+ signup from same IP, disposable email domain): auto-pause with `pause_reason='trial_abuse'`
+  - Do NOT delete the account — manual admin review via the alert feed
+
+- **Storage:** new `trial_abuse_signals` table stores the signals fired per user so admin can see "why flagged"
+  ```sql
+  CREATE TABLE trial_abuse_signals (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    signal text NOT NULL,           -- 'same_ip_3plus' | 'disposable_email' | 'plus_suffix_dup' | 'fingerprint_dup' | 'shared_ip_active_account'
+    context jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  ```
+
+**Abuse detection signals** (run after each event insert, async):
+- **Rate anomaly:** user's requests-per-minute > 10x their 7-day baseline
+- **Cost anomaly:** single request cost > $1 OR today's spend > 5x the 7-day daily average
+- **Abuse signature:** same user, 100+ requests in an hour, OR token counts suggesting prompt scraping
+- Any signal → insert alert; for `critical` signals → auto-pause
+
+**Alert delivery channels** (Phase 3A: in-app + email; Phase 3B: webhooks):
+- **In-app badge** on `/admin` nav when unacknowledged alerts exist
+- **Email digest** to `ADMIN_EMAILS`: immediate for `critical`, daily summary for `warning/info`
+- **Webhook URL** (future) for Slack/Discord integration
+
+**Unpause flow:** `/admin/usage/[userId]` has an "Unpause managed AI" button that requires typing the user's email to confirm, clears the pause fields, and logs the action in an audit trail.
+
+#### Bulk admin actions (Item #5)
+
+The `/admin/usage` dashboard's top-users table and the alert feed both support multi-select with these bulk operations:
+
+- **Pause managed AI** — pauses N users at once with a shared `pause_reason='admin_bulk'` and an audit log entry per user
+- **Unpause managed AI** — reverse; requires confirmation typing "UNPAUSE N USERS"
+- **Adjust budget** — set a monthly budget for N users in one modal
+- **Send templated email** — pick from a small library of templates (upgrade offer, budget warning, abuse warning) and send to N users. Uses the existing email infrastructure.
+- **Change tier** — owner-only escape hatch for promoting/demoting users in bulk (post-Stripe, this should sync to billing)
+- **Acknowledge alerts** — clear N alerts at once from the feed
+
+All bulk actions log one row per affected user in `admin_audit_log` so we have a record of "this button click touched these 23 users".
+
+### Phase 4 — Upsell Intelligence, LTV & User Value Score
+
+**New view / query:** `v_user_tier_economics`
+Computes per user:
+- `tier` — current tier
+- `current_monthly_spend_usd` — their actual AI cost this month
+- `current_monthly_price_usd` — what we're charging them
+- `current_margin_usd` — price − cost − fixed overhead allocation
+- `next_tier` — the tier above
+- `next_tier_price_usd`
+- `projected_next_tier_margin_usd` — price of next tier − current cost − overhead
+- `upsell_score` — composite ranking (high = ready to upgrade, low = keep where they are)
+- `user_value_score` — Item #11, see below
+
+**Upsell signals (any of these triggers the "upsell" flag):**
+- Hit quota limit 2+ consecutive months
+- Actual AI cost > current tier price (losing money on this user)
+- Usage 80%+ of tier ceiling for 2 weeks
+- Opens a feature gated to higher tier (e.g., clicks Workspace button on Pro plan)
+
+**Upsell dashboard** at `/admin/usage/upsell`:
+- List of ranked upsell candidates
+- Each row: user, current tier, current spend, projected new-tier margin, signals fired
+- Bulk action: "Send upgrade email" (template-driven) — uses the bulk action plumbing from Phase 3
+
+**Tier migration simulator:** "If every Creator moved to Pro, what would margin look like?"
+- Slider for migration % (0-100%)
+- Updates projected revenue and margin in real time
+- Uses the last 30 days of real usage data as the base
+
+#### User Value Score (Item #11)
+
+Composite 0-100 score computed per user that ranks their overall value to the business. Surfaced on the per-user drill-down page and used to sort a new "Top VIPs" leaderboard at `/admin/usage/vips`.
+
+**Score components (weighted, all normalized 0-1):**
+
+| Component | Weight | Source |
+|---|---|---|
+| **Retention signal** | 30% | Days since signup, capped at 180. Longer retention = higher score. |
+| **Engagement signal** | 25% | Posts published per week, capped at 5. More publishing = higher score. |
+| **Revenue signal** | 25% | Current tier price normalized to Enterprise ($99). Higher tier = higher score. |
+| **Margin signal** | 15% | (tier_price − ai_cost) / tier_price. Profitable users score higher than cost sinks. |
+| **Feature breadth** | 5% | How many different AI routes they've used in the last 30 days (out of 7 total). Broader use = higher. |
+
+**Score interpretation:**
+- **80-100 — VIP:** treat exceptionally well, proactive support, early access to new features
+- **60-79 — Healthy:** normal operations
+- **40-59 — At risk:** retention signal declining or margin negative, flag for check-in
+- **0-39 — Problem:** either brand new (low retention score) or losing us money (negative margin)
+
+**VIP dashboard at `/admin/usage/vips`:**
+- Top 20 by user value score
+- Columns: name, tier, value score, component breakdown (retention/engagement/revenue/margin/breadth visible as small bars), last active
+- **Action buttons per user:** send thank-you email, grant extended trial, upgrade to next tier free for 30 days
+- **Bulk actions:** send templated "VIP appreciation" email
+
+**Retention early warning (folded in):** any user whose weekly AI usage drops >50% vs. their prior 4-week baseline AND whose value score is ≥60 gets a `retention_risk` alert in the main feed. This catches healthy users *before* they churn, not after.
+
+### Phase 5 — Audit, Automated Owner Report, Polish
+
+**New `admin_audit_log` table** captures every admin action:
+- `pause_managed_ai`
+- `unpause_managed_ai`
+- `adjust_budget`
+- `change_tier`
+- `acknowledge_alert`
+- `send_upgrade_email`
+- `bulk_action` (with `target_count` + `action_kind` in context)
+- `vip_grant` (extended trial, free upgrade, etc.)
+
+Every admin UI action logs to this table. Visible at `/admin/audit`.
+
+#### Monthly Automated Owner Report (Item #6)
+
+A scheduled email sent on the 1st of each month to `ADMIN_EMAILS` summarizing the previous month. This is the owner's "one email that tells you everything" so they don't have to open the dashboard to stay on top of the business.
+
+**Delivery:** Supabase Edge Function triggered by `pg_cron` on the 1st of each month at 9am UTC. Reuses the existing scheduled-publishing edge function pattern.
+
+**Report contents (one HTML email):**
+
+1. **Headline numbers:**
+   - Total AI spend this month vs. last month (Δ and %)
+   - Total subscription revenue this month (manual entry until BP-015 Stripe ships)
+   - **Net margin** = revenue − AI spend − fixed overhead
+   - Active user count vs. prior month
+
+2. **Prompt cache savings:**
+   - "$X saved via gateway caching this month" — reinforces the gateway ROI
+
+3. **Top 5 most expensive users:**
+   - Name, tier, spend, margin (positive/negative)
+   - Link to their drill-down page
+
+4. **Top 5 upsell candidates:**
+   - Name, current tier, projected next-tier margin, signals fired
+   - One-click "Send upgrade email" button (deep link back to the dashboard with the user pre-selected)
+
+5. **Top 5 VIPs:**
+   - Name, tier, value score, "what they're doing well"
+   - Reminder to treat them well this month
+
+6. **Abuse + reliability summary:**
+   - Total alerts fired, broken down by severity
+   - Budget auto-pauses this month
+   - Trial abuse auto-pauses this month
+   - Provider reliability: uptime %, fallback count per provider
+   - Features where cost-per-outcome is trending up (watch list)
+
+7. **Retention early warnings:**
+   - Users flagged by the retention early-warning signal who haven't been contacted yet
+   - "Reach out to these 4 users this week"
+
+8. **Action items for the owner** (computed automatically):
+   - "You have N unacknowledged alerts from last month — clear them."
+   - "Your Creator tier is margin-negative by $X — consider a price increase or tighter budget."
+   - "Image generation cost-per-published-post is 3x the average — review the feature's UX."
+
+**Template:** lives in `supabase/functions/monthly-owner-report/template.html` with Handlebars-style placeholders. All data pulled from a single edge function query that aggregates from `ai_usage_events`, `creator_profiles`, `v_user_tier_economics`, and `ai_usage_alerts`.
+
+**Test mode:** a "Send test report now" button on `/admin/usage` that fires the report immediately with current-month data. Useful for development and for the owner to verify the report renders correctly before the next real send.
+
+### Tier gating
+
+- Admin routes require `ADMIN_EMAILS` whitelist (existing behavior from `/api/admin/users/route.ts`)
+- End-user usage data is always user-scoped by RLS
+- A future "See your own usage" self-service page for end users is out of scope
+
+### Explicitly deferred (considered, not in this BP)
+
+These were on the original recommendation list but the owner decided against including them in BP-085 scope. Noted here so future planning doesn't accidentally re-scope them:
+
+- **Item #4 — Retention early-warning as a standalone signal:** folded into Phase 4 as part of the User Value Score system (users with value score ≥60 whose usage drops >50% get a retention_risk alert). Not a separate feature.
+- **Item #8 — CSV/JSON data export:** can be added later as a small add-on. Owner can query Supabase directly in the interim.
+- **Item #12 — Cost-of-churn analysis:** requires historical churn data we don't have yet. Revisit after BP-015 (Stripe billing) ships and we start accumulating real downgrade/cancel events.
+
+### Implementation phases (delivery order)
+
+| Phase | Scope | Can ship independently? |
+|---|---|---|
+| **1** | `ai_usage_events` table + logger helper + wire-up to 7 AI routes. Includes cache savings + provider fallback columns. | Yes — no UI, just data collection |
+| **2** | Admin dashboard: KPIs (with cache savings + success rate), main charts, reliability sub-page (errors + fallbacks), features sub-page (cost per feature ROI), per-user drill-down | Yes — read-only reports |
+| **3** | Budgets + auto-pause + alert feed + rate limiter + trial abuse detection + bulk admin actions | Yes — enforcement + safety net |
+| **4** | Upsell intelligence, LTV analysis, tier migration simulator, User Value Score, VIP dashboard, retention early warning | Yes — growth + retention layer |
+| **5** | Audit log + monthly automated owner report edge function + HTML template + test-send button | Yes — polish + automation |
+
+Ship Phase 1 ASAP even without the UI — the sooner we're collecting data, the sooner Phase 2 has something to show. Phases 2 and 3 can ship in parallel if desired since Phase 3's enforcement is orthogonal to Phase 2's visualization.
+
+### Out of scope for this BP
+
+- Self-service "My usage" page for end users — separate future BP
+- Stripe/billing integration (BP-015, deferred to pre-launch)
+- Per-workspace rollup (gated to Team tier existing)
+- Machine-learning-based anomaly detection — simple rule-based is enough for now
+- Historical backfill — we start collecting from Phase 1 ship date
+
+### Acceptance criteria (all phases)
+
+**Phase 1 — Data capture**
+1. Every AI request logs a row to `ai_usage_events` with cost (exact from gateway, estimated for BYOK), including `cached_tokens`, `cached_savings_usd`, `attempted_providers`, and `final_provider` when the gateway supplies them
+2. Logging failures never block the user-facing AI request
+
+**Phase 2 — Admin dashboard**
+3. `/admin/usage` shows working KPI cards (including **Prompt cache savings** and **Success rate**), filters, and all 5 chart types with real data
+4. `/admin/usage/reliability` shows error rates per provider + fallback counts, with a warning banner when a provider drops below 95% uptime
+5. `/admin/usage/features` shows cost-per-feature with downstream engagement metrics (e.g. image gen cost per published-with-image post)
+6. `/admin/usage/[userId]` drill-down shows the user's monthly cost, cache savings, provider mix, heatmap, and action buttons
+
+**Phase 3 — Enforcement + safety net**
+7. Owner can set a per-user budget override and the system enforces it
+8. A user exceeding their budget is auto-paused, can't hit managed AI, and appears in the alert feed
+9. Rate limiter rejects requests that exceed 20/min or 200/hour with a 429 response, before the budget check runs
+10. Trial abuse heuristics fire signup-time and first-AI-request-time alerts; high-confidence triggers auto-pause with `pause_reason='trial_abuse'`
+11. Bulk admin actions (pause, unpause, adjust budget, send email, change tier, acknowledge alerts) work on multi-selected users, each logged individually to `admin_audit_log`
+12. Pause/unpause actions are logged to audit
+
+**Phase 4 — Upsell + VIP**
+13. Upsell dashboard lists ranked candidates with projected-next-tier margin
+14. Tier migration simulator updates projected revenue and margin live when the slider moves
+15. `/admin/usage/vips` shows top 20 users by User Value Score with a visible 5-component breakdown
+16. Retention early-warning alerts fire for users with value score ≥60 whose usage drops >50% week-over-week
+
+**Phase 5 — Audit + report**
+17. Every admin mutation (single-user and bulk) writes a row to `admin_audit_log`
+18. The monthly owner report edge function runs on schedule and delivers an HTML email to `ADMIN_EMAILS` with all 8 report sections populated from real data
+19. The "Send test report now" button fires the report immediately with current-month data
+
+**Cross-cutting**
+20. All admin routes RLS + whitelist-gated
+21. `tsc --noEmit` clean, lint clean
+22. Verified end-to-end in the browser preview with real usage data
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -1733,3 +2265,5 @@ interface TutorialStep {
 - **BP-079:** Settings Copy Rewrite for Non-Technical Readers (2026-04-11)
 - **BP-080:** AI Provider Settings Collapsible Polish (2026-04-11)
 - **BP-081:** Remove Idea Temperature Feature (2026-04-11)
+- **BP-082:** Manual Idea Entry (2026-04-11)
+- **BP-083:** Idea Tagging & Prioritization (2026-04-11)

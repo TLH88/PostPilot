@@ -4,6 +4,65 @@
 
 ---
 
+## 2026-04-11 (Evening): Idea Bank — Manual Entry + Tagging + Prioritization
+
+Shipped both promised-but-missing Ideas page features in a single branch after merging the AI Gateway work to `develop`.
+
+### BP-082: Manual Idea Entry
+- New `CreateIdeaDialog` component (`src/components/ideas/create-idea-dialog.tsx`) with Title, Description, Content Pillar (optional), Priority, and Tags fields. Writes to `ideas` table with `source='manual'`, `status='captured'`.
+- New "Add Idea" outline button on the Ideas page header, next to the primary "Generate Ideas" button.
+- No AI calls, no quota impact — manual entry is always free.
+- Available on all tiers.
+
+### BP-083: Idea Tagging & Prioritization
+- **Database:** `20260412_add_idea_priority.sql` adds `ideas.priority text CHECK (priority IN ('low','medium','high'))`. Nullable — "no priority" is a valid state.
+- **Constants:** new `IDEA_PRIORITIES` object in `src/lib/constants.ts` with label/color/order for high/medium/low. Deliberately distinct from the removed temperature palette.
+- **Reusable `<TagInput />` component** at `src/components/ui/tag-input.tsx`. Enter or comma commits a tag, Backspace on empty input removes last, × button removes any chip, case-insensitive dedupe, optional `maxTags` limit. No external library.
+- **Ideas list page** (`src/app/(app)/ideas/page.tsx`):
+  - New Priority filter row (All / High / Medium / Low / No Priority)
+  - New Tags filter row — only rendered when at least one idea has tags; shows active filter chips; clicking a tag on any idea card adds it to the filter
+  - `filteredIdeas` extended to AND status + priority + tags + search
+  - `EditIdeaDialog` now includes Priority pill selector and `<TagInput />`
+  - Idea cards show a color-coded Priority badge top-left when set; Status badge top-right; content pillars and tags in separate rows; tag chips are clickable to filter
+  - "Clear filters" resets all filter state
+- **Idea detail page** (`src/app/(app)/ideas/[id]/page.tsx`):
+  - Priority selector with pill UI
+  - Tag editor replaced with reusable `<TagInput />`
+  - Priority badge in page header
+  - Removed legacy `addTag`/`removeTag`/`newTag` state (dead code)
+- **Process flow copy:** updated `src/components/ideas/idea-process-flow.tsx` step 2 from "Rate, tag, and prioritize" to "Tag and prioritize" (rating wasn't in scope).
+
+### Verification
+- `tsc --noEmit`: clean
+- Lint on touched files: 0 errors, 0 warnings
+- Manual end-to-end browser test:
+  1. Clicked "Add Idea" → dialog opened with all fields
+  2. Entered title + description, selected High priority, added `test-tag`
+  3. Clicked Save → toast appeared, new idea at top of list
+  4. DB row confirmed: `source='manual'`, `priority='high'`, `tags=['test-tag']`, `status='captured'`
+  5. New idea card shows red **High Priority** badge + `test-tag` chip
+  6. Tags filter row appeared once the idea had a tag
+  7. Clicking the `test-tag` chip filtered list from 20 → 1
+  8. Clicking High priority pill filtered list from 20 → 1 (same idea)
+  9. Clicking Edit on the card opened EditIdeaDialog pre-filled with title, high priority pill active, tag chip visible
+  10. Test idea deleted via SQL after verification
+
+### Branch flow
+- Merged `feature/ai-gateway-integration` into `develop` first as a clean unit (commit `65d0932`): 31 files, +2023/-557, brought in BP-076 through BP-081 and the BP-082/083/084 scoping docs.
+- New branch `feature/ideas-tags-priority-manual` created from `develop` for this work.
+
+### Files Modified
+- New: `src/components/ui/tag-input.tsx`
+- New: `src/components/ideas/create-idea-dialog.tsx`
+- New: `supabase/migrations/20260412_add_idea_priority.sql`
+- `src/lib/constants.ts` — added `IDEA_PRIORITIES` + `IdeaPriority` type
+- `src/types/index.ts` — added `priority` field to `Idea` interface
+- `src/app/(app)/ideas/page.tsx` — filter state, filter UI, card rendering, EditIdeaDialog, Add Idea button, CreateIdeaDialog mount
+- `src/app/(app)/ideas/[id]/page.tsx` — priority selector, reusable TagInput, header badge
+- `src/components/ideas/idea-process-flow.tsx` — step 2 copy update
+
+---
+
 ## 2026-04-11: Settings Copy Polish, Collapsible UI Tightening, Idea Temperature Removal, Idea Bank Scoping, Tutorial Card Redesign Scoping
 
 ### Idea Bank Scoping (BP-082, BP-083)

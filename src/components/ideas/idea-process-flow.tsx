@@ -18,7 +18,7 @@ const STEPS = [
     step: 2,
     icon: Filter,
     title: "Filter & Organize",
-    description: "Rate, tag, and prioritize your best ideas",
+    description: "Tag and prioritize your best ideas",
   },
   {
     step: 3,

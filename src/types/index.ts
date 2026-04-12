@@ -96,6 +96,7 @@ export interface Idea {
   source: string | null;
   content_pillars: string[];
   tags: string[];
+  priority: "low" | "medium" | "high" | null;
   status: "captured" | "developing" | "converted" | "archived";
   created_at: string;
   updated_at: string;
