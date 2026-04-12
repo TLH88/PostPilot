@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { ArrowLeft, Loader2, Layers } from "lucide-react";
+import { Loader2, Layers } from "lucide-react";
 import { DateRangeSelect } from "@/components/admin/usage/date-range-select";
 import { KpiCard } from "@/components/admin/usage/kpi-card";
+import { UsageNav } from "@/components/admin/usage/usage-nav";
 import type { DateRange } from "@/lib/admin/usage-queries";
 
 interface RouteRow {
@@ -59,14 +59,13 @@ export default function FeaturesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/usage" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-5" />
-          </Link>
           <Layers className="size-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Feature Cost Analysis</h1>
         </div>
         <DateRangeSelect value={range} onChange={setRange} />
       </div>
+
+      <UsageNav />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">

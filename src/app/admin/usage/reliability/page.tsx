@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { ArrowLeft, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DateRangeSelect } from "@/components/admin/usage/date-range-select";
 import { KpiCard } from "@/components/admin/usage/kpi-card";
+import { UsageNav } from "@/components/admin/usage/usage-nav";
 import type { DateRange } from "@/lib/admin/usage-queries";
 
 interface ProviderRow {
@@ -49,14 +49,13 @@ export default function ReliabilityPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/usage" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-5" />
-          </Link>
           <ShieldCheck className="size-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Provider Reliability</h1>
         </div>
         <DateRangeSelect value={range} onChange={setRange} />
       </div>
+
+      <UsageNav />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
