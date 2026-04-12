@@ -109,20 +109,20 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Users className="size-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">User Analytics</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1 ml-9">
-            Complete user-level AI usage data with search, sort, and drill-down.
-          </p>
+      <div>
+        <div className="flex items-center gap-3">
+          <Users className="size-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">User Analytics</h1>
         </div>
-        <DateRangeSelect value={range} onChange={setRange} />
+        <p className="text-sm text-muted-foreground mt-1 ml-9">
+          Complete user-level AI usage data with search, sort, and drill-down.
+        </p>
       </div>
 
-      <UsageNav />
+      <div className="flex items-center justify-between gap-4">
+        <UsageNav />
+        <DateRangeSelect value={range} onChange={setRange} />
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-24">

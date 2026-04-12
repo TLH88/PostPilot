@@ -74,37 +74,36 @@ export default function UserDrilldownPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/usage"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-5" />
-          </Link>
-          <User className="size-6 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {data?.fullName ?? data?.email ?? userId.slice(0, 8)}
-            </h1>
-            {data?.email && data?.fullName && (
-              <p className="text-xs text-muted-foreground">{data.email}</p>
-            )}
-          </div>
-          {data?.tier && (
-            <Badge
-              variant="secondary"
-              className={cn(
-                "text-[10px]",
-                TIER_BADGE_COLORS[data.tier] ?? ""
-              )}
-            >
-              {data.tier}
-            </Badge>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/admin/usage"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-5" />
+        </Link>
+        <User className="size-6 text-primary" />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {data?.fullName ?? data?.email ?? userId.slice(0, 8)}
+          </h1>
+          {data?.email && data?.fullName && (
+            <p className="text-xs text-muted-foreground">{data.email}</p>
           )}
         </div>
-        <DateRangeSelect value={range} onChange={setRange} />
+        {data?.tier && (
+          <Badge
+            variant="secondary"
+            className={cn(
+              "text-[10px]",
+              TIER_BADGE_COLORS[data.tier] ?? ""
+            )}
+          >
+            {data.tier}
+          </Badge>
+        )}
       </div>
+
+      <DateRangeSelect value={range} onChange={setRange} />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">

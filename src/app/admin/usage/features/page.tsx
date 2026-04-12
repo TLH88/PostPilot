@@ -57,15 +57,15 @@ export default function FeaturesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Layers className="size-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Feature Cost Analysis</h1>
-        </div>
-        <DateRangeSelect value={range} onChange={setRange} />
+      <div className="flex items-center gap-3">
+        <Layers className="size-6 text-primary" />
+        <h1 className="text-2xl font-bold tracking-tight">Feature Cost Analysis</h1>
       </div>
 
-      <UsageNav />
+      <div className="flex items-center justify-between gap-4">
+        <UsageNav />
+        <DateRangeSelect value={range} onChange={setRange} />
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">

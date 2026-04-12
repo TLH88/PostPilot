@@ -152,21 +152,21 @@ export default function AdminUsagePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Activity className="size-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">AI Usage Dashboard</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1 ml-9">
-            Monitor AI spend, provider performance, and usage patterns across your platform.
-          </p>
+      <div>
+        <div className="flex items-center gap-3">
+          <Activity className="size-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">AI Usage Dashboard</h1>
         </div>
-        <DateRangeSelect value={range} onChange={setRange} />
+        <p className="text-sm text-muted-foreground mt-1 ml-9">
+          Monitor AI spend, provider performance, and usage patterns across your platform.
+        </p>
       </div>
 
-      {/* Sub-navigation */}
-      <UsageNav />
+      {/* Sub-navigation + date range */}
+      <div className="flex items-center justify-between gap-4">
+        <UsageNav />
+        <DateRangeSelect value={range} onChange={setRange} />
+      </div>
 
       {/* Stale provider warning */}
       {s && s.successRate < 95 && (
