@@ -125,7 +125,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
         <div className="absolute inset-0 overflow-hidden">
           {/* Blue dots layer (left) */}
           <div
-            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12]"
             style={{
               backgroundImage: `radial-gradient(circle, #6366f1 1px, transparent 1px)`,
               backgroundSize: "16px 16px",
@@ -137,7 +137,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
           />
           {/* Purple dots layer (center) */}
           <div
-            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12]"
             style={{
               backgroundImage: `radial-gradient(circle, #8b5cf6 1px, transparent 1px)`,
               backgroundSize: "16px 16px",
@@ -150,7 +150,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
           />
           {/* Green dots layer (right) */}
           <div
-            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12]"
             style={{
               backgroundImage: `radial-gradient(circle, #22c55e 1px, transparent 1px)`,
               backgroundSize: "16px 16px",
