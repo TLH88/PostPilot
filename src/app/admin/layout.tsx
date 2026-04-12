@@ -38,14 +38,11 @@ export default async function AdminLayout({
     <div className="flex min-h-screen">
       {/* Admin Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 w-56 border-r bg-sidebar flex flex-col">
-        <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Shield className="size-5 text-red-500" />
-            <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
-              System Admin
-            </span>
-          </div>
-          <ThemeToggle />
+        <div className="flex h-14 items-center gap-2 px-4">
+          <Shield className="size-5 text-red-500" />
+          <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
+            System Admin
+          </span>
         </div>
 
         <Separator />
@@ -81,6 +78,9 @@ export default async function AdminLayout({
 
       {/* Main content */}
       <main className="flex-1 ml-56 p-6">
+        <div className="fixed top-4 right-6 z-30">
+          <ThemeToggle />
+        </div>
         {children}
       </main>
     </div>
