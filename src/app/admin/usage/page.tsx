@@ -184,10 +184,10 @@ export default function AdminUsagePage() {
               <h3 className="text-sm font-semibold mb-4">Daily Cost by Provider</h3>
               {dailyCostData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={dailyCostData}>
+                  <LineChart data={dailyCostData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="day" className="text-[10px]" />
-                    <YAxis className="text-[10px]" tickFormatter={(v) => `$${v}`} />
+                    <XAxis dataKey="day" fontSize={10} />
+                    <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} width={65} />
                     <Tooltip formatter={(v) => formatUsd(Number(v ?? 0))} />
                     {providers.map((p, i) => (
                       <Line
