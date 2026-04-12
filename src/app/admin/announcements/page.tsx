@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil } from "lucide-react";
+import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -36,6 +37,8 @@ export default function AdminAnnouncementsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ReleaseNote | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ReleaseNote | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   // Form state
@@ -55,6 +58,29 @@ export default function AdminAnnouncementsPage() {
     const data = await res.json();
     setAnnouncements(data.announcements);
     setLoading(false);
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/admin/announcements", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteTarget.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete");
+      }
+      setAnnouncements((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      toast.success(`"${deleteTarget.title}" deleted.`);
+      setDeleteTarget(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete announcement.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function parseItems(text: string): { title: string; description: string }[] {
@@ -187,6 +213,15 @@ export default function AdminAnnouncementsPage() {
                     {note.is_published ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
                     {note.is_published ? "Unpublish" : "Publish"}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-xs text-destructive hover:text-destructive"
+                    onClick={() => setDeleteTarget(note)}
+                  >
+                    <Trash2 className="size-3" />
+                    Delete
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -269,6 +304,42 @@ export default function AdminAnnouncementsPage() {
             <Button onClick={() => handleSave(true)} disabled={saving || !version || !title} className="gap-1.5">
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
               {saving ? "Saving..." : "Save & Publish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Announcement</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="gap-1.5"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-4" />
+                  Delete
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
