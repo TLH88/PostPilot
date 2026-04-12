@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
@@ -12,6 +11,7 @@ import {
   Clock,
   TrendingUp,
   AlertTriangle,
+  LayoutDashboard,
 } from "lucide-react";
 import { TIER_BADGE_COLORS, SUBSCRIPTION_TIERS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,14 @@ function timeAgo(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+const TIER_DOT_COLORS: Record<string, string> = {
+  free: "bg-gray-400",
+  creator: "bg-blue-500",
+  professional: "bg-purple-500",
+  team: "bg-amber-500",
+  enterprise: "bg-gray-400",
+};
+
 export default async function AdminDashboard() {
   const supabase = createAdminClient();
 
@@ -45,7 +53,6 @@ export default async function AdminDashboard() {
   const authUsers = authResult.data?.users ?? [];
   const profiles = profilesResult.data ?? [];
   const allPosts = postsResult.data ?? [];
-  const allIdeas = ideasResult.data ?? [];
   const totalWorkspaces = workspacesResult.count ?? 0;
 
   const now = new Date();
@@ -95,23 +102,6 @@ export default async function AdminDashboard() {
     .sort((a, b) => a.daysLeft - b.daysLeft)
     .slice(0, 5);
 
-  // ── Top content creators (by post count) ──
-  const userPostCounts: Record<string, number> = {};
-  for (const p of allPosts) {
-    userPostCounts[p.user_id] = (userPostCounts[p.user_id] || 0) + 1;
-  }
-  const topCreators = Object.entries(userPostCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([userId, count]) => ({
-      userId,
-      name: profileMap[userId]?.full_name ?? "Unknown",
-      email: emailMap[userId] ?? "",
-      tier: profileMap[userId]?.subscription_tier ?? "free",
-      posts: count,
-      ideas: allIdeas.filter((i) => i.user_id === userId).length,
-    }));
-
   // ── Current month usage totals ──
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const currentQuotas = (quotasResult.data ?? []).filter((q) => q.period_start === currentMonth);
@@ -121,38 +111,82 @@ export default async function AdminDashboard() {
   const activeUsersThisMonth = currentQuotas.filter((q) => q.posts_created + q.brainstorms_used + q.chat_messages_used > 0).length;
 
   const metrics = [
-    { label: "Total Users", value: totalUsers, icon: Users, color: "text-blue-500", border: "border-l-blue-500", bg: "bg-blue-500/10" },
-    { label: "Active Trials", value: activeTrials, icon: Sparkles, color: "text-green-500", border: "border-l-green-500", bg: "bg-green-500/10" },
-    { label: "Paid Subscribers", value: paidUsers, icon: CreditCard, color: "text-purple-500", border: "border-l-purple-500", bg: "bg-purple-500/10" },
-    { label: "Total Posts", value: totalPosts, icon: FileText, color: "text-amber-500", border: "border-l-amber-500", bg: "bg-amber-500/10" },
-    { label: "Workspaces", value: totalWorkspaces, icon: Building2, color: "text-emerald-500", border: "border-l-emerald-500", bg: "bg-emerald-500/10" },
+    {
+      label: "Total Users",
+      value: totalUsers,
+      icon: Users,
+      subtitle: totalUsers > 0 ? `${Math.round((paidUsers / totalUsers) * 100)}% conversion` : undefined,
+      subtitleColor: "muted" as const,
+    },
+    {
+      label: "Active Trials",
+      value: activeTrials,
+      icon: Sparkles,
+      subtitle: activeTrials > 0 ? "Monitoring health" : "No active trials",
+      subtitleColor: activeTrials > 0 ? "green" as const : "muted" as const,
+    },
+    {
+      label: "Paid Subscribers",
+      value: paidUsers,
+      icon: CreditCard,
+      subtitle: paidUsers > 0 ? "ARR growing" : undefined,
+      subtitleColor: "green" as const,
+    },
+    {
+      label: "Total Posts",
+      value: totalPosts,
+      icon: FileText,
+      subtitle: totalPosts > 0 ? "Content velocity high" : undefined,
+      subtitleColor: "green" as const,
+    },
+    {
+      label: "Workspaces",
+      value: totalWorkspaces,
+      icon: Building2,
+      subtitle: totalWorkspaces > 0 ? "Active ecosystems" : undefined,
+      subtitleColor: "green" as const,
+    },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground">System-wide metrics, usage reports, and quick access to user data.</p>
+        <div className="flex items-center gap-3">
+          <LayoutDashboard className="size-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1 ml-9">
+          System-wide metrics, usage reports, and quick access to user data.
+        </p>
       </div>
 
-      {/* Metrics */}
+      {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
-            <Card key={m.label} className={`border-l-4 ${m.border}`}>
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{m.label}</p>
-                    <p className="text-2xl font-bold">{m.value}</p>
-                  </div>
-                  <div className={`flex size-9 items-center justify-center rounded-full ${m.bg}`}>
-                    <Icon className={`size-4 ${m.color}`} />
-                  </div>
+            <div key={m.label} className="rounded-xl border bg-card p-5 space-y-2">
+              <div className="flex items-start justify-between">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {m.label}
+                </p>
+                <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                  <Icon className="size-4 text-muted-foreground" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <p className="text-3xl font-bold tracking-tight">{m.value}</p>
+              {m.subtitle && (
+                <p className={cn(
+                  "text-xs font-medium",
+                  m.subtitleColor === "green"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-muted-foreground"
+                )}>
+                  {m.subtitle}
+                </p>
+              )}
+            </div>
           );
         })}
       </div>
@@ -161,13 +195,13 @@ export default async function AdminDashboard() {
       {(expiringTrials > 0 || notOnboarded > 0) && (
         <div className="flex flex-wrap gap-3">
           {expiringTrials > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 px-4 py-2.5 text-xs font-medium text-amber-800 dark:text-amber-200">
               <AlertTriangle className="size-3.5" />
               {expiringTrials} trial{expiringTrials !== 1 ? "s" : ""} expiring within 3 days
             </div>
           )}
           {notOnboarded > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 px-3 py-2 text-xs text-blue-800 dark:text-blue-200">
+            <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 px-4 py-2.5 text-xs font-medium text-blue-800 dark:text-blue-200">
               <Users className="size-3.5" />
               {notOnboarded} user{notOnboarded !== 1 ? "s" : ""} haven&apos;t completed onboarding
             </div>
@@ -175,178 +209,207 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      {/* Two-column layout */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* This Month's Usage */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <TrendingUp className="size-4 text-primary" />
-              This Month&apos;s Usage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border p-3 text-center">
-                <p className="text-lg font-bold">{activeUsersThisMonth}</p>
-                <p className="text-[10px] text-muted-foreground">Active Users</p>
-              </div>
-              <div className="rounded-lg border p-3 text-center">
-                <p className="text-lg font-bold">{totalPostsThisMonth}</p>
-                <p className="text-[10px] text-muted-foreground">Posts Created</p>
-              </div>
-              <div className="rounded-lg border p-3 text-center">
-                <p className="text-lg font-bold">{totalBrainstormsThisMonth}</p>
-                <p className="text-[10px] text-muted-foreground">Brainstorms</p>
-              </div>
-              <div className="rounded-lg border p-3 text-center">
-                <p className="text-lg font-bold">{totalChatMessagesThisMonth}</p>
-                <p className="text-[10px] text-muted-foreground">AI Messages</p>
-              </div>
+      {/* This Month's Usage + Users by Tier */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* This Month's Usage — spans 2 columns */}
+        <div className="lg:col-span-2 rounded-xl border bg-card p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-base font-semibold">This Month&apos;s Usage</h3>
             </div>
-          </CardContent>
-        </Card>
+            <Badge variant="secondary" className="text-[10px]">Last 30 Days</Badge>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div>
+              <p className="text-3xl font-bold tracking-tight">{activeUsersThisMonth}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                Active Users
+              </p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold tracking-tight">{totalPostsThisMonth}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                Posts Created
+              </p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold tracking-tight">{totalBrainstormsThisMonth}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                Brainstorms
+              </p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold tracking-tight">{totalChatMessagesThisMonth}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                AI Messages
+              </p>
+            </div>
+          </div>
+        </div>
 
-        {/* Tier Breakdown */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <CreditCard className="size-4 text-purple-500" />
-              Users by Tier
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {(["free", "creator", "professional", "team", "enterprise"] as const).map((tier) => (
-                <div key={tier} className="rounded-lg border p-3 text-center">
-                  <p className="text-lg font-bold">{tierCounts[tier] || 0}</p>
-                  <Badge variant="secondary" className={cn("text-[10px]", TIER_BADGE_COLORS[tier])}>
-                    {SUBSCRIPTION_TIERS[tier].label}
-                  </Badge>
+        {/* Users by Tier */}
+        <div className="rounded-xl border bg-card p-5">
+          <h3 className="text-base font-semibold mb-4">Users by Tier</h3>
+          <div className="space-y-4">
+            {(["free", "creator", "professional", "team", "enterprise"] as const).map((tier) => {
+              const count = tierCounts[tier] || 0;
+              const pct = totalUsers > 0 ? (count / totalUsers) * 100 : 0;
+              return (
+                <div key={tier} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={cn("size-2.5 rounded-full", TIER_DOT_COLORS[tier])} />
+                      <span className="text-sm font-medium">
+                        {SUBSCRIPTION_TIERS[tier].label}
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold tabular-nums">{count}</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all", TIER_DOT_COLORS[tier])}
+                      style={{ width: `${Math.max(pct, count > 0 ? 4 : 0)}%` }}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
+      {/* Recent Signups + Trials Expiring Soon */}
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Signups */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Users className="size-4 text-blue-500" />
-                Recent Signups
-              </CardTitle>
-              <Link href="/admin/users" className="text-xs text-primary hover:underline flex items-center gap-1">
-                View all <ArrowRight className="size-3" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+        <div className="rounded-xl border bg-card">
+          <div className="flex items-center justify-between px-5 py-4 border-b">
+            <h3 className="text-base font-semibold">Recent Signups</h3>
+            <Link href="/admin/users" className="text-xs text-primary font-medium hover:underline">
+              View All
+            </Link>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th className="px-5 py-2.5 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">User</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Tier</th>
+                <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Time</th>
+              </tr>
+            </thead>
+            <tbody>
               {recentUsers.map((u) => {
                 const profile = profileMap[u.id];
+                const name = profile?.full_name ?? u.email?.split("@")[0] ?? "Unknown";
+                const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+                const tier = (profile?.subscription_tier ?? "free") as SubscriptionTier;
+
                 return (
-                  <div key={u.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <div>
-                      <p className="text-xs font-medium">{profile?.full_name ?? "—"}</p>
-                      <p className="text-[10px] text-muted-foreground">{u.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className={cn("text-[9px]", TIER_BADGE_COLORS[(profile?.subscription_tier ?? "free") as SubscriptionTier])}>
-                        {SUBSCRIPTION_TIERS[(profile?.subscription_tier ?? "free") as SubscriptionTier]?.label}
+                  <tr key={u.id} className="border-b last:border-0 hover:bg-hover-highlight transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate text-xs">{profile?.full_name ?? "—"}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary" className={cn("text-[9px] uppercase font-semibold tracking-wider", TIER_BADGE_COLORS[tier])}>
+                        {SUBSCRIPTION_TIERS[tier]?.label}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground">{timeAgo(u.created_at)}</span>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                      {timeAgo(u.created_at)}
+                    </td>
+                  </tr>
                 );
               })}
-            </div>
-          </CardContent>
-        </Card>
+            </tbody>
+          </table>
+        </div>
 
         {/* Trials Expiring Soon */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Clock className="size-4 text-amber-500" />
-              Trials Expiring Soon
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {trialUsers.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No trials expiring soon.</p>
-            ) : (
-              <div className="space-y-2">
-                {trialUsers.map((u) => (
-                  <div key={u.user_id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <div>
-                      <p className="text-xs font-medium">{u.full_name ?? "—"}</p>
-                      <p className="text-[10px] text-muted-foreground">{u.email}</p>
-                    </div>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        "text-[10px]",
-                        u.daysLeft <= 3
-                          ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                          : u.daysLeft <= 7
-                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                            : ""
-                      )}
-                    >
-                      {u.daysLeft} day{u.daysLeft !== 1 ? "s" : ""} left
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Top Content Creators */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <TrendingUp className="size-4 text-emerald-500" />
-                Top Content Creators
-              </CardTitle>
-              <Link href="/admin/users" className="text-xs text-primary hover:underline flex items-center gap-1">
-                View all <ArrowRight className="size-3" />
-              </Link>
+        <div className="rounded-xl border bg-card">
+          <div className="flex items-center justify-between px-5 py-4 border-b">
+            <h3 className="text-base font-semibold">Trials Expiring Soon</h3>
+          </div>
+          {trialUsers.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-xs text-muted-foreground">
+              No trials expiring soon
             </div>
-          </CardHeader>
-          <CardContent>
+          ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b">
-                  <th className="pb-2 text-left font-medium text-muted-foreground text-xs">User</th>
-                  <th className="pb-2 text-left font-medium text-muted-foreground text-xs">Tier</th>
-                  <th className="pb-2 text-right font-medium text-muted-foreground text-xs">Posts</th>
-                  <th className="pb-2 text-right font-medium text-muted-foreground text-xs">Ideas</th>
+                <tr className="border-b bg-muted/30">
+                  <th className="px-5 py-2.5 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">User</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Days Left</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {topCreators.map((c) => (
-                  <tr key={c.userId} className="border-b last:border-0">
-                    <td className="py-2">
-                      <p className="text-xs font-medium">{c.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{c.email}</p>
-                    </td>
-                    <td className="py-2">
-                      <Badge variant="secondary" className={cn("text-[9px]", TIER_BADGE_COLORS[c.tier as SubscriptionTier])}>
-                        {SUBSCRIPTION_TIERS[c.tier as SubscriptionTier]?.label ?? c.tier}
-                      </Badge>
-                    </td>
-                    <td className="py-2 text-right tabular-nums text-xs">{c.posts}</td>
-                    <td className="py-2 text-right tabular-nums text-xs">{c.ideas}</td>
-                  </tr>
-                ))}
+                {trialUsers.map((u) => {
+                  const name = u.full_name ?? u.email?.split("@")[0] ?? "Unknown";
+
+                  return (
+                    <tr key={u.user_id} className="border-b last:border-0 hover:bg-hover-highlight transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate text-xs">{u.full_name ?? "—"}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Progress bar */}
+                          <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                u.daysLeft <= 1
+                                  ? "bg-red-500"
+                                  : u.daysLeft <= 3
+                                    ? "bg-amber-500"
+                                    : "bg-green-500"
+                              )}
+                              style={{ width: `${Math.min((u.daysLeft / 14) * 100, 100)}%` }}
+                            />
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[10px] font-semibold",
+                              u.daysLeft <= 1
+                                ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200"
+                                : u.daysLeft <= 3
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200"
+                                  : ""
+                            )}
+                          >
+                            {u.daysLeft} day{u.daysLeft !== 1 ? "s" : ""} left
+                          </Badge>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {u.daysLeft <= 3 ? (
+                          <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-[10px] font-semibold text-primary uppercase tracking-wider">
+                            Send Offer
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                            Wait
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
     </div>
   );
