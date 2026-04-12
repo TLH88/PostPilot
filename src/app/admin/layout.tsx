@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { verifyAdmin } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -37,11 +38,14 @@ export default async function AdminLayout({
     <div className="flex min-h-screen">
       {/* Admin Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 w-56 border-r bg-sidebar flex flex-col">
-        <div className="flex h-14 items-center gap-2 px-4">
-          <Shield className="size-5 text-red-500" />
-          <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
-            System Admin
-          </span>
+        <div className="flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <Shield className="size-5 text-red-500" />
+            <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
+              System Admin
+            </span>
+          </div>
+          <ThemeToggle />
         </div>
 
         <Separator />
