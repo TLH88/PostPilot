@@ -787,7 +787,7 @@ export default function IdeasPage() {
               Tags:
             </span>
             {tagFilter.length === 0 ? (
-              <span className="text-xs text-muted-foreground italic">
+              <span className="text-xs text-primary italic">
                 Click a tag on any idea to filter
               </span>
             ) : (
@@ -823,7 +823,7 @@ export default function IdeasPage() {
               placeholder="Search ideas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
+              className="pl-8 !border-primary"
             />
             {searchQuery && (
               <button
@@ -845,7 +845,7 @@ export default function IdeasPage() {
                 if (v) setSortMode(v as SortMode);
               }}
             >
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-[220px] !border-primary">
                 <SelectValue>{SORT_LABELS[sortMode]}</SelectValue>
               </SelectTrigger>
               <SelectContent>

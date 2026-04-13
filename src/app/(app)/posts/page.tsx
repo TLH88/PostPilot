@@ -52,19 +52,25 @@ function PostCard({ post, userTier }: { post: PostItem; userTier: SubscriptionTi
 
   return (
     <Link href={`/posts/${post.id}`} className="h-full">
-      <Card className="flex flex-col h-full transition-colors hover:bg-hover-highlight overflow-hidden">
+      <Card className={`flex flex-col h-full transition-colors hover:bg-hover-highlight overflow-hidden ${post.image_url ? "pt-0 gap-0" : ""}`}>
         {/* Post image */}
         {post.image_url && (
-          <div className="w-full h-32 overflow-hidden">
+          <div className="relative w-full h-32 overflow-hidden">
             <img
               src={post.image_url}
               alt=""
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-t-xl"
             />
+            {status && (
+              <Badge variant="secondary" className={`${status.color} text-[10px] absolute bottom-2 left-2 shadow-sm`}>
+                {status.label}
+              </Badge>
+            )}
           </div>
         )}
         <CardContent className="flex-1 space-y-2">
-          {/* Status badge */}
+          {/* Status badge (only when no image) */}
+          {!post.image_url && (
           <div className="flex items-center justify-between gap-2">
             {status && (
               <Badge variant="secondary" className={`${status.color} text-[10px]`}>
@@ -72,6 +78,7 @@ function PostCard({ post, userTier }: { post: PostItem; userTier: SubscriptionTi
               </Badge>
             )}
           </div>
+          )}
           {/* Scheduled clarification */}
           {post.status === "scheduled" && post.scheduled_for && (
             <p className="text-[10px] text-purple-600 dark:text-purple-400">

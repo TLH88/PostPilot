@@ -257,9 +257,9 @@ export default function LibraryPage() {
                   {item.content}
                 </p>
               </CardContent>
-              <CardFooter className="gap-2 pt-0">
+              <CardFooter className="gap-2">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="xs"
                   className="gap-1"
                   onClick={() => handleCopy(item.content)}
@@ -269,7 +269,7 @@ export default function LibraryPage() {
                 </Button>
                 {!item.is_builtin && (
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="xs"
                     className="gap-1 text-destructive hover:text-destructive"
                     onClick={() => handleDelete(item.id)}

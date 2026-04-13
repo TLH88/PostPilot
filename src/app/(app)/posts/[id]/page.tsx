@@ -183,10 +183,10 @@ export default function PostWorkspacePage() {
   } | null>(null);
   const [analyzingHook, setAnalyzingHook] = useState(false);
 
-  // ── Brainstorm context menu state ────────────────────────────────────────
+  // ── Brainstorm state ─────────────────────────────────────────────────────
   const [brainstormOpen, setBrainstormOpen] = useState(false);
   const [brainstormTopic, setBrainstormTopic] = useState("");
-  const [contextMenuPos, setContextMenuPos] = useState<{x: number, y: number} | null>(null);
+  const [selectionFloatPos, setSelectionFloatPos] = useState<{x: number, y: number} | null>(null);
 
   // Tutorial target IDs on elements are used by the tutorial overlay
 
@@ -533,26 +533,52 @@ export default function PostWorkspacePage() {
     }
   }
 
-  // ── Context menu for brainstorm ──────────────────────────────────────────
-  function handleContextMenu(e: React.MouseEvent<HTMLTextAreaElement>) {
+  // ── Floating brainstorm button on text selection ─────────────────────────
+  function handleSelectionChange() {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const selected = content.substring(textarea.selectionStart, textarea.selectionEnd);
-    if (!selected.trim()) return; // Only show for text selection
-    e.preventDefault();
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    if (!selected.trim()) {
+      setSelectionFloatPos(null);
+      return;
+    }
+    // Use the browser's selection API to get accurate position
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      const rangeRect = range.getBoundingClientRect();
+      if (rangeRect.width > 0) {
+        setSelectionFloatPos({
+          x: rangeRect.left + rangeRect.width / 2,
+          y: rangeRect.top - 8,
+        });
+        setBrainstormTopic(selected.trim());
+        return;
+      }
+    }
+    // Fallback: position near the top-right of the textarea
+    const rect = textarea.getBoundingClientRect();
+    setSelectionFloatPos({
+      x: rect.right - 60,
+      y: rect.top - 8,
+    });
     setBrainstormTopic(selected.trim());
   }
 
-  // Close context menu on click away
+  // Clear float when selection changes to empty or clicking outside
   useEffect(() => {
-    if (!contextMenuPos) return;
-    function handleClick() {
-      setContextMenuPos(null);
+    if (!selectionFloatPos) return;
+    function handleClickAway(e: MouseEvent) {
+      const float = document.getElementById("brainstorm-float");
+      if (float && float.contains(e.target as Node)) return;
+      // Only clear on left-click (button 0), not right-click (button 2)
+      if (e.button === 0) {
+        setSelectionFloatPos(null);
+      }
     }
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, [contextMenuPos]);
+    window.addEventListener("click", handleClickAway);
+    return () => window.removeEventListener("click", handleClickAway);
+  }, [selectionFloatPos]);
 
   // ── Content pillar management ──────────────────────────────────────────
   async function updateContentPillars(pillars: string[]) {
@@ -1371,7 +1397,8 @@ export default function PostWorkspacePage() {
                     value={content}
                     onChange={(e) => handleContentChange(e.target.value)}
                     onKeyDown={handleTextareaKeyDown}
-                    onContextMenu={handleContextMenu}
+                    onMouseUp={handleSelectionChange}
+                    onKeyUp={handleSelectionChange}
                     placeholder="Start writing your LinkedIn post..."
                     className="min-h-[100px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
                   />
@@ -1382,7 +1409,8 @@ export default function PostWorkspacePage() {
                   value={content}
                   onChange={(e) => handleContentChange(e.target.value)}
                   onKeyDown={handleTextareaKeyDown}
-                  onContextMenu={handleContextMenu}
+                  onMouseUp={handleSelectionChange}
+                  onKeyUp={handleSelectionChange}
                   placeholder="Start writing your LinkedIn post..."
                   className="min-h-[300px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
                 />
@@ -2181,22 +2209,25 @@ export default function PostWorkspacePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Context menu for brainstorm */}
-      {contextMenuPos && (
+      {/* Floating brainstorm button on text selection */}
+      {selectionFloatPos && (
         <div
-          className="fixed z-50 rounded-lg border bg-popover p-1 shadow-lg"
-          style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
+          id="brainstorm-float"
+          className="fixed z-50 -translate-x-1/2 rounded-lg border bg-popover px-2 py-1 shadow-lg"
+          style={{ left: selectionFloatPos.x, top: selectionFloatPos.y }}
         >
           <button
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-hover-highlight"
-            onClick={() => {
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-hover-highlight"
+            onMouseDown={(e) => {
+              e.preventDefault(); // Prevent textarea blur
               autoSave(title, content, hashtags);
+              setBrainstormTopic(brainstormTopic);
               setBrainstormOpen(true);
-              setContextMenuPos(null);
+              setSelectionFloatPos(null);
             }}
           >
-            <Lightbulb className="size-4" />
-            Brainstorm as post topic
+            <Lightbulb className="size-3.5" />
+            Brainstorm
           </button>
         </div>
       )}

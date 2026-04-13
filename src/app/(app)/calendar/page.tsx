@@ -9,6 +9,8 @@ import {
   Calendar as CalendarIcon,
   Clock,
   FileText,
+  LayoutGrid,
+  List,
   Send,
 } from "lucide-react";
 import {
@@ -43,6 +45,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { ScheduleDialog } from "@/components/schedule-dialog";
+import { PostPreviewSheet } from "@/components/posts/post-preview-sheet";
 import { toast } from "sonner";
 import type { Post } from "@/types";
 
@@ -62,6 +65,14 @@ export default function CalendarPage() {
   // Reschedule dialog state
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [reschedulePost, setReschedulePost] = useState<Post | null>(null);
+
+  // Preview sheet state
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  // Upcoming posts view toggle
+  const [upcomingView, setUpcomingView] = useState<"card" | "list">("card");
+  const [authorName, setAuthorName] = useState("Your Name");
+  const [authorHeadline, setAuthorHeadline] = useState("Your headline");
 
   async function handleReschedule(date: Date) {
     if (!reschedulePost) return;
@@ -105,6 +116,18 @@ export default function CalendarPage() {
       if (!user) {
         router.push("/login");
         return;
+      }
+
+      // Fetch author profile for preview
+      const { data: profile } = await supabase
+        .from("creator_profiles")
+        .select("full_name, headline")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        if (profile.full_name) setAuthorName(profile.full_name);
+        if (profile.headline) setAuthorHeadline(profile.headline);
       }
 
       const { data, error } = await supabase
@@ -273,7 +296,10 @@ export default function CalendarPage() {
     return (
       <button
         key={post.id}
-        onClick={() => router.push(`/posts/${post.id}`)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedPost(post);
+        }}
         className={cn(
           "w-full rounded-lg border text-left transition-opacity hover:opacity-80 overflow-hidden",
           statusConfig?.color ?? "bg-gray-100 text-gray-700"
@@ -281,7 +307,7 @@ export default function CalendarPage() {
       >
         {post.image_url && (
           <div className="w-full h-16 overflow-hidden">
-            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+            <img src={post.image_url} alt="" className="w-full h-full object-cover rounded-t-lg" />
           </div>
         )}
         <div className="p-2">
@@ -532,6 +558,24 @@ export default function CalendarPage() {
           <div className="flex items-center gap-2 px-1">
             <Clock className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Upcoming Posts</h2>
+            <div className="ml-auto flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setUpcomingView("card")}
+                className={cn(upcomingView === "card" ? "text-primary" : "text-muted-foreground")}
+              >
+                <LayoutGrid className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setUpcomingView("list")}
+                className={cn(upcomingView === "list" ? "text-primary" : "text-muted-foreground")}
+              >
+                <List className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           {loading ? (
@@ -550,7 +594,68 @@ export default function CalendarPage() {
                 </p>
               </CardContent>
             </Card>
+          ) : upcomingView === "list" ? (
+            /* ── List view ── */
+            <Card className="divide-y">
+              {upcomingPosts.map((post) => {
+                const statusConfig =
+                  POST_STATUSES[post.status as keyof typeof POST_STATUSES];
+                const scheduledDate = post.scheduled_for
+                  ? new Date(post.scheduled_for)
+                  : null;
+
+                const displayTitle =
+                  post.title ||
+                  (post.content
+                    ? post.content.slice(0, 50) + "..."
+                    : "Untitled Post");
+
+                return (
+                  <div
+                    key={post.id}
+                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-hover-highlight"
+                    onClick={() => setSelectedPost(post)}
+                  >
+                    {/* Thumbnail */}
+                    {post.image_url ? (
+                      <img
+                        src={post.image_url}
+                        alt=""
+                        className="size-10 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <FileText className="size-4 text-muted-foreground" />
+                      </div>
+                    )}
+
+                    {/* Title + schedule */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug truncate">
+                        {displayTitle}
+                      </p>
+                      {scheduledDate && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(scheduledDate, "MMM d")} at {format(scheduledDate, "h:mm a")}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Status badge */}
+                    {statusConfig && (
+                      <Badge
+                        variant="secondary"
+                        className={`${statusConfig.color} text-[10px] shrink-0`}
+                      >
+                        {statusConfig.label}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </Card>
           ) : (
+            /* ── Card view ── */
             upcomingPosts.map((post) => {
               const statusConfig =
                 POST_STATUSES[post.status as keyof typeof POST_STATUSES];
@@ -567,16 +672,24 @@ export default function CalendarPage() {
               return (
                 <Card
                   key={post.id}
-                  className="cursor-pointer transition-colors hover:bg-hover-highlight overflow-hidden"
-                  onClick={() => router.push(`/posts/${post.id}`)}
+                  className={`cursor-pointer transition-colors hover:bg-hover-highlight overflow-hidden ${post.image_url ? "pt-0 gap-0" : ""}`}
+                  onClick={() => setSelectedPost(post)}
                 >
                   {post.image_url && (
-                    <div className="w-full h-24 overflow-hidden">
-                      <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                    <div className="relative w-full h-24 overflow-hidden">
+                      <img src={post.image_url} alt="" className="w-full h-full object-cover rounded-t-xl" />
+                      {statusConfig && (
+                        <Badge
+                          variant="secondary"
+                          className={`${statusConfig.color} text-[10px] absolute bottom-2 left-2 shadow-sm`}
+                        >
+                          {statusConfig.label}
+                        </Badge>
+                      )}
                     </div>
                   )}
                   <CardContent className="space-y-2 p-3">
-                    {statusConfig && (
+                    {!post.image_url && statusConfig && (
                       <Badge
                         variant="secondary"
                         className={`${statusConfig.color} text-[10px]`}
@@ -638,6 +751,18 @@ export default function CalendarPage() {
         onOpenChange={setRescheduleDialogOpen}
         onSchedule={handleReschedule}
         initialDate={reschedulePost?.scheduled_for ? new Date(reschedulePost.scheduled_for) : undefined}
+      />
+
+      {/* Post preview sheet */}
+      <PostPreviewSheet
+        post={selectedPost}
+        open={!!selectedPost}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPost(null);
+        }}
+        authorName={authorName}
+        authorHeadline={authorHeadline}
+        onEdit={(post) => router.push(`/posts/${post.id}`)}
       />
     </div>
   );

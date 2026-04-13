@@ -122,9 +122,9 @@ export function PostActions({
             <DropdownMenuTrigger
               render={
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="xs"
-                  className="gap-1 text-muted-foreground"
+                  className="gap-1"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 />
               }

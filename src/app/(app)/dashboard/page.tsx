@@ -291,14 +291,19 @@ export default async function DashboardPage() {
 
                   return (
                     <Link key={post.id} href={`/posts/${post.id}`}>
-                      <Card className="h-full transition-colors hover:bg-hover-highlight overflow-hidden">
+                      <Card className={`h-full transition-colors hover:bg-hover-highlight overflow-hidden ${post.image_url ? "pt-0 gap-0" : ""}`}>
                         {post.image_url && (
-                          <div className="w-full h-28 overflow-hidden">
-                            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                          <div className="relative w-full h-32 overflow-hidden">
+                            <img src={post.image_url} alt="" className="w-full h-full object-cover rounded-t-xl" />
+                            {status && (
+                              <Badge variant="secondary" className={`${status.color} text-[10px] absolute bottom-2 left-2 shadow-sm`}>
+                                {status.label}
+                              </Badge>
+                            )}
                           </div>
                         )}
                         <CardContent className="space-y-2 p-3">
-                          {status && (
+                          {!post.image_url && status && (
                             <Badge variant="secondary" className={`${status.color} text-[10px]`}>
                               {status.label}
                             </Badge>

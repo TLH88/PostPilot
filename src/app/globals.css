@@ -49,7 +49,7 @@
 }
 
 :root {
-  --background: oklch(0.98 0.005 250);
+  --background: oklch(0.955 0.008 250);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -159,6 +159,22 @@
     0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent),
     0 0 24px -4px color-mix(in oklch, var(--primary) 25%, transparent),
     0 0 48px -8px color-mix(in oklch, var(--primary) 15%, transparent);
+}
+
+/* Theme-colored glow on cards */
+[data-slot="card"] {
+  --tw-ring-shadow: none;
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 10%, transparent),
+    0 0 12px -4px color-mix(in oklch, var(--primary) 12%, transparent),
+    0 0 24px -8px color-mix(in oklch, var(--primary) 6%, transparent) !important;
+}
+
+.dark [data-slot="card"] {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 12%, transparent),
+    0 0 16px -4px color-mix(in oklch, var(--primary) 15%, transparent),
+    0 0 32px -8px color-mix(in oklch, var(--primary) 8%, transparent) !important;
 }
 
 /* Active tab styling — matches Idea Bank filter pill style */
