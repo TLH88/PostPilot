@@ -534,7 +534,7 @@ export default function PostWorkspacePage() {
   }
 
   // ── Floating brainstorm button on text selection ─────────────────────────
-  function handleSelectionChange() {
+  function handleSelectionChange(e: React.MouseEvent | React.KeyboardEvent) {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const selected = content.substring(textarea.selectionStart, textarea.selectionEnd);
@@ -542,26 +542,20 @@ export default function PostWorkspacePage() {
       setSelectionFloatPos(null);
       return;
     }
-    // Use the browser's selection API to get accurate position
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      const rangeRect = range.getBoundingClientRect();
-      if (rangeRect.width > 0) {
-        setSelectionFloatPos({
-          x: rangeRect.left + rangeRect.width / 2,
-          y: rangeRect.top - 8,
-        });
-        setBrainstormTopic(selected.trim());
-        return;
-      }
+    // Position right at the mouse cursor (most reliable for textareas)
+    if ("clientX" in e) {
+      setSelectionFloatPos({
+        x: e.clientX - 16,
+        y: e.clientY - 16,
+      });
+    } else {
+      // Keyboard selection: position near the right edge of the textarea at vertical center
+      const rect = textarea.getBoundingClientRect();
+      setSelectionFloatPos({
+        x: rect.right - 50,
+        y: rect.top + rect.height / 2 - 20,
+      });
     }
-    // Fallback: position near the top-right of the textarea
-    const rect = textarea.getBoundingClientRect();
-    setSelectionFloatPos({
-      x: rect.right - 60,
-      y: rect.top - 8,
-    });
     setBrainstormTopic(selected.trim());
   }
 
@@ -2213,11 +2207,11 @@ export default function PostWorkspacePage() {
       {selectionFloatPos && (
         <div
           id="brainstorm-float"
-          className="fixed z-50 -translate-x-1/2 rounded-lg border bg-popover px-2 py-1 shadow-lg"
-          style={{ left: selectionFloatPos.x, top: selectionFloatPos.y }}
+          className="fixed z-50 rounded-lg shadow-lg"
+          style={{ right: window.innerWidth - selectionFloatPos.x, top: selectionFloatPos.y }}
         >
           <button
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-hover-highlight"
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
             onMouseDown={(e) => {
               e.preventDefault(); // Prevent textarea blur
               autoSave(title, content, hashtags);
