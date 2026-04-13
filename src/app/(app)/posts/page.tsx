@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { POST_STATUSES } from "@/lib/constants";
+import { POST_STATUSES, type SubscriptionTier } from "@/lib/constants";
+import { hasFeature } from "@/lib/feature-gate";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { PostActions } from "@/components/posts/post-actions";
 
@@ -34,9 +35,10 @@ interface PostItem {
   image_url: string | null;
   impressions: number | null;
   reactions: number | null;
+  scheduled_for: string | null;
 }
 
-function PostCard({ post }: { post: PostItem }) {
+function PostCard({ post, userTier }: { post: PostItem; userTier: SubscriptionTier }) {
   const status = POST_STATUSES[post.status as keyof typeof POST_STATUSES];
   const displayTitle =
     post.title ||
@@ -50,19 +52,25 @@ function PostCard({ post }: { post: PostItem }) {
 
   return (
     <Link href={`/posts/${post.id}`} className="h-full">
-      <Card className="flex flex-col h-full transition-colors hover:bg-hover-highlight overflow-hidden">
+      <Card className={`flex flex-col h-full transition-colors hover:bg-hover-highlight overflow-hidden ${post.image_url ? "pt-0 gap-0" : ""}`}>
         {/* Post image */}
         {post.image_url && (
-          <div className="w-full h-32 overflow-hidden">
+          <div className="relative w-full h-32 overflow-hidden">
             <img
               src={post.image_url}
               alt=""
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-t-xl"
             />
+            {status && (
+              <Badge variant="secondary" className={`${status.color} text-[10px] absolute bottom-2 left-2 shadow-sm`}>
+                {status.label}
+              </Badge>
+            )}
           </div>
         )}
         <CardContent className="flex-1 space-y-2">
-          {/* Status badge */}
+          {/* Status badge (only when no image) */}
+          {!post.image_url && (
           <div className="flex items-center justify-between gap-2">
             {status && (
               <Badge variant="secondary" className={`${status.color} text-[10px]`}>
@@ -70,6 +78,18 @@ function PostCard({ post }: { post: PostItem }) {
               </Badge>
             )}
           </div>
+          )}
+          {/* Scheduled clarification */}
+          {post.status === "scheduled" && post.scheduled_for && (
+            <p className="text-[10px] text-purple-600 dark:text-purple-400">
+              Will publish to LinkedIn on {formatDate(post.scheduled_for)} at{" "}
+              {new Date(post.scheduled_for).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })}
+            </p>
+          )}
 
           {/* Title */}
           <p className="text-sm font-semibold leading-snug line-clamp-2">
@@ -114,7 +134,7 @@ function PostCard({ post }: { post: PostItem }) {
 
         {/* Action buttons */}
         <CardFooter className="gap-1">
-          <PostActions postId={post.id} status={post.status} title={post.title} variant="footer" />
+          <PostActions postId={post.id} status={post.status} title={post.title} variant="footer" userTier={userTier} />
         </CardFooter>
       </Card>
     </Link>
@@ -149,12 +169,21 @@ export default async function PostsPage() {
     redirect("/login");
   }
 
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false });
+  const [{ data: posts }, { data: profileData }] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions, scheduled_for")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("creator_profiles")
+      .select("subscription_tier")
+      .eq("user_id", user.id)
+      .single(),
+  ]);
 
+  const userTier = (profileData?.subscription_tier as SubscriptionTier) ?? "free";
+  const canReview = hasFeature(userTier, "review_status");
   const allPosts: PostItem[] = posts ?? [];
 
   const draftPosts = allPosts.filter((p) => p.status === "draft");
@@ -182,7 +211,7 @@ export default async function PostsPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${canReview ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
         <Card className="border-l-4 border-l-blue-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
@@ -196,32 +225,34 @@ export default async function PostsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-amber-500">
+        <Card className="border-l-4 border-l-purple-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Scheduled</p>
                 <p className="text-2xl font-bold">{scheduledPosts.length}</p>
               </div>
-              <div className="flex size-9 items-center justify-center rounded-full bg-amber-500/10">
-                <CalendarClock className="size-4 text-amber-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">In Review</p>
-                <p className="text-2xl font-bold">{reviewPosts.length}</p>
-              </div>
               <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
-                <ClipboardCheck className="size-4 text-purple-500" />
+                <CalendarClock className="size-4 text-purple-500" />
               </div>
             </div>
           </CardContent>
         </Card>
+        {canReview && (
+          <Card className="border-l-4 border-l-purple-500">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">In Review</p>
+                  <p className="text-2xl font-bold">{reviewPosts.length}</p>
+                </div>
+                <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/10">
+                  <ClipboardCheck className="size-4 text-purple-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
@@ -249,9 +280,11 @@ export default async function PostsPage() {
           <TabsTrigger value="draft">
             Drafts ({draftPosts.length})
           </TabsTrigger>
-          <TabsTrigger value="review">
-            In Review ({reviewPosts.length})
-          </TabsTrigger>
+          {canReview && (
+            <TabsTrigger value="review">
+              In Review ({reviewPosts.length})
+            </TabsTrigger>
+          )}
           <TabsTrigger value="scheduled">
             Scheduled ({scheduledPosts.length})
           </TabsTrigger>
@@ -279,7 +312,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {inWorkPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -293,7 +326,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {completePosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -305,7 +338,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {allPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -317,7 +350,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {draftPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -331,7 +364,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reviewPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -345,7 +378,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {scheduledPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -359,7 +392,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {pastDuePosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -373,7 +406,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {postedPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}
@@ -387,7 +420,7 @@ export default async function PostsPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {archivedPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} userTier={userTier} />
               ))}
             </div>
           )}

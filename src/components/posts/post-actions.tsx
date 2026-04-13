@@ -4,18 +4,23 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
+  CalendarClock,
   Check,
+  ExternalLink,
   Eye,
   FileEdit,
   MoreVertical,
   RotateCcw,
+  Send,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -28,21 +33,54 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createClient } from "@/lib/supabase/client";
+import { hasFeature } from "@/lib/feature-gate";
+import { POST_ACTION_TOOLTIPS } from "@/lib/tooltip-content";
+import type { SubscriptionTier } from "@/lib/constants";
 
 interface PostActionsProps {
   postId: string;
   status: string;
   title?: string | null;
   variant?: "dropdown" | "footer";
+  userTier?: SubscriptionTier;
+  scheduledFor?: string | null;
+  onReschedule?: () => void;
+  onPostNow?: () => void;
 }
 
-export function PostActions({ postId, status, title, variant = "dropdown" }: PostActionsProps) {
+function ActionTooltip({ tooltip, children }: { tooltip: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="w-full" />}>
+        {children}
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[220px]">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function PostActions({
+  postId,
+  status,
+  title,
+  variant = "dropdown",
+  userTier = "free",
+  scheduledFor,
+  onReschedule,
+  onPostNow,
+}: PostActionsProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [markPostedOpen, setMarkPostedOpen] = useState(false);
+  const [manuallyPostedConfirmOpen, setManuallyPostedConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  const canReview = hasFeature(userTier, "review_status");
 
   async function handleStatusChange(
     e: React.MouseEvent,
@@ -75,114 +113,134 @@ export function PostActions({ postId, status, title, variant = "dropdown" }: Pos
     router.refresh();
   }
 
-  // Determine which status actions to show
-  const statusActions = getStatusActions(status);
-
+  // Footer variant now uses the same dropdown as the default variant
   if (variant === "footer") {
     return (
       <>
-        <div className="flex flex-wrap items-center gap-1 w-full">
-          {/* Status actions as buttons */}
-          {statusActions.filter((a) => a.action !== "mark_posted").map((action) => (
-            <Button
-              key={action.label}
-              variant="ghost"
-              size="xs"
-              onClick={(e) => handleStatusChange(e, action.targetStatus!)}
+        <div className="flex w-full">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="gap-1"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                />
+              }
             >
-              {action.icon}
-              {action.label}
-            </Button>
-          ))}
-
-          {/* Archive / Restore */}
-          {status !== "archived" ? (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={(e) => handleStatusChange(e, "archived")}
+              <MoreVertical className="size-3" />
+              Actions
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-48"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
             >
-              <Archive className="size-3" />
-              Archive
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={(e) => handleStatusChange(e, "draft")}
-            >
-              <RotateCcw className="size-3" />
-              Restore
-            </Button>
-          )}
-
-          {/* Delete */}
-          <Button
-            variant="ghost"
-            size="xs"
-            className="text-destructive hover:text-destructive"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setDeleteDialogOpen(true);
-            }}
-          >
-            <Trash2 className="size-3" />
-            Delete
-          </Button>
-
-          {/* Manually Posted — pushed to far right */}
-          {statusActions.some((a) => a.action === "mark_posted") && (
-            <>
-              <div className="flex-1" />
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+              {/* Post to LinkedIn — opens preview dialog */}
+              <DropdownMenuItem
                 onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMarkPostedOpen(true);
+                  e.preventDefault(); e.stopPropagation();
+                  if (onPostNow) { onPostNow(); } else { router.push(`/posts/${postId}?action=publish`); }
                 }}
+                disabled={status === "posted" || status === "archived"}
               >
-                <Check className="size-3" />
-                Manually Posted
-              </button>
-            </>
-          )}
+                <Send className="size-4" /> Post to LinkedIn
+              </DropdownMenuItem>
+
+              {/* Schedule Post */}
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  if (onReschedule) { onReschedule(); } else { router.push(`/posts/${postId}?action=schedule`); }
+                }}
+                disabled={status === "archived"}
+              >
+                <CalendarClock className="size-4" /> Schedule Post
+              </DropdownMenuItem>
+
+              {/* Move to Review — Team/Enterprise only */}
+              {canReview && (
+                <DropdownMenuItem
+                  onClick={(e) => handleStatusChange(e, "review")}
+                  disabled={status === "review" || status === "posted" || status === "archived"}
+                >
+                  <Eye className="size-4" /> Move to Review
+                </DropdownMenuItem>
+              )}
+
+              {/* Manually Posted */}
+              <DropdownMenuItem
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setManuallyPostedConfirmOpen(true); }}
+                disabled={status === "posted" || status === "archived"}
+              >
+                <Check className="size-4" /> Manually Posted
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {/* Archive / Restore */}
+              {status !== "archived" ? (
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "archived")}>
+                  <Archive className="size-4" /> Archive
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
+                  <RotateCcw className="size-4" /> Restore to Draft
+                </DropdownMenuItem>
+              )}
+
+              {/* Delete */}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true); }}
+              >
+                <Trash2 className="size-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Delete confirmation dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent
-            className="sm:max-w-[400px]"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <DialogContent className="sm:max-w-[400px]" onClick={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle>Delete post?</DialogTitle>
               <DialogDescription>
-                This will permanently delete this post and all its versions. This
-                action cannot be undone.
+                This will permanently delete this post and all its versions. This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                 {deleting ? "Deleting..." : "Delete permanently"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Mark as Posted dialog */}
+        {/* Manually Posted confirmation dialog */}
+        <Dialog open={manuallyPostedConfirmOpen} onOpenChange={setManuallyPostedConfirmOpen}>
+          <DialogContent className="sm:max-w-[440px]" onClick={(e) => e.stopPropagation()}>
+            <DialogHeader>
+              <DialogTitle>Mark as Manually Posted?</DialogTitle>
+              <DialogDescription>
+                This means you have already copied and posted this content to LinkedIn on your own, without using PostPilot&apos;s direct publishing feature. The post will be marked as &quot;Posted to LinkedIn&quot; in your workflow.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => setManuallyPostedConfirmOpen(false)}>Cancel</Button>
+              <Button onClick={() => {
+                setManuallyPostedConfirmOpen(false);
+                setMarkPostedOpen(true);
+              }}>
+                Yes, I posted it manually
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Mark as Posted dialog (URL input) */}
         <MarkPostedDialog
           open={markPostedOpen}
           onOpenChange={setMarkPostedOpen}
@@ -194,6 +252,7 @@ export function PostActions({ postId, status, title, variant = "dropdown" }: Pos
     );
   }
 
+  // ─── Dropdown Variant ──────────────────────────────────────────────────────
   return (
     <>
       <DropdownMenu>
@@ -203,10 +262,7 @@ export function PostActions({ postId, status, title, variant = "dropdown" }: Pos
               variant="ghost"
               size="icon-sm"
               className="shrink-0"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
             />
           }
         >
@@ -214,96 +270,133 @@ export function PostActions({ postId, status, title, variant = "dropdown" }: Pos
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
+          className="w-52"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
-          {/* Status change actions */}
-          {statusActions.map((action) => (
+          {/* Post to LinkedIn — opens preview dialog */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.postNow.text}>
             <DropdownMenuItem
-              key={action.label}
               onClick={(e) => {
-                if (action.action === "mark_posted") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMarkPostedOpen(true);
-                } else {
-                  handleStatusChange(e, action.targetStatus!);
-                }
+                e.preventDefault(); e.stopPropagation();
+                if (onPostNow) { onPostNow(); } else { router.push(`/posts/${postId}?action=publish`); }
               }}
+              disabled={status === "posted" || status === "archived"}
             >
-              {action.icon}
-              {action.label}
+              <Send className="size-4" /> Post to LinkedIn
             </DropdownMenuItem>
-          ))}
+          </ActionTooltip>
 
-          {statusActions.length > 0 && <DropdownMenuSeparator />}
-
-          {/* Archive / Restore */}
-          {status !== "archived" ? (
+          {/* Schedule Post */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.reschedule.text}>
             <DropdownMenuItem
-              onClick={(e) => handleStatusChange(e, "archived")}
+              onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (onReschedule) { onReschedule(); } else { router.push(`/posts/${postId}?action=schedule`); }
+              }}
+              disabled={status === "archived"}
             >
-              <Archive className="size-4" />
-              Archive
+              <CalendarClock className="size-4" /> Schedule Post
             </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
-              <RotateCcw className="size-4" />
-              Restore to Draft
-            </DropdownMenuItem>
+          </ActionTooltip>
+
+          {/* Move to Review — Team/Enterprise only */}
+          {canReview && (
+            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.moveToReview.text}>
+              <DropdownMenuItem
+                onClick={(e) => handleStatusChange(e, "review")}
+                disabled={status === "review" || status === "posted" || status === "archived"}
+              >
+                <Eye className="size-4" /> Move to Review
+              </DropdownMenuItem>
+            </ActionTooltip>
           )}
+
+          {/* Manually Posted */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.manuallyPosted.text}>
+            <DropdownMenuItem
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setManuallyPostedConfirmOpen(true); }}
+              disabled={status === "posted" || status === "archived"}
+            >
+              <Check className="size-4" /> Manually Posted
+            </DropdownMenuItem>
+          </ActionTooltip>
 
           <DropdownMenuSeparator />
 
+          {/* Open in Editor */}
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.openInEditor.text}>
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/posts/${postId}`); }}>
+              <ExternalLink className="size-4" /> Open in Editor
+            </DropdownMenuItem>
+          </ActionTooltip>
+
+          {/* Archive / Restore */}
+          {status !== "archived" ? (
+            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.archive.text}>
+              <DropdownMenuItem onClick={(e) => handleStatusChange(e, "archived")}>
+                <Archive className="size-4" /> Archive
+              </DropdownMenuItem>
+            </ActionTooltip>
+          ) : (
+            <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.restore.text}>
+              <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
+                <RotateCcw className="size-4" /> Restore to Draft
+              </DropdownMenuItem>
+            </ActionTooltip>
+          )}
+
           {/* Delete */}
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setDeleteDialogOpen(true);
-            }}
-          >
-            <Trash2 className="size-4" />
-            Delete
-          </DropdownMenuItem>
+          <ActionTooltip tooltip={POST_ACTION_TOOLTIPS.delete.text}>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true); }}
+            >
+              <Trash2 className="size-4" /> Delete
+            </DropdownMenuItem>
+          </ActionTooltip>
         </DropdownMenuContent>
       </DropdownMenu>
 
       {/* Delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent
-          className="sm:max-w-[400px]"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <DialogContent className="sm:max-w-[400px]" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
             <DialogTitle>Delete post?</DialogTitle>
             <DialogDescription>
-              This will permanently delete this post and all its versions. This
-              action cannot be undone.
+              This will permanently delete this post and all its versions. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? "Deleting..." : "Delete permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Mark as Posted dialog */}
+      {/* Manually Posted confirmation dialog */}
+      <Dialog open={manuallyPostedConfirmOpen} onOpenChange={setManuallyPostedConfirmOpen}>
+        <DialogContent className="sm:max-w-[440px]" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Mark as Manually Posted?</DialogTitle>
+            <DialogDescription>
+              This means you have already copied and posted this content to LinkedIn on your own, without using PostPilot&apos;s direct publishing feature. The post will be marked as &quot;Posted to LinkedIn&quot; in your workflow.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setManuallyPostedConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={() => {
+              setManuallyPostedConfirmOpen(false);
+              setMarkPostedOpen(true);
+            }}>
+              Yes, I posted it manually
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as Posted dialog (URL input) */}
       <MarkPostedDialog
         open={markPostedOpen}
         onOpenChange={setMarkPostedOpen}
@@ -313,69 +406,4 @@ export function PostActions({ postId, status, title, variant = "dropdown" }: Pos
       />
     </>
   );
-}
-
-/** Returns the status-specific menu actions for a given post status */
-function getStatusActions(status: string) {
-  const actions: {
-    label: string;
-    icon: React.ReactNode;
-    targetStatus?: string;
-    action?: string;
-  }[] = [];
-
-  switch (status) {
-    case "draft":
-      actions.push({
-        label: "Move to Review",
-        icon: <Eye className="size-4" />,
-        targetStatus: "review",
-      });
-      actions.push({
-        label: "Mark as Posted",
-        icon: <Check className="size-4" />,
-        action: "mark_posted",
-      });
-      break;
-    case "review":
-      actions.push({
-        label: "Back to Draft",
-        icon: <FileEdit className="size-4" />,
-        targetStatus: "draft",
-      });
-      actions.push({
-        label: "Mark as Posted",
-        icon: <Check className="size-4" />,
-        action: "mark_posted",
-      });
-      break;
-    case "scheduled":
-      actions.push({
-        label: "Back to Draft",
-        icon: <FileEdit className="size-4" />,
-        targetStatus: "draft",
-      });
-      actions.push({
-        label: "Mark as Posted",
-        icon: <Check className="size-4" />,
-        action: "mark_posted",
-      });
-      break;
-    case "past_due":
-      actions.push({
-        label: "Back to Draft",
-        icon: <FileEdit className="size-4" />,
-        targetStatus: "draft",
-      });
-      actions.push({
-        label: "Mark as Posted",
-        icon: <Check className="size-4" />,
-        action: "mark_posted",
-      });
-      break;
-    // "posted" and "archived" have no additional status actions
-    // (Archive/Restore already handled separately)
-  }
-
-  return actions;
 }

@@ -9,8 +9,11 @@ import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
 import { checkQuota, incrementQuota } from "@/lib/quota";
+import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 
 export async function POST(request: NextRequest) {
+  let activeProvider: string | undefined;
+  const startTime = Date.now();
   try {
     const body = await request.json();
 
@@ -24,7 +27,8 @@ export async function POST(request: NextRequest) {
 
     const { topic, contentPillar, count } = parsed.data;
 
-    const { client, profile } = await getUserAIClient();
+    const { client, profile, source, provider, model } = await getUserAIClient();
+    activeProvider = provider;
 
     // Quota check
     const quota = await checkQuota(profile.user_id, "brainstorms");
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
           .limit(15),
         supabase
           .from("ideas")
-          .select("title, content_pillars, temperature")
+          .select("title, content_pillars")
           .eq("user_id", user.id)
           .neq("status", "archived")
           .order("created_at", { ascending: false })
@@ -162,9 +166,32 @@ export async function POST(request: NextRequest) {
     // Increment quota after successful brainstorm
     await incrementQuota(profile.user_id, "brainstorms");
 
+    logAiUsage({
+      userId: profile.user_id,
+      route: "brainstorm",
+      provider,
+      model,
+      source,
+      usage: response.usage,
+      generationId: response.generationId,
+      success: true,
+      latencyMs: Date.now() - startTime,
+    });
+
     return NextResponse.json(validated.data);
   } catch (error) {
     logApiError("api/ai/brainstorm", error);
+
+    logAiUsage({
+      userId: "unknown",
+      route: "brainstorm",
+      provider: activeProvider ?? "unknown",
+      model: "unknown",
+      source: "gateway",
+      success: false,
+      errorCode: classifyAiError(error),
+      latencyMs: Date.now() - startTime,
+    });
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -173,9 +200,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const humanized = humanizeAIError(error);
+    const humanized = humanizeAIError(error, activeProvider);
     return NextResponse.json(
-      { error: humanized.message, action: humanized.action },
+      { error: humanized.message, action: humanized.action, isCreditError: humanized.isCreditError, providerName: humanized.providerName, billingUrl: humanized.billingUrl },
       { status: humanized.status }
     );
   }

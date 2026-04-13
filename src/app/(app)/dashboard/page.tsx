@@ -20,10 +20,11 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { IDEA_TEMPERATURES, POST_STATUSES } from "@/lib/constants";
+import { POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
+import { TutorialAutoStart } from "@/components/tutorial/tutorial-auto-start";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -108,7 +109,7 @@ export default async function DashboardPage() {
   const [recentIdeasResult, recentDraftsResult] = await Promise.all([
     supabase
       .from("ideas")
-      .select("id, title, temperature, created_at")
+      .select("id, title, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5),
@@ -153,6 +154,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <TutorialAutoStart tutorialId="overview-app" />
       {/* Onboarding banner */}
       {profile && !profile.onboarding_completed && (
         <Card className="border-primary/20 bg-primary/5">
@@ -201,7 +203,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div id="tour-dashboard-metrics" className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -223,15 +225,18 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3">
+      <div id="tour-quick-actions" className="flex flex-wrap gap-3">
         <GenerateIdeasButton
+          id="tour-generate-ideas"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
         />
         <NewPostButton
+          id="tour-new-post"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
           label="Start New Post"
         />
         <Link
+          id="tour-view-calendar"
           href="/calendar"
           className="inline-flex h-9 items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
         >
@@ -245,7 +250,7 @@ export default async function DashboardPage() {
         {/* Left column — 80% */}
         <div className="flex-1 min-w-0 space-y-6">
           {/* Recent Drafts — card grid */}
-          <div className="space-y-3">
+          <div id="tour-recent-drafts" className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="size-4 text-blue-500" />
@@ -286,14 +291,19 @@ export default async function DashboardPage() {
 
                   return (
                     <Link key={post.id} href={`/posts/${post.id}`}>
-                      <Card className="h-full transition-colors hover:bg-hover-highlight overflow-hidden">
+                      <Card className={`h-full transition-colors hover:bg-hover-highlight overflow-hidden ${post.image_url ? "pt-0 gap-0" : ""}`}>
                         {post.image_url && (
-                          <div className="w-full h-28 overflow-hidden">
-                            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                          <div className="relative w-full h-32 overflow-hidden">
+                            <img src={post.image_url} alt="" className="w-full h-full object-cover rounded-t-xl" />
+                            {status && (
+                              <Badge variant="secondary" className={`${status.color} text-[10px] absolute bottom-2 left-2 shadow-sm`}>
+                                {status.label}
+                              </Badge>
+                            )}
                           </div>
                         )}
                         <CardContent className="space-y-2 p-3">
-                          {status && (
+                          {!post.image_url && status && (
                             <Badge variant="secondary" className={`${status.color} text-[10px]`}>
                               {status.label}
                             </Badge>
@@ -336,28 +346,17 @@ export default async function DashboardPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {recentIdeas.map((idea) => {
-                    const temp =
-                      IDEA_TEMPERATURES[
-                        idea.temperature as keyof typeof IDEA_TEMPERATURES
-                      ];
-                    return (
-                      <Link
-                        key={idea.id}
-                        href={`/ideas/${idea.id}`}
-                        className="flex items-center justify-between gap-3 rounded-lg p-1 transition-colors hover:bg-hover-highlight"
-                      >
-                        <p className="truncate text-sm font-medium">
-                          {idea.title}
-                        </p>
-                        {temp && (
-                          <Badge variant="secondary" className={temp.color}>
-                            {temp.icon} {temp.label}
-                          </Badge>
-                        )}
-                      </Link>
-                    );
-                  })}
+                  {recentIdeas.map((idea) => (
+                    <Link
+                      key={idea.id}
+                      href={`/ideas/${idea.id}`}
+                      className="flex items-center justify-between gap-3 rounded-lg p-1 transition-colors hover:bg-hover-highlight"
+                    >
+                      <p className="truncate text-sm font-medium">
+                        {idea.title}
+                      </p>
+                    </Link>
+                  ))}
                 </div>
               )}
               {recentIdeas.length > 0 && (
@@ -379,7 +378,7 @@ export default async function DashboardPage() {
         <div className="w-full lg:w-[20%] shrink-0 space-y-3">
           {/* Spacer to align with "Recent Drafts" header row */}
           <div className="hidden lg:block h-5" />
-          <UsageSummary />
+          <div id="tour-usage-summary"><UsageSummary /></div>
           {contentPillars.length > 0 && (
             <ContentPillarBalance
               pillarCounts={pillarCounts}

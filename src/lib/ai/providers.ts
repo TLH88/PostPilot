@@ -16,13 +16,34 @@ export interface AIRequestOptions {
   maxTokens: number;
 }
 
+export interface AIUsageData {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedTokens?: number;
+  reasoningTokens?: number;
+}
+
 export interface AITextResponse {
   text: string;
+  usage?: AIUsageData;
+  generationId?: string;
+  rawUsage?: unknown;
+}
+
+export interface AIStreamFinishResult {
+  text: string;
+  usage?: AIUsageData;
+  generationId?: string;
+  rawUsage?: unknown;
+}
+
+export interface AIStreamOptions extends AIRequestOptions {
+  onFinish?: (result: AIStreamFinishResult) => void;
 }
 
 export interface AIClient {
   createMessage(options: AIRequestOptions): Promise<AITextResponse>;
-  createStream(options: AIRequestOptions): Promise<ReadableStream>;
+  createStream(options: AIStreamOptions): Promise<ReadableStream>;
 }
 
 // ── Provider config ───────────────────────────────────────────────────────────
@@ -124,11 +145,22 @@ class AnthropicAIClient implements AIClient {
     });
 
     const textBlock = response.content.find((block) => block.type === "text");
-    return { text: textBlock?.type === "text" ? textBlock.text : "" };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawUsage = response.usage as any;
+    return {
+      text: textBlock?.type === "text" ? textBlock.text : "",
+      usage: {
+        inputTokens: rawUsage?.input_tokens,
+        outputTokens: rawUsage?.output_tokens,
+        cachedTokens: rawUsage?.cache_read_input_tokens,
+      },
+      generationId: response.id,
+      rawUsage,
+    };
   }
 
-  async createStream(options: AIRequestOptions): Promise<ReadableStream> {
-    const stream = this.client.messages.stream({
+  async createStream(options: AIStreamOptions): Promise<ReadableStream> {
+    const messageStream = this.client.messages.stream({
       model: this.model,
       max_tokens: options.maxTokens,
       system: options.systemPrompt,
@@ -138,22 +170,51 @@ class AnthropicAIClient implements AIClient {
       })),
     });
 
+    const onFinish = options.onFinish;
     const encoder = new TextEncoder();
+    let streamedText = "";
+
     return new ReadableStream({
       async start(controller) {
         try {
-          for await (const event of stream) {
+          for await (const event of messageStream) {
             if (
               event.type === "content_block_delta" &&
               event.delta.type === "text_delta"
             ) {
+              streamedText += event.delta.text;
               const data = JSON.stringify({ text: event.delta.text });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+
+          // Extract usage from the final message for logging
+          if (onFinish) {
+            try {
+              const finalMessage = await messageStream.finalMessage();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const rawUsage = finalMessage.usage as any;
+              onFinish({
+                text: streamedText,
+                usage: {
+                  inputTokens: rawUsage?.input_tokens,
+                  outputTokens: rawUsage?.output_tokens,
+                  cachedTokens: rawUsage?.cache_read_input_tokens,
+                },
+                generationId: finalMessage.id,
+                rawUsage,
+              });
+            } catch {
+              // Usage extraction failed — still close the stream successfully
+              onFinish({ text: streamedText });
+            }
+          }
           controller.close();
         } catch {
+          if (onFinish) {
+            onFinish({ text: streamedText });
+          }
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`
@@ -172,9 +233,19 @@ class OpenAICompatibleClient implements AIClient {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, provider: "openai" | "google" | "perplexity", model?: string) {
+  constructor(
+    apiKey: string,
+    provider: "openai" | "google" | "perplexity",
+    model?: string,
+    baseURLOverride?: string,
+    defaultHeaders?: Record<string, string>
+  ) {
     const config = PROVIDER_CONFIG[provider];
-    this.client = new OpenAI({ apiKey, baseURL: config.baseURL });
+    this.client = new OpenAI({
+      apiKey,
+      baseURL: baseURLOverride || config.baseURL,
+      defaultHeaders,
+    });
     this.model = model || config.defaultModel;
   }
 
@@ -191,14 +262,28 @@ class OpenAICompatibleClient implements AIClient {
       ],
     });
 
-    return { text: response.choices[0]?.message?.content ?? "" };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawUsage = response.usage as any;
+    return {
+      text: response.choices[0]?.message?.content ?? "",
+      usage: {
+        inputTokens: rawUsage?.prompt_tokens,
+        outputTokens: rawUsage?.completion_tokens,
+        cachedTokens: rawUsage?.prompt_tokens_details?.cached_tokens,
+        reasoningTokens: rawUsage?.completion_tokens_details?.reasoning_tokens,
+      },
+      generationId: response.id,
+      rawUsage,
+    };
   }
 
-  async createStream(options: AIRequestOptions): Promise<ReadableStream> {
+  async createStream(options: AIStreamOptions): Promise<ReadableStream> {
+    const onFinish = options.onFinish;
     const stream = await this.client.chat.completions.create({
       model: this.model,
       max_tokens: options.maxTokens,
       stream: true,
+      stream_options: { include_usage: true },
       messages: [
         { role: "system" as const, content: options.systemPrompt },
         ...options.messages.map((m) => ({
@@ -209,19 +294,52 @@ class OpenAICompatibleClient implements AIClient {
     });
 
     const encoder = new TextEncoder();
+    let streamedText = "";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let finalUsage: any = null;
+    let generationId: string | undefined;
+
     return new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of stream) {
             const text = chunk.choices[0]?.delta?.content;
             if (text) {
+              streamedText += text;
               const data = JSON.stringify({ text });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
+            // The final chunk contains usage when stream_options.include_usage=true
+            if (chunk.usage) {
+              finalUsage = chunk.usage;
+            }
+            if (chunk.id && !generationId) {
+              generationId = chunk.id;
+            }
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+
+          if (onFinish) {
+            onFinish({
+              text: streamedText,
+              usage: finalUsage
+                ? {
+                    inputTokens: finalUsage.prompt_tokens,
+                    outputTokens: finalUsage.completion_tokens,
+                    cachedTokens: finalUsage.prompt_tokens_details?.cached_tokens,
+                    reasoningTokens:
+                      finalUsage.completion_tokens_details?.reasoning_tokens,
+                  }
+                : undefined,
+              generationId,
+              rawUsage: finalUsage,
+            });
+          }
           controller.close();
         } catch {
+          if (onFinish) {
+            onFinish({ text: streamedText });
+          }
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`
@@ -232,6 +350,49 @@ class OpenAICompatibleClient implements AIClient {
       },
     });
   }
+}
+
+// ── Gateway helpers ──────────────────────────────────────────────────────────
+
+export function toGatewayModelId(provider: AIProvider, modelId: string): string {
+  if (modelId.includes("/")) return modelId;
+  return `${provider}/${modelId}`;
+}
+
+export function createGatewayClient(
+  provider: AIProvider,
+  model: string
+): AIClient {
+  // Prefer the Vercel-issued OIDC token in deployments — it automatically
+  // associates requests with this Vercel project in the AI Gateway dashboard.
+  // Fall back to the team-scoped AI_GATEWAY_API_KEY for local dev.
+  const gatewayAuth =
+    process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
+  if (!gatewayAuth) {
+    throw new Error(
+      "AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN is not configured"
+    );
+  }
+  const gatewayModel = toGatewayModelId(provider, model);
+
+  // App attribution headers (featured apps + better observability)
+  const refererUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  const attributionHeaders: Record<string, string> = {
+    "x-title": "PostPilot",
+  };
+  if (refererUrl) {
+    attributionHeaders["http-referer"] = refererUrl;
+  }
+
+  return new OpenAICompatibleClient(
+    gatewayAuth,
+    "openai",
+    gatewayModel,
+    "https://ai-gateway.vercel.sh/v1",
+    attributionHeaders
+  );
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────────

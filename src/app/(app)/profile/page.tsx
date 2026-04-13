@@ -33,6 +33,8 @@ import {
 import { toast } from "sonner";
 import { ChangeEmail } from "@/app/(app)/settings/change-email";
 import { ChangePassword } from "@/app/(app)/settings/change-password";
+import { SubscriptionTierSetting } from "@/app/(app)/settings/subscription-tier";
+import type { SubscriptionTier } from "@/lib/constants";
 
 const INDUSTRY_SUGGESTIONS = [
   "Technology",
@@ -100,6 +102,7 @@ export default function ProfilePage() {
   const [preferredPostLength, setPreferredPostLength] = useState("medium");
   const [useEmojis, setUseEmojis] = useState(true);
   const [useHashtags, setUseHashtags] = useState(true);
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>("free");
 
   useEffect(() => {
     async function loadProfile() {
@@ -132,6 +135,7 @@ export default function ProfilePage() {
         setPreferredPostLength(p.preferred_post_length ?? "medium");
         setUseEmojis(p.use_emojis ?? true);
         setUseHashtags(p.use_hashtags ?? true);
+        setSubscriptionTier((p.subscription_tier as SubscriptionTier) ?? "free");
 
         // Pad voice samples to always have 3 slots
         const samples = p.voice_samples ?? [];
@@ -374,6 +378,15 @@ export default function ProfilePage() {
             <ChangePassword />
           </div>
         )}
+      </div>
+
+      {/* Subscription Plan */}
+      <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">Subscription Plan</h3>
+        </div>
+        <SubscriptionTierSetting currentTier={subscriptionTier} />
       </div>
 
       {/* Section 1: Basic Info */}

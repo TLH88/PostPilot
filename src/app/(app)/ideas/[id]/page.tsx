@@ -4,8 +4,9 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { IDEA_TEMPERATURES, IDEA_STATUSES } from "@/lib/constants";
+import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority } from "@/lib/constants";
 import type { Idea } from "@/types";
+import { TagInput } from "@/components/ui/tag-input";
 import {
   Card,
   CardContent,
@@ -39,8 +40,6 @@ import {
   Loader2,
   Save,
   Trash2,
-  Plus,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -83,10 +82,9 @@ export default function IdeaDetailPage({
   // Editable fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [temperature, setTemperature] = useState<Idea["temperature"]>("warm");
   const [contentPillar, setContentPillar] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
+  const [priority, setPriority] = useState<IdeaPriority | null>(null);
   const [status, setStatus] = useState<Idea["status"]>("captured");
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
@@ -119,9 +117,9 @@ export default function IdeaDetailPage({
       const idea = ideaResult.data as Idea;
       setTitle(idea.title);
       setDescription(idea.description ?? "");
-      setTemperature(idea.temperature);
       setContentPillar((idea.content_pillars ?? [])[0] ?? "");
       setTags(idea.tags ?? []);
+      setPriority(idea.priority ?? null);
       setStatus(idea.status);
       setCreatedAt(idea.created_at);
       setUpdatedAt(idea.updated_at);
@@ -147,9 +145,9 @@ export default function IdeaDetailPage({
         .update({
           title: title.trim(),
           description: description.trim() || null,
-          temperature,
           content_pillars: contentPillar ? [contentPillar] : [],
           tags,
+          priority,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -203,7 +201,7 @@ export default function IdeaDetailPage({
         .eq("id", id);
 
       toast.success("Post created! Redirecting to editor...");
-      router.push(`/posts/${post.id}`);
+      router.push(`/posts/${post.id}?fromIdea=true&ideaDescription=${encodeURIComponent(description || "")}`);
     } catch (error) {
       console.error("Develop idea error:", error);
       toast.error("Failed to create post from idea.");
@@ -229,26 +227,12 @@ export default function IdeaDetailPage({
     }
   }
 
-  // Add tag
-  function addTag() {
-    const trimmed = newTag.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags((prev) => [...prev, trimmed]);
-      setNewTag("");
-    }
-  }
-
-  // Remove tag
-  function removeTag(tag: string) {
-    setTags((prev) => prev.filter((t) => t !== tag));
-  }
-
   if (loading) {
     return <IdeaDetailSkeleton />;
   }
 
-  const temp = IDEA_TEMPERATURES[temperature];
   const statusInfo = IDEA_STATUSES[status];
+  const priorityInfo = priority ? IDEA_PRIORITIES[priority] : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-4">
@@ -267,9 +251,9 @@ export default function IdeaDetailPage({
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            {temp && (
-              <Badge variant="secondary" className={temp.color}>
-                {temp.icon} {temp.label}
+            {priorityInfo && (
+              <Badge variant="secondary" className={priorityInfo.color}>
+                {priorityInfo.label} Priority
               </Badge>
             )}
             {statusInfo && (
@@ -342,33 +326,6 @@ export default function IdeaDetailPage({
             />
           </div>
 
-          {/* Temperature */}
-          <div className="space-y-2">
-            <Label>Temperature</Label>
-            <Select
-              value={temperature}
-              onValueChange={(v) => {
-                if (v) setTemperature(v as Idea["temperature"]);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  Object.keys(IDEA_TEMPERATURES) as Array<
-                    keyof typeof IDEA_TEMPERATURES
-                  >
-                ).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {IDEA_TEMPERATURES[key].icon}{" "}
-                    {IDEA_TEMPERATURES[key].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Content Pillar */}
           <div className="space-y-2">
             <Label>Content Pillar</Label>
@@ -398,51 +355,51 @@ export default function IdeaDetailPage({
             )}
           </div>
 
-          {/* Tags */}
-          <div className="space-y-3">
-            <Label>Tags</Label>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="secondary"
-                    className="gap-1 pl-2.5 pr-1"
-                  >
-                    {tag}
-                    <button
-                      onClick={() => removeTag(tag)}
-                      className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a tag..."
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addTag();
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="default"
-                onClick={addTag}
-                disabled={!newTag.trim()}
+          {/* Priority */}
+          <div className="space-y-2">
+            <Label>Priority</Label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setPriority(null)}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  priority === null
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                }`}
               >
-                <Plus className="size-4" />
-                Add
-              </Button>
+                None
+              </button>
+              {(Object.keys(IDEA_PRIORITIES) as IdeaPriority[])
+                .slice()
+                .sort((a, b) => IDEA_PRIORITIES[a].order - IDEA_PRIORITIES[b].order)
+                .map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPriority(key)}
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      priority === key
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                    }`}
+                  >
+                    {IDEA_PRIORITIES[key].label}
+                  </button>
+                ))}
             </div>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <Label htmlFor="detail-tags">Tags</Label>
+            <TagInput
+              id="detail-tags"
+              value={tags}
+              onChange={setTags}
+              placeholder="Type and press Enter to add..."
+              maxTags={20}
+            />
           </div>
         </CardContent>
       </Card>

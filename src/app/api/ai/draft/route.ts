@@ -8,8 +8,11 @@ import {
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { DraftInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { checkQuota, incrementQuota } from "@/lib/quota";
+import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 
 export async function POST(request: NextRequest) {
+  let activeProvider: string | undefined;
+  const startTime = Date.now();
   try {
     const body = await request.json();
 
@@ -23,7 +26,8 @@ export async function POST(request: NextRequest) {
 
     const { ideaTitle, ideaDescription, topic, instructions, currentDraft } = parsed.data;
 
-    const { client, profile } = await getUserAIClient();
+    const { client, profile, source, provider, model } = await getUserAIClient();
+    activeProvider = provider;
 
     // Quota check
     const quota = await checkQuota(profile.user_id, "chat_messages");
@@ -72,6 +76,19 @@ export async function POST(request: NextRequest) {
       systemPrompt,
       messages: [{ role: "user", content: userMessage }],
       maxTokens: 2000,
+      onFinish: (result) => {
+        logAiUsage({
+          userId: profile.user_id,
+          route: "draft",
+          provider,
+          model,
+          source,
+          usage: result.usage,
+          generationId: result.generationId,
+          success: true,
+          latencyMs: Date.now() - startTime,
+        });
+      },
     });
 
     return new Response(readable, {
@@ -84,9 +101,20 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logApiError("api/ai/draft", error);
 
-    const humanized = humanizeAIError(error);
+    logAiUsage({
+      userId: "unknown",
+      route: "draft",
+      provider: activeProvider ?? "unknown",
+      model: "unknown",
+      source: "gateway",
+      success: false,
+      errorCode: classifyAiError(error),
+      latencyMs: Date.now() - startTime,
+    });
+
+    const humanized = humanizeAIError(error, activeProvider);
     return new Response(
-      JSON.stringify({ error: humanized.message, action: humanized.action }),
+      JSON.stringify({ error: humanized.message, action: humanized.action, isCreditError: humanized.isCreditError, providerName: humanized.providerName, billingUrl: humanized.billingUrl }),
       { status: humanized.status, headers: { "Content-Type": "application/json" } }
     );
   }

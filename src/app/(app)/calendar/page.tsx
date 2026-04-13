@@ -3,11 +3,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
   FileText,
+  LayoutGrid,
+  List,
+  Send,
 } from "lucide-react";
 import {
   startOfMonth,
@@ -35,6 +39,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { POST_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { ScheduleDialog } from "@/components/schedule-dialog";
+import { PostPreviewSheet } from "@/components/posts/post-preview-sheet";
+import { toast } from "sonner";
 import type { Post } from "@/types";
 
 const WEEKDAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -50,6 +62,48 @@ export default function CalendarPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Reschedule dialog state
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [reschedulePost, setReschedulePost] = useState<Post | null>(null);
+
+  // Preview sheet state
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  // Upcoming posts view toggle
+  const [upcomingView, setUpcomingView] = useState<"card" | "list">("card");
+  const [authorName, setAuthorName] = useState("Your Name");
+  const [authorHeadline, setAuthorHeadline] = useState("Your headline");
+
+  async function handleReschedule(date: Date) {
+    if (!reschedulePost) return;
+    const { error } = await supabase
+      .from("posts")
+      .update({
+        status: "scheduled",
+        scheduled_for: date.toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", reschedulePost.id);
+
+    if (!error) {
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === reschedulePost.id
+            ? { ...p, status: "scheduled", scheduled_for: date.toISOString() }
+            : p
+        )
+      );
+      toast.success("Post rescheduled successfully!");
+    } else {
+      toast.error("Failed to reschedule post.");
+    }
+    setReschedulePost(null);
+  }
+
+  async function handlePostNow(post: Post) {
+    router.push(`/posts/${post.id}`);
+  }
+
   // Fetch posts with scheduled_for dates
   useEffect(() => {
     async function fetchPosts() {
@@ -62,6 +116,18 @@ export default function CalendarPage() {
       if (!user) {
         router.push("/login");
         return;
+      }
+
+      // Fetch author profile for preview
+      const { data: profile } = await supabase
+        .from("creator_profiles")
+        .select("full_name, headline")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profile) {
+        if (profile.full_name) setAuthorName(profile.full_name);
+        if (profile.headline) setAuthorHeadline(profile.headline);
       }
 
       const { data, error } = await supabase
@@ -168,24 +234,54 @@ export default function CalendarPage() {
       ? new Date(post.scheduled_for)
       : null;
 
+    const displayTitle = post.title || (post.content ? post.content.slice(0, 30) + "..." : "Untitled");
+    const previewContent = post.content ? post.content.slice(0, 200) : "";
+
     return (
-      <button
-        key={post.id}
-        onClick={() => router.push(`/posts/${post.id}`)}
-        className={cn(
-          "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
-          statusConfig?.color ?? "bg-gray-100 text-gray-700"
-        )}
-        title={post.title ?? "Untitled"}
-      >
-        {showTime && scheduledDate && (
-          <span className="mr-1">{format(scheduledDate, "h:mm a")}</span>
-        )}
-        {post.title ||
-          (post.content
-            ? post.content.slice(0, 30) + "..."
-            : "Untitled")}
-      </button>
+      <Tooltip key={post.id}>
+        <TooltipTrigger render={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/posts/${post.id}`);
+            }}
+            className={cn(
+              "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
+              statusConfig?.color ?? "bg-gray-100 text-gray-700"
+            )}
+          />
+        }>
+          {showTime && scheduledDate && (
+            <span className="mr-1">{format(scheduledDate, "h:mm a")}</span>
+          )}
+          {displayTitle}
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[260px] space-y-1.5 p-3 text-left">
+          <p className="font-semibold text-xs leading-snug">{displayTitle}</p>
+          {previewContent && (
+            <p className="text-[11px] opacity-80 leading-snug">
+              {previewContent}{post.content && post.content.length > 200 ? "..." : ""}
+            </p>
+          )}
+          {scheduledDate && (
+            <p className="text-[10px] opacity-70">
+              {format(scheduledDate, "MMM d, yyyy")} at {format(scheduledDate, "h:mm a")}
+            </p>
+          )}
+          <div className="flex items-center gap-1.5">
+            {statusConfig && (
+              <span className={cn("inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium", statusConfig.color)}>
+                {statusConfig.label}
+              </span>
+            )}
+            {(post.content_pillars ?? []).map((pillar: string) => (
+              <span key={pillar} className="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium">
+                {pillar}
+              </span>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -200,7 +296,10 @@ export default function CalendarPage() {
     return (
       <button
         key={post.id}
-        onClick={() => router.push(`/posts/${post.id}`)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedPost(post);
+        }}
         className={cn(
           "w-full rounded-lg border text-left transition-opacity hover:opacity-80 overflow-hidden",
           statusConfig?.color ?? "bg-gray-100 text-gray-700"
@@ -208,7 +307,7 @@ export default function CalendarPage() {
       >
         {post.image_url && (
           <div className="w-full h-16 overflow-hidden">
-            <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+            <img src={post.image_url} alt="" className="w-full h-full object-cover rounded-t-lg" />
           </div>
         )}
         <div className="p-2">
@@ -260,7 +359,7 @@ export default function CalendarPage() {
               </div>
               <div className="flex items-center gap-1">
                 {/* View toggles */}
-                <div className="flex rounded-md border border-input mr-2">
+                <div id="tour-calendar-views" className="flex rounded-md border border-input mr-2">
                   {(["month", "week", "day"] as CalendarView[]).map((v) => (
                     <button
                       key={v}
@@ -455,10 +554,28 @@ export default function CalendarPage() {
         </Card>
 
         {/* Upcoming posts — right side */}
-        <div className="w-full lg:w-[390px] shrink-0 space-y-3">
+        <div id="tour-upcoming-posts" className="w-full lg:w-[390px] shrink-0 space-y-3">
           <div className="flex items-center gap-2 px-1">
             <Clock className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Upcoming Posts</h2>
+            <div className="ml-auto flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setUpcomingView("card")}
+                className={cn(upcomingView === "card" ? "text-primary" : "text-muted-foreground")}
+              >
+                <LayoutGrid className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setUpcomingView("list")}
+                className={cn(upcomingView === "list" ? "text-primary" : "text-muted-foreground")}
+              >
+                <List className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           {loading ? (
@@ -477,7 +594,68 @@ export default function CalendarPage() {
                 </p>
               </CardContent>
             </Card>
+          ) : upcomingView === "list" ? (
+            /* ── List view ── */
+            <Card className="divide-y">
+              {upcomingPosts.map((post) => {
+                const statusConfig =
+                  POST_STATUSES[post.status as keyof typeof POST_STATUSES];
+                const scheduledDate = post.scheduled_for
+                  ? new Date(post.scheduled_for)
+                  : null;
+
+                const displayTitle =
+                  post.title ||
+                  (post.content
+                    ? post.content.slice(0, 50) + "..."
+                    : "Untitled Post");
+
+                return (
+                  <div
+                    key={post.id}
+                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors hover:bg-hover-highlight"
+                    onClick={() => setSelectedPost(post)}
+                  >
+                    {/* Thumbnail */}
+                    {post.image_url ? (
+                      <img
+                        src={post.image_url}
+                        alt=""
+                        className="size-10 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <FileText className="size-4 text-muted-foreground" />
+                      </div>
+                    )}
+
+                    {/* Title + schedule */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug truncate">
+                        {displayTitle}
+                      </p>
+                      {scheduledDate && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(scheduledDate, "MMM d")} at {format(scheduledDate, "h:mm a")}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Status badge */}
+                    {statusConfig && (
+                      <Badge
+                        variant="secondary"
+                        className={`${statusConfig.color} text-[10px] shrink-0`}
+                      >
+                        {statusConfig.label}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </Card>
           ) : (
+            /* ── Card view ── */
             upcomingPosts.map((post) => {
               const statusConfig =
                 POST_STATUSES[post.status as keyof typeof POST_STATUSES];
@@ -494,16 +672,24 @@ export default function CalendarPage() {
               return (
                 <Card
                   key={post.id}
-                  className="cursor-pointer transition-colors hover:bg-hover-highlight overflow-hidden"
-                  onClick={() => router.push(`/posts/${post.id}`)}
+                  className={`cursor-pointer transition-colors hover:bg-hover-highlight overflow-hidden ${post.image_url ? "pt-0 gap-0" : ""}`}
+                  onClick={() => setSelectedPost(post)}
                 >
                   {post.image_url && (
-                    <div className="w-full h-24 overflow-hidden">
-                      <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                    <div className="relative w-full h-24 overflow-hidden">
+                      <img src={post.image_url} alt="" className="w-full h-full object-cover rounded-t-xl" />
+                      {statusConfig && (
+                        <Badge
+                          variant="secondary"
+                          className={`${statusConfig.color} text-[10px] absolute bottom-2 left-2 shadow-sm`}
+                        >
+                          {statusConfig.label}
+                        </Badge>
+                      )}
                     </div>
                   )}
                   <CardContent className="space-y-2 p-3">
-                    {statusConfig && (
+                    {!post.image_url && statusConfig && (
                       <Badge
                         variant="secondary"
                         className={`${statusConfig.color} text-[10px]`}
@@ -515,11 +701,8 @@ export default function CalendarPage() {
                       {displayTitle}
                     </p>
                     {scheduledDate && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <CalendarIcon className="size-3" />
-                        <span>{format(scheduledDate, "MMM d")}</span>
-                        <span>at</span>
-                        <span>{format(scheduledDate, "h:mm a")}</span>
+                      <div className="text-[10px] text-purple-600 dark:text-purple-400 leading-snug">
+                        Will publish to LinkedIn on {format(scheduledDate, "MMM d")} at {format(scheduledDate, "h:mm a")}
                       </div>
                     )}
                     {(post.content_pillars ?? []).map((pillar: string) => (
@@ -527,6 +710,33 @@ export default function CalendarPage() {
                         {pillar}
                       </Badge>
                     ))}
+                    <div className="flex gap-1.5 pt-1">
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="gap-1 text-[10px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReschedulePost(post);
+                          setRescheduleDialogOpen(true);
+                        }}
+                      >
+                        <CalendarClock className="size-3" />
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="gap-1 text-[10px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePostNow(post);
+                        }}
+                      >
+                        <Send className="size-3" />
+                        Post Now
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -534,6 +744,26 @@ export default function CalendarPage() {
           )}
         </div>
       </div>
+
+      {/* Reschedule dialog */}
+      <ScheduleDialog
+        open={rescheduleDialogOpen}
+        onOpenChange={setRescheduleDialogOpen}
+        onSchedule={handleReschedule}
+        initialDate={reschedulePost?.scheduled_for ? new Date(reschedulePost.scheduled_for) : undefined}
+      />
+
+      {/* Post preview sheet */}
+      <PostPreviewSheet
+        post={selectedPost}
+        open={!!selectedPost}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPost(null);
+        }}
+        authorName={authorName}
+        authorHeadline={authorHeadline}
+        onEdit={(post) => router.push(`/posts/${post.id}`)}
+      />
     </div>
   );
 }

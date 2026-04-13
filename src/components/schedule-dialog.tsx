@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { CalendarIcon, Clock, Sparkles, Zap } from "lucide-react";
 import {
   Dialog,
@@ -20,6 +20,7 @@ interface ScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSchedule: (date: Date) => void;
+  initialDate?: Date;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -76,11 +77,23 @@ export function ScheduleDialog({
   open,
   onOpenChange,
   onSchedule,
+  initialDate,
 }: ScheduleDialogProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [hour, setHour] = useState(9);
   const [minute, setMinute] = useState("00");
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
+  // Pre-populate from initialDate when dialog opens
+  useEffect(() => {
+    if (open && initialDate) {
+      setSelectedDate(initialDate);
+      const h = initialDate.getHours();
+      setHour(h === 0 ? 12 : h > 12 ? h - 12 : h);
+      setMinute(String(initialDate.getMinutes()).padStart(2, "0"));
+      setPeriod(h >= 12 ? "PM" : "AM");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const upcomingSuggestions = useMemo(() => getUpcomingSuggestions(4), []);
 

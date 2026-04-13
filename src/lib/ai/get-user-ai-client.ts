@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/encryption";
-import { createAIClient, type AIClient, type AIProvider } from "./providers";
+import {
+  createAIClient,
+  createGatewayClient,
+  getDefaultModel,
+  type AIClient,
+  type AIProvider,
+} from "./providers";
 import type { CreatorProfile } from "@/types";
 
 // System-level API keys for managed/trial access (env vars, never exposed to browser)
@@ -27,9 +33,14 @@ function getSystemKey(provider: AIProvider): string | null {
   return SYSTEM_AI_KEYS[provider] ?? null;
 }
 
-interface UserAIContext {
+export type AISource = "gateway" | "byok" | "system_key";
+
+export interface UserAIContext {
   client: AIClient;
   profile: CreatorProfile;
+  source: AISource;
+  provider: AIProvider;
+  model: string;
 }
 
 /**
@@ -63,6 +74,22 @@ export async function getUserAIClient(
   const creatorProfile = profile as CreatorProfile;
   const targetProvider = forProvider || (creatorProfile.ai_provider as AIProvider);
 
+  // Gateway is available if either OIDC (preferred, project-attributed) or the
+  // team-scoped API key is configured.
+  const gatewayAvailable =
+    !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
+
+  // Resolve the model string used for logging + gateway model ID
+  const resolvedModel = creatorProfile.ai_model || getDefaultModel(targetProvider);
+
+  // Force AI Gateway: testing/dev toggle that bypasses BYOK keys entirely.
+  // Takes precedence over all key lookups below.
+  if (creatorProfile.force_ai_gateway && gatewayAvailable) {
+    console.log(`[AI Gateway] FORCED ${targetProvider}/${resolvedModel} via user setting`);
+    const client = createGatewayClient(targetProvider, resolvedModel);
+    return { client, profile: creatorProfile, source: "gateway", provider: targetProvider, model: resolvedModel };
+  }
+
   // Try to get key from ai_provider_keys table first
   const { data: providerKey } = await supabase
     .from("ai_provider_keys")
@@ -93,9 +120,24 @@ export async function getUserAIClient(
       authTag: creatorProfile.ai_api_key_auth_tag,
     });
   } else {
-    // Fallback: check managed AI access (trial/beta) with system keys
-    const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(targetProvider) : null;
+    // Managed AI access: prefer Vercel AI Gateway, fall back to direct system keys
+    if (!hasManagedAccess(creatorProfile)) {
+      throw new Error(
+        `No API key configured for ${targetProvider}. Please add your API key in Settings.`
+      );
+    }
+
+    // Route through Vercel AI Gateway if configured
+    if (gatewayAvailable) {
+      console.log(`[AI Gateway] Routing ${targetProvider}/${resolvedModel} via Vercel AI Gateway`);
+      const client = createGatewayClient(targetProvider, resolvedModel);
+      return { client, profile: creatorProfile, source: "gateway", provider: targetProvider, model: resolvedModel };
+    }
+
+    // Fallback: direct system keys (local dev / gateway not configured)
+    const systemKey = getSystemKey(targetProvider);
     if (systemKey) {
+      console.log(`[Direct] Using system key for ${targetProvider}`);
       apiKey = systemKey;
     } else {
       throw new Error(
@@ -104,21 +146,33 @@ export async function getUserAIClient(
     }
   }
 
+  // Determine source: BYOK if we found a personal key, system_key if we fell through to managed access
+  const source: AISource = (providerKey ||
+    (creatorProfile.ai_api_key_encrypted &&
+      creatorProfile.ai_provider === targetProvider))
+    ? "byok"
+    : "system_key";
+
   const client = createAIClient(
     targetProvider,
     apiKey,
     creatorProfile.ai_model
   );
 
-  return { client, profile: creatorProfile };
+  return { client, profile: creatorProfile, source, provider: targetProvider, model: resolvedModel };
 }
 
 /**
  * Get the decrypted API key for a specific provider.
  * Useful for image generation and other non-chat uses.
+ *
+ * @param provider  The AI provider to fetch a key for
+ * @param keyType   'text' (default) or 'image' — image generation uses
+ *                  separate keys stored with key_type='image'
  */
 export async function getProviderApiKey(
-  provider: AIProvider
+  provider: AIProvider,
+  keyType: "text" | "image" = "text"
 ): Promise<{ apiKey: string; profile: CreatorProfile }> {
   const supabase = await createClient();
 
@@ -138,12 +192,13 @@ export async function getProviderApiKey(
 
   const creatorProfile = profile as CreatorProfile;
 
-  // Try provider keys table first
+  // Try provider keys table first (filtered by key_type)
   const { data: providerKey } = await supabase
     .from("ai_provider_keys")
     .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
     .eq("user_id", user.id)
     .eq("provider", provider)
+    .eq("key_type", keyType)
     .single();
 
   if (providerKey) {
@@ -157,8 +212,24 @@ export async function getProviderApiKey(
     };
   }
 
-  // Fall back to legacy key if provider matches
-  if (
+  // Fall back to legacy single-slot keys on creator_profiles
+  if (keyType === "image") {
+    if (
+      creatorProfile.image_ai_provider === provider &&
+      creatorProfile.image_ai_api_key_encrypted &&
+      creatorProfile.image_ai_api_key_iv &&
+      creatorProfile.image_ai_api_key_auth_tag
+    ) {
+      return {
+        apiKey: decrypt({
+          ciphertext: creatorProfile.image_ai_api_key_encrypted,
+          iv: creatorProfile.image_ai_api_key_iv,
+          authTag: creatorProfile.image_ai_api_key_auth_tag,
+        }),
+        profile: creatorProfile,
+      };
+    }
+  } else if (
     creatorProfile.ai_provider === provider &&
     creatorProfile.ai_api_key_encrypted &&
     creatorProfile.ai_api_key_iv &&
@@ -174,7 +245,8 @@ export async function getProviderApiKey(
     };
   }
 
-  // Fallback: managed AI access with system keys
+  // Fallback: managed AI access with system keys (text only — image gen
+  // does not go through the gateway in Phase 1)
   const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(provider) : null;
   if (systemKey) {
     return { apiKey: systemKey, profile: creatorProfile };

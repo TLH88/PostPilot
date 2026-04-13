@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, FileEdit } from "lucide-react";
+import { Loader2, ExternalLink, FileEdit, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ImageUpload } from "@/components/posts/image-upload";
+import { ImageVersionPicker } from "@/components/posts/image-version-picker";
 import { toast } from "sonner";
 
 interface PublishPreviewDialogProps {
@@ -35,6 +36,8 @@ interface PublishPreviewDialogProps {
   onTokenExpired?: () => void;
   /** Called when image changes */
   onImageChange?: (imageUrl: string | null) => void;
+  /** Called when user clicks Schedule */
+  onSchedule?: () => void;
 }
 
 export function PublishPreviewDialog({
@@ -51,6 +54,7 @@ export function PublishPreviewDialog({
   onPublished,
   onTokenExpired,
   onImageChange,
+  onSchedule,
 }: PublishPreviewDialogProps) {
   const [publishing, setPublishing] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(
@@ -166,37 +170,48 @@ export function PublishPreviewDialog({
           />
         </div>
 
-        {/* Actions */}
-        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => handleClose(false)}
-              disabled={publishing}
-            >
-              Cancel
-            </Button>
-
-            {showEditorLink && (
-              <Button
-                variant="outline"
-                className="gap-1.5"
-                onClick={handleOpenInEditor}
-                disabled={publishing}
-              >
-                <FileEdit className="size-3.5" />
-                Open in Editor
-              </Button>
-            )}
-          </div>
-
-          <div className="flex gap-2">
+        {/* Image selector + version history */}
+        <div className="space-y-2 border-t pt-3">
+          <div className="flex items-center gap-2">
             <ImageUpload
               postId={postId}
               imageUrl={currentImageUrl}
               onImageChange={handleImageChange}
               compact
             />
+          </div>
+          <ImageVersionPicker
+            postId={postId}
+            currentImageUrl={currentImageUrl}
+            onImageChange={handleImageChange}
+          />
+        </div>
+
+        {/* Actions */}
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          <Button
+            variant="outline"
+            onClick={() => handleClose(false)}
+            disabled={publishing}
+          >
+            Cancel
+          </Button>
+
+          <div className="flex gap-2">
+            {onSchedule && (
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => {
+                  onOpenChange(false);
+                  onSchedule();
+                }}
+                disabled={publishing}
+              >
+                <CalendarClock className="size-3.5" />
+                Schedule
+              </Button>
+            )}
 
             <Button
               className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"

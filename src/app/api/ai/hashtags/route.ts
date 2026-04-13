@@ -8,8 +8,11 @@ import {
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { HashtagsInputSchema, HashtagsResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { checkQuota, incrementQuota } from "@/lib/quota";
+import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 
 export async function POST(request: NextRequest) {
+  let activeProvider: string | undefined;
+  const startTime = Date.now();
   try {
     const body = await request.json();
 
@@ -23,7 +26,8 @@ export async function POST(request: NextRequest) {
 
     const { content, count } = parsed.data;
 
-    const { client, profile } = await getUserAIClient();
+    const { client, profile, source, provider, model } = await getUserAIClient();
+    activeProvider = provider;
 
     // Quota check
     const quota = await checkQuota(profile.user_id, "chat_messages");
@@ -73,9 +77,33 @@ export async function POST(request: NextRequest) {
     }
 
     await incrementQuota(profile.user_id, "chat_messages");
+
+    logAiUsage({
+      userId: profile.user_id,
+      route: "hashtags",
+      provider,
+      model,
+      source,
+      usage: response.usage,
+      generationId: response.generationId,
+      success: true,
+      latencyMs: Date.now() - startTime,
+    });
+
     return NextResponse.json(validated.data);
   } catch (error) {
     logApiError("api/ai/hashtags", error);
+
+    logAiUsage({
+      userId: "unknown",
+      route: "hashtags",
+      provider: activeProvider ?? "unknown",
+      model: "unknown",
+      source: "gateway",
+      success: false,
+      errorCode: classifyAiError(error),
+      latencyMs: Date.now() - startTime,
+    });
 
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -84,9 +112,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const humanized = humanizeAIError(error);
+    const humanized = humanizeAIError(error, activeProvider);
     return NextResponse.json(
-      { error: humanized.message, action: humanized.action },
+      { error: humanized.message, action: humanized.action, isCreditError: humanized.isCreditError, providerName: humanized.providerName, billingUrl: humanized.billingUrl },
       { status: humanized.status }
     );
   }

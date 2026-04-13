@@ -8,7 +8,7 @@ const VALID_PROVIDERS = ["anthropic", "openai", "google", "perplexity"];
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { provider, apiKey, aiModel, imageProvider, imageModel, imageApiKey } = body;
+    const { provider, apiKey, aiModel, imageProvider, imageModel, imageApiKey, forceAiGateway } = body;
 
     const supabase = await createClient();
     const {
@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
+
+    // Force AI Gateway toggle (testing/dev aid)
+    if (typeof forceAiGateway === "boolean") {
+      updateData.force_ai_gateway = forceAiGateway;
+    }
 
     // Text AI provider settings
     if (provider) {

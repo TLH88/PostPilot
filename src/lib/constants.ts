@@ -16,18 +16,38 @@ export const POST_STATUSES = {
   archived: { label: "Archived", color: "bg-gray-100 text-gray-800" },
 } as const;
 
-export const IDEA_TEMPERATURES = {
-  hot: { label: "Hot", color: "bg-red-100 text-red-700", icon: "🔥" },
-  warm: { label: "Warm", color: "bg-orange-100 text-orange-700", icon: "☀️" },
-  cold: { label: "Cold", color: "bg-blue-100 text-blue-700", icon: "❄️" },
-} as const;
-
 export const IDEA_STATUSES = {
   captured: { label: "Captured", color: "bg-gray-100 text-gray-700" },
   developing: { label: "Developing", color: "bg-yellow-100 text-yellow-700" },
   converted: { label: "Converted", color: "bg-green-100 text-green-700" },
   archived: { label: "Archived", color: "bg-gray-100 text-gray-500" },
 } as const;
+
+// User-assigned priority for triaging ideas. Deliberately distinct from the
+// removed temperature feature: priority is user-set, reversible, and optional.
+// "No priority" (null) is a valid default state.
+export const IDEA_PRIORITIES = {
+  high: {
+    label: "High",
+    color:
+      "bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/20 dark:text-red-200 dark:border-red-500/40",
+    order: 3,
+  },
+  medium: {
+    label: "Medium",
+    color:
+      "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-400/25 dark:text-amber-50 dark:border-amber-400/60",
+    order: 2,
+  },
+  low: {
+    label: "Low",
+    color:
+      "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-500/25 dark:text-slate-200 dark:border-slate-500/40",
+    order: 1,
+  },
+} as const;
+
+export type IdeaPriority = keyof typeof IDEA_PRIORITIES;
 
 export const EXPERTISE_SUGGESTIONS = [
   "AI/ML",
@@ -163,6 +183,9 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   templates: "creator",
   image_generation: "creator",
   analytics: "creator",
+  byok_ai_keys: "professional",
+  byok_image_keys: "professional",
+  review_status: "team",
   workspaces: "team",
   brand_onboarding: "team",
 } as const;

@@ -8,9 +8,10 @@ import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 
 interface GenerateIdeasButtonProps {
   className?: string;
+  id?: string;
 }
 
-export function GenerateIdeasButton({ className }: GenerateIdeasButtonProps) {
+export function GenerateIdeasButton({ className, id }: GenerateIdeasButtonProps) {
   const [open, setOpen] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
   const [contentPillars, setContentPillars] = useState<string[]>([]);
@@ -44,6 +45,7 @@ export function GenerateIdeasButton({ className }: GenerateIdeasButtonProps) {
     <>
       <button
         type="button"
+        id={id}
         onClick={() => setOpen(true)}
         className={className}
       >

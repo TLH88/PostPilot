@@ -40,6 +40,8 @@ export interface CreatorProfile {
   // Managed AI access (trial / beta)
   managed_ai_access: boolean;
   managed_ai_expires_at: string | null;
+  // Force all AI requests through Vercel AI Gateway (bypasses BYOK keys)
+  force_ai_gateway: boolean;
   // Subscription
   subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
   created_at: string;
@@ -92,9 +94,9 @@ export interface Idea {
   title: string;
   description: string | null;
   source: string | null;
-  temperature: "hot" | "warm" | "cold";
   content_pillars: string[];
   tags: string[];
+  priority: "low" | "medium" | "high" | null;
   status: "captured" | "developing" | "converted" | "archived";
   created_at: string;
   updated_at: string;
@@ -110,6 +112,7 @@ export interface Post {
   content_pillars: string[];
   status: "draft" | "review" | "scheduled" | "posted" | "past_due" | "archived";
   scheduled_for: string | null;
+  scheduled_at: string | null;
   posted_at: string | null;
   hashtags: string[];
   character_count: number;
@@ -211,6 +214,9 @@ export interface AIMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  isCreditError?: boolean;
+  providerName?: string;
+  billingUrl?: string;
 }
 
 export interface AIConversation {
