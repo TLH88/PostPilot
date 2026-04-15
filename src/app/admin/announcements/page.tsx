@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,8 @@ export default function AdminAnnouncementsPage() {
   const [deleteTarget, setDeleteTarget] = useState<ReleaseNote | null>(null);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
+
+  const [generating, setGenerating] = useState(false);
 
   // Form state
   const [version, setVersion] = useState("");
@@ -92,6 +94,42 @@ export default function AdminAnnouncementsPage() {
 
   function itemsToText(items: { title: string; description: string }[]): string {
     return items.map((i) => `${i.title}: ${i.description}`).join("\n");
+  }
+
+  async function handleGenerateWithAI() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/announcements/generate", {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate");
+      }
+      const { announcement } = await res.json();
+      setTitle(announcement.title || "");
+      setDescription(announcement.description || "");
+      setFeaturesText(
+        (announcement.features || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
+      setBugFixesText(
+        (announcement.bug_fixes || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
+      setRoadmapText(
+        (announcement.roadmap || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
+      toast.success("AI draft generated! Review and edit before saving.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate announcement.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function openCreate() {
@@ -244,6 +282,27 @@ export default function AdminAnnouncementsPage() {
             <DialogTitle>{editing ? "Edit Announcement" : "New Announcement"}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 min-h-0 space-y-4">
+            {/* Generate with AI button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={handleGenerateWithAI}
+              disabled={generating}
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Generating draft from activity log...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" />
+                  Generate Draft with AI
+                </>
+              )}
+            </Button>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Version</Label>

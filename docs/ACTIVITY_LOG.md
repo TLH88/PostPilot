@@ -4,32 +4,83 @@
 
 ---
 
-## 2026-04-13: Tutorial SDK Phase 1 + UI Polish + Bug Notes
+## 2026-04-15: Tutorial SDK, BP-086, Calendar & Admin Improvements
 
-### Tutorial SDK
+### Tutorial SDK Phase 1 (Standalone Package)
 - Built `@postpilot/tutorial-sdk` as standalone npm package in `packages/tutorial-sdk/`
-- Backend-agnostic with adapter interfaces (LocalStorage + Supabase built-in)
-- Card templates: OverviewCard (media slot) + SimpleCard (minimal)
-- Features: spotlight overlay, 15s timeout prompt, first-login gate, tutorial chaining, draggable cards
-- Integrated into PostPilot via TutorialBridge client component
-- Created tutorials: Full App Overview → How to Generate Ideas → How to Develop an Idea
+- Set up npm workspaces monorepo structure
+- Backend-agnostic architecture with adapter interfaces (LocalStorage + Supabase)
+- Core engine: state machine with subscribe pattern, action detector (click/navigate/formInput/elementExists), 15s timeout timer
+- Card templates: OverviewCard (media slot) + SimpleCard (minimal) with animated border beam effect (SVG stroke-dasharray animation using primary color)
+- TutorialGate: first-login "Want a tour?" modal
+- TutorialOverlay: CSS clip-path spotlight, element tracking, native pointer drag (replaces framer-motion drag)
+- Tutorial chaining: `chainToTutorialId` field auto-starts next tutorial on completion
+- Navigation awareness: tutorial auto-closes if user navigates away from the expected page
+- Tutorial list slide-out: right-side panel on final cards showing all other tutorials
+- Theming: CSS custom properties applied to document root (no wrapper div that breaks portals)
+- Supabase tables: `tutorial_progress` + `tutorial_user_state` with RLS policies
+
+### Tutorials Implemented (8 total)
+1. **Full Application Overview** (4 steps) — sidebar nav, settings, theme/logout, chains to idea generation
+2. **Dashboard Overview** (7 steps) — metrics, quick actions, drafts, recent ideas, usage, content balance, tutorial list
+3. **Idea Bank Overview** (5 steps) — workflow, generator, filters, cards
+4. **Posts Page Overview** (4 steps) — metrics, new post, filters, cards with action buttons
+5. **Calendar Page Overview** (6 steps) — intro, grid with color coding, views, upcoming posts, card/list toggle
+6. **System Management Overview** (3 steps) — settings (with BYOK note), help center, profile (navigates to each page)
+7. **How to Generate Ideas with AI** (5 steps) — formInput detection for topic, click detection for Generate button, elementExists for generated ideas, manual save selection
+8. **How to Develop an Idea into a Post** (10 steps) — navigate detection for Develop click, progress bar, AI draft, Apply to Editor, content editing, emojis/formatting, AI chat, hashtags, versions, publish
+
+### Action Detector Improvements
+- Multi-strategy detection: capture-phase event listeners + DOM polling (300ms) + MutationObserver
+- `formInput` action: polls input value directly (handles React-controlled inputs), listens for input/change/keyup events, finds inputs inside wrapper components
+- `elementExists` action: combines polling with MutationObserver for faster detection
+- `navigate` action: supports prefix matching (e.g., `/posts` matches `/posts/abc-123`)
+- All strategies share a single `complete()` function with fired-once guard
+
+### BP-086: Show Directly Published Posts on Calendar
+- New `publish_method` column on posts table: `'scheduled'` | `'direct'` | `'manual'`
+- Migration with backfill for existing posted posts
+- Publish API sets method based on whether `scheduled_for` was set
+- Mark-posted-dialog and past-due-checker set `publish_method: 'manual'`
+- Calendar query updated: `.or("scheduled_for.not.is.null,status.eq.posted")`
+- `postsByDate` uses `scheduled_for ?? posted_at` as date key
+- Upcoming Posts panel unchanged (forward-looking only, excludes posted)
+- `PUBLISH_METHODS` constants with distinct colors (green/blue/teal)
+
+### Calendar Improvements
+- LinkedIn-style hover preview on post pills (author info, content preview, image, pillars)
+- Conditional action buttons: Edit + Reschedule for scheduled, Edit + View on LinkedIn for posted
+- Preview dialog (centered modal) with LinkedIn preview and conditional buttons
+- Preview button added to Upcoming Posts card view
+- Tour IDs added: `#tour-calendar-grid`, `#tour-upcoming-view-toggle`
 
 ### UI Polish
-- Darker light theme background, blue card glow (light + dark)
+- Darker light theme background (`oklch(0.955)` from `0.98`), blue card glow (light + dark)
 - Card images flush to top with overlaid status pills (dashboard, posts, calendar)
 - Post preview sheet on calendar (replaces navigation)
 - Card/list view toggle for Upcoming Posts
 - Outlined Actions/Copy buttons, Idea Bank search borders, tag hint color
-- Replaced right-click brainstorm menu with floating selection button (restores native spelling context menu)
+- Brainstorm: floating selection button replaces right-click context menu (restores native spelling)
+- Engagement analytics moved from bottom of editor to below progress bar
+- Tour IDs added across posts page, calendar, top bar, idea generator
+
+### Admin Announcements
+- AI-powered draft generation: reads `docs/ACTIVITY_LOG.md` and `docs/BACKLOG.md`
+- New API endpoint `/api/admin/announcements/generate` using `createMessage` (non-streamed)
+- Generates structured JSON: title, description, features, bug fixes, roadmap
+- Admin reviews and edits before saving/publishing
+- Uses `verifyAdmin()` for secure admin authentication (email whitelist)
+
+### Backlog Items Added
+- **BP-086:** Show Directly Published Posts on Calendar (completed)
+- **BP-087:** Published Post View — separate `/posts/{id}/published` route for posted content analytics
 
 ### Known Bug — Auto-Draft Not Generating
-- **Issue**: When developing an idea into a post, the AI should automatically generate an initial draft in the editor. This is not happening — the editor opens with empty content.
-- **Expected**: First time the post editor opens with a title present (from idea development), the AI assistant should auto-draft the post content.
-- **Impact**: Users must manually trigger drafting, which breaks the "idea → post" flow.
+- **Issue**: When developing an idea into a post, the AI should automatically generate an initial draft in the editor. This is not happening.
 - **Status**: Documented for separate investigation. Not blocking tutorials.
 
 ### Removed from Editor
-- "Start Initial Draft" button and "Use Template" picker removed from empty editor state (redundant with AI auto-draft flow)
+- "Start Initial Draft" button and "Use Template" picker removed from empty editor state
 
 ---
 
