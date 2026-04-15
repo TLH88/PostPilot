@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTutorial } from "@/lib/tutorials/tutorial-provider";
-import { TUTORIAL_REGISTRY } from "@/lib/tutorials/tutorial-definitions";
+import { useTutorial } from "@postpilot/tutorial-sdk";
+import { TUTORIAL_REGISTRY } from "@/lib/tutorials/definitions";
 
 /**
  * Section for the Help page that lets users restart tutorials.

@@ -24,7 +24,8 @@ import { POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
-import { TutorialAutoStart } from "@/components/tutorial/tutorial-auto-start";
+// Old tutorial auto-start disabled — replaced by TutorialGate in tutorial-bridge
+// import { TutorialAutoStart } from "@/components/tutorial/tutorial-auto-start";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -154,7 +155,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <TutorialAutoStart tutorialId="overview-app" />
+      {/* TutorialAutoStart removed — first-login is handled by TutorialGate in layout */}
       {/* Onboarding banner */}
       {profile && !profile.onboarding_completed && (
         <Card className="border-primary/20 bg-primary/5">
@@ -331,7 +332,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Recent Ideas */}
-          <Card>
+          <Card id="tour-recent-ideas">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lightbulb className="size-4 text-yellow-500" />
@@ -380,11 +381,13 @@ export default async function DashboardPage() {
           <div className="hidden lg:block h-5" />
           <div id="tour-usage-summary"><UsageSummary /></div>
           {contentPillars.length > 0 && (
-            <ContentPillarBalance
-              pillarCounts={pillarCounts}
-              totalPosts={totalPillarPosts}
-              title="Content Balance"
-            />
+            <div id="tour-content-balance">
+              <ContentPillarBalance
+                pillarCounts={pillarCounts}
+                totalPosts={totalPillarPosts}
+                title="Content Balance"
+              />
+            </div>
           )}
         </div>
       </div>

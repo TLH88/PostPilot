@@ -40,6 +40,7 @@ export function MarkPostedDialog({
     const updates: Record<string, unknown> = {
       status: "posted",
       posted_at: new Date().toISOString(),
+      publish_method: "manual",
       updated_at: new Date().toISOString(),
     };
 

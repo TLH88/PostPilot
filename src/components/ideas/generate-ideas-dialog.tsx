@@ -269,7 +269,7 @@ export function GenerateIdeasDialog({
           </div>
 
           {/* Content pillar selector */}
-          <div className="space-y-2">
+          <div id="tour-pillar-selector" className="space-y-2">
             <Label>Content Pillar (optional)</Label>
             <div className="flex flex-wrap gap-2">
               {pillars.map((pillar) => (
@@ -330,6 +330,7 @@ export function GenerateIdeasDialog({
 
           {/* Generate button */}
           <Button
+            id="tour-generate-btn"
             onClick={handleGenerate}
             disabled={generating || !topic.trim()}
             className="w-full"
@@ -349,7 +350,7 @@ export function GenerateIdeasDialog({
 
           {/* Generated ideas list */}
           {generatedIdeas.length > 0 && (
-            <div className="space-y-3 pt-2">
+            <div id="tour-generated-ideas" className="space-y-3 pt-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Generated Ideas
               </p>

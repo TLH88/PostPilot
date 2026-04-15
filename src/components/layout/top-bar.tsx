@@ -64,20 +64,20 @@ export function TopBar({ userName, userTier = "free" }: TopBarProps) {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Theme toggle */}
-        <ThemeToggle />
-
-        {/* Sign out */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleSignOut}
-          title="Sign out"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="size-4" />
-          <span className="sr-only">Sign out</span>
-        </Button>
+        {/* Theme toggle + Sign out */}
+        <div id="tour-top-controls" className="flex items-center gap-1">
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            title="Sign out"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="size-4" />
+            <span className="sr-only">Sign out</span>
+          </Button>
+        </div>
       </header>
 
       {/* Mobile navigation sheet */}
