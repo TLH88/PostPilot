@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Archive,
   ArrowLeft,
@@ -269,6 +270,13 @@ export default function PostWorkspacePage() {
       }
 
       const p = postData as Post;
+
+      // Redirect posted posts to the published view (unless explicitly editing)
+      if (p.status === "posted" && searchParams.get("edit") !== "true") {
+        router.replace(`/posts/${postId}/published`);
+        return;
+      }
+
       setPost(p);
       setTitle(p.title ?? "");
       setContent(p.content ?? "");
@@ -1305,6 +1313,20 @@ export default function PostWorkspacePage() {
         postedAt={post?.posted_at ? new Date(post.posted_at) : null}
       />
       </div>
+
+      {/* Warning banner when editing a published post via ?edit=true */}
+      {status === "posted" && searchParams.get("edit") === "true" && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span className="flex-1">You are editing a published post. Changes here will not update the LinkedIn post.</span>
+          <Link
+            href={`/posts/${postId}/published`}
+            className="shrink-0 inline-flex items-center rounded-lg px-2 py-1 text-xs font-medium hover:bg-muted transition-colors"
+          >
+            Back to Published View
+          </Link>
+        </div>
+      )}
 
       {/* Engagement Analytics — posted posts only, below progress bar */}
       {["posted", "archived"].includes(status) && hasFeature(userTier, "analytics") && (

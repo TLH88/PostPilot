@@ -6,6 +6,15 @@ export interface LinkedInTokenResponse {
   access_token: string;
   expires_in: number;
   refresh_token?: string;
+  scope?: string;
+}
+
+export interface LinkedInEngagementData {
+  impressions: number;
+  reactions: number;
+  comments: number;
+  reposts: number;
+  engagements: number;
 }
 
 export interface LinkedInPublishResult {
@@ -61,6 +70,7 @@ export async function exchangeCodeForTokens(
     access_token: data.access_token,
     expires_in: data.expires_in,
     refresh_token: data.refresh_token,
+    scope: data.scope,
   };
 }
 
@@ -234,5 +244,67 @@ export async function refreshLinkedInToken(
     access_token: data.access_token,
     expires_in: data.expires_in,
     refresh_token: data.refresh_token,
+    scope: data.scope,
   };
+}
+
+/**
+ * Fetch engagement analytics for a specific LinkedIn post.
+ * Requires `r_member_postAnalytics` OAuth scope.
+ * Uses the memberCreatorPostAnalytics API with per-metric TOTAL aggregation.
+ * See: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/members/post-statistics
+ */
+export async function fetchPostEngagement(
+  accessToken: string,
+  postUrn: string
+): Promise<LinkedInEngagementData> {
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "X-Restli-Protocol-Version": "2.0.0",
+    "LinkedIn-Version": "202602",
+    "Content-Type": "application/json",
+  };
+
+  // The post URN from LinkedIn is typically "urn:li:share:123" or "urn:li:ugcPost:123"
+  // The entity parameter format: entity=(share:urn%3Ali%3Ashare%3A123) or entity=(ugc:urn%3Ali%3AugcPost%3A123)
+  let entityParam: string;
+  if (postUrn.includes("ugcPost")) {
+    entityParam = `(ugc:${encodeURIComponent(postUrn)})`;
+  } else {
+    entityParam = `(share:${encodeURIComponent(postUrn)})`;
+  }
+
+  const metricTypes = ["IMPRESSION", "REACTION", "COMMENT", "RESHARE"] as const;
+  const results: Record<string, number> = {};
+
+  // Fetch each metric type in parallel with TOTAL aggregation
+  const fetches = metricTypes.map(async (metricType) => {
+    try {
+      const url = `https://api.linkedin.com/rest/memberCreatorPostAnalytics?q=entity&entity=${entityParam}&queryType=${metricType}&aggregation=TOTAL`;
+      const res = await fetch(url, { headers });
+
+      if (res.ok) {
+        const data = await res.json();
+        const total = data.elements?.reduce(
+          (sum: number, el: { count?: number }) => sum + (el.count ?? 0),
+          0
+        ) ?? 0;
+        results[metricType] = total;
+      } else {
+        results[metricType] = 0;
+      }
+    } catch {
+      results[metricType] = 0;
+    }
+  });
+
+  await Promise.all(fetches);
+
+  const impressions = results.IMPRESSION ?? 0;
+  const reactions = results.REACTION ?? 0;
+  const comments = results.COMMENT ?? 0;
+  const reposts = results.RESHARE ?? 0;
+  const engagements = reactions + comments + reposts;
+
+  return { impressions, reactions, comments, reposts, engagements };
 }

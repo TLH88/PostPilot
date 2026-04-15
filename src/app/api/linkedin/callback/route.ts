@@ -50,14 +50,20 @@ export async function GET(request: NextRequest) {
       Date.now() + tokens.expires_in * 1000
     ).toISOString();
 
+    // Parse granted scopes from token response
+    const grantedScopes = tokens.scope
+      ? tokens.scope.split(/[\s,]+/).filter(Boolean)
+      : [];
+
     // Build the update object
-    const updateData: Record<string, string | null> = {
+    const updateData: Record<string, string | string[] | null> = {
       linkedin_access_token_encrypted: encryptedAccess.ciphertext,
       linkedin_access_token_iv: encryptedAccess.iv,
       linkedin_access_token_auth_tag: encryptedAccess.authTag,
       linkedin_token_expires_at: expiresAt,
       linkedin_member_id: memberId,
       linkedin_connected_at: new Date().toISOString(),
+      linkedin_scopes: grantedScopes.length > 0 ? grantedScopes : null,
     };
 
     // Encrypt refresh token if present
