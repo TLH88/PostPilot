@@ -8,6 +8,7 @@ import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
 import { WorkspaceSettings } from "./workspace-settings";
 import { ManagedAIStatus } from "./managed-ai-status";
+import { AnnouncementsSetting } from "./announcements-setting";
 import type { SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 
@@ -41,22 +42,49 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      {/* Workspace (Team+ only) */}
-      {hasFeature((profile?.subscription_tier as SubscriptionTier) ?? "free", "workspaces") && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Workspace</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkspaceSettings />
-          </CardContent>
-        </Card>
-      )}
+      {/* 1. Announcements */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <AnnouncementsSetting />
+        </CardContent>
+      </Card>
 
+      {/* 2. LinkedIn Posting */}
+      <Card>
+        <CardHeader>
+          <CardTitle>LinkedIn Posting</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Connect your LinkedIn account to post directly from PostPilot
+            and enable auto-publishing of scheduled posts.
+          </p>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading...</p>}>
+            <LinkedInConnection />
+          </Suspense>
+        </CardContent>
+      </Card>
+
+      {/* 3. Appearance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Choose your preferred theme for the interface.
+          </p>
+          <ThemeSetting />
+        </CardContent>
+      </Card>
+
+      {/* 4. AI Provider */}
       {/* Managed AI Access Status */}
       <ManagedAIStatus />
 
-      {/* AI Provider */}
       <Card>
         <CardHeader>
           <CardTitle>AI Provider</CardTitle>
@@ -80,36 +108,19 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* LinkedIn Posting */}
-      <Card>
-        <CardHeader>
-          <CardTitle>LinkedIn Posting</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Connect your LinkedIn account to post directly from PostPilot
-            and enable auto-publishing of scheduled posts.
-          </p>
-          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading...</p>}>
-            <LinkedInConnection />
-          </Suspense>
-        </CardContent>
-      </Card>
+      {/* Workspace (Team+ only) */}
+      {hasFeature((profile?.subscription_tier as SubscriptionTier) ?? "free", "workspaces") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workspace</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WorkspaceSettings />
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Appearance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Choose your preferred theme for the interface.
-          </p>
-          <ThemeSetting />
-        </CardContent>
-      </Card>
-
-      {/* Sign Out */}
+      {/* 5. Session */}
       <Card>
         <CardHeader>
           <CardTitle>Session</CardTitle>

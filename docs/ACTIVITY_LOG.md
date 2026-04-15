@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-04-15 (Session 2): Announcements, Settings, Admin Charts
+
+### Admin Announcements
+- AI-powered draft generation using `createMessage` (non-streamed) with `verifyAdmin()` auth
+- Preview button on each announcement card showing user-facing rendering
+- Shared `ReleaseNotesContent` component extracted for reuse across admin preview and user modal
+- Expandable text fields (resize-y) for Description, Features, Bug Fixes, Roadmap
+- Fixed header overlap with theme toggle (added right padding)
+
+### Release Notes Modal Improvements
+- Version pills replace pagination arrows for browsing past announcements
+- Pills use FilterPill styling pattern (primary color for active, border for inactive)
+- Semantic version sorting ensures newest version is always first (leftmost pill)
+- Supports external opening via `externalOpen` prop (used by Settings page)
+- Stabilized fetch logic with `useRef` guard to prevent race conditions
+
+### Settings Page
+- New "Announcements" section with "View Release Notes" button opening the modal
+- Reordered sections: Announcements, LinkedIn Posting, Appearance, AI Provider, Session
+
+### Admin Dashboard - Usage Trends Chart
+- Added "Day over Day" filter option to the period dropdown
+- Fixed x-axis labels: Day ("Apr 15"), Week ("Mar 30"), Month ("Mar 2026"), Quarter ("Q1 2026"), Year ("2026")
+- Rewrote `getUsageTrends` to query actual source tables (posts, ideas, ai_usage_events) instead of monthly usage_quotas aggregates, fixing the single-datapoint bug
+
+---
+
 ## 2026-04-15: Tutorial SDK, BP-086, Calendar & Admin Improvements
 
 ### Tutorial SDK Phase 1 (Standalone Package)
