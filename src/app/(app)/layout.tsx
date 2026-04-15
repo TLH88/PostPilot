@@ -7,7 +7,7 @@ import { PastDueChecker } from "@/components/past-due-checker";
 import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
-import { TutorialProvider } from "@/lib/tutorials/tutorial-provider";
+import { TutorialBridge } from "@/components/tutorial-bridge";
 
 export default async function AppLayout({
   children,
@@ -37,7 +37,7 @@ export default async function AppLayout({
 
   return (
     <HelpSidebarProvider>
-      <TutorialProvider>
+      <TutorialBridge userId={user.id}>
       <div className="relative min-h-screen bg-background">
         <OnboardingGuard onboardingCompleted={onboardingCompleted} />
         <PastDueChecker />
@@ -54,7 +54,7 @@ export default async function AppLayout({
           </main>
         </div>
       </div>
-      </TutorialProvider>
+      </TutorialBridge>
     </HelpSidebarProvider>
   );
 }

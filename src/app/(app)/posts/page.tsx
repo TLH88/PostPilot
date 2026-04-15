@@ -207,11 +207,11 @@ export default async function PostsPage() {
             Draft, edit, and schedule your LinkedIn posts. Use the tabs to filter by status and the menu on each card to archive or delete.
           </p>
         </div>
-        <NewPostButton />
+        <div id="tour-posts-new-post"><NewPostButton /></div>
       </div>
 
       {/* Metrics */}
-      <div className={`grid grid-cols-2 ${canReview ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
+      <div id="tour-posts-metrics" className={`grid grid-cols-2 ${canReview ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
         <Card className="border-l-4 border-l-blue-500">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
@@ -270,7 +270,7 @@ export default async function PostsPage() {
 
       {/* Filter Tabs */}
       <Tabs defaultValue="in_work">
-        <TabsList>
+        <TabsList id="tour-posts-filters">
           <TabsTrigger value="in_work">
             In Work ({inWorkPosts.length})
           </TabsTrigger>
@@ -310,7 +310,7 @@ export default async function PostsPage() {
           {inWorkPosts.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div id="tour-posts-cards" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {inWorkPosts.map((post) => (
                 <PostCard key={post.id} post={post} userTier={userTier} />
               ))}

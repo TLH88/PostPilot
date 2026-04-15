@@ -534,7 +534,7 @@ export default function PostWorkspacePage() {
   }
 
   // ── Floating brainstorm button on text selection ─────────────────────────
-  function handleSelectionChange() {
+  function handleSelectionChange(e: React.MouseEvent | React.KeyboardEvent) {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const selected = content.substring(textarea.selectionStart, textarea.selectionEnd);
@@ -542,26 +542,20 @@ export default function PostWorkspacePage() {
       setSelectionFloatPos(null);
       return;
     }
-    // Use the browser's selection API to get accurate position
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      const rangeRect = range.getBoundingClientRect();
-      if (rangeRect.width > 0) {
-        setSelectionFloatPos({
-          x: rangeRect.left + rangeRect.width / 2,
-          y: rangeRect.top - 8,
-        });
-        setBrainstormTopic(selected.trim());
-        return;
-      }
+    // Position right at the mouse cursor (most reliable for textareas)
+    if ("clientX" in e) {
+      setSelectionFloatPos({
+        x: e.clientX - 16,
+        y: e.clientY - 16,
+      });
+    } else {
+      // Keyboard selection: position near the right edge of the textarea at vertical center
+      const rect = textarea.getBoundingClientRect();
+      setSelectionFloatPos({
+        x: rect.right - 50,
+        y: rect.top + rect.height / 2 - 20,
+      });
     }
-    // Fallback: position near the top-right of the textarea
-    const rect = textarea.getBoundingClientRect();
-    setSelectionFloatPos({
-      x: rect.right - 60,
-      y: rect.top - 8,
-    });
     setBrainstormTopic(selected.trim());
   }
 
@@ -1312,6 +1306,52 @@ export default function PostWorkspacePage() {
       />
       </div>
 
+      {/* Engagement Analytics — posted posts only, below progress bar */}
+      {["posted", "archived"].includes(status) && hasFeature(userTier, "analytics") && (
+        <div className="rounded-lg border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-1.5 text-sm font-medium">
+            <BarChart3 className="size-4 text-primary" />
+            Engagement Analytics
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {([
+              { key: "impressions", label: "Impressions" },
+              { key: "reactions", label: "Reactions" },
+              { key: "comments_count", label: "Comments" },
+              { key: "reposts", label: "Reposts" },
+              { key: "engagements", label: "Engagements" },
+            ] as const).map(({ key, label }) => (
+              <div key={key} className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">{label}</label>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                  value={(post as unknown as Record<string, unknown>)[key] as number ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
+                    setPost({ ...post!, [key]: val });
+                  }}
+                  onBlur={async (e) => {
+                    const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
+                    await supabase
+                      .from("posts")
+                      .update({ [key]: val, updated_at: new Date().toISOString() })
+                      .eq("id", post!.id);
+                  }}
+                  placeholder="0"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {["posted", "archived"].includes(status) && !hasFeature(userTier, "analytics") && (
+        <div className="rounded-lg border bg-card p-4">
+          <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
+        </div>
+      )}
+
       {/* Scheduled status clarification banner */}
       {(status === "scheduled" || status === "past_due") && lastScheduledDate && (
         <div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30 px-3 py-2 mb-3 text-sm text-purple-700 dark:text-purple-300">
@@ -1367,31 +1407,6 @@ export default function PostWorkspacePage() {
                   <p className="text-sm text-muted-foreground">
                     Start typing below or let AI draft something for you.
                   </p>
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    disabled={chatStreaming}
-                    onClick={() => {
-                      if (!title.trim()) {
-                        toast.info("Please enter a title for your post so the AI assistant can help you draft it.");
-                        return;
-                      }
-                      if (!chatOpen) setChatOpen(true);
-                      sendChatMessage(
-                        `I am writing a LinkedIn post on the topic of ${title.trim()}. Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet, focus on the start draft only. Output ONLY the post content — no preamble, no title repetition.`,
-                        `Draft a post about "${title.trim()}"`
-                      );
-                    }}
-                  >
-                    <Sparkles className="size-4" />
-                    Start Initial Draft
-                  </Button>
-                  <TemplatePicker
-                    onSelect={(structure) => {
-                      setContent(structure);
-                      scheduleAutoSave(title, structure, hashtags);
-                    }}
-                  />
                   <textarea
                     ref={textareaRef}
                     value={content}
@@ -1736,7 +1751,7 @@ export default function PostWorkspacePage() {
               {/* Version management dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  render={<Button variant="outline" size="sm" className="gap-1.5" />}
+                  render={<Button id="tour-versions-menu" variant="outline" size="sm" className="gap-1.5" />}
                 >
                   <Save className="size-3.5" />
                   Versions
@@ -1792,53 +1807,7 @@ export default function PostWorkspacePage() {
               </DropdownMenu>
             </div>
 
-            {/* Engagement Analytics — posted posts only, Creator+ */}
-            {["posted", "archived"].includes(status) && hasFeature(userTier, "analytics") && (
-              <div className="space-y-2 pb-2">
-                <Separator />
-                <div className="flex items-center gap-1.5 text-sm font-medium">
-                  <BarChart3 className="size-4 text-primary" />
-                  Engagement
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                  {([
-                    { key: "impressions", label: "Impressions" },
-                    { key: "reactions", label: "Reactions" },
-                    { key: "comments_count", label: "Comments" },
-                    { key: "reposts", label: "Reposts" },
-                    { key: "engagements", label: "Engagements" },
-                  ] as const).map(({ key, label }) => (
-                    <div key={key} className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground">{label}</label>
-                      <input
-                        type="number"
-                        min={0}
-                        className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
-                        value={(post as unknown as Record<string, unknown>)[key] as number ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
-                          setPost({ ...post!, [key]: val });
-                        }}
-                        onBlur={async (e) => {
-                          const val = e.target.value === "" ? null : parseInt(e.target.value, 10);
-                          await supabase
-                            .from("posts")
-                            .update({ [key]: val, updated_at: new Date().toISOString() })
-                            .eq("id", post!.id);
-                        }}
-                        placeholder="0"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {["posted", "archived"].includes(status) && !hasFeature(userTier, "analytics") && (
-              <div className="pb-2">
-                <Separator className="mb-3" />
-                <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
-              </div>
-            )}
+            {/* Engagement Analytics moved to below progress bar */}
           </div>
         </div>
 
@@ -1882,7 +1851,7 @@ export default function PostWorkspacePage() {
             <Separator />
 
             {/* Chat messages area */}
-            <ScrollArea className="flex-1 min-h-0 py-3">
+            <ScrollArea id="tour-ai-chat-area" className="flex-1 min-h-0 py-3">
               <div className="space-y-4 pr-2">
                 {chatMessages.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -1963,6 +1932,7 @@ export default function PostWorkspacePage() {
                         msg.content.length > 200 &&
                         !chatStreaming && (
                           <button
+                            id="tour-apply-to-editor"
                             onClick={() => applyAIContent(msg.content)}
                             className="mt-2 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
                           >
@@ -2213,11 +2183,11 @@ export default function PostWorkspacePage() {
       {selectionFloatPos && (
         <div
           id="brainstorm-float"
-          className="fixed z-50 -translate-x-1/2 rounded-lg border bg-popover px-2 py-1 shadow-lg"
-          style={{ left: selectionFloatPos.x, top: selectionFloatPos.y }}
+          className="fixed z-50 rounded-lg shadow-lg"
+          style={{ right: window.innerWidth - selectionFloatPos.x, top: selectionFloatPos.y }}
         >
           <button
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-hover-highlight"
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
             onMouseDown={(e) => {
               e.preventDefault(); // Prevent textarea blur
               autoSave(title, content, hashtags);

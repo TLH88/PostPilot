@@ -8,6 +8,9 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
+  ExternalLink,
+  Eye,
+  FileEdit,
   FileText,
   LayoutGrid,
   List,
@@ -37,7 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { POST_STATUSES } from "@/lib/constants";
+import { POST_STATUSES, PUBLISH_METHODS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -46,6 +49,15 @@ import {
 } from "@/components/ui/tooltip";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { PostPreviewSheet } from "@/components/posts/post-preview-sheet";
+import { LinkedInPreview } from "@/components/posts/linkedin-preview";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Post } from "@/types";
 
@@ -68,6 +80,9 @@ export default function CalendarPage() {
 
   // Preview sheet state
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  // Preview dialog state
+  const [previewPost, setPreviewPost] = useState<Post | null>(null);
 
   // Upcoming posts view toggle
   const [upcomingView, setUpcomingView] = useState<"card" | "list">("card");
@@ -130,11 +145,12 @@ export default function CalendarPage() {
         if (profile.headline) setAuthorHeadline(profile.headline);
       }
 
+      // Fetch posts with scheduled dates OR published posts (for calendar display)
       const { data, error } = await supabase
         .from("posts")
         .select("*")
         .eq("user_id", user.id)
-        .not("scheduled_for", "is", null)
+        .or("scheduled_for.not.is.null,status.eq.posted")
         .order("scheduled_for", { ascending: true });
 
       if (!error && data) {
@@ -149,11 +165,13 @@ export default function CalendarPage() {
   }, []);
 
   // Map posts to dates for quick lookup
+  // Use scheduled_for as primary date, fall back to posted_at for directly-published posts
   const postsByDate = useMemo(() => {
     const map = new Map<string, Post[]>();
     posts.forEach((post) => {
-      if (!post.scheduled_for) return;
-      const dateKey = format(new Date(post.scheduled_for), "yyyy-MM-dd");
+      const dateSource = post.scheduled_for ?? post.posted_at;
+      if (!dateSource) return;
+      const dateKey = format(new Date(dateSource), "yyyy-MM-dd");
       const existing = map.get(dateKey) ?? [];
       existing.push(post);
       map.set(dateKey, existing);
@@ -161,11 +179,11 @@ export default function CalendarPage() {
     return map;
   }, [posts]);
 
-  // Upcoming posts (next 5 scheduled posts from today)
+  // Upcoming posts (next 5 SCHEDULED posts from today — excludes already-posted)
   const upcomingPosts = useMemo(() => {
     const now = new Date();
     return posts
-      .filter((p) => p.scheduled_for && new Date(p.scheduled_for) >= now)
+      .filter((p) => p.scheduled_for && new Date(p.scheduled_for) >= now && p.status !== "posted")
       .slice(0, 5);
   }, [posts]);
 
@@ -243,7 +261,7 @@ export default function CalendarPage() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              router.push(`/posts/${post.id}`);
+              setSelectedPost(post);
             }}
             className={cn(
               "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
@@ -256,29 +274,98 @@ export default function CalendarPage() {
           )}
           {displayTitle}
         </TooltipTrigger>
-        <TooltipContent side="right" className="max-w-[260px] space-y-1.5 p-3 text-left">
-          <p className="font-semibold text-xs leading-snug">{displayTitle}</p>
-          {previewContent && (
-            <p className="text-[11px] opacity-80 leading-snug">
-              {previewContent}{post.content && post.content.length > 200 ? "..." : ""}
-            </p>
-          )}
-          {scheduledDate && (
-            <p className="text-[10px] opacity-70">
-              {format(scheduledDate, "MMM d, yyyy")} at {format(scheduledDate, "h:mm a")}
-            </p>
-          )}
-          <div className="flex items-center gap-1.5">
+        <TooltipContent side="right" className="!block !max-w-[340px] !w-[340px] !p-0 !text-left !bg-card !text-card-foreground !items-stretch !rounded-xl !border !shadow-xl">
+          {/* Author header */}
+          <div className="flex items-start gap-2.5 p-3 pb-0">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-300 text-xs font-semibold text-gray-600">
+              {authorName ? authorName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "?"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold leading-tight">{authorName || "Your Name"}</p>
+              <p className="truncate text-[10px] text-muted-foreground leading-tight mt-0.5">{authorHeadline || "Your headline"}</p>
+              {scheduledDate && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {format(scheduledDate, "MMM d, yyyy")} at {format(scheduledDate, "h:mm a")}
+                </p>
+              )}
+            </div>
             {statusConfig && (
-              <span className={cn("inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium", statusConfig.color)}>
+              <span className={cn("inline-flex shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium", statusConfig.color)}>
                 {statusConfig.label}
               </span>
             )}
-            {(post.content_pillars ?? []).map((pillar: string) => (
-              <span key={pillar} className="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium">
-                {pillar}
-              </span>
-            ))}
+          </div>
+
+          {/* Post content preview */}
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-xs font-semibold leading-snug mb-1">{displayTitle}</p>
+            {previewContent && (
+              <p className="text-[11px] text-muted-foreground leading-snug line-clamp-4">
+                {previewContent}{post.content && post.content.length > 200 ? "..." : ""}
+              </p>
+            )}
+          </div>
+
+          {/* Post image */}
+          {post.image_url && (
+            <div className="mt-1">
+              <img src={post.image_url} alt="" className="w-full object-cover max-h-[140px]" />
+            </div>
+          )}
+
+          {/* Content pillars */}
+          {(post.content_pillars ?? []).length > 0 && (
+            <div className="flex items-center gap-1 px-3 pt-2">
+              {(post.content_pillars ?? []).map((pillar: string) => (
+                <span key={pillar} className="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                  {pillar}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 p-3 border-t mt-2">
+            <Button
+              variant="outline"
+              size="xs"
+              className="gap-1 text-[10px]"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/posts/${post.id}`);
+              }}
+            >
+              <FileText className="size-3" />
+              Edit
+            </Button>
+            {post.status === "posted" && post.linkedin_post_url ? (
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1 text-[10px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(post.linkedin_post_url!, "_blank");
+                }}
+              >
+                <ExternalLink className="size-3" />
+                View on LinkedIn
+              </Button>
+            ) : post.status !== "posted" && (
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1 text-[10px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReschedulePost(post);
+                  setRescheduleDialogOpen(true);
+                }}
+              >
+                <CalendarClock className="size-3" />
+                Reschedule
+              </Button>
+            )}
           </div>
         </TooltipContent>
       </Tooltip>
@@ -347,7 +434,7 @@ export default function CalendarPage() {
       {/* Calendar + Upcoming posts side by side */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Calendar */}
-        <Card className="flex-1 min-w-0">
+        <Card id="tour-calendar-grid" className="flex-1 min-w-0">
           {/* Calendar navigation */}
           <CardHeader className="border-b">
             <div className="flex items-center justify-between">
@@ -558,7 +645,7 @@ export default function CalendarPage() {
           <div className="flex items-center gap-2 px-1">
             <Clock className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Upcoming Posts</h2>
-            <div className="ml-auto flex items-center gap-0.5">
+            <div id="tour-upcoming-view-toggle" className="ml-auto flex items-center gap-0.5">
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -717,6 +804,18 @@ export default function CalendarPage() {
                         className="gap-1 text-[10px]"
                         onClick={(e) => {
                           e.stopPropagation();
+                          setPreviewPost(post);
+                        }}
+                      >
+                        <Eye className="size-3" />
+                        Preview
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="gap-1 text-[10px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setReschedulePost(post);
                           setRescheduleDialogOpen(true);
                         }}
@@ -764,6 +863,104 @@ export default function CalendarPage() {
         authorHeadline={authorHeadline}
         onEdit={(post) => router.push(`/posts/${post.id}`)}
       />
+
+      {/* Post preview dialog */}
+      <Dialog open={!!previewPost} onOpenChange={(open) => { if (!open) setPreviewPost(null); }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="size-4 text-primary" />
+              Post Preview
+            </DialogTitle>
+            <DialogDescription>
+              Preview how your post will appear on LinkedIn.
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewPost && (
+            <>
+              <LinkedInPreview
+                content={previewPost.content || ""}
+                title={previewPost.title}
+                imageUrl={previewPost.image_url}
+                authorName={authorName}
+                authorHeadline={authorHeadline}
+                truncate
+              />
+
+              {previewPost.status === "posted" && previewPost.posted_at && (
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <span>Published {format(new Date(previewPost.posted_at), "MMM d, yyyy")} at {format(new Date(previewPost.posted_at), "h:mm a")}</span>
+                  {previewPost.publish_method && (
+                    <Badge variant="secondary" className={`text-[10px] ${PUBLISH_METHODS[previewPost.publish_method]?.color ?? ""}`}>
+                      {PUBLISH_METHODS[previewPost.publish_method]?.label ?? previewPost.publish_method}
+                    </Badge>
+                  )}
+                </div>
+              )}
+              {previewPost.status !== "posted" && previewPost.scheduled_for && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Scheduled for {format(new Date(previewPost.scheduled_for), "MMM d, yyyy")} at {format(new Date(previewPost.scheduled_for), "h:mm a")}
+                </p>
+              )}
+            </>
+          )}
+
+          <DialogFooter className="flex-row justify-end gap-2">
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => {
+                if (previewPost) router.push(`/posts/${previewPost.id}`);
+                setPreviewPost(null);
+              }}
+            >
+              <FileEdit className="size-3.5" />
+              Edit
+            </Button>
+            {previewPost?.status === "posted" && previewPost.linkedin_post_url ? (
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => {
+                  window.open(previewPost.linkedin_post_url!, "_blank");
+                  setPreviewPost(null);
+                }}
+              >
+                <ExternalLink className="size-3.5" />
+                View on LinkedIn
+              </Button>
+            ) : previewPost?.status !== "posted" && (
+              <>
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    if (previewPost) {
+                      setReschedulePost(previewPost);
+                      setRescheduleDialogOpen(true);
+                    }
+                    setPreviewPost(null);
+                  }}
+                >
+                  <CalendarClock className="size-3.5" />
+                  Reschedule
+                </Button>
+                <Button
+                  className="gap-1.5"
+                  onClick={() => {
+                    if (previewPost) handlePostNow(previewPost);
+                    setPreviewPost(null);
+                  }}
+                >
+                  <Send className="size-3.5" />
+                  Post Now
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

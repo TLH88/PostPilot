@@ -120,6 +120,7 @@ export interface Post {
   // LinkedIn posting
   linkedin_post_id: string | null;
   linkedin_post_url: string | null;
+  publish_method: "scheduled" | "direct" | "manual" | null;
   publish_attempts: number;
   publish_error: string | null;
   // Image

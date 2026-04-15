@@ -16,6 +16,12 @@ export const POST_STATUSES = {
   archived: { label: "Archived", color: "bg-gray-100 text-gray-800" },
 } as const;
 
+export const PUBLISH_METHODS = {
+  scheduled: { label: "Auto-Published", color: "bg-green-100 text-green-800" },
+  direct: { label: "Direct Publish", color: "bg-blue-100 text-blue-800" },
+  manual: { label: "Manually Posted", color: "bg-teal-100 text-teal-800" },
+} as const;
+
 export const IDEA_STATUSES = {
   captured: { label: "Captured", color: "bg-gray-100 text-gray-700" },
   developing: { label: "Developing", color: "bg-yellow-100 text-yellow-700" },

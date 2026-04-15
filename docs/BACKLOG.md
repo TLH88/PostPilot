@@ -2202,6 +2202,68 @@ Ship Phase 1 ASAP even without the UI — the sooner we're collecting data, the 
 
 ---
 
+### BP-087: Published Post View (Separate Route)
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner — published posts need a dedicated view focused on analytics and review rather than editing
+
+#### Problem
+Currently, published posts open in the full post editor with AI chat, formatting toolbar, image generation, and other editing tools that aren't relevant after publishing. Users viewing published posts want to analyze performance, review what was posted, and see engagement data — not edit.
+
+#### Requirements
+1. New route: `/posts/{id}/published` — a dedicated read-only view for published posts
+2. When navigating to `/posts/{id}` for a posted post, redirect to `/posts/{id}/published`
+3. Published view includes:
+   - Read-only post content display (LinkedIn-style preview)
+   - Post metadata: date posted, publish method (direct/scheduled/manual), days live, LinkedIn URL
+   - Engagement Analytics section (impressions, reactions, comments, reposts, engagements)
+   - Post image display
+   - Content pillars and hashtags
+   - "Duplicate as Draft" button to create an editable copy
+   - "Edit Original" link with warning banner ("Changes will not update the LinkedIn post")
+   - "View on LinkedIn" button
+4. No AI chat panel, no formatting toolbar, no auto-save, no image generation
+5. Content editable with a warning banner that changes won't update the LinkedIn post
+6. Future-ready: space for engagement trends, best time analysis, audience insights
+
+#### Acceptance Criteria
+- [ ] `/posts/{id}/published` route renders the published view
+- [ ] `/posts/{id}` redirects to published view when post status is "posted"
+- [ ] Engagement analytics section with editable metrics
+- [ ] Post metadata displayed (publish date, method, days live)
+- [ ] "Duplicate as Draft" creates a new draft post with the same content
+- [ ] "Edit Original" navigates to the editor with warning banner
+- [ ] "View on LinkedIn" opens the LinkedIn post URL
+- [ ] All existing editor functionality unaffected for non-posted posts
+
+---
+
+### BP-086: Show Directly Published Posts on Calendar
+
+**Status:** Backlog
+**Priority:** Medium
+**Source:** Owner — posts published directly to LinkedIn don't appear on the calendar
+
+#### Problem
+When a user develops an idea into a post (or creates a new post) and clicks "Approve & Publish" to post directly to LinkedIn rather than scheduling it, the post does not appear on the calendar. The calendar currently only shows posts with a `scheduled_for` date. Directly published posts have no `scheduled_for` value, so they are invisible on the calendar even though they have a `posted_at` timestamp.
+
+#### Requirements
+1. Posts with status "posted" and a `posted_at` timestamp (but no `scheduled_for`) should appear on the calendar on the date they were published
+2. These posts should be visually distinct from scheduled posts (e.g., different color/badge indicating "Posted" vs "Scheduled")
+3. The calendar query needs to include posts where `status = 'posted'` and `posted_at IS NOT NULL`, in addition to the current `scheduled_for IS NOT NULL` filter
+4. Clicking a directly-published post on the calendar should show the same preview behavior as scheduled posts
+5. The Upcoming Posts panel should NOT include already-posted posts (it should remain forward-looking)
+
+#### Acceptance Criteria
+- [ ] Directly published posts appear on the calendar on their `posted_at` date
+- [ ] Posts are visually distinguished (e.g., green "Posted" badge vs purple "Scheduled")
+- [ ] Calendar month/week/day views all show posted posts
+- [ ] Hover preview works for posted posts with "Edit" button (no "Reschedule")
+- [ ] Upcoming Posts panel is unaffected (still only shows future scheduled posts)
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)

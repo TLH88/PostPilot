@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-04-13: Tutorial SDK Phase 1 + UI Polish + Bug Notes
+
+### Tutorial SDK
+- Built `@postpilot/tutorial-sdk` as standalone npm package in `packages/tutorial-sdk/`
+- Backend-agnostic with adapter interfaces (LocalStorage + Supabase built-in)
+- Card templates: OverviewCard (media slot) + SimpleCard (minimal)
+- Features: spotlight overlay, 15s timeout prompt, first-login gate, tutorial chaining, draggable cards
+- Integrated into PostPilot via TutorialBridge client component
+- Created tutorials: Full App Overview → How to Generate Ideas → How to Develop an Idea
+
+### UI Polish
+- Darker light theme background, blue card glow (light + dark)
+- Card images flush to top with overlaid status pills (dashboard, posts, calendar)
+- Post preview sheet on calendar (replaces navigation)
+- Card/list view toggle for Upcoming Posts
+- Outlined Actions/Copy buttons, Idea Bank search borders, tag hint color
+- Replaced right-click brainstorm menu with floating selection button (restores native spelling context menu)
+
+### Known Bug — Auto-Draft Not Generating
+- **Issue**: When developing an idea into a post, the AI should automatically generate an initial draft in the editor. This is not happening — the editor opens with empty content.
+- **Expected**: First time the post editor opens with a title present (from idea development), the AI assistant should auto-draft the post content.
+- **Impact**: Users must manually trigger drafting, which breaks the "idea → post" flow.
+- **Status**: Documented for separate investigation. Not blocking tutorials.
+
+### Removed from Editor
+- "Start Initial Draft" button and "Use Template" picker removed from empty editor state (redundant with AI auto-draft flow)
+
+---
+
 ## 2026-04-11 (Evening): Idea Bank — Manual Entry + Tagging + Prioritization
 
 Shipped both promised-but-missing Ideas page features in a single branch after merging the AI Gateway work to `develop`.

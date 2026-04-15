@@ -201,6 +201,7 @@ export async function POST(request: NextRequest) {
       .update({
         status: "posted",
         posted_at: new Date().toISOString(),
+        publish_method: post.scheduled_for ? "scheduled" : "direct",
         linkedin_post_id: result.postId,
         linkedin_post_url: result.postUrl,
         publish_error: null,

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { HelpCircle, X, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useTutorial } from "@/lib/tutorials/tutorial-provider";
-import { TUTORIAL_REGISTRY } from "@/lib/tutorials/tutorial-definitions";
+import { useTutorial } from "@postpilot/tutorial-sdk";
+import { TUTORIAL_REGISTRY } from "@/lib/tutorials/definitions";
 import {
   Sheet,
   SheetContent,

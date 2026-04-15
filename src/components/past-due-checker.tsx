@@ -139,7 +139,7 @@ export function PastDueChecker() {
   async function handleConfirmPosted() {
     await supabase
       .from("posts")
-      .update({ status: "posted", posted_at: new Date().toISOString() })
+      .update({ status: "posted", posted_at: new Date().toISOString(), publish_method: "manual" })
       .eq("id", current.id);
     moveToNext();
   }
