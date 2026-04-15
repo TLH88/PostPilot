@@ -21,9 +21,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type TrendPeriod = "week" | "month" | "quarter" | "year";
+type TrendPeriod = "day" | "week" | "month" | "quarter" | "year";
 
 const PERIOD_OPTIONS: { value: TrendPeriod; label: string }[] = [
+  { value: "day", label: "Day over Day" },
   { value: "week", label: "Week over Week" },
   { value: "month", label: "Month over Month" },
   { value: "quarter", label: "Quarter over Quarter" },

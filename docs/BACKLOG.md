@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-11 (BP-085 scoped)
+> Last updated: 2026-04-15 (BP-086 done, BP-087 added)
 
 ## Status Key
 
@@ -2241,7 +2241,7 @@ Currently, published posts open in the full post editor with AI chat, formatting
 
 ### BP-086: Show Directly Published Posts on Calendar
 
-**Status:** Backlog
+**Status:** Done (2026-04-15)
 **Priority:** Medium
 **Source:** Owner — posts published directly to LinkedIn don't appear on the calendar
 
@@ -2329,3 +2329,4 @@ When a user develops an idea into a post (or creates a new post) and clicks "App
 - **BP-081:** Remove Idea Temperature Feature (2026-04-11)
 - **BP-082:** Manual Idea Entry (2026-04-11)
 - **BP-083:** Idea Tagging & Prioritization (2026-04-11)
+- **BP-086:** Show Directly Published Posts on Calendar (2026-04-15)

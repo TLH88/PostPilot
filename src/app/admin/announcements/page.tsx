@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,18 +18,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-
-interface ReleaseNote {
-  id: string;
-  version: string;
-  title: string;
-  description: string;
-  features: { title: string; description: string }[];
-  bug_fixes: { title: string; description: string }[];
-  roadmap: { title: string; description: string }[];
-  is_published: boolean;
-  published_at: string | null;
-}
+import { ReleaseNotesContent } from "@/components/layout/release-notes-content";
+import type { ReleaseNote } from "@/types";
 
 export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<ReleaseNote[]>([]);
@@ -39,7 +29,10 @@ export default function AdminAnnouncementsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ReleaseNote | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [previewNote, setPreviewNote] = useState<ReleaseNote | null>(null);
   const router = useRouter();
+
+  const [generating, setGenerating] = useState(false);
 
   // Form state
   const [version, setVersion] = useState("");
@@ -92,6 +85,42 @@ export default function AdminAnnouncementsPage() {
 
   function itemsToText(items: { title: string; description: string }[]): string {
     return items.map((i) => `${i.title}: ${i.description}`).join("\n");
+  }
+
+  async function handleGenerateWithAI() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/announcements/generate", {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate");
+      }
+      const { announcement } = await res.json();
+      setTitle(announcement.title || "");
+      setDescription(announcement.description || "");
+      setFeaturesText(
+        (announcement.features || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
+      setBugFixesText(
+        (announcement.bug_fixes || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
+      setRoadmapText(
+        (announcement.roadmap || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
+      toast.success("AI draft generated! Review and edit before saving.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate announcement.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function openCreate() {
@@ -169,7 +198,7 @@ export default function AdminAnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pr-12">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Announcements</h1>
           <p className="text-muted-foreground">Manage What&apos;s New release notes shown to users.</p>
@@ -205,6 +234,10 @@ export default function AdminAnnouncementsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setPreviewNote(note)}>
+                    <Eye className="size-3" />
+                    Preview
+                  </Button>
                   <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => openEdit(note)}>
                     <Pencil className="size-3" />
                     Edit
@@ -244,6 +277,27 @@ export default function AdminAnnouncementsPage() {
             <DialogTitle>{editing ? "Edit Announcement" : "New Announcement"}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 min-h-0 space-y-4">
+            {/* Generate with AI button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={handleGenerateWithAI}
+              disabled={generating}
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Generating draft from activity log...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" />
+                  Generate Draft with AI
+                </>
+              )}
+            </Button>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Version</Label>
@@ -261,7 +315,7 @@ export default function AdminAnnouncementsPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief summary of this release..."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <Separator />
@@ -272,7 +326,7 @@ export default function AdminAnnouncementsPage() {
                 value={featuresText}
                 onChange={(e) => setFeaturesText(e.target.value)}
                 placeholder="Analytics Dashboard: Track impressions and engagement&#10;Image Generation: Generate images with AI"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div className="space-y-1.5">
@@ -282,7 +336,7 @@ export default function AdminAnnouncementsPage() {
                 value={bugFixesText}
                 onChange={(e) => setBugFixesText(e.target.value)}
                 placeholder="Dark Mode Fix: Hook analysis card now styled correctly"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div className="space-y-1.5">
@@ -292,7 +346,7 @@ export default function AdminAnnouncementsPage() {
                 value={roadmapText}
                 onChange={(e) => setRoadmapText(e.target.value)}
                 placeholder="Stripe Billing: Secure subscription management"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
@@ -341,6 +395,18 @@ export default function AdminAnnouncementsPage() {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewNote} onOpenChange={(open) => { if (!open) setPreviewNote(null); }}>
+        <DialogContent style={{ maxWidth: "600px" }} className="max-h-[85vh] flex flex-col overflow-hidden">
+          <div className="overflow-y-auto flex-1 min-h-0">
+            {previewNote && <ReleaseNotesContent note={previewNote} />}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setPreviewNote(null)}>Close Preview</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

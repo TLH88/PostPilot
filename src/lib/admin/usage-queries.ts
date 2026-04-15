@@ -458,7 +458,7 @@ export async function getUserUsageDetail(
 
 // ── Usage trends (for admin dashboard chart) ──────────────────────────────
 
-export type TrendPeriod = "week" | "month" | "quarter" | "year";
+export type TrendPeriod = "day" | "week" | "month" | "quarter" | "year";
 
 export interface TrendPoint {
   label: string;
@@ -471,70 +471,110 @@ export interface TrendPoint {
 export async function getUsageTrends(period: TrendPeriod): Promise<TrendPoint[]> {
   const supabase = createAdminClient();
 
-  const { data } = await supabase
-    .from("usage_quotas")
-    .select("user_id, posts_created, brainstorms_used, chat_messages_used, period_start")
-    .order("period_start", { ascending: true });
+  // Fetch from actual source tables for accurate granular data
+  const [postsRes, ideasRes, aiEventsRes] = await Promise.all([
+    supabase.from("posts").select("user_id, created_at"),
+    supabase.from("ideas").select("user_id, created_at"),
+    supabase
+      .from("ai_usage_events")
+      .select("user_id, route, created_at"),
+  ]);
 
-  if (!data?.length) return [];
+  const posts = postsRes.data ?? [];
+  const ideas = ideasRes.data ?? [];
+  const aiEvents = aiEventsRes.data ?? [];
 
-  // Determine how many buckets and how to group
-  const now = new Date();
-  const buckets: Record<string, { users: Set<string>; posts: number; brainstorms: number; ai: number }> = {};
+  // Build buckets from real event timestamps
+  type Bucket = { users: Set<string>; posts: number; brainstorms: number; ai: number };
+  const buckets: Record<string, Bucket> = {};
 
-  for (const row of data) {
-    const d = new Date(row.period_start);
-    let key: string;
-
+  function getBucketKey(dateStr: string): string {
+    const d = new Date(dateStr);
     switch (period) {
+      case "day":
+        return dateStr.slice(0, 10);
       case "week": {
-        // Last 12 weeks, bucket by ISO week
         const weekStart = new Date(d);
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        key = weekStart.toISOString().slice(0, 10);
-        break;
+        return weekStart.toISOString().slice(0, 10);
       }
-      case "month": {
-        // Bucket by YYYY-MM
-        key = row.period_start.slice(0, 7);
-        break;
-      }
+      case "month":
+        return dateStr.slice(0, 7);
       case "quarter": {
-        // Bucket by YYYY-QN
         const q = Math.floor(d.getMonth() / 3) + 1;
-        key = `${d.getFullYear()}-Q${q}`;
-        break;
+        return `${d.getFullYear()}-Q${q}`;
       }
-      case "year": {
-        key = `${d.getFullYear()}`;
-        break;
-      }
+      case "year":
+        return `${d.getFullYear()}`;
     }
+  }
 
+  function ensureBucket(key: string): Bucket {
     if (!buckets[key]) buckets[key] = { users: new Set(), posts: 0, brainstorms: 0, ai: 0 };
-    const b = buckets[key];
-    const activity = row.posts_created + row.brainstorms_used + row.chat_messages_used;
-    if (activity > 0) b.users.add(row.user_id);
-    b.posts += row.posts_created;
-    b.brainstorms += row.brainstorms_used;
-    b.ai += row.chat_messages_used;
+    return buckets[key];
+  }
+
+  // Count posts
+  for (const row of posts) {
+    const key = getBucketKey(row.created_at);
+    const b = ensureBucket(key);
+    b.posts += 1;
+    b.users.add(row.user_id);
+  }
+
+  // Count brainstorms (ideas created = brainstorm sessions)
+  for (const row of ideas) {
+    const key = getBucketKey(row.created_at);
+    const b = ensureBucket(key);
+    b.brainstorms += 1;
+    b.users.add(row.user_id);
+  }
+
+  // Count AI messages
+  for (const row of aiEvents) {
+    const key = getBucketKey(row.created_at);
+    const b = ensureBucket(key);
+    b.ai += 1;
+    b.users.add(row.user_id);
   }
 
   // Limit to recent buckets based on period
-  const maxBuckets = { week: 12, month: 12, quarter: 8, year: 5 }[period];
+  const maxBuckets = { day: 30, week: 12, month: 12, quarter: 8, year: 5 }[period];
   const sortedKeys = Object.keys(buckets).sort();
   const recentKeys = sortedKeys.slice(-maxBuckets);
 
-  // Format labels
+  // Format labels based on period
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
   return recentKeys.map((key) => {
     const b = buckets[key];
     let label = key;
-    if (period === "week") {
-      label = key.slice(5); // MM-DD
-    } else if (period === "month") {
-      const [, m] = key.split("-");
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      label = months[parseInt(m, 10) - 1] ?? key;
+
+    switch (period) {
+      case "day": {
+        const d = new Date(key + "T00:00:00");
+        label = `${months[d.getMonth()]} ${d.getDate()}`;
+        break;
+      }
+      case "week": {
+        const d = new Date(key + "T00:00:00");
+        label = `${months[d.getMonth()]} ${d.getDate()}`;
+        break;
+      }
+      case "month": {
+        const [y, m] = key.split("-");
+        label = `${months[parseInt(m, 10) - 1]} ${y}`;
+        break;
+      }
+      case "quarter": {
+        const [y, q] = key.split("-");
+        label = `${q} ${y}`;
+        break;
+      }
+      case "year": {
+        label = key;
+        break;
+      }
     }
 
     return {
