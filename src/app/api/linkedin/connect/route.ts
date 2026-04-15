@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
     authUrl.searchParams.set("client_id", clientId);
     authUrl.searchParams.set("redirect_uri", redirectUri);
     authUrl.searchParams.set("state", state);
+    // Note: r_member_postAnalytics is needed for auto-fetching engagement data
+    // but requires LinkedIn app approval. Add it back once approved.
+    // For now, only request scopes the app already has.
     authUrl.searchParams.set("scope", "openid profile w_member_social");
 
     const response = NextResponse.redirect(authUrl.toString());

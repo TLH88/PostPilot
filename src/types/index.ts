@@ -37,6 +37,7 @@ export interface CreatorProfile {
   linkedin_token_expires_at: string | null;
   linkedin_member_id: string | null;
   linkedin_connected_at: string | null;
+  linkedin_scopes: string[] | null;
   // Managed AI access (trial / beta)
   managed_ai_access: boolean;
   managed_ai_expires_at: string | null;
@@ -133,6 +134,7 @@ export interface Post {
   comments_count: number | null;
   reposts: number | null;
   engagements: number | null;
+  analytics_fetched_at: string | null;
   created_at: string;
   updated_at: string;
 }
