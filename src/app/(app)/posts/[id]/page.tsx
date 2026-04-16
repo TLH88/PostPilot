@@ -92,6 +92,8 @@ import { PostProgressBar } from "@/components/posts/post-progress-bar";
 import { AssignPost } from "@/components/posts/assign-post";
 import { CommentsPanel } from "@/components/posts/comments-panel";
 import { ApprovalControls } from "@/components/posts/approval-controls";
+import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
+import { logActivity } from "@/lib/activity";
 // Tutorial target IDs on elements are used by the tutorial overlay
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
@@ -411,6 +413,10 @@ export default function PostWorkspacePage() {
   }, [post?.id, loading]);
 
   // ── Debounced auto-save ───────────────────────────────────────────────────
+  // Throttle activity logging to once per 10 minutes per post
+  const lastEditLogRef = useRef<number>(0);
+  const EDIT_LOG_THROTTLE_MS = 10 * 60 * 1000;
+
   const autoSave = useCallback(
     async (newTitle: string, newContent: string, newHashtags: string[]) => {
       if (!post) return;
@@ -436,6 +442,21 @@ export default function PostWorkspacePage() {
           const suggested = classifyPillar(newTitle, newContent, profile.content_pillars);
           if (suggested) {
             updateContentPillars([suggested]);
+          }
+        }
+
+        // Throttled activity log — only log "edited" once per 10 minutes per session
+        const now = Date.now();
+        if (post.workspace_id && now - lastEditLogRef.current > EDIT_LOG_THROTTLE_MS) {
+          lastEditLogRef.current = now;
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            logActivity(supabase, {
+              user_id: authUser.id,
+              workspace_id: post.workspace_id,
+              post_id: post.id,
+              action: "post_edited",
+            });
           }
         }
       } else {
@@ -661,8 +682,18 @@ export default function PostWorkspacePage() {
   }
 
   // ── Status management ─────────────────────────────────────────────────────
+  const [reviewerDialogOpen, setReviewerDialogOpen] = useState(false);
+
   async function updateStatus(newStatus: Post["status"]) {
     if (!post) return;
+
+    // Team/workspace mode: moving to "review" requires picking reviewers
+    if (newStatus === "review" && post.workspace_id) {
+      setReviewerDialogOpen(true);
+      return;
+    }
+
+    const previousStatus = status;
 
     const updates: Record<string, unknown> = {
       status: newStatus,
@@ -686,6 +717,8 @@ export default function PostWorkspacePage() {
       }
     }
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
     const { error } = await supabase
       .from("posts")
       .update(updates)
@@ -695,6 +728,20 @@ export default function PostWorkspacePage() {
       setStatus(newStatus);
       if (updates.content_pillars) {
         setContentPillarsState(updates.content_pillars as string[]);
+      }
+
+      // Log activity for the status change
+      if (authUser) {
+        const actionMap: Record<string, "post_status_changed" | "post_archived"> = {
+          archived: "post_archived",
+        };
+        logActivity(supabase, {
+          user_id: authUser.id,
+          workspace_id: post.workspace_id,
+          post_id: post.id,
+          action: actionMap[newStatus] ?? "post_status_changed",
+          details: { from: previousStatus, to: newStatus },
+        });
       }
     }
   }
@@ -741,6 +788,18 @@ export default function PostWorkspacePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "scheduled_posts" }),
       }).catch(() => {});
+
+      // Log scheduled activity
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        logActivity(supabase, {
+          user_id: authUser.id,
+          workspace_id: post.workspace_id,
+          post_id: post.id,
+          action: "post_scheduled",
+          details: { scheduled_for: date.toISOString() },
+        });
+      }
     }
   }
 
@@ -906,16 +965,24 @@ export default function PostWorkspacePage() {
       return;
     }
 
+    const insertPayload: Record<string, unknown> = {
+      user_id: user.id,
+      title: postTitle,
+      content: postContent,
+      status: "draft" as const,
+      hashtags: [],
+      character_count: postContent.length,
+    };
+    if (post?.workspace_id) {
+      insertPayload.workspace_id = post.workspace_id;
+      insertPayload.assigned_to = user.id;
+      insertPayload.assigned_by = user.id;
+      insertPayload.assigned_at = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from("posts")
-      .insert({
-        user_id: user.id,
-        title: postTitle,
-        content: postContent,
-        status: "draft" as const,
-        hashtags: [],
-        character_count: postContent.length,
-      })
+      .insert(insertPayload)
       .select("id")
       .single();
 
@@ -2079,6 +2146,22 @@ export default function PostWorkspacePage() {
         onSchedule={schedulePost}
         initialDate={(status === "scheduled" || status === "past_due") ? lastScheduledDate ?? undefined : undefined}
       />
+
+      {/* Submit for Review dialog — opens when user moves post to review in workspace mode */}
+      {post?.workspace_id && (
+        <SubmitForReviewDialog
+          open={reviewerDialogOpen}
+          onOpenChange={setReviewerDialogOpen}
+          postId={post.id}
+          workspaceId={post.workspace_id}
+          currentUserId={post.user_id}
+          onSubmitted={() => {
+            setStatus("review");
+            // Refresh to pick up approval_stage / approval_status updates
+            window.location.reload();
+          }}
+        />
+      )}
 
       {/* Schedule confirmation dialog */}
       <LinkedInShareDialog

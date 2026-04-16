@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getActiveWorkspaceId } from "@/lib/workspace";
+import { logActivity } from "@/lib/activity";
 import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority } from "@/lib/constants";
 import type { Idea } from "@/types";
 import { TagInput } from "@/components/ui/tag-input";
@@ -518,22 +520,41 @@ export default function IdeasPage() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Workspace mode: auto-assign creator, attach workspace
+      const activeWorkspaceId = getActiveWorkspaceId();
+      const insertPayload: Record<string, unknown> = {
+        user_id: user.id,
+        idea_id: idea.id,
+        title: idea.title,
+        content: "",
+        status: "draft",
+        hashtags: [],
+        character_count: 0,
+      };
+      if (activeWorkspaceId) {
+        insertPayload.workspace_id = activeWorkspaceId;
+        insertPayload.assigned_to = user.id;
+        insertPayload.assigned_by = user.id;
+        insertPayload.assigned_at = new Date().toISOString();
+      }
+
       // Create a new post linked to this idea
       const { data: post, error: postError } = await supabase
         .from("posts")
-        .insert({
-          user_id: user.id,
-          idea_id: idea.id,
-          title: idea.title,
-          content: "",
-          status: "draft",
-          hashtags: [],
-          character_count: 0,
-        })
+        .insert(insertPayload)
         .select("id")
         .single();
 
       if (postError) throw postError;
+
+      // Log activity
+      logActivity(supabase, {
+        user_id: user.id,
+        workspace_id: activeWorkspaceId,
+        post_id: post.id,
+        action: "post_created",
+        details: { source: "idea", idea_id: idea.id },
+      });
 
       // Update idea status to converted
       await supabase

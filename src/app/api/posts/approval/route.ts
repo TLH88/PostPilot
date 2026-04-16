@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { action, postId, decision, feedback, versionId } = await request.json();
+    const { action, postId, decision, feedback, versionId, reviewers: submitReviewers } = await request.json();
     if (!action || !postId) {
       return NextResponse.json({ error: "action and postId are required" }, { status: 400 });
     }
@@ -69,21 +69,31 @@ export async function POST(request: NextRequest) {
     if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
 
     if (action === "submit") {
-      // Fetch workspace approval stages
-      const { data: workspace } = await supabase
-        .from("workspaces")
-        .select("approval_stages, requires_approval")
-        .eq("id", post.workspace_id)
-        .single();
+      // Reviewers: use per-submission reviewers if provided, else fall back to workspace first stage
+      let reviewerIds: string[] = [];
+      let stageName = "review";
 
-      const stages = (workspace?.approval_stages ?? []) as Array<{ name: string; reviewers: string[] }>;
-      const firstStage = stages[0];
+      if (Array.isArray(submitReviewers) && submitReviewers.length > 0) {
+        reviewerIds = submitReviewers;
+      } else {
+        const { data: workspace } = await supabase
+          .from("workspaces")
+          .select("approval_stages")
+          .eq("id", post.workspace_id)
+          .single();
+        const stages = (workspace?.approval_stages ?? []) as Array<{ name: string; reviewers: string[] }>;
+        const firstStage = stages[0];
+        if (firstStage) {
+          stageName = firstStage.name;
+          reviewerIds = firstStage.reviewers ?? [];
+        }
+      }
 
       const { error } = await supabase
         .from("posts")
         .update({
           status: "review",
-          approval_stage: firstStage?.name ?? "review",
+          approval_stage: stageName,
           approval_status: "pending",
           updated_at: new Date().toISOString(),
         })
@@ -95,23 +105,23 @@ export async function POST(request: NextRequest) {
         workspace_id: post.workspace_id,
         post_id: postId,
         action: "post_submitted_for_review",
-        details: { stage: firstStage?.name },
+        details: { stage: stageName, reviewers: reviewerIds },
       });
 
-      // Notify reviewers of the first stage
-      if (firstStage && firstStage.reviewers.length > 0) {
-        await createNotifications(supabase, firstStage.reviewers, {
+      // Notify selected reviewers
+      if (reviewerIds.length > 0) {
+        await createNotifications(supabase, reviewerIds, {
           workspace_id: post.workspace_id,
           type: "approval_request",
           title: "Post awaiting your review",
-          body: `"${post.title ?? "Untitled"}" needs ${firstStage.name} approval`,
+          body: `"${post.title ?? "Untitled"}" needs ${stageName} approval`,
           action_url: `/posts/${postId}`,
           post_id: postId,
           triggered_by: user.id,
         });
       }
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, reviewers: reviewerIds });
     }
 
     if (action === "decide") {

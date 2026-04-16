@@ -92,20 +92,28 @@ export default function PublishedPostPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const insertPayload: Record<string, unknown> = {
+        user_id: user.id,
+        title: post.title ? `${post.title} (Copy)` : "Untitled Post",
+        content: post.content,
+        hashtags: post.hashtags,
+        content_pillars: post.content_pillars,
+        image_url: post.image_url,
+        image_storage_path: post.image_storage_path,
+        image_alt_text: post.image_alt_text,
+        status: "draft",
+        character_count: post.character_count,
+      };
+      if (post.workspace_id) {
+        insertPayload.workspace_id = post.workspace_id;
+        insertPayload.assigned_to = user.id;
+        insertPayload.assigned_by = user.id;
+        insertPayload.assigned_at = new Date().toISOString();
+      }
+
       const { data: newPost, error } = await supabase
         .from("posts")
-        .insert({
-          user_id: user.id,
-          title: post.title ? `${post.title} (Copy)` : "Untitled Post",
-          content: post.content,
-          hashtags: post.hashtags,
-          content_pillars: post.content_pillars,
-          image_url: post.image_url,
-          image_storage_path: post.image_storage_path,
-          image_alt_text: post.image_alt_text,
-          status: "draft",
-          character_count: post.character_count,
-        })
+        .insert(insertPayload)
         .select("id")
         .single();
 

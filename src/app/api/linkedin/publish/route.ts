@@ -4,6 +4,8 @@ import { decrypt } from "@/lib/encryption";
 import { publishToLinkedIn, uploadImageToLinkedIn, refreshLinkedInToken } from "@/lib/linkedin-api";
 import { encrypt } from "@/lib/encryption";
 import { logApiError } from "@/lib/api-utils";
+import { logActivity } from "@/lib/activity";
+import { createNotification } from "@/lib/notifications";
 import type { CreatorProfile, Post } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -208,6 +210,29 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", post.id);
+
+    // Log post_published activity
+    await logActivity(supabase, {
+      user_id: user.id,
+      workspace_id: post.workspace_id,
+      post_id: post.id,
+      action: "post_published",
+      details: { linkedin_post_id: result.postId, method: post.scheduled_for ? "scheduled" : "direct" },
+    });
+
+    // Notify author if someone else published (e.g., admin / scheduled job via different user)
+    if (post.user_id && post.user_id !== user.id) {
+      await createNotification(supabase, {
+        user_id: post.user_id,
+        workspace_id: post.workspace_id,
+        type: "post_published",
+        title: "Your post was published",
+        body: `"${post.title ?? "Untitled"}" is now live on LinkedIn`,
+        action_url: `/posts/${post.id}/published`,
+        post_id: post.id,
+        triggered_by: user.id,
+      });
+    }
 
     return NextResponse.json({
       success: true,

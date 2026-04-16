@@ -5,6 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { getActiveWorkspaceId } from "@/lib/workspace";
+import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
 
 const SLOW_THRESHOLD_MS = 10_000; // 10 seconds — show "taking longer" message
@@ -126,16 +128,26 @@ export function NewPostButton({ className, label, id }: { className?: string; la
         }
       }
 
+      // Workspace mode: auto-assign creator to their own post
+      const activeWorkspaceId = getActiveWorkspaceId();
+      const insertPayload: Record<string, unknown> = {
+        user_id: user.id,
+        title: "Untitled Post",
+        content: "",
+        status: "draft",
+        hashtags: [],
+        character_count: 0,
+      };
+      if (activeWorkspaceId) {
+        insertPayload.workspace_id = activeWorkspaceId;
+        insertPayload.assigned_to = user.id;
+        insertPayload.assigned_by = user.id;
+        insertPayload.assigned_at = new Date().toISOString();
+      }
+
       const { data, error } = await supabase
         .from("posts")
-        .insert({
-          user_id: user.id,
-          title: "Untitled Post",
-          content: "",
-          status: "draft",
-          hashtags: [],
-          character_count: 0,
-        })
+        .insert(insertPayload)
         .select("id")
         .single();
 
@@ -153,6 +165,14 @@ export function NewPostButton({ className, label, id }: { className?: string; la
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "posts" }),
         }).catch(() => {}); // fire-and-forget
+
+        // Log post_created activity
+        logActivity(supabase, {
+          user_id: user.id,
+          workspace_id: activeWorkspaceId,
+          post_id: data.id,
+          action: "post_created",
+        });
 
         targetPostId.current = data.id;
         startTimers(data.id);

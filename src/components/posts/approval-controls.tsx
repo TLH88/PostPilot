@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { PostApproval } from "@/types";
+import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 
 interface ApprovalWithReviewer extends PostApproval {
   reviewer_name?: string;
@@ -36,6 +37,7 @@ export function ApprovalControls({
   const [loading, setLoading] = useState(false);
   const [showFeedback, setShowFeedback] = useState<"approve" | "request_changes" | null>(null);
   const [feedback, setFeedback] = useState("");
+  const [reviewerDialogOpen, setReviewerDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -55,22 +57,9 @@ export function ApprovalControls({
       .catch(() => {});
   }, [postId, workspaceId, currentUserId]);
 
-  async function submitForReview() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/posts/approval", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submit", postId }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Submitted for review");
-      onChange?.();
-    } catch {
-      toast.error("Failed to submit for review");
-    } finally {
-      setLoading(false);
-    }
+  // Opens the reviewer selection dialog (user picks reviewers before submitting)
+  function openReviewerDialog() {
+    setReviewerDialogOpen(true);
   }
 
   async function decide(decision: "approved" | "changes_requested") {
@@ -131,11 +120,20 @@ export function ApprovalControls({
 
       {/* Actions */}
       {!isInReview && !isApproved && (postStatus === "draft" || postStatus === "past_due") && (
-        <Button onClick={submitForReview} disabled={loading} size="sm" className="w-full gap-1.5">
+        <Button onClick={openReviewerDialog} disabled={loading} size="sm" className="w-full gap-1.5">
           <Send className="size-3.5" />
           Submit for Review
         </Button>
       )}
+
+      <SubmitForReviewDialog
+        open={reviewerDialogOpen}
+        onOpenChange={setReviewerDialogOpen}
+        postId={postId}
+        workspaceId={workspaceId ?? ""}
+        currentUserId={currentUserId}
+        onSubmitted={onChange}
+      />
 
       {isInReview && canReview && (
         <div className="space-y-2">
