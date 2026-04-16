@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
+  Activity,
   Archive,
   ArrowLeft,
   BarChart3,
@@ -91,6 +92,7 @@ import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { PostProgressBar } from "@/components/posts/post-progress-bar";
 import { AssignPost } from "@/components/posts/assign-post";
 import { CommentsPanel } from "@/components/posts/comments-panel";
+import { ActivityFeed } from "@/components/activity/activity-feed";
 import { ApprovalControls } from "@/components/posts/approval-controls";
 import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 import { logActivity } from "@/lib/activity";
@@ -145,7 +147,30 @@ export default function PostWorkspacePage() {
   const [userTier, setUserTier] = useState<SubscriptionTier>("free");
 
   // ── Chat state ────────────────────────────────────────────────────────────
-  const [chatOpen, setChatOpen] = useState(false); // collapsed by default; opened on desktop via useEffect
+  // Right panel state: null = closed, else which tab is showing
+  type PanelView = "ai" | "comments" | "activity";
+  const [panelView, setPanelView] = useState<PanelView | null>(null);
+  const chatOpen = panelView !== null; // back-compat alias for existing width-computation code
+
+  // Helper: togglers for the top-bar button and tab headers
+  const togglePanel = useCallback(() => {
+    setPanelView((prev) => {
+      if (prev) return null;
+      // Restore last-used view from localStorage, default to "ai"
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("postpilot_panel_view") as PanelView | null;
+        if (saved === "ai" || saved === "comments" || saved === "activity") return saved;
+      }
+      return "ai";
+    });
+  }, []);
+
+  const setPanelViewPersisted = useCallback((view: PanelView | null) => {
+    setPanelView(view);
+    if (typeof window !== "undefined" && view) {
+      localStorage.setItem("postpilot_panel_view", view);
+    }
+  }, []);
   const [chatMessages, setChatMessages] = useState<AIMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatStreaming, setChatStreaming] = useState(false);
@@ -201,7 +226,15 @@ export default function PostWorkspacePage() {
   useEffect(() => {
     const isLg = window.innerWidth >= 1024; // lg breakpoint
     setIsMobile(!isLg);
-    if (isLg) setChatOpen(true);
+    if (isLg) {
+      // Restore last-used panel view, or default to AI
+      const saved = typeof window !== "undefined" ? localStorage.getItem("postpilot_panel_view") : null;
+      if (saved === "ai" || saved === "comments" || saved === "activity") {
+        setPanelView(saved);
+      } else {
+        setPanelView("ai");
+      }
+    }
 
     function handleResize() {
       setIsMobile(window.innerWidth < 1024);
@@ -378,7 +411,7 @@ export default function PostWorkspacePage() {
     if (fromIdea === "true" && title && !content) {
       ideaAutoTriggered.current = true;
       // Auto-open chat and trigger draft generation
-      setChatOpen(true);
+      setPanelView("ai");
       const prompt = ideaDescription
         ? `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${decodeURIComponent(ideaDescription)}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`
         : `I am writing a LinkedIn post on the topic of "${title}". Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
@@ -1338,12 +1371,12 @@ export default function PostWorkspacePage() {
             Preview
           </Button>
 
-          {/* Chat panel toggle */}
+          {/* Right panel toggle */}
           <TooltipWrapper tooltip={chatOpen ? EDITOR_TOOLTIPS.hideAI : EDITOR_TOOLTIPS.showAI}>
             <Button
               variant="outline"
               size="icon-sm"
-              onClick={() => setChatOpen(!chatOpen)}
+              onClick={togglePanel}
               className="lg:hidden"
             >
               {chatOpen ? (
@@ -1358,7 +1391,7 @@ export default function PostWorkspacePage() {
               id="tour-ai-panel"
               variant="outline"
               size="sm"
-              onClick={() => setChatOpen(!chatOpen)}
+              onClick={togglePanel}
               className="hidden gap-1.5 lg:inline-flex"
             >
               {chatOpen ? (
@@ -1366,7 +1399,7 @@ export default function PostWorkspacePage() {
               ) : (
                 <PanelRightOpen className="size-3.5" />
               )}
-              {chatOpen ? "Hide AI" : "Show AI"}
+              {chatOpen ? "Hide Panel" : "Show Panel"}
             </Button>
           </TooltipWrapper>
         </div>
@@ -1444,8 +1477,8 @@ export default function PostWorkspacePage() {
         </div>
       )}
 
-      {/* Team features: assignment, approval, comments — only shown for workspace posts */}
-      {post?.workspace_id && (
+      {/* Team features: assignment + approval — Team/Enterprise tier + workspace only */}
+      {post?.workspace_id && hasFeature(userTier, "workspaces") && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Assignment badge */}
           <div className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3">
@@ -1475,8 +1508,8 @@ export default function PostWorkspacePage() {
         </div>
       )}
 
-      {/* Full approval controls */}
-      {post?.workspace_id && (
+      {/* Full approval controls — Team/Enterprise tier only */}
+      {post?.workspace_id && hasFeature(userTier, "workspaces") && (
         <ApprovalControls
           postId={post.id}
           workspaceId={post.workspace_id}
@@ -1485,15 +1518,6 @@ export default function PostWorkspacePage() {
           approvalStatus={post.approval_status ?? null}
           approvalStage={post.approval_stage ?? null}
           onChange={() => window.location.reload()}
-        />
-      )}
-
-      {/* Comments panel */}
-      {post?.workspace_id && (
-        <CommentsPanel
-          postId={post.id}
-          workspaceId={post.workspace_id}
-          currentUserId={post.user_id}
         />
       )}
 
@@ -1950,6 +1974,18 @@ export default function PostWorkspacePage() {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Submit for Review — right-aligned, Team/Enterprise + workspace only */}
+              {post?.workspace_id && hasFeature(userTier, "workspaces") && status === "draft" && post.approval_status !== "pending" && (
+                <Button
+                  onClick={() => setReviewerDialogOpen(true)}
+                  size="sm"
+                  className="gap-1.5 ml-auto"
+                >
+                  <Send className="size-3.5" />
+                  Submit for Review
+                </Button>
+              )}
             </div>
 
             {/* Engagement Analytics moved to below progress bar */}
@@ -1964,37 +2000,114 @@ export default function PostWorkspacePage() {
               ? "fixed inset-0 z-50 bg-background p-4"
               : "w-full border-l pl-4 lg:w-[40%]"
           )}>
-            {/* Chat header */}
-            <div className="flex items-center justify-between pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-full bg-primary/10">
-                  <Bot className="size-4 text-primary" />
+            {/* Panel tab header — only Team+ users in workspace see Comments/Activity tabs */}
+            {post?.workspace_id && hasFeature(userTier, "workspaces") ? (
+              <>
+                <div className="flex items-center justify-between pb-3">
+                  <div className="flex rounded-lg border border-input p-0.5 bg-muted/50 flex-1 max-w-md">
+                    <button
+                      onClick={() => setPanelViewPersisted("ai")}
+                      className={cn(
+                        "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                        panelView === "ai"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Bot className="size-3.5" />
+                      AI Assistant
+                    </button>
+                    <button
+                      onClick={() => setPanelViewPersisted("comments")}
+                      className={cn(
+                        "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                        panelView === "comments"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <MessageCircle className="size-3.5" />
+                      Comments
+                    </button>
+                    <button
+                      onClick={() => setPanelViewPersisted("activity")}
+                      className={cn(
+                        "flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                        panelView === "activity"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Activity className="size-3.5" />
+                      Activity
+                    </button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setPanelView(null)}
+                    className="ml-2 shrink-0"
+                  >
+                    <X className="size-4" />
+                  </Button>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">
-                    AI Assistant
-                    {profile?.ai_provider && (
-                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                        ({PROVIDER_DISPLAY_NAMES[profile.ai_provider as AIProvider]})
-                      </span>
-                    )}
-                  </p>
-                  <p className="max-w-[200px] truncate text-xs text-muted-foreground">
-                    Discussing: {title || "Untitled Post"}
-                  </p>
+                <Separator />
+              </>
+            ) : (
+              /* Single AI header for non-team users */
+              <>
+                <div className="flex items-center justify-between pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-7 items-center justify-center rounded-full bg-primary/10">
+                      <Bot className="size-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        AI Assistant
+                        {profile?.ai_provider && (
+                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                            ({PROVIDER_DISPLAY_NAMES[profile.ai_provider as AIProvider]})
+                          </span>
+                        )}
+                      </p>
+                      <p className="max-w-[200px] truncate text-xs text-muted-foreground">
+                        Discussing: {title || "Untitled Post"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setPanelView(null)}
+                  >
+                    <X className="size-4" />
+                  </Button>
                 </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Comments tab content */}
+            {panelView === "comments" && post?.workspace_id && hasFeature(userTier, "workspaces") && (
+              <div className="flex-1 min-h-0 py-3 overflow-y-auto">
+                <CommentsPanel
+                  postId={post.id}
+                  workspaceId={post.workspace_id}
+                  currentUserId={post.user_id}
+                />
               </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setChatOpen(false)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
+            )}
 
-            <Separator />
+            {/* Activity tab content */}
+            {panelView === "activity" && post?.workspace_id && hasFeature(userTier, "workspaces") && (
+              <div className="flex-1 min-h-0 py-3 overflow-y-auto">
+                <ActivityFeed postId={post.id} limit={100} title="Post Timeline" />
+              </div>
+            )}
 
+            {/* AI Assistant tab content — only shown when panelView is "ai" */}
+            {panelView === "ai" && (
+            <>
             {/* Chat messages area */}
             <ScrollArea id="tour-ai-chat-area" className="flex-1 min-h-0 py-3">
               <div className="space-y-4 pr-2">
@@ -2135,6 +2248,8 @@ export default function PostWorkspacePage() {
                 )}
               </Button>
             </div>
+            </>
+            )}
           </div>
         )}
       </div>

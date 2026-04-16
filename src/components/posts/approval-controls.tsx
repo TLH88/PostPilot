@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, Send, Clock, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -56,11 +56,6 @@ export function ApprovalControls({
       .then((data) => setApprovals(data.approvals ?? []))
       .catch(() => {});
   }, [postId, workspaceId, currentUserId]);
-
-  // Opens the reviewer selection dialog (user picks reviewers before submitting)
-  function openReviewerDialog() {
-    setReviewerDialogOpen(true);
-  }
 
   async function decide(decision: "approved" | "changes_requested") {
     setLoading(true);
@@ -120,10 +115,9 @@ export function ApprovalControls({
 
       {/* Actions */}
       {!isInReview && !isApproved && (postStatus === "draft" || postStatus === "past_due") && (
-        <Button onClick={openReviewerDialog} disabled={loading} size="sm" className="w-full gap-1.5">
-          <Send className="size-3.5" />
-          Submit for Review
-        </Button>
+        <p className="text-xs text-muted-foreground">
+          Use the <strong>Submit for Review</strong> button above to start the approval process.
+        </p>
       )}
 
       <SubmitForReviewDialog
