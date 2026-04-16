@@ -89,6 +89,9 @@ import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { PostProgressBar } from "@/components/posts/post-progress-bar";
+import { AssignPost } from "@/components/posts/assign-post";
+import { CommentsPanel } from "@/components/posts/comments-panel";
+import { ApprovalControls } from "@/components/posts/approval-controls";
 // Tutorial target IDs on elements are used by the tutorial overlay
 import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
 
@@ -1372,6 +1375,59 @@ export default function PostWorkspacePage() {
         <div className="rounded-lg border bg-card p-4">
           <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
         </div>
+      )}
+
+      {/* Team features: assignment, approval, comments — only shown for workspace posts */}
+      {post?.workspace_id && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Assignment badge */}
+          <div className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              Assignment
+            </div>
+            <AssignPost
+              postId={post.id}
+              workspaceId={post.workspace_id}
+              assignedTo={post.assigned_to ?? null}
+              currentUserId={post.user_id}
+            />
+          </div>
+
+          {/* Approval status at a glance */}
+          <div className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              Approval
+            </div>
+            <span className="text-xs">
+              {post.approval_status === "pending" && <span className="text-amber-600 dark:text-amber-400">In review</span>}
+              {post.approval_status === "approved" && <span className="text-green-600 dark:text-green-400">Approved</span>}
+              {post.approval_status === "changes_requested" && <span className="text-red-600 dark:text-red-400">Changes requested</span>}
+              {!post.approval_status && <span className="text-muted-foreground">Not submitted</span>}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Full approval controls */}
+      {post?.workspace_id && (
+        <ApprovalControls
+          postId={post.id}
+          workspaceId={post.workspace_id}
+          currentUserId={post.user_id}
+          postStatus={status}
+          approvalStatus={post.approval_status ?? null}
+          approvalStage={post.approval_stage ?? null}
+          onChange={() => window.location.reload()}
+        />
+      )}
+
+      {/* Comments panel */}
+      {post?.workspace_id && (
+        <CommentsPanel
+          postId={post.id}
+          workspaceId={post.workspace_id}
+          currentUserId={post.user_id}
+        />
       )}
 
       {/* Scheduled status clarification banner */}

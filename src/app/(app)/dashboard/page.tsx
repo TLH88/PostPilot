@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { POST_STATUSES } from "@/lib/constants";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
+import { ActivityFeed } from "@/components/activity/activity-feed";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
 // Old tutorial auto-start disabled — replaced by TutorialGate in tutorial-bridge
 // import { TutorialAutoStart } from "@/components/tutorial/tutorial-auto-start";
@@ -389,6 +390,8 @@ export default async function DashboardPage() {
               />
             </div>
           )}
+          {/* Activity feed — shown for all users, but most useful for team members */}
+          <ActivityFeed limit={10} title="Recent Activity" />
         </div>
       </div>
     </div>

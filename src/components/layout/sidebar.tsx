@@ -14,6 +14,8 @@ import {
   HelpCircle,
   Lock,
   LogOut,
+  Activity,
+  CheckSquare,
   type LucideIcon,
 } from "lucide-react";
 import { NewPostButton } from "@/components/posts/new-post-button";
@@ -32,12 +34,15 @@ const iconMap: Record<string, LucideIcon> = {
   BookOpen,
   Calendar,
   BarChart3,
+  Activity,
+  CheckSquare,
 };
 
 // Map nav item href to feature gate key
 const NAV_GATE_MAP: Record<string, string> = {
   "/library": "content_library",
   "/analytics": "analytics",
+  "/workspace/reviews": "workspaces",
 };
 
 interface SidebarProps {

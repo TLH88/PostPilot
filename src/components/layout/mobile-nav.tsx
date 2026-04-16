@@ -15,6 +15,8 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  Activity,
+  CheckSquare,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -38,11 +40,14 @@ const iconMap: Record<string, LucideIcon> = {
   BookOpen,
   Calendar,
   BarChart3,
+  Activity,
+  CheckSquare,
 };
 
 const NAV_GATE_MAP: Record<string, string> = {
   "/library": "content_library",
   "/analytics": "analytics",
+  "/workspace/reviews": "workspaces",
 };
 
 interface MobileNavProps {

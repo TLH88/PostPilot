@@ -98,6 +98,8 @@ export const NAV_ITEMS = [
   { href: "/library", label: "Library", icon: "BookOpen" },
   { href: "/calendar", label: "Calendar", icon: "Calendar" },
   { href: "/analytics", label: "Analytics", icon: "BarChart3" },
+  { href: "/activity", label: "Activity", icon: "Activity" },
+  { href: "/workspace/reviews", label: "Reviews", icon: "CheckSquare" },
 ] as const;
 
 // Best times to post on LinkedIn (based on engagement research)

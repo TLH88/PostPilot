@@ -60,6 +60,8 @@ export function WorkspaceSetupWizard() {
         .insert({
           name: brandName.trim(),
           owner_id: user.id,
+          workspace_type: "brand",
+          onboarding_completed: true,
           brand_name: brandName.trim(),
           brand_industry: industry.trim() || null,
           brand_product_or_service: productOrService.trim() || null,

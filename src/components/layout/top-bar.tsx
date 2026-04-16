@@ -6,6 +6,7 @@ import { Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import { NAV_ITEMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 
@@ -66,6 +67,7 @@ export function TopBar({ userName, userTier = "free" }: TopBarProps) {
 
         {/* Theme toggle + Sign out */}
         <div id="tour-top-controls" className="flex items-center gap-1">
+          <NotificationsBell />
           <ThemeToggle />
           <Button
             variant="ghost"

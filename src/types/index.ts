@@ -72,6 +72,7 @@ export interface Workspace {
   id: string;
   name: string;
   owner_id: string;
+  workspace_type: "individual" | "brand";
   brand_name: string | null;
   brand_uvp: string | null;
   brand_industry: string | null;
@@ -80,9 +81,68 @@ export interface Workspace {
   brand_demographics: string | null;
   brand_voice_guidelines: string | null;
   brand_content_pillars: string[];
+  brand_sample_posts: Array<{ content: string; url?: string }>;
   linkedin_account_id: string | null;
+  approval_stages: Array<{ name: string; reviewers: string[] }>;
+  requires_approval: boolean;
+  onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface PostComment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  workspace_id: string | null;
+  parent_id: string | null;
+  content: string;
+  mentions: string[];
+  resolved: boolean;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  workspace_id: string | null;
+  user_id: string;
+  post_id: string | null;
+  action: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  workspace_id: string | null;
+  type: string;
+  title: string;
+  body: string | null;
+  action_url: string | null;
+  post_id: string | null;
+  triggered_by: string | null;
+  read: boolean;
+  read_at: string | null;
+  email_enabled: boolean;
+  email_sent_at: string | null;
+  email_queued_at: string | null;
+  created_at: string;
+}
+
+export interface PostApproval {
+  id: string;
+  post_id: string;
+  workspace_id: string | null;
+  stage: string;
+  reviewer_id: string;
+  decision: "approved" | "changes_requested";
+  feedback: string | null;
+  version_id: string | null;
+  created_at: string;
 }
 
 export interface WorkspaceMember {
@@ -135,6 +195,13 @@ export interface Post {
   image_url: string | null;
   image_storage_path: string | null;
   image_alt_text: string | null;
+  // Assignment (BP-046)
+  assigned_to: string | null;
+  assigned_by: string | null;
+  assigned_at: string | null;
+  // Approval workflow (BP-050)
+  approval_stage: string | null;
+  approval_status: "pending" | "approved" | "changes_requested" | null;
   // Analytics (manual entry or LinkedIn paste import)
   impressions: number | null;
   reactions: number | null;
