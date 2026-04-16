@@ -12,6 +12,9 @@ import {
   MousePointerClick,
   Upload,
   TrendingUp,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +25,7 @@ import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { HelpLink, HelpStepList, HelpTip } from "@/components/help-link";
 import { ImportAnalyticsDialog } from "@/components/analytics/import-analytics-dialog";
+import { EngagementTrendsChart } from "@/components/analytics/engagement-trends-chart";
 import type { SubscriptionTier } from "@/lib/constants";
 import type { Post } from "@/types";
 import { cn } from "@/lib/utils";
@@ -34,6 +38,14 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [tier, setTier] = useState<SubscriptionTier>("free");
   const [importOpen, setImportOpen] = useState(false);
+  const [topPostsExpanded, setTopPostsExpanded] = useState(false);
+  const [topPostsPage, setTopPostsPage] = useState(0);
+  const [pillarsExpanded, setPillarsExpanded] = useState(false);
+  const [pillarsPage, setPillarsPage] = useState(0);
+  const [trackedExpanded, setTrackedExpanded] = useState(false);
+  const [trackedPage, setTrackedPage] = useState(0);
+  const [sortColumn, setSortColumn] = useState<"posted_at" | "impressions" | "reactions" | "comments_count" | "reposts">("impressions");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const canUseAnalytics = hasFeature(tier, "analytics");
 
@@ -74,11 +86,10 @@ export default function AnalyticsPage() {
     ? ((totalReactions + totalComments + totalReposts) / totalImpressions * 100).toFixed(1)
     : "0.0";
 
-  // Top posts by impressions
-  const topPosts = [...trackedPosts]
-    .sort((a, b) => (b.impressions ?? 0) - (a.impressions ?? 0))
-    .slice(0, 10);
-  const maxImpressions = topPosts[0]?.impressions ?? 1;
+  // Top posts by impressions (sorted, not sliced — pagination handles display)
+  const allTopPosts = [...trackedPosts]
+    .sort((a, b) => (b.impressions ?? 0) - (a.impressions ?? 0));
+  const maxImpressions = allTopPosts[0]?.impressions ?? 1;
 
   // Pillar performance
   const pillarMap = new Map<string, { impressions: number; reactions: number; count: number }>();
@@ -103,6 +114,7 @@ export default function AnalyticsPage() {
   const maxPillarImpressions = pillarStats[0]?.avgImpressions ?? 1;
 
   const metricCards = [
+    { label: "Total Posts", value: posts.length.toLocaleString(), icon: BarChart3, color: "text-purple-500", border: "border-l-purple-500", bg: "bg-purple-500/10" },
     { label: "Total Impressions", value: totalImpressions.toLocaleString(), icon: Eye, color: "text-blue-500", border: "border-l-blue-500", bg: "bg-blue-500/10" },
     { label: "Total Reactions", value: totalReactions.toLocaleString(), icon: Heart, color: "text-red-500", border: "border-l-red-500", bg: "bg-red-500/10" },
     { label: "Total Comments", value: totalComments.toLocaleString(), icon: MessageCircle, color: "text-amber-500", border: "border-l-amber-500", bg: "bg-amber-500/10" },
@@ -169,7 +181,7 @@ export default function AnalyticsPage() {
       {canUseAnalytics && (
         <>
           {/* Metric Cards */}
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
             {metricCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -189,6 +201,9 @@ export default function AnalyticsPage() {
               );
             })}
           </div>
+
+          {/* Engagement Trends Chart */}
+          <EngagementTrendsChart posts={posts} />
 
           {trackedPosts.length === 0 ? (
             <Card>
@@ -217,26 +232,80 @@ export default function AnalyticsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {topPosts.map((post) => {
-                    const pct = maxImpressions > 0 ? ((post.impressions ?? 0) / maxImpressions) * 100 : 0;
+                  {(() => {
+                    const PAGE_SIZE = 25;
+                    const defaultCount = 5;
+                    const total = allTopPosts.length;
+                    const visible = topPostsExpanded
+                      ? allTopPosts.slice(topPostsPage * PAGE_SIZE, (topPostsPage + 1) * PAGE_SIZE)
+                      : allTopPosts.slice(0, defaultCount);
+                    const totalPages = Math.ceil(total / PAGE_SIZE);
+
                     return (
-                      <Link key={post.id} href={`/posts/${post.id}`} className="block">
-                        <div className="rounded-md p-2 hover:bg-hover-highlight transition-colors space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium truncate flex-1 mr-2">
-                              {post.title || (post.content?.slice(0, 40) + "...") || "Untitled"}
+                      <>
+                        {visible.map((post) => {
+                          const pct = maxImpressions > 0 ? ((post.impressions ?? 0) / maxImpressions) * 100 : 0;
+                          return (
+                            <Link key={post.id} href={`/posts/${post.id}`} className="block">
+                              <div className="rounded-md p-2 hover:bg-hover-highlight transition-colors space-y-1">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="font-medium truncate flex-1 mr-2">
+                                    {post.title || (post.content?.slice(0, 40) + "...") || "Untitled"}
+                                  </span>
+                                  <span className="text-muted-foreground tabular-nums shrink-0">
+                                    {(post.impressions ?? 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                  <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
+                                </div>
+                              </div>
+                            </Link>
+                          );
+                        })}
+
+                        {!topPostsExpanded && total > defaultCount && (
+                          <button
+                            onClick={() => { setTopPostsExpanded(true); setTopPostsPage(0); }}
+                            className="w-full text-center text-xs font-medium text-primary hover:underline pt-1"
+                          >
+                            View All ({total})
+                          </button>
+                        )}
+
+                        {topPostsExpanded && totalPages > 1 && (
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <button
+                              onClick={() => setTopPostsPage(Math.max(0, topPostsPage - 1))}
+                              disabled={topPostsPage === 0}
+                              className="text-xs font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                            >
+                              Previous
+                            </button>
+                            <span className="text-[10px] text-muted-foreground">
+                              Page {topPostsPage + 1} of {totalPages}
                             </span>
-                            <span className="text-muted-foreground tabular-nums shrink-0">
-                              {(post.impressions ?? 0).toLocaleString()}
-                            </span>
+                            <button
+                              onClick={() => setTopPostsPage(Math.min(totalPages - 1, topPostsPage + 1))}
+                              disabled={topPostsPage >= totalPages - 1}
+                              className="text-xs font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                            >
+                              Next
+                            </button>
                           </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                            <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
-                          </div>
-                        </div>
-                      </Link>
+                        )}
+
+                        {topPostsExpanded && total > defaultCount && (
+                          <button
+                            onClick={() => { setTopPostsExpanded(false); setTopPostsPage(0); }}
+                            className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground pt-1"
+                          >
+                            Show Less
+                          </button>
+                        )}
+                      </>
                     );
-                  })}
+                  })()}
                 </CardContent>
               </Card>
 
@@ -252,27 +321,79 @@ export default function AnalyticsPage() {
                 <CardContent className="space-y-2">
                   {pillarStats.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Assign content pillars to your posts to see performance data.</p>
-                  ) : (
-                    pillarStats.map((pillar) => {
-                      const pct = maxPillarImpressions > 0 ? (pillar.avgImpressions / maxPillarImpressions) * 100 : 0;
-                      return (
-                        <div key={pillar.name} className="rounded-md p-2 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium">
-                              {pillar.name}
-                              <span className="ml-1.5 text-muted-foreground">({pillar.count} post{pillar.count !== 1 ? "s" : ""})</span>
+                  ) : (() => {
+                    const PAGE_SIZE = 25;
+                    const defaultCount = 5;
+                    const total = pillarStats.length;
+                    const visible = pillarsExpanded
+                      ? pillarStats.slice(pillarsPage * PAGE_SIZE, (pillarsPage + 1) * PAGE_SIZE)
+                      : pillarStats.slice(0, defaultCount);
+                    const totalPages = Math.ceil(total / PAGE_SIZE);
+
+                    return (
+                      <>
+                        {visible.map((pillar) => {
+                          const pct = maxPillarImpressions > 0 ? (pillar.avgImpressions / maxPillarImpressions) * 100 : 0;
+                          return (
+                            <div key={pillar.name} className="rounded-md p-2 space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-medium">
+                                  {pillar.name}
+                                  <span className="ml-1.5 text-muted-foreground">({pillar.count} post{pillar.count !== 1 ? "s" : ""})</span>
+                                </span>
+                                <span className="text-muted-foreground tabular-nums">
+                                  avg {pillar.avgImpressions.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {!pillarsExpanded && total > defaultCount && (
+                          <button
+                            onClick={() => { setPillarsExpanded(true); setPillarsPage(0); }}
+                            className="w-full text-center text-xs font-medium text-primary hover:underline pt-1"
+                          >
+                            View All ({total})
+                          </button>
+                        )}
+
+                        {pillarsExpanded && totalPages > 1 && (
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <button
+                              onClick={() => setPillarsPage(Math.max(0, pillarsPage - 1))}
+                              disabled={pillarsPage === 0}
+                              className="text-xs font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                            >
+                              Previous
+                            </button>
+                            <span className="text-[10px] text-muted-foreground">
+                              Page {pillarsPage + 1} of {totalPages}
                             </span>
-                            <span className="text-muted-foreground tabular-nums">
-                              avg {pillar.avgImpressions.toLocaleString()}
-                            </span>
+                            <button
+                              onClick={() => setPillarsPage(Math.min(totalPages - 1, pillarsPage + 1))}
+                              disabled={pillarsPage >= totalPages - 1}
+                              className="text-xs font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                            >
+                              Next
+                            </button>
                           </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        )}
+
+                        {pillarsExpanded && total > defaultCount && (
+                          <button
+                            onClick={() => { setPillarsExpanded(false); setPillarsPage(0); }}
+                            className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground pt-1"
+                          >
+                            Show Less
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </div>
@@ -284,58 +405,169 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <CardTitle className="text-sm">All Tracked Posts</CardTitle>
                 <CardDescription>
-                  {trackedPosts.length} post{trackedPosts.length !== 1 ? "s" : ""} with analytics data
+                  {trackedPosts.length} post{trackedPosts.length !== 1 ? "s" : ""} with analytics data — click a post to view detailed analytics
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="pb-2 pr-4 text-left font-medium text-muted-foreground">Post</th>
-                        <th className="pb-2 px-2 text-right font-medium text-muted-foreground">Impressions</th>
-                        <th className="pb-2 px-2 text-right font-medium text-muted-foreground">Reactions</th>
-                        <th className="pb-2 px-2 text-right font-medium text-muted-foreground">Comments</th>
-                        <th className="pb-2 px-2 text-right font-medium text-muted-foreground">Reposts</th>
-                        <th className="pb-2 pl-2 text-right font-medium text-muted-foreground">Pillar</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trackedPosts.map((post) => (
-                        <tr key={post.id} className="border-b last:border-0">
-                          <td className="py-2 pr-4">
-                            <Link href={`/posts/${post.id}`} className="text-xs font-medium hover:text-primary transition-colors line-clamp-1">
-                              {post.title || (post.content?.slice(0, 50) + "...") || "Untitled"}
-                            </Link>
-                          </td>
-                          <td className="py-2 px-2 text-right tabular-nums text-xs">
-                            {post.impressions?.toLocaleString() ?? "—"}
-                          </td>
-                          <td className="py-2 px-2 text-right tabular-nums text-xs">
-                            {post.reactions?.toLocaleString() ?? "—"}
-                          </td>
-                          <td className="py-2 px-2 text-right tabular-nums text-xs">
-                            {post.comments_count?.toLocaleString() ?? "—"}
-                          </td>
-                          <td className="py-2 px-2 text-right tabular-nums text-xs">
-                            {post.reposts?.toLocaleString() ?? "—"}
-                          </td>
-                          <td className="py-2 pl-2 text-right">
-                            {post.content_pillars?.length ? (
-                              <div className="flex flex-wrap gap-0.5 justify-end">
-                                {post.content_pillars.map((pillar: string) => (
-                                  <Badge key={pillar} variant="outline" className="text-[10px] h-4">{pillar}</Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {(() => {
+                  const PAGE_SIZE = 25;
+                  const defaultCount = 25;
+
+                  const sortedPosts = [...trackedPosts].sort((a, b) => {
+                    if (sortColumn === "posted_at") {
+                      const aVal = new Date(a.posted_at ?? 0).getTime();
+                      const bVal = new Date(b.posted_at ?? 0).getTime();
+                      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+                    }
+                    const aVal = (a[sortColumn] as number) ?? 0;
+                    const bVal = (b[sortColumn] as number) ?? 0;
+                    return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+                  });
+
+                  const total = sortedPosts.length;
+                  const visible = trackedExpanded
+                    ? sortedPosts.slice(trackedPage * PAGE_SIZE, (trackedPage + 1) * PAGE_SIZE)
+                    : sortedPosts.slice(0, defaultCount);
+                  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+                  const sortableColumns = [
+                    { key: "posted_at" as const, label: "Date Posted" },
+                    { key: "impressions" as const, label: "Impressions" },
+                    { key: "reactions" as const, label: "Reactions" },
+                    { key: "comments_count" as const, label: "Comments" },
+                    { key: "reposts" as const, label: "Reposts" },
+                  ];
+
+                  function handleSort(col: typeof sortColumn) {
+                    if (sortColumn === col) {
+                      setSortDir(sortDir === "desc" ? "asc" : "desc");
+                    } else {
+                      setSortColumn(col);
+                      setSortDir("desc");
+                    }
+                    setTrackedPage(0);
+                  }
+
+                  return (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="pb-2 pr-4 text-left font-medium text-muted-foreground">Post</th>
+                              {sortableColumns.map((col) => (
+                                <th
+                                  key={col.key}
+                                  className="pb-2 px-2 text-right font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
+                                  onClick={() => handleSort(col.key)}
+                                >
+                                  <span className="inline-flex items-center gap-0.5 justify-end">
+                                    {col.label}
+                                    {sortColumn === col.key ? (
+                                      sortDir === "desc"
+                                        ? <ArrowDown className="size-3 text-primary" />
+                                        : <ArrowUp className="size-3 text-primary" />
+                                    ) : (
+                                      <ArrowDown className="size-3 opacity-0 group-hover:opacity-30" />
+                                    )}
+                                  </span>
+                                </th>
+                              ))}
+                              <th className="pb-2 px-2 text-right font-medium text-muted-foreground">Pillar</th>
+                              <th className="pb-2 pl-2 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visible.map((post) => (
+                              <tr
+                                key={post.id}
+                                className="border-b last:border-0 cursor-pointer hover:bg-hover-highlight transition-colors group"
+                                onClick={() => router.push(`/posts/${post.id}`)}
+                              >
+                                <td className="py-2.5 pr-4">
+                                  <span className="text-xs font-medium text-primary group-hover:underline line-clamp-1">
+                                    {post.title || (post.content?.slice(0, 50) + "...") || "Untitled"}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-2 text-right text-xs text-muted-foreground whitespace-nowrap">
+                                  {post.posted_at
+                                    ? new Date(post.posted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                                    : "—"}
+                                </td>
+                                <td className="py-2.5 px-2 text-right tabular-nums text-xs">
+                                  {post.impressions?.toLocaleString() ?? "—"}
+                                </td>
+                                <td className="py-2.5 px-2 text-right tabular-nums text-xs">
+                                  {post.reactions?.toLocaleString() ?? "—"}
+                                </td>
+                                <td className="py-2.5 px-2 text-right tabular-nums text-xs">
+                                  {post.comments_count?.toLocaleString() ?? "—"}
+                                </td>
+                                <td className="py-2.5 px-2 text-right tabular-nums text-xs">
+                                  {post.reposts?.toLocaleString() ?? "—"}
+                                </td>
+                                <td className="py-2.5 px-2 text-right">
+                                  {post.content_pillars?.length ? (
+                                    <div className="flex flex-wrap gap-0.5 justify-end">
+                                      {post.content_pillars.map((pillar: string) => (
+                                        <Badge key={pillar} variant="outline" className="text-[10px] h-4">{pillar}</Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="py-2.5 pl-2">
+                                  <ChevronRight className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {!trackedExpanded && total > defaultCount && (
+                        <button
+                          onClick={() => { setTrackedExpanded(true); setTrackedPage(0); }}
+                          className="w-full text-center text-xs font-medium text-primary hover:underline pt-3"
+                        >
+                          View All ({total})
+                        </button>
+                      )}
+
+                      {trackedExpanded && totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-3 border-t mt-2">
+                          <button
+                            onClick={() => setTrackedPage(Math.max(0, trackedPage - 1))}
+                            disabled={trackedPage === 0}
+                            className="text-xs font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                          >
+                            Previous
+                          </button>
+                          <span className="text-[10px] text-muted-foreground">
+                            Page {trackedPage + 1} of {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setTrackedPage(Math.min(totalPages - 1, trackedPage + 1))}
+                            disabled={trackedPage >= totalPages - 1}
+                            className="text-xs font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+
+                      {trackedExpanded && total > defaultCount && (
+                        <button
+                          onClick={() => { setTrackedExpanded(false); setTrackedPage(0); }}
+                          className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground pt-2"
+                        >
+                          Show Less
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}

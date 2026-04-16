@@ -205,6 +205,18 @@ export const TIER_BADGE_COLORS: Record<string, string> = {
   enterprise: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
 } as const;
 
+export const TRIAL_DURATION_DAYS = 14;
+export const TRIAL_COOLDOWN_DAYS = 365;
+
+export type AccountStatus = "active" | "trial" | "suspended" | "churned";
+
+export const ACCOUNT_STATUS_CONFIG: Record<AccountStatus, { label: string; color: string }> = {
+  active: { label: "Active", color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" },
+  trial: { label: "Trial", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
+  suspended: { label: "Suspended", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
+  churned: { label: "Churned", color: "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300" },
+};
+
 export const CONTENT_LIBRARY_TYPES = {
   hook: { label: "Hook", color: "bg-orange-100 text-orange-700" },
   cta: { label: "CTA", color: "bg-blue-100 text-blue-700" },

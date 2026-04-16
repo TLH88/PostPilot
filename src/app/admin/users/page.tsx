@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
+import { SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, ACCOUNT_STATUS_CONFIG, type SubscriptionTier, type AccountStatus } from "@/lib/constants";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,14 @@ interface AdminUser {
   email: string;
   full_name: string | null;
   subscription_tier: SubscriptionTier;
+  account_status: AccountStatus;
   managed_ai_access: boolean;
   managed_ai_expires_at: string | null;
+  original_tier: string | null;
+  trial_tier: string | null;
+  trial_started_at: string | null;
+  trial_ends_at: string | null;
+  last_trial_tiers: Record<string, string> | null;
   onboarding_completed: boolean;
   ai_provider: string | null;
   hasPersonalKey: boolean;
@@ -335,27 +341,65 @@ export default function AdminUsersPage() {
                         })()}
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const trialEnd = user.trial_ends_at ?? user.managed_ai_expires_at;
+                          const trialStart = user.trial_started_at;
+                          const daysLeft = trialEnd
+                            ? Math.max(0, Math.ceil((new Date(trialEnd).getTime() - Date.now()) / 86400000))
+                            : null;
+                          const isTrialExpired = trialEnd ? new Date(trialEnd) < new Date() : false;
+                          const isTrial = user.account_status === "trial" && trialEnd;
+
+                          return (
+                            <div className="space-y-0.5">
+                              {!isTrial && !trialEnd ? (
+                                <span className="text-[10px] font-medium text-green-600 dark:text-green-400">
+                                  {user.managed_ai_access ? "Permanent" : "No trial"}
+                                </span>
+                              ) : isTrialExpired ? (
+                                <span className="text-[10px] font-medium text-red-600 dark:text-red-400">Expired</span>
+                              ) : isTrial ? (
+                                <>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
+                                      <div
+                                        className={cn(
+                                          "h-full rounded-full",
+                                          daysLeft! <= 1 ? "bg-red-500" : daysLeft! <= 3 ? "bg-amber-500" : "bg-green-500"
+                                        )}
+                                        style={{ width: `${Math.min((daysLeft! / 14) * 100, 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className={cn(
+                                      "text-[10px] font-semibold tabular-nums",
+                                      daysLeft! <= 1 ? "text-red-600 dark:text-red-400" : daysLeft! <= 3 ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+                                    )}>
+                                      {daysLeft}d left
+                                    </span>
+                                  </div>
+                                  {trialStart && (
+                                    <p className="text-[9px] text-muted-foreground">
+                                      Started {new Date(trialStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                      {user.trial_tier && ` (${user.trial_tier})`}
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[10px] font-medium text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
                               <button
                                 type="button"
-                                className={cn(
-                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium cursor-pointer",
-                                  !user.managed_ai_expires_at
-                                    ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                                    : isExpired
-                                      ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                                      : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                                )}
+                                className="mt-0.5 text-[9px] text-primary hover:underline cursor-pointer"
                               />
                             }
                           >
-                            {!user.managed_ai_expires_at
-                              ? "Permanent"
-                              : isExpired
-                                ? `Expired ${new Date(user.managed_ai_expires_at).toLocaleDateString()}`
-                                : `Trial → ${new Date(user.managed_ai_expires_at).toLocaleDateString()}`}
+                            Manage
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="w-auto whitespace-nowrap">
                             <DropdownMenuGroup>
@@ -405,17 +449,51 @@ export default function AdminUsersPage() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
                           <span className={cn(
                             "size-2 rounded-full",
                             isOnline(user.lastSignIn) ? "bg-green-500" : "bg-gray-300"
                           )} />
-                          {user.onboarding_completed ? (
-                            <Badge variant="secondary" className="text-[10px]">Active</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">Onboarding</Badge>
-                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium cursor-pointer",
+                                    ACCOUNT_STATUS_CONFIG[user.account_status]?.color ?? ACCOUNT_STATUS_CONFIG.active.color
+                                  )}
+                                />
+                              }
+                            >
+                              {!user.onboarding_completed
+                                ? "Onboarding"
+                                : ACCOUNT_STATUS_CONFIG[user.account_status]?.label ?? "Active"}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel>Account Status</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {(Object.keys(ACCOUNT_STATUS_CONFIG) as AccountStatus[]).map((status) => (
+                                  <DropdownMenuItem
+                                    key={status}
+                                    onClick={() => updateUser(user.id, { account_status: status })}
+                                    className={cn(user.account_status === status && "bg-accent font-semibold")}
+                                  >
+                                    <span className={cn("inline-block size-2 rounded-full mr-2", {
+                                      "bg-green-500": status === "active",
+                                      "bg-blue-500": status === "trial",
+                                      "bg-red-500": status === "suspended",
+                                      "bg-gray-400": status === "churned",
+                                    })} />
+                                    {ACCOUNT_STATUS_CONFIG[status].label}
+                                    {user.account_status === status && <Check className="size-3.5 ml-auto text-primary" />}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">

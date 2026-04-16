@@ -19,8 +19,16 @@ const SYSTEM_AI_KEYS: Partial<Record<AIProvider, string | undefined>> = {
 
 /**
  * Check if a user has valid managed AI access (trial or admin-granted).
+ * Access is granted if:
+ * 1. managed_ai_access is true AND not expired, OR
+ * 2. User is on an active trial (account_status='trial' and trial_ends_at is in the future)
  */
 function hasManagedAccess(profile: CreatorProfile): boolean {
+  // Active trial grants managed access
+  if (profile.account_status === "trial" && profile.trial_ends_at) {
+    if (new Date(profile.trial_ends_at) > new Date()) return true;
+  }
+  // Legacy / admin-granted managed access
   if (!profile.managed_ai_access) return false;
   if (!profile.managed_ai_expires_at) return true; // no expiry = permanent (admin override)
   return new Date(profile.managed_ai_expires_at) > new Date();

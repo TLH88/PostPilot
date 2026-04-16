@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { Send, Check, X, Sparkles } from "lucide-react";
+import { Send, Check, X, Sparkles, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { TIER_FEATURES, SUBSCRIPTION_TIERS, type SubscriptionTier } from "@/lib/constants";
+import { TIER_FEATURES, SUBSCRIPTION_TIERS, TRIAL_COOLDOWN_DAYS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 const TIER_ORDER: SubscriptionTier[] = ["free", "creator", "professional", "team"];
 const ALL_TIERS: SubscriptionTier[] = ["free", "creator", "professional", "team", "enterprise"];
+const TRIABLE_TIERS = new Set(["creator", "professional"]);
 
 const TIER_STYLE: Record<string, { highlight: boolean; badge?: string; border: string }> = {
   free: { highlight: false, border: "border-border" },
@@ -30,6 +34,8 @@ const ANNUAL_PRICES: Record<string, string | null> = {
   enterprise: null,
 };
 
+const TIER_RANK: Record<string, number> = { free: 0, creator: 1, professional: 2, team: 3, enterprise: 4 };
+
 const FAQ = [
   {
     q: "What is BYOK (Bring Your Own Key)?",
@@ -45,7 +51,7 @@ const FAQ = [
   },
   {
     q: "Is there a free trial?",
-    a: "The Free plan is free forever with generous limits. You can explore all core features before deciding to upgrade. No credit card required to get started.",
+    a: "Yes! Creator and Professional plans include a 14-day free trial with full access to all features. No credit card required to start your trial.",
   },
   {
     q: "How does billing work?",
@@ -53,8 +59,19 @@ const FAQ = [
   },
 ];
 
+interface UserState {
+  loggedIn: boolean;
+  currentTier: SubscriptionTier;
+  accountStatus: string;
+  trialTier: string | null;
+  lastTrialTiers: Record<string, string>;
+}
+
 export default function PricingPage() {
   const { setTheme, theme } = useTheme();
+  const router = useRouter();
+  const [userState, setUserState] = useState<UserState | null>(null);
+  const [starting, setStarting] = useState<string | null>(null);
 
   useEffect(() => {
     const previousTheme = theme;
@@ -64,6 +81,122 @@ export default function PricingPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Check if user is logged in and get their tier/trial state
+  useEffect(() => {
+    async function checkUser() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setUserState({ loggedIn: false, currentTier: "free", accountStatus: "active", trialTier: null, lastTrialTiers: {} });
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("creator_profiles")
+        .select("subscription_tier, account_status, trial_tier, last_trial_tiers")
+        .eq("user_id", user.id)
+        .single();
+
+      setUserState({
+        loggedIn: true,
+        currentTier: (profile?.subscription_tier ?? "free") as SubscriptionTier,
+        accountStatus: profile?.account_status ?? "active",
+        trialTier: profile?.trial_tier ?? null,
+        lastTrialTiers: (profile?.last_trial_tiers as Record<string, string>) ?? {},
+      });
+    }
+    checkUser();
+  }, []);
+
+  function canTrialTier(tierKey: string): boolean {
+    if (!userState?.loggedIn) return true; // not logged in — will redirect to signup
+    if (!TRIABLE_TIERS.has(tierKey)) return false;
+    const lastDate = userState.lastTrialTiers[tierKey];
+    if (!lastDate) return true;
+    const daysSince = Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000);
+    return daysSince >= TRIAL_COOLDOWN_DAYS;
+  }
+
+  function getButtonConfig(tierKey: string): { label: string; action: () => void; variant: "primary" | "outline" } {
+    const style = TIER_STYLE[tierKey];
+
+    // Free tier
+    if (tierKey === "free") {
+      if (userState?.loggedIn && userState.currentTier === "free") {
+        return { label: "Current Plan", action: () => {}, variant: "outline" };
+      }
+      return { label: "Get Started", action: () => router.push("/signup"), variant: style.highlight ? "primary" : "outline" };
+    }
+
+    // Team — admin managed
+    if (tierKey === "team") {
+      return { label: "Contact Sales", action: () => router.push("mailto:sales@mypostpilot.app"), variant: "outline" };
+    }
+
+    // Not logged in
+    if (!userState?.loggedIn) {
+      return { label: "Start Free Trial", action: () => router.push(`/signup?tier=${tierKey}`), variant: style.highlight ? "primary" : "outline" };
+    }
+
+    // Already on this tier (active or trialing)
+    if (userState.currentTier === tierKey) {
+      if (userState.accountStatus === "trial") {
+        return { label: "Currently Trialing", action: () => {}, variant: "outline" };
+      }
+      return { label: "Current Plan", action: () => {}, variant: "outline" };
+    }
+
+    // On a higher tier already
+    if (TIER_RANK[userState.currentTier] >= TIER_RANK[tierKey]) {
+      return { label: "Current plan is higher", action: () => {}, variant: "outline" };
+    }
+
+    // Can trial this tier
+    if (canTrialTier(tierKey)) {
+      return {
+        label: "Start Free Trial",
+        action: () => startTrial(tierKey),
+        variant: style.highlight ? "primary" : "outline",
+      };
+    }
+
+    // Already trialed — show Upgrade
+    return {
+      label: "Upgrade",
+      action: () => { toast.info("Stripe billing coming soon. Contact support to upgrade."); },
+      variant: style.highlight ? "primary" : "outline",
+    };
+  }
+
+  async function startTrial(tier: string) {
+    setStarting(tier);
+    try {
+      const res = await fetch("/api/trial/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.error === "trial_unavailable") {
+          toast.error("Trial not available for this tier. Please upgrade instead.");
+        } else {
+          toast.error(data.error || "Failed to start trial");
+        }
+        return;
+      }
+
+      toast.success(`Your ${tier.charAt(0).toUpperCase() + tier.slice(1)} trial has started! You have ${data.days} days of full access.`);
+      router.push("/dashboard");
+    } catch {
+      toast.error("Failed to start trial");
+    } finally {
+      setStarting(null);
+    }
+  }
 
   function renderValue(val: boolean | string) {
     if (val === true) return <Check className="size-4 text-green-600" />;
@@ -82,18 +215,29 @@ export default function PricingPage() {
           </Link>
           <nav className="flex items-center gap-3">
             <ThemeToggle />
-            <Link
-              href="/login"
-              className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
-            >
-              Get Started
-            </Link>
+            {userState?.loggedIn ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -118,6 +262,9 @@ export default function PricingPage() {
               const tier = SUBSCRIPTION_TIERS[tierKey];
               const style = TIER_STYLE[tierKey];
               const annual = ANNUAL_PRICES[tierKey];
+              const btn = getButtonConfig(tierKey);
+              const isStarting = starting === tierKey;
+              const isDisabled = btn.label === "Current Plan" || btn.label === "Currently Trialing" || btn.label === "Current plan is higher" || isStarting;
 
               return (
                 <Card
@@ -168,17 +315,19 @@ export default function PricingPage() {
                     </p>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col">
-                    <Link
-                      href="/signup"
+                    <button
+                      onClick={btn.action}
+                      disabled={isDisabled}
                       className={cn(
-                        "mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-medium transition-colors",
-                        style.highlight
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "border border-input bg-background hover:bg-muted"
+                        "mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-medium transition-colors gap-1.5",
+                        btn.variant === "primary"
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                          : "border border-input bg-background hover:bg-muted disabled:opacity-50"
                       )}
                     >
-                      {tierKey === "free" ? "Get Started" : "Start Free Trial"}
-                    </Link>
+                      {isStarting && <Loader2 className="size-3.5 animate-spin" />}
+                      {btn.label}
+                    </button>
 
                     <Separator className="my-5" />
 

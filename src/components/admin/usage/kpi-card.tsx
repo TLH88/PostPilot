@@ -12,6 +12,9 @@ interface KpiCardProps {
   trend?: { value: number; label: string };
   alert?: boolean;
   className?: string;
+  borderColor?: string;
+  iconColor?: string;
+  iconBg?: string;
 }
 
 export function KpiCard({
@@ -23,6 +26,9 @@ export function KpiCard({
   trend,
   alert,
   className,
+  borderColor,
+  iconColor,
+  iconBg,
 }: KpiCardProps) {
   const subtitleClasses: Record<string, string> = {
     green: "text-green-600 dark:text-green-400",
@@ -32,14 +38,14 @@ export function KpiCard({
   };
 
   return (
-    <div className={cn("rounded-xl border bg-card p-5 space-y-2", className)}>
+    <div className={cn("rounded-xl border bg-card p-5 space-y-2", borderColor && `border-l-4 ${borderColor}`, className)}>
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
           {label}
         </p>
         {Icon && (
-          <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-            <Icon className="size-4 text-muted-foreground" />
+          <div className={cn("flex size-8 items-center justify-center rounded-lg", iconBg || "bg-muted")}>
+            <Icon className={cn("size-4", iconColor || "text-muted-foreground")} />
           </div>
         )}
       </div>

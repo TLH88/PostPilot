@@ -8,6 +8,7 @@ import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
+import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
 
 export default async function AppLayout({
   children,
@@ -41,6 +42,7 @@ export default async function AppLayout({
       <div className="relative min-h-screen bg-background">
         <OnboardingGuard onboardingCompleted={onboardingCompleted} />
         <PastDueChecker />
+        <TrialExpiryChecker />
         <ReleaseNotesModal />
         {/* Sidebar - hidden on mobile */}
         <Sidebar userName={userName} userTier={userTier} />

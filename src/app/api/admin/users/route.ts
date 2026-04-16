@@ -14,7 +14,7 @@ export async function GET() {
   // Fetch all creator profiles
   const { data: profiles } = await supabase
     .from("creator_profiles")
-    .select("user_id, full_name, subscription_tier, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, ai_api_key_encrypted, created_at, updated_at")
+    .select("user_id, full_name, subscription_tier, account_status, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, ai_api_key_encrypted, original_tier, trial_tier, trial_started_at, trial_ends_at, last_trial_tiers, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   // Fetch users with personal API keys
@@ -132,7 +132,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   // Whitelist allowed fields
-  const allowed = ["subscription_tier", "managed_ai_access", "managed_ai_expires_at"];
+  const allowed = ["subscription_tier", "account_status", "managed_ai_access", "managed_ai_expires_at", "original_tier", "trial_tier", "trial_started_at", "trial_ends_at", "last_trial_tiers"];
   const safeUpdates: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(updates)) {
     if (allowed.includes(key)) safeUpdates[key] = val;

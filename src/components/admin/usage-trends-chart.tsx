@@ -1,16 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { ChartBackground } from "@/components/ui/chart-background";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { DateRangeSelector, useDateRange } from "@/components/ui/date-range-selector";
 import {
   LineChart,
   Line,
@@ -24,11 +17,11 @@ import {
 type TrendPeriod = "day" | "week" | "month" | "quarter" | "year";
 
 const PERIOD_OPTIONS: { value: TrendPeriod; label: string }[] = [
-  { value: "day", label: "Day over Day" },
-  { value: "week", label: "Week over Week" },
-  { value: "month", label: "Month over Month" },
-  { value: "quarter", label: "Quarter over Quarter" },
-  { value: "year", label: "Year over Year" },
+  { value: "day", label: "Daily" },
+  { value: "week", label: "Weekly" },
+  { value: "month", label: "Monthly" },
+  { value: "quarter", label: "Quarterly" },
+  { value: "year", label: "Yearly" },
 ];
 
 interface TrendPoint {
@@ -46,24 +39,21 @@ const LINES = [
   { key: "aiMessages", label: "AI Messages", color: "#06b6d4" },
 ] as const;
 
-interface UsageTrendsChartProps {
-  currentMetrics: {
-    activeUsers: number;
-    posts: number;
-    brainstorms: number;
-    aiMessages: number;
-  };
-}
-
-export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
-  const [period, setPeriod] = useState<TrendPeriod>("month");
+export function UsageTrendsChart() {
+  const [period, setPeriod] = useState<TrendPeriod>("week");
+  const [dateRange, setDateRange] = useDateRange("30d");
   const [data, setData] = useState<TrendPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/usage/trends?period=${period}`);
+      const params = new URLSearchParams({ period });
+      if (dateRange.preset !== "all") {
+        params.set("from", dateRange.from.toISOString());
+        params.set("to", dateRange.to.toISOString());
+      }
+      const res = await fetch(`/api/admin/usage/trends?${params}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
       setData(json.trends ?? []);
@@ -72,37 +62,53 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, dateRange]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
+  // Compute filtered totals from chart data
+  const filteredTotals = useMemo(() => {
+    const activeUsers = Math.max(...data.map((d) => d.activeUsers), 0);
+    const posts = data.reduce((s, d) => s + d.posts, 0);
+    const brainstorms = data.reduce((s, d) => s + d.brainstorms, 0);
+    const aiMessages = data.reduce((s, d) => s + d.aiMessages, 0);
+    return { activeUsers, posts, brainstorms, aiMessages };
+  }, [data]);
+
+  const summaryMetrics = [
+    { key: "activeUsers", value: filteredTotals.activeUsers.toLocaleString() },
+    { key: "posts", value: filteredTotals.posts.toLocaleString() },
+    { key: "brainstorms", value: filteredTotals.brainstorms.toLocaleString() },
+    { key: "aiMessages", value: filteredTotals.aiMessages.toLocaleString() },
+  ];
+
   return (
     <div className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
-      {/* Header with metrics */}
+      {/* Header with controls */}
       <div className="px-5 pt-5 pb-4">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <h3 className="text-base font-semibold">Usage Trends</h3>
-          <Select value={period} onValueChange={(v) => setPeriod(v as TrendPeriod)}>
-            <SelectTrigger className="w-[200px] h-8 text-xs">
-              <SelectValue>
-                {PERIOD_OPTIONS.find((o) => o.value === period)?.label}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
+          <div className="flex items-center gap-2 flex-wrap">
+            <DateRangeSelector value={dateRange} onChange={setDateRange} />
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as TrendPeriod)}
+              className="rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+            >
               {PERIOD_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
+                <option key={opt.value} value={opt.value}>
                   {opt.label}
-                </SelectItem>
+                </option>
               ))}
-            </SelectContent>
-          </Select>
+            </select>
+          </div>
         </div>
 
         {/* Metrics row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {LINES.map((line) => (
+          {LINES.map((line, i) => (
             <div key={line.key} className="flex items-start gap-2">
               <div
                 className="size-2.5 rounded-full mt-1.5 shrink-0"
@@ -110,7 +116,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
               />
               <div>
                 <p className="text-3xl font-bold tracking-tight">
-                  {currentMetrics[line.key as keyof typeof currentMetrics]}
+                  {summaryMetrics[i].value}
                 </p>
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">
                   {line.label}
@@ -121,7 +127,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
         </div>
       </div>
 
-      {/* Chart area with gradient dots background */}
+      {/* Chart area */}
       <div className="relative px-2 pb-4">
         <ChartBackground top={10} bottom={74} left={55} right={30} />
 
@@ -142,18 +148,12 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
-                dataKey="label"
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                className="fill-muted-foreground"
+                dataKey="label" fontSize={10} tickLine={false}
+                axisLine={false} className="fill-muted-foreground"
               />
               <YAxis
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                width={35}
-                className="fill-muted-foreground"
+                fontSize={10} tickLine={false} axisLine={false}
+                width={35} className="fill-muted-foreground"
               />
               <Tooltip
                 contentStyle={{
@@ -166,21 +166,16 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
               />
               {LINES.map((line) => (
                 <Line
-                  key={line.key}
-                  type="monotone"
-                  dataKey={line.key}
-                  name={line.label}
-                  stroke={line.color}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2, fill: "var(--card)" }}
+                  key={line.key} type="monotone" dataKey={line.key}
+                  name={line.label} stroke={line.color} strokeWidth={2.5}
+                  dot={false} activeDot={{ r: 4, strokeWidth: 2, fill: "var(--card)" }}
                 />
               ))}
             </LineChart>
           </ResponsiveContainer>
         ) : (
           <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground">
-            No trend data available yet. Usage data accumulates over time.
+            No trend data available for this date range.
           </div>
         )}
 
@@ -189,10 +184,7 @@ export function UsageTrendsChart({ currentMetrics }: UsageTrendsChartProps) {
           <div className="flex items-center justify-center gap-4 mt-2">
             {LINES.map((line) => (
               <div key={line.key} className="flex items-center gap-1.5">
-                <div
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: line.color }}
-                />
+                <div className="size-2 rounded-full" style={{ backgroundColor: line.color }} />
                 <span className="text-[10px] text-muted-foreground">{line.label}</span>
               </div>
             ))}

@@ -43,8 +43,15 @@ export interface CreatorProfile {
   managed_ai_expires_at: string | null;
   // Force all AI requests through Vercel AI Gateway (bypasses BYOK keys)
   force_ai_gateway: boolean;
-  // Subscription
+  // Account status & subscription
+  account_status: "active" | "trial" | "suspended" | "churned";
   subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
+  // Trial fields
+  original_tier: string | null;
+  trial_tier: string | null;
+  trial_started_at: string | null;
+  trial_ends_at: string | null;
+  last_trial_tiers: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 }

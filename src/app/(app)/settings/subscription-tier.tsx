@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Crown, Loader2, Sparkles, User, Building2, Shield } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, User, Building2, Shield, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { SUBSCRIPTION_TIERS, type SubscriptionTier, type QuotaType } from "@/lib/constants";
+import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,7 @@ export function SubscriptionTierSetting({ currentTier }: SubscriptionTierProps) 
   const [tier, setTier] = useState<SubscriptionTier>(currentTier);
   const [saving, setSaving] = useState(false);
   const [usage, setUsage] = useState<Record<string, { used: number; limit: number }> | null>(null);
+  const [trialInfo, setTrialInfo] = useState<{ trialTier: string; daysLeft: number; trialEndsAt: string } | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -77,7 +79,23 @@ export function SubscriptionTierSetting({ currentTier }: SubscriptionTierProps) 
         });
       })
       .catch(() => {});
-  }, [tier]);
+
+    // Check trial status
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from("creator_profiles")
+        .select("account_status, trial_tier, trial_ends_at")
+        .eq("user_id", user.id)
+        .single()
+        .then(({ data: profile }) => {
+          if (profile?.account_status === "trial" && profile.trial_tier && profile.trial_ends_at) {
+            const daysLeft = Math.max(0, Math.ceil((new Date(profile.trial_ends_at).getTime() - Date.now()) / 86400000));
+            setTrialInfo({ trialTier: profile.trial_tier, daysLeft, trialEndsAt: profile.trial_ends_at });
+          }
+        });
+    });
+  }, [tier]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleTierChange(newTier: SubscriptionTier) {
     if (newTier === tier) return;
@@ -108,6 +126,20 @@ export function SubscriptionTierSetting({ currentTier }: SubscriptionTierProps) 
 
   return (
     <div className="space-y-4">
+      {trialInfo && (
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2 text-sm text-blue-700 dark:text-blue-300">
+          <Clock className="size-4 shrink-0" />
+          <span className="flex-1">
+            Your {trialInfo.trialTier.charAt(0).toUpperCase() + trialInfo.trialTier.slice(1)} trial ends in{" "}
+            <strong>{trialInfo.daysLeft} day{trialInfo.daysLeft !== 1 ? "s" : ""}</strong>
+            {" "}({new Date(trialInfo.trialEndsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).
+          </span>
+          <Link href="/pricing" className="shrink-0 text-xs font-medium text-primary hover:underline">
+            Upgrade
+          </Link>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
         Select your plan to set usage limits. This is a temporary selector — Stripe billing will replace this.
       </p>

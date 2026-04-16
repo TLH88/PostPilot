@@ -201,12 +201,18 @@ export default function AdminUsagePage() {
               label="Total Spend"
               value={formatUsd(s!.totalSpend)}
               icon={DollarSign}
+              borderColor="border-l-emerald-500"
+              iconColor="text-emerald-500"
+              iconBg="bg-emerald-500/10"
               trend={spendChange != null ? { value: spendChange, label: "from prior period" } : undefined}
             />
             <KpiCard
               label="Total Requests"
               value={s!.totalRequests.toLocaleString()}
               icon={Zap}
+              borderColor="border-l-blue-500"
+              iconColor="text-blue-500"
+              iconBg="bg-blue-500/10"
               trend={requestsChange != null ? { value: requestsChange, label: "from prior period" } : undefined}
               subtitle={`Monthly quota: ${s!.totalRequests.toLocaleString()}`}
               subtitleColor="muted"
@@ -215,6 +221,9 @@ export default function AdminUsagePage() {
               label="Avg Cost / Request"
               value={formatUsd(s!.avgCostPerRequest)}
               icon={TrendingUp}
+              borderColor="border-l-purple-500"
+              iconColor="text-purple-500"
+              iconBg="bg-purple-500/10"
               subtitle="Efficient routing active"
               subtitleColor="muted"
             />
@@ -222,6 +231,9 @@ export default function AdminUsagePage() {
               label="Active Users"
               value={s!.activeUsers.toString()}
               icon={Users}
+              borderColor="border-l-indigo-500"
+              iconColor="text-indigo-500"
+              iconBg="bg-indigo-500/10"
               subtitle={s!.activeUsers > 0 ? "Currently active" : "No activity"}
               subtitleColor={s!.activeUsers > 0 ? "green" : "muted"}
             />
@@ -233,11 +245,17 @@ export default function AdminUsagePage() {
               label="Top Route by Cost"
               value={s!.mostExpensiveRoute ?? "n/a"}
               icon={Route}
+              borderColor="border-l-amber-500"
+              iconColor="text-amber-500"
+              iconBg="bg-amber-500/10"
             />
             <KpiCard
               label="Gateway %"
               value={`${s!.gatewayPct.toFixed(0)}%`}
               icon={Shield}
+              borderColor="border-l-cyan-500"
+              iconColor="text-cyan-500"
+              iconBg="bg-cyan-500/10"
               subtitle={s!.gatewayPct === 100 ? "Fully protected" : `${(100 - s!.gatewayPct).toFixed(0)}% direct`}
               subtitleColor={s!.gatewayPct >= 90 ? "green" : "amber"}
             />
@@ -245,6 +263,9 @@ export default function AdminUsagePage() {
               label="Cache Savings"
               value={formatUsd(s!.cacheSavings)}
               icon={Sparkles}
+              borderColor="border-l-pink-500"
+              iconColor="text-pink-500"
+              iconBg="bg-pink-500/10"
               subtitle={s!.cacheSavings > 0 ? "Prompt caching active" : "0% semantic hits"}
               subtitleColor={s!.cacheSavings > 0 ? "green" : "muted"}
             />
@@ -252,6 +273,9 @@ export default function AdminUsagePage() {
               label="Success Rate"
               value={`${s!.successRate.toFixed(1)}%`}
               icon={CheckCircle}
+              borderColor="border-l-teal-500"
+              iconColor="text-teal-500"
+              iconBg="bg-teal-500/10"
               alert={s!.successRate < 97}
               subtitle={s!.successRate >= 99.5 ? "Perfect health score" : s!.successRate >= 97 ? "Healthy" : "Degraded"}
               subtitleColor={s!.successRate >= 99.5 ? "green" : s!.successRate >= 97 ? "green" : "red"}

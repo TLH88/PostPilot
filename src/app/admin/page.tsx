@@ -44,7 +44,7 @@ export default async function AdminDashboard() {
   // Fetch all data in parallel
   const [authResult, profilesResult, postsResult, workspacesResult, quotasResult, ideasResult] = await Promise.all([
     supabase.auth.admin.listUsers(),
-    supabase.from("creator_profiles").select("user_id, full_name, subscription_tier, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, created_at, updated_at"),
+    supabase.from("creator_profiles").select("user_id, full_name, subscription_tier, account_status, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, created_at, updated_at"),
     supabase.from("posts").select("user_id, status, created_at"),
     supabase.from("workspaces").select("id", { count: "exact", head: true }),
     supabase.from("usage_quotas").select("user_id, posts_created, brainstorms_used, chat_messages_used, period_start").order("period_start", { ascending: false }),
@@ -69,7 +69,7 @@ export default async function AdminDashboard() {
   // ── Metric calculations ──
   const totalUsers = authUsers.length;
   const activeTrials = profiles.filter(
-    (p) => p.managed_ai_access && p.managed_ai_expires_at && new Date(p.managed_ai_expires_at) > now
+    (p) => p.account_status === "trial" || (p.managed_ai_access && p.managed_ai_expires_at && new Date(p.managed_ai_expires_at) > now)
   ).length;
   const expiringTrials = profiles.filter(
     (p) => p.managed_ai_access && p.managed_ai_expires_at && (() => {
@@ -86,10 +86,11 @@ export default async function AdminDashboard() {
   const totalPosts = allPosts.length;
   const notOnboarded = profiles.filter((p) => !p.onboarding_completed).length;
 
-  // ── Recent signups (last 5) ──
+  // ── Recent signups (last 30 days, sorted newest first) ──
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
   const recentUsers = [...authUsers]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
+    .filter((u) => new Date(u.created_at) >= thirtyDaysAgo)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // ── Active trials expiring soon ──
   const trialUsers = profiles
@@ -118,6 +119,9 @@ export default async function AdminDashboard() {
       icon: Users,
       subtitle: totalUsers > 0 ? `${Math.round((paidUsers / totalUsers) * 100)}% conversion` : undefined,
       subtitleColor: "muted" as const,
+      borderColor: "border-l-indigo-500",
+      iconColor: "text-indigo-500",
+      iconBg: "bg-indigo-500/10",
     },
     {
       label: "Active Trials",
@@ -125,6 +129,9 @@ export default async function AdminDashboard() {
       icon: Sparkles,
       subtitle: activeTrials > 0 ? "Monitoring health" : "No active trials",
       subtitleColor: activeTrials > 0 ? "green" as const : "muted" as const,
+      borderColor: "border-l-amber-500",
+      iconColor: "text-amber-500",
+      iconBg: "bg-amber-500/10",
     },
     {
       label: "Paid Subscribers",
@@ -132,6 +139,9 @@ export default async function AdminDashboard() {
       icon: CreditCard,
       subtitle: paidUsers > 0 ? "ARR growing" : undefined,
       subtitleColor: "green" as const,
+      borderColor: "border-l-emerald-500",
+      iconColor: "text-emerald-500",
+      iconBg: "bg-emerald-500/10",
     },
     {
       label: "Total Posts",
@@ -139,6 +149,9 @@ export default async function AdminDashboard() {
       icon: FileText,
       subtitle: totalPosts > 0 ? "Content velocity high" : undefined,
       subtitleColor: "green" as const,
+      borderColor: "border-l-blue-500",
+      iconColor: "text-blue-500",
+      iconBg: "bg-blue-500/10",
     },
     {
       label: "Workspaces",
@@ -146,6 +159,9 @@ export default async function AdminDashboard() {
       icon: Building2,
       subtitle: totalWorkspaces > 0 ? "Active ecosystems" : undefined,
       subtitleColor: "green" as const,
+      borderColor: "border-l-purple-500",
+      iconColor: "text-purple-500",
+      iconBg: "bg-purple-500/10",
     },
   ];
 
@@ -167,13 +183,13 @@ export default async function AdminDashboard() {
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
-            <div key={m.label} className="rounded-xl border bg-card p-5 space-y-2">
+            <div key={m.label} className={cn("rounded-xl border bg-card p-5 space-y-2 border-l-4", m.borderColor)}>
               <div className="flex items-start justify-between">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {m.label}
                 </p>
-                <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                  <Icon className="size-4 text-muted-foreground" />
+                <div className={cn("flex size-8 items-center justify-center rounded-lg", m.iconBg)}>
+                  <Icon className={cn("size-4", m.iconColor)} />
                 </div>
               </div>
               <p className="text-3xl font-bold tracking-tight">{m.value}</p>
@@ -213,14 +229,7 @@ export default async function AdminDashboard() {
       {/* This Month's Usage + Users by Tier */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* This Month's Usage with trends chart — spans 2 columns */}
-        <UsageTrendsChart
-          currentMetrics={{
-            activeUsers: activeUsersThisMonth,
-            posts: totalPostsThisMonth,
-            brainstorms: totalBrainstormsThisMonth,
-            aiMessages: totalChatMessagesThisMonth,
-          }}
-        />
+        <UsageTrendsChart />
 
         {/* Users by Tier */}
         <div className="rounded-xl border bg-card p-5">
@@ -272,7 +281,7 @@ export default async function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentUsers.map((u) => {
+              {recentUsers.slice(0, 10).map((u) => {
                 const profile = profileMap[u.id];
                 const name = profile?.full_name ?? u.email?.split("@")[0] ?? "Unknown";
                 const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
@@ -310,6 +319,9 @@ export default async function AdminDashboard() {
         <div className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-4 border-b">
             <h3 className="text-base font-semibold">Trials Expiring Soon</h3>
+            <Link href="/admin/users" className="text-xs text-primary font-medium hover:underline">
+              View All
+            </Link>
           </div>
           {trialUsers.length === 0 ? (
             <div className="flex items-center justify-center py-12 text-xs text-muted-foreground">
@@ -325,62 +337,57 @@ export default async function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {trialUsers.map((u) => {
-                  const name = u.full_name ?? u.email?.split("@")[0] ?? "Unknown";
-
-                  return (
-                    <tr key={u.user_id} className="border-b last:border-0 hover:bg-hover-highlight transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate text-xs">{u.full_name ?? "—"}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Progress bar */}
-                          <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full",
-                                u.daysLeft <= 1
-                                  ? "bg-red-500"
-                                  : u.daysLeft <= 3
-                                    ? "bg-amber-500"
-                                    : "bg-green-500"
-                              )}
-                              style={{ width: `${Math.min((u.daysLeft / 14) * 100, 100)}%` }}
-                            />
-                          </div>
-                          <Badge
-                            variant="secondary"
+                {trialUsers.slice(0, 10).map((u) => (
+                  <tr key={u.user_id} className="border-b last:border-0 hover:bg-hover-highlight transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate text-xs">{u.full_name ?? "—"}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
                             className={cn(
-                              "text-[10px] font-semibold",
+                              "h-full rounded-full",
                               u.daysLeft <= 1
-                                ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200"
+                                ? "bg-red-500"
                                 : u.daysLeft <= 3
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200"
-                                  : ""
+                                  ? "bg-amber-500"
+                                  : "bg-green-500"
                             )}
-                          >
-                            {u.daysLeft} day{u.daysLeft !== 1 ? "s" : ""} left
-                          </Badge>
+                            style={{ width: `${Math.min((u.daysLeft / 14) * 100, 100)}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {u.daysLeft <= 3 ? (
-                          <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-[10px] font-semibold text-primary uppercase tracking-wider">
-                            Send Offer
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
-                            Wait
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px] font-semibold",
+                            u.daysLeft <= 1
+                              ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200"
+                              : u.daysLeft <= 3
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200"
+                                : ""
+                          )}
+                        >
+                          {u.daysLeft} day{u.daysLeft !== 1 ? "s" : ""} left
+                        </Badge>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {u.daysLeft <= 3 ? (
+                        <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-[10px] font-semibold text-primary uppercase tracking-wider">
+                          Send Offer
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Wait
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

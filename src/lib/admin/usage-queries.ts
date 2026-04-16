@@ -468,16 +468,31 @@ export interface TrendPoint {
   aiMessages: number;
 }
 
-export async function getUsageTrends(period: TrendPeriod): Promise<TrendPoint[]> {
+export async function getUsageTrends(period: TrendPeriod, from?: Date, to?: Date): Promise<TrendPoint[]> {
   const supabase = createAdminClient();
 
-  // Fetch from actual source tables for accurate granular data
+  // Build queries with optional date range filtering
+  let postsQuery = supabase.from("posts").select("user_id, created_at");
+  let ideasQuery = supabase.from("ideas").select("user_id, created_at");
+  let aiEventsQuery = supabase.from("ai_usage_events").select("user_id, route, created_at");
+
+  if (from) {
+    const fromISO = from.toISOString();
+    postsQuery = postsQuery.gte("created_at", fromISO);
+    ideasQuery = ideasQuery.gte("created_at", fromISO);
+    aiEventsQuery = aiEventsQuery.gte("created_at", fromISO);
+  }
+  if (to) {
+    const toISO = to.toISOString();
+    postsQuery = postsQuery.lte("created_at", toISO);
+    ideasQuery = ideasQuery.lte("created_at", toISO);
+    aiEventsQuery = aiEventsQuery.lte("created_at", toISO);
+  }
+
   const [postsRes, ideasRes, aiEventsRes] = await Promise.all([
-    supabase.from("posts").select("user_id, created_at"),
-    supabase.from("ideas").select("user_id, created_at"),
-    supabase
-      .from("ai_usage_events")
-      .select("user_id, route, created_at"),
+    postsQuery,
+    ideasQuery,
+    aiEventsQuery,
   ]);
 
   const posts = postsRes.data ?? [];
