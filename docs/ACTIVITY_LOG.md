@@ -4,6 +4,138 @@
 
 ---
 
+## 2026-04-16: Team Collaboration Features, Trial System, Analytics Polish
+
+### BP-087: Published Post View + BP-025 API Prep
+- New route `/posts/{id}/published` — dedicated read-only view for posted content
+- Redirect from editor when post status is "posted" (unless `?edit=true`)
+- Full engagement analytics card with inline-editable metrics and engagement rate calculation
+- "Duplicate as Draft" action creates editable copy
+- "Edit Original" link opens editor with amber warning banner
+- BP-025 API infrastructure: `/api/linkedin/analytics` endpoint, `fetchPostEngagement()` helper using `memberCreatorPostAnalytics` LinkedIn API
+- `analytics_fetched_at` timestamp on posts, `linkedin_scopes` array on creator_profiles
+- Auto-refresh button with graceful "scope required" fallback UI
+- LinkedIn app approval for `r_member_postAnalytics` scope is a blocker — manual analytics entry remains the default path
+
+### Account Lifecycle & Trial System
+- Added `account_status` field: `active | trial | suspended | churned`
+- Added trial tracking: `original_tier`, `trial_tier`, `trial_started_at`, `trial_ends_at`, `last_trial_tiers` (jsonb for 365-day cooldowns)
+- Self-service trial flow from pricing page: click "Start Free Trial" on Creator/Pro → 14-day trial with full features and managed AI access
+- `POST /api/trial/start` — validates tier, enforces cooldown, sets all trial fields
+- `POST /api/trial/check-expiry` — called on app layout mount (TrialExpiryChecker component), auto-reverts expired trials to original_tier and records in last_trial_tiers
+- Pricing page now context-aware: "Start Free Trial" / "Upgrade" / "Current Plan" based on user state
+- Settings shows trial banner with days remaining + Upgrade link
+- AI client `hasManagedAccess()` grants access to active trial users
+- Admin user table shows trial start date, days remaining, tier being trialed, with quick-pick dropdown for duration
+
+### BP-023, BP-046-051: Team Collaboration Suite
+- New schema: `post_comments`, `activity_log`, `notifications`, `post_approvals` (RLS-secured)
+- Posts extended with: `assigned_to`, `assigned_by`, `assigned_at`, `approval_stage`, `approval_status`
+- Workspaces extended with: `workspace_type` (individual/brand), `approval_stages`, `requires_approval`, `onboarding_completed`, `brand_sample_posts`
+
+**Shared helpers:**
+- `logActivity()` — workspace activity feed
+- `createNotification()` / `createNotifications()` — in-app notifications with email delivery prep fields
+
+**BP-023: Brand/Team onboarding**
+- `WorkspaceTypeSelector` component at `/onboarding/type` (Individual vs Brand/Team)
+- Workspace setup wizard sets `workspace_type='brand'` and `onboarding_completed=true`
+
+**BP-046: Post Assignment**
+- `AssignPost` dropdown with badge + button variants
+- Team/Enterprise users auto-assigned to their own new posts (all creation paths updated)
+- Auto-notifies assignee, logs to activity feed
+
+**BP-047: Comments**
+- Threaded comments with @mentions, resolve/unresolve toggle
+- Rendered inside the right panel (tabbed with AI Assistant)
+
+**BP-048: Activity Feed**
+- `ActivityFeed` component with color-coded action icons
+- `/activity` page for workspace-wide feed
+- Per-post timeline rendered in the editor's right panel Activity tab
+- Integrated into dashboard right column
+- Activity logged on: post_created, post_edited (throttled 10min), post_status_changed, post_scheduled, post_published, post_archived, post_assigned, post_unassigned, post_commented, post_submitted_for_review, post_approved, post_changes_requested
+
+**BP-049: Notifications Center**
+- `NotificationsBell` in top bar (polls every 30s, unread badge)
+- `/notifications` page with unread/all filter, delete, mark read
+- Email delivery prep (email_enabled, email_queued_at, email_sent_at)
+
+**BP-050: Approval Workflow with reviewer selection**
+- `SubmitForReviewDialog` lets post author pick specific reviewers per submission
+- Approval API accepts `reviewers[]` array, falls back to workspace.approval_stages config
+- Status transition to "review" in workspace mode intercepts and opens dialog
+- Full approval history card with reviewer names and decisions
+
+**BP-051: Review Queue**
+- `/workspace/reviews` page with 3 filter tabs (awaiting me / all pending / recently decided)
+- Inline quick-approve / request-changes buttons
+
+### Team Tier Gating
+- All team collaboration UI (assignment, comments, approval, activity, review queue) gated to Team/Enterprise via `hasFeature(userTier, "workspaces")`
+- Non-Team users see the original single-view AI Assistant panel (unchanged UX)
+- Reviews nav item hidden for non-Team users
+
+### Post Editor Right Panel Refactor
+- Replaced `chatOpen: boolean` with `panelView: "ai" | "comments" | "activity" | null`
+- Team users see a tabbed panel header with all three views
+- Non-Team users see the original single-view AI Assistant panel
+- Active tab persists to localStorage (`postpilot_panel_view`)
+- Last-used view restored on next editor load
+
+### Workspace Data Scoping
+- New helpers: `applyWorkspaceFilter()` and `getActiveWorkspaceIdServer()` (cookie-based for server components)
+- Individual mode: filter `workspace_id IS NULL AND user_id = current_user`
+- Workspace mode: filter `workspace_id = active_workspace_id`
+- Applied across Posts, Ideas, Calendar, Dashboard, Analytics
+- Idea creation paths (CreateIdeaDialog, GenerateIdeasDialog) set workspace_id from active context
+
+### RLS fix: workspace_members visibility
+- Previous SELECT policy was `user_id = auth.uid()` — users could only see their own membership row
+- This broke: members page (showed only self), reviewer dialog (empty), assignment dropdown (no teammates), mention autocomplete
+- Fix: SECURITY DEFINER helper functions `is_workspace_member()` and `get_workspace_role()` (avoids recursion)
+- New policies: any workspace member can see all members; owner/admin can update/delete; members can leave
+
+### Workspace Members UI
+- Role dropdown on each member row (owner/admin can change any non-owner role)
+- Role descriptions panel with "Can review" badges on owner/admin/editor
+- Fixed invite API: was inserting inviter as placeholder; now looks up invitee by email via admin.listUsers()
+
+### Analytics Enhancements
+- Renamed chart title to "Post Trends"
+- Added Engagement/Impressions toggle (theme-primary active state)
+- Date range selector: Last 7/30/90 days, Year to Date, All Time, Custom (with calendar icon toggle for from/to date picker)
+- Aggregation dropdown (Daily/Weekly/Monthly/Quarterly/Yearly)
+- Default: Last 30 days + Weekly aggregation
+- Metrics above chart update to reflect date range filter
+- Total Posts metric card added
+- Sortable columns on All Tracked Posts table (impressions, reactions, comments, reposts, date posted)
+- Pagination (default 5, view all, 25/page) on Top Posts and Pillar Performance; 25/page on All Tracked Posts
+- Clickable rows with chevron indicator
+
+### Admin Dashboard Polish
+- Colored KPI cards with left borders and tinted icon circles (matches analytics page style)
+- Usage Trends chart uses same date range selector + aggregation dropdown
+- AI Usage page KPI cards colored (spend/requests/avg-cost/users/route/gateway/cache/success)
+- Recent Signups filtered to last 30 days, capped at 10
+- "View All" links on both Recent Signups and Trials Expiring Soon tables
+- Admin users table trial column: progress bar + days remaining + trial start date + tier
+
+### Database Migrations Applied
+- `20260416_add_analytics_fetched_at.sql`
+- `20260416_add_account_status.sql`
+- `20260416_add_trial_fields.sql`
+- `20260417_add_team_features.sql` (posts extensions + new tables)
+- `20260418_fix_workspace_members_rls.sql`
+
+### Backlog Updates
+- BP-087 DONE
+- BP-025 API prep done (deferred pending LinkedIn scope approval)
+- BP-023, BP-046, BP-047, BP-048, BP-049, BP-050, BP-051 all DONE
+
+---
+
 ## 2026-04-15 (Session 2): Announcements, Settings, Admin Charts
 
 ### Admin Announcements

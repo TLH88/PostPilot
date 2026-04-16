@@ -1,6 +1,6 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-15 (BP-086 done, BP-087 added)
+> Last updated: 2026-04-16 (Trial system + Team collaboration suite shipped: BP-023, BP-046-051, BP-087 done; BP-025 API prep done pending LinkedIn approval)
 
 ## Status Key
 
@@ -308,7 +308,7 @@ Show static best-time-to-post recommendations based on LinkedIn research data. D
 
 ### BP-023: Brand/Team Onboarding Path
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** High
 **Source:** Report feedback
 **Date Added:** 2026-04-01
@@ -341,14 +341,23 @@ Invite team members via email, role-based access (Admin/Editor/Viewer). Posts be
 
 ### BP-025: LinkedIn API Analytics
 
-**Status:** Backlog
+**Status:** API prep done (2026-04-16) — blocked on LinkedIn app approval
 **Priority:** Medium
 **Source:** Product evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
 
 **Description:**
-Read post engagement data from LinkedIn API. Requires `r_member_social` scope (restricted, needs LinkedIn approval). Alternative: CSV import from LinkedIn analytics export.
+Read post engagement data from LinkedIn API. Requires `r_member_postAnalytics` scope via the Community Management API product.
+
+**Infrastructure built:**
+- `/api/linkedin/analytics` POST endpoint with token decrypt/refresh pattern
+- `fetchPostEngagement()` helper calling `memberCreatorPostAnalytics` API per metric type (IMPRESSION, REACTION, COMMENT, RESHARE)
+- `posts.analytics_fetched_at` + `creator_profiles.linkedin_scopes` columns
+- OAuth flow requests `r_member_postAnalytics` scope; callback stores granted scopes
+- RefreshAnalyticsButton with "scope required" fallback UI when the scope wasn't granted
+
+**Blocker:** LinkedIn Community Management API product requires being the sole product on the app (existing app has `w_member_social` + `openid` + `profile`). Either a second LinkedIn app is needed, or wait for LinkedIn to relax the restriction. Manual analytics entry and paste-import remain the default path.
 
 ---
 
@@ -632,7 +641,7 @@ Integrate a third-party ad network (e.g., Google AdSense) to display ads to free
 
 ### BP-046: Post Assignment & Ownership
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** High
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
@@ -652,7 +661,7 @@ Assign posts to specific team members. Posts show who's working on them. "My Ass
 
 ### BP-047: In-App Comments on Posts
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** High
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
@@ -672,7 +681,7 @@ Threaded comments on any post. @mention teammates. Resolve comments when address
 
 ### BP-048: Activity Feed
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** High
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
@@ -691,7 +700,7 @@ Real-time feed showing team activity: who did what, when.
 
 ### BP-049: Notifications Center
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** High
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
@@ -711,7 +720,7 @@ In-app notifications for assignments, mentions, approvals, comments, deadlines.
 
 ### BP-050: Configurable Approval Workflow
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** Critical
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
@@ -731,7 +740,7 @@ Posts must go through defined approval stages before publishing. Workspace owner
 
 ### BP-051: Review Queue
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** High
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
@@ -2204,7 +2213,7 @@ Ship Phase 1 ASAP even without the UI — the sooner we're collecting data, the 
 
 ### BP-087: Published Post View (Separate Route)
 
-**Status:** Backlog
+**Status:** Done (2026-04-16)
 **Priority:** Medium
 **Source:** Owner — published posts need a dedicated view focused on analytics and review rather than editing
 
@@ -2330,3 +2339,11 @@ When a user develops an idea into a post (or creates a new post) and clicks "App
 - **BP-082:** Manual Idea Entry (2026-04-11)
 - **BP-083:** Idea Tagging & Prioritization (2026-04-11)
 - **BP-086:** Show Directly Published Posts on Calendar (2026-04-15)
+- **BP-087:** Published Post View — Separate Route (2026-04-16)
+- **BP-023:** Brand/Team Onboarding Path (2026-04-16)
+- **BP-046:** Post Assignment & Ownership (2026-04-16)
+- **BP-047:** In-App Comments on Posts (2026-04-16)
+- **BP-048:** Activity Feed (2026-04-16)
+- **BP-049:** Notifications Center (2026-04-16)
+- **BP-050:** Configurable Approval Workflow (2026-04-16)
+- **BP-051:** Review Queue (2026-04-16)
