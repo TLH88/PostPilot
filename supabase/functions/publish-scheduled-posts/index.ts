@@ -95,12 +95,79 @@ async function decrypt(ciphertext: string, iv: string, authTag: string): Promise
 
 // ─── LinkedIn API ───────────────────────────────────────────────────────────
 
+/**
+ * BP-100: Upload an image to LinkedIn and return its URN.
+ *
+ * Mirrors `uploadImageToLinkedIn()` in src/lib/linkedin-api.ts. Two-step flow:
+ *   1. POST /rest/images?action=initializeUpload — register the image asset
+ *      (returns an upload URL and the image URN).
+ *   2. PUT the binary to the upload URL.
+ *
+ * The returned URN is what gets attached to the post via `content.media.id`.
+ */
+async function uploadImageToLinkedIn(
+  accessToken: string,
+  memberId: string,
+  imageBuffer: ArrayBuffer,
+  contentType: string
+): Promise<string> {
+  // Step 1: Initialize upload
+  const initResponse = await fetch(
+    "https://api.linkedin.com/rest/images?action=initializeUpload",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "X-Restli-Protocol-Version": "2.0.0",
+        "LinkedIn-Version": "202602",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        initializeUploadRequest: {
+          owner: `urn:li:person:${memberId}`,
+        },
+      }),
+    }
+  );
+
+  if (!initResponse.ok) {
+    const error = await initResponse.text();
+    throw new Error(`LinkedIn image init failed (${initResponse.status}): ${error}`);
+  }
+
+  const initData = await initResponse.json();
+  const uploadUrl = initData.value?.uploadUrl;
+  const imageUrn = initData.value?.image;
+
+  if (!uploadUrl || !imageUrn) {
+    throw new Error("LinkedIn did not return upload URL or image URN");
+  }
+
+  // Step 2: Upload binary
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": contentType,
+    },
+    body: imageBuffer,
+  });
+
+  if (!uploadResponse.ok) {
+    const error = await uploadResponse.text();
+    throw new Error(`LinkedIn image upload failed (${uploadResponse.status}): ${error}`);
+  }
+
+  return imageUrn;
+}
+
 async function publishToLinkedIn(
   accessToken: string,
   memberId: string,
   content: string,
   hashtags: string[],
-  title?: string | null
+  title?: string | null,
+  imageUrn?: string | null
 ): Promise<{ postId: string; postUrl: string }> {
   const hashtagText = hashtags
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
@@ -116,6 +183,29 @@ async function publishToLinkedIn(
     ? `${bodyWithTitle}\n\n${hashtagText}`
     : bodyWithTitle;
 
+  // BP-100: Build post body — with or without image. Same shape as the
+  // manual-publish route in src/app/api/linkedin/publish/route.ts.
+  const postBody: Record<string, unknown> = {
+    author: `urn:li:person:${memberId}`,
+    commentary: fullText,
+    visibility: "PUBLIC",
+    distribution: {
+      feedDistribution: "MAIN_FEED",
+      targetEntities: [],
+      thirdPartyDistributionChannels: [],
+    },
+    lifecycleState: "PUBLISHED",
+    isReshareDisabledByAuthor: false,
+  };
+
+  if (imageUrn) {
+    postBody.content = {
+      media: {
+        id: imageUrn,
+      },
+    };
+  }
+
   const response = await fetch("https://api.linkedin.com/rest/posts", {
     method: "POST",
     headers: {
@@ -124,18 +214,7 @@ async function publishToLinkedIn(
       "LinkedIn-Version": "202602",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      author: `urn:li:person:${memberId}`,
-      commentary: fullText,
-      visibility: "PUBLIC",
-      distribution: {
-        feedDistribution: "MAIN_FEED",
-        targetEntities: [],
-        thirdPartyDistributionChannels: [],
-      },
-      lifecycleState: "PUBLISHED",
-      isReshareDisabledByAuthor: false,
-    }),
+    body: JSON.stringify(postBody),
   });
 
   if (!response.ok) {
@@ -258,7 +337,7 @@ Deno.serve(async (req: Request) => {
     const now = new Date().toISOString();
     const { data: posts, error: queryError } = await supabase
       .from("posts")
-      .select("id, title, content, hashtags, user_id, publish_attempts")
+      .select("id, title, content, hashtags, user_id, publish_attempts, image_url")
       .eq("status", "scheduled")
       .lte("scheduled_for", now)
       .lt("publish_attempts", MAX_PUBLISH_ATTEMPTS);
@@ -396,28 +475,68 @@ Deno.serve(async (req: Request) => {
           }
         }
 
+        // BP-100: Upload image to LinkedIn if the post has one. Mirrors the
+        // manual-publish route — image failure is logged but does not block the
+        // text publish (better to ship text-only than fail the whole post).
+        let imageUrn: string | null = null;
+        let imageError: string | null = null;
+        if (post.image_url) {
+          try {
+            const imageRes = await fetch(post.image_url);
+            if (!imageRes.ok) {
+              throw new Error(`fetch image returned ${imageRes.status}`);
+            }
+            const imageBuffer = await imageRes.arrayBuffer();
+            const contentType = imageRes.headers.get("content-type") || "image/jpeg";
+            postLog("info", "Uploading image to LinkedIn", {
+              imageBytes: imageBuffer.byteLength,
+              contentType,
+            });
+            imageUrn = await uploadImageToLinkedIn(
+              accessToken,
+              profile.linkedin_member_id!,
+              imageBuffer,
+              contentType
+            );
+            postLog("info", "Image uploaded to LinkedIn", { imageUrn });
+          } catch (imgError) {
+            imageError = imgError instanceof Error ? imgError.message : "Image upload failed";
+            postLog("warn", "Image upload failed — falling back to text-only publish", {
+              imageError,
+              imageUrl: post.image_url,
+            });
+          }
+        }
+
         // Publish to LinkedIn
-        postLog("info", "Publishing to LinkedIn");
+        postLog("info", "Publishing to LinkedIn", { hasImage: !!imageUrn });
         const result = await publishToLinkedIn(
           accessToken,
           profile.linkedin_member_id!,
           post.content,
           post.hashtags || [],
-          post.title
+          post.title,
+          imageUrn
         );
 
-        // Success — update post
+        // Success — update post. If the image upload failed but the text
+        // publish succeeded, surface the image error so the user knows their
+        // image didn't make it through (visible in the post editor).
         await safeUpdatePost(supabase, post.id, {
           status: "posted",
           posted_at: new Date().toISOString(),
           linkedin_post_id: result.postId,
           linkedin_post_url: result.postUrl,
-          publish_error: null,
+          publish_error: imageError ? `Image upload failed: ${imageError}` : null,
           updated_at: new Date().toISOString(),
         });
 
         results.push({ postId: post.id, status: "published" });
-        postLog("info", "Published successfully", { linkedinUrl: result.postUrl });
+        postLog("info", "Published successfully", {
+          linkedinUrl: result.postUrl,
+          imageAttached: !!imageUrn,
+          imageError,
+        });
 
       } catch (error) {
         // Per-post catch — ensures one post failure doesn't stop others

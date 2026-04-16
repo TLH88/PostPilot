@@ -5,6 +5,8 @@
 > **2026-04-16 STRATEGIC PIVOT:** Billing deferred until Free→Pro viability is validated. All Team+ features feature-flagged behind BP-098. See [docs/reviews/2026-04-16-backlog-reprioritization.md](reviews/2026-04-16-backlog-reprioritization.md) for the new priority tiers (P0–P3 + Deferred) and sprint plan.
 >
 > **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2.
+>
+> **2026-04-16 (production bug report):** Added BP-100 (P1 Critical, confirmed) — scheduled posts published via the Edge Function silently drop the user's selected image. Root cause identified: Edge Function never updated after image support shipped. Added BP-101 (P2 Watching) — possible historical text-truncation bug in scheduled posts; not currently reproducible, monitoring for recurrence.
 
 ## Priority Legend (post-2026-04-16 pivot)
 
@@ -2690,6 +2692,97 @@ We need a single flag that turns the entire Team suite off for end users while k
 - This is the **gating BP** for the new strategic direction. Land this first; everything else depends on it.
 - Pair the work with a quick smoke test of all Free/Pro flows to confirm nothing leaks Team UI.
 - After BP-098 lands, BP-094 is mostly subsumed but kept open as a tracking item for the route-level work.
+
+---
+
+### BP-100: Scheduled Posts Drop Images (Edge Function Out of Sync)
+
+**Status:** Backlog — confirmed bug
+**Priority:** P1 / Critical (production data loss for owner; affects every Free→Pro user who schedules with images)
+**Source:** Owner bug report 2026-04-16 (multiple LinkedIn posts published without images)
+**Date Added:** 2026-04-16
+
+#### Problem
+Scheduled posts published via the Supabase Edge Function never attach the user's selected image to the LinkedIn post. The image is correctly saved on the post record (`posts.image_url`), but the Edge Function silently drops it.
+
+#### Root cause
+The Edge Function (`supabase/functions/publish-scheduled-posts/index.ts`, currently deployed v14) was written before image support was added to the app and has not been updated since image upload shipped (commit `3579da8`, BP-029/BP-039/BP-041). Specifically:
+
+1. **The SELECT query omits `image_url`** ([index.ts:261](../supabase/functions/publish-scheduled-posts/index.ts)):
+   ```ts
+   .select("id, title, content, hashtags, user_id, publish_attempts")
+   ```
+2. **The Edge Function's embedded `publishToLinkedIn()`** ([index.ts:98-150](../supabase/functions/publish-scheduled-posts/index.ts)) accepts no `imageUrn` parameter and never adds `content.media.id` to the LinkedIn payload.
+3. **There is no `uploadImageToLinkedIn()` Deno port** in the function. The Node version exists in `src/lib/linkedin-api.ts` but cannot be imported by Deno directly.
+
+This means scheduled posts go out as text-only, even when the manual ("Publish Now") path correctly attaches images via `src/app/api/linkedin/publish/route.ts`.
+
+#### Confirmation (database evidence, 2026-04-16)
+The 4 most recent scheduled posts that successfully published all had `image_url` set in the database, but the LinkedIn versions had no image:
+- 2026-04-16 — "The App Attack Vector / Threat Surface" (image present in DB, missing on LinkedIn)
+- 2026-04-14 — "Listening as a Superpower" (image present in DB, missing on LinkedIn)
+- 2026-04-09 — "The Real Test of Customer Loyalty" (image present in DB, missing on LinkedIn)
+- 2026-04-07 — "Hidden Vendor Risk" (image present in DB, missing on LinkedIn)
+
+#### Requirements
+1. Add `image_url` to the SELECT in the Edge Function's scheduled-posts query.
+2. Port `uploadImageToLinkedIn()` from `src/lib/linkedin-api.ts` to Deno (uses Web Crypto and `fetch` — already cross-runtime).
+3. Update the Edge Function's `publishToLinkedIn()` to accept an optional `imageUrn` and include it in the payload when present:
+   ```ts
+   if (imageUrn) {
+     postBody.content = { media: { id: imageUrn } };
+   }
+   ```
+4. Wrap the image upload in its own try/catch — if image upload fails, log the error but proceed with a text-only publish (don't fail the whole post). Mirror the manual route's behavior.
+5. Re-deploy the Edge Function via Supabase MCP `deploy_edge_function`.
+6. Verify on the next scheduled run by checking that the LinkedIn post URL has the image attached.
+
+#### Acceptance Criteria
+- [ ] Edge Function v15 deployed
+- [ ] A scheduled post with `image_url` set publishes to LinkedIn with the image attached
+- [ ] A scheduled post without `image_url` still publishes successfully (text-only)
+- [ ] If image upload to LinkedIn fails, the post still publishes text-only and the error is logged in `publish_error`
+- [ ] Tony manually verifies on his next scheduled post
+
+#### Out of scope
+- BP-101 (potential text-truncation bug) — separate watch item, not yet reproducible
+- Backfilling images on already-published posts — Tony has manually corrected those on LinkedIn
+
+#### Notes
+- This bug exposes a structural issue: the Edge Function is a parallel implementation of the publish logic in `src/lib/linkedin-api.ts`. Every time the Node-side publish flow gains a feature (images, link previews, video, polls in the future), the Deno-side Edge Function must be updated in lockstep. Consider as a follow-up: extract the LinkedIn payload builder into a small file shared between Deno and Node (or refactor the Edge Function to call the Next.js publish route via service-key auth so there is one publish path). Out of scope for this fix; capture as a tech-debt note.
+
+---
+
+### BP-101: Watch Item — Possible Text Truncation in Scheduled Posts
+
+**Status:** Watching (not actively worked)
+**Priority:** P2 / Medium (until reproducible)
+**Source:** Owner bug report 2026-04-16
+**Date Added:** 2026-04-16
+
+#### Problem
+The owner has observed approximately 3 scheduled posts (older, before this week) that appeared to publish to LinkedIn with only ~1/3 of the post body — described as "almost as if the system only published what you would see in the preview" (the LinkedIn preview component truncates to ~210 characters at the "see more" cutoff for visual purposes). The two most recent scheduled posts (2026-04-14 and 2026-04-16) both published with the **full** text intact, so the bug is not currently reproducing.
+
+#### Investigation done so far
+- Reviewed `src/components/posts/linkedin-preview.tsx`: the "see more" truncation at `LINKEDIN.HOOK_VISIBLE_LENGTH` (210 chars) is purely a visual cutoff. The full `content` is what would normally be sent to LinkedIn.
+- Reviewed the current Edge Function (`publish-scheduled-posts/index.ts` v14): sends full `post.content` to LinkedIn with no truncation logic.
+- Reviewed `src/app/api/linkedin/publish/route.ts`: same — full content sent.
+- No code path in the current codebase truncates content before publishing.
+
+#### Hypotheses (none confirmed)
+1. **Older Edge Function version had a truncation bug** that has since been fixed by an unrelated commit. Past Edge Function commits include `9ea1bd4` (10-minute window fix), `c259b46` (JWT fix), `33b96a5` (initial). One of these earlier versions may have introduced a content-handling bug now resolved.
+2. **Auto-save race condition.** User scheduled a post while the editor's 10-second auto-save debounce hadn't flushed the latest edits. The scheduled version was a stale draft. Possible but doesn't fit "cut to 1/3" — that would feel like "version from 30 seconds ago" instead.
+3. **LinkedIn "see more" collapse** on the user's view fooled the eye — full text was actually published but the LinkedIn UI auto-collapsed at the hook line. Owner has been informed and will verify on any future occurrence.
+
+#### Action plan
+- **Owner:** continue monitoring scheduled publishes. If text truncation recurs, capture the LinkedIn URL + the post ID in PostPilot before correcting. Share both so we can compare the database `content.length` against what's live on LinkedIn.
+- **If reproducible:** promote to a Critical BP and investigate. Add a content-length log entry in the Edge Function so we have telemetry on what was sent.
+- **If not reproducible after 2-3 weeks:** close as historical / resolved-by-other-fix.
+
+#### Acceptance Criteria
+- [ ] Owner reports next occurrence (or confirms no recurrence after monitoring period)
+- [ ] If reproducible: capture exact post ID + LinkedIn URL pair for diff analysis
+- [ ] If reproducible: add content-length logging to the Edge Function before next deploy
 
 ---
 
