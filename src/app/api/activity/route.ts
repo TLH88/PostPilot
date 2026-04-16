@@ -18,6 +18,21 @@ export async function GET(request: NextRequest) {
     const postId = searchParams.get("postId");
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 200);
 
+    // BP-088: When the caller filters by workspaceId, verify they're a member
+    // of that workspace at the application layer. RLS on activity_log already
+    // restricts results to workspaces the user belongs to, but without an
+    // explicit check the endpoint silently returns an empty array — confusing
+    // for legitimate misconfigurations and useful for membership-probing.
+    if (workspaceId) {
+      const { data: member } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", user.id)
+        .single();
+      if (!member) return NextResponse.json({ error: "Not a workspace member" }, { status: 403 });
+    }
+
     let query = supabase
       .from("activity_log")
       .select("*")

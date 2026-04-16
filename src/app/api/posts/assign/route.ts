@@ -95,7 +95,29 @@ export async function DELETE(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: post } = await supabase.from("posts").select("workspace_id").eq("id", postId).single();
+    // BP-088: Application-layer authorization (the POST handler had this; DELETE
+    // was missing it). Defense in depth — even though RLS protects the underlying
+    // data, the endpoint should refuse access at the app layer rather than
+    // performing the update and silently affecting zero rows.
+    const { data: post } = await supabase
+      .from("posts")
+      .select("workspace_id, user_id")
+      .eq("id", postId)
+      .single();
+
+    if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+    if (post.workspace_id) {
+      const { data: member } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", post.workspace_id)
+        .eq("user_id", user.id)
+        .single();
+      if (!member) return NextResponse.json({ error: "Not a workspace member" }, { status: 403 });
+    } else if (post.user_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { error } = await supabase
       .from("posts")
@@ -111,7 +133,7 @@ export async function DELETE(request: NextRequest) {
 
     await logActivity(supabase, {
       user_id: user.id,
-      workspace_id: post?.workspace_id ?? null,
+      workspace_id: post.workspace_id ?? null,
       post_id: postId,
       action: "post_unassigned",
     });

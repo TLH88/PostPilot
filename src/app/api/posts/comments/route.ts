@@ -139,6 +139,31 @@ export async function PATCH(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // BP-088: Application-layer authorization mirrors the RLS policy
+    // (see 20260417_add_team_features.sql) — only the comment author or a
+    // workspace owner/admin can resolve/unresolve. RLS would block the update
+    // anyway, but explicit checks return a clear 403 instead of a silent
+    // zero-row update.
+    const { data: comment } = await supabase
+      .from("post_comments")
+      .select("user_id, workspace_id")
+      .eq("id", id)
+      .single();
+
+    if (!comment) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+
+    let allowed = comment.user_id === user.id;
+    if (!allowed && comment.workspace_id) {
+      const { data: member } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", comment.workspace_id)
+        .eq("user_id", user.id)
+        .single();
+      allowed = !!member && ["owner", "admin"].includes(member.role);
+    }
+    if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { error } = await supabase
       .from("post_comments")
       .update({
