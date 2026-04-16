@@ -53,8 +53,9 @@ export function NotificationsBell() {
       const data = await res.json();
       setNotifications(data.notifications ?? []);
       setUnreadCount(data.unread_count ?? 0);
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // BP-095: log network/parse failures instead of swallowing silently.
+      console.warn("[notifications-bell] failed to load notifications:", error);
     }
   }, []);
 
@@ -76,8 +77,10 @@ export function NotificationsBell() {
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // BP-095: surface the failure so users notice that "Mark all read" didn't
+      // actually persist. Optimistic UI update will be reverted on next poll.
+      console.warn("[notifications-bell] failed to mark all read:", error);
     }
   }
 
@@ -90,8 +93,10 @@ export function NotificationsBell() {
       });
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // BP-095: surface the failure. Optimistic UI update will be reverted on
+      // next poll if the server didn't persist the read state.
+      console.warn(`[notifications-bell] failed to mark notification ${id} as read:`, error);
     }
   }
 

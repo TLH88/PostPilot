@@ -43,8 +43,14 @@ export async function createNotification(
       email_enabled: params.email_enabled ?? true,
       // email_queued_at is set when an email provider is integrated
     });
-  } catch {
-    // Notifications are best-effort — never block the main action
+  } catch (error) {
+    // Notifications are best-effort — never block the main action.
+    // BP-095: surface failures to logs so RLS or schema regressions don't go
+    // unnoticed while the Team-collaboration suite sits behind BP-098.
+    console.error(
+      `[notifications] failed to create ${params.type} notification for user ${params.user_id}:`,
+      error
+    );
   }
 }
 
@@ -68,7 +74,12 @@ export async function createNotifications(
         email_enabled: params.email_enabled ?? true,
       }))
     );
-  } catch {
-    // Best-effort
+  } catch (error) {
+    // BP-095: bulk notification failure is more serious than a single failure
+    // (every recipient missed it). Always surface to logs.
+    console.error(
+      `[notifications] bulk insert of ${userIds.length} ${params.type} notifications failed:`,
+      error
+    );
   }
 }

@@ -38,7 +38,13 @@ export async function logActivity(
       action: params.action,
       details: params.details ?? {},
     });
-  } catch {
-    // Activity logging is best-effort — never block the main action
+  } catch (error) {
+    // Activity logging is best-effort — never block the main action.
+    // BP-095: surface failures to logs so RLS or schema regressions don't go
+    // unnoticed while the Team-collaboration suite sits behind BP-098.
+    console.error(
+      `[activity-log] failed to insert ${params.action} for user ${params.user_id}:`,
+      error
+    );
   }
 }

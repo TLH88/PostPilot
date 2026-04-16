@@ -45,6 +45,27 @@ export function setActiveWorkspaceId(workspaceId: string | null): void {
  *
  * Returns the mutated query builder (typed loosely as `any` to avoid deep
  * generic recursion issues with Supabase's internal types).
+ *
+ * ── Usage rules (BP-095 audit, 2026-04-16) ──
+ *
+ * USE applyWorkspaceFilter for:
+ *   - LIST queries on `posts` and `ideas` from the user-facing app
+ *     (dashboard, ideas, posts, calendar, analytics). These need the
+ *     individual-vs-workspace mode split or they leak content across modes.
+ *
+ * DON'T USE applyWorkspaceFilter for:
+ *   - Single-row reads/writes by primary key (e.g. .eq("id", postId).single()).
+ *     RLS already enforces workspace membership / ownership at the row level.
+ *   - Admin routes (e.g. /api/admin/users, /api/admin/workspaces) — these are
+ *     intentionally cross-tenant operational queries.
+ *   - Background jobs / Edge Functions running with service-role keys —
+ *     they don't have a user context.
+ *   - Notification, comment, activity, approval helpers — those tables have
+ *     their own RLS policies that handle workspace membership directly.
+ *
+ * If you add a new user-facing LIST query on `posts` or `ideas`, USE THIS
+ * HELPER. The lib/workspace-server.ts variant exists for server components
+ * that need to read the active workspace from the request cookies.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function applyWorkspaceFilter(

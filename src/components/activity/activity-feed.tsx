@@ -105,11 +105,14 @@ export function ActivityFeed({ workspaceId, postId, limit = 20, compact = false,
       if (workspaceId) params.set("workspaceId", workspaceId);
       if (postId) params.set("postId", postId);
       const res = await fetch(`/api/activity?${params}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setEntries(data.entries ?? []);
-    } catch {
-      // Silent fail
+    } catch (error) {
+      // BP-095: surface failures (HTTP errors, parse errors, network issues).
+      // The empty state below will tell the user there's nothing to show; this
+      // log distinguishes "no activity yet" from "API call failed."
+      console.warn("[activity-feed] failed to load entries:", error);
     } finally {
       setLoading(false);
     }
