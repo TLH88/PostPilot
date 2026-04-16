@@ -40,6 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { getActiveWorkspaceId, applyWorkspaceFilter } from "@/lib/workspace";
 import { POST_STATUSES, PUBLISH_METHODS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
@@ -146,10 +147,12 @@ export default function CalendarPage() {
       }
 
       // Fetch posts with scheduled dates OR published posts (for calendar display)
-      const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("user_id", user.id)
+      const activeWorkspaceId = getActiveWorkspaceId();
+      const { data, error } = await applyWorkspaceFilter(
+        supabase.from("posts").select("*"),
+        user.id,
+        activeWorkspaceId
+      )
         .or("scheduled_for.not.is.null,status.eq.posted")
         .order("scheduled_for", { ascending: true });
 

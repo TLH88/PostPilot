@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileText, Layers, CalendarClock, ClipboardCheck, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveWorkspaceIdServer } from "@/lib/workspace-server";
+import { applyWorkspaceFilter } from "@/lib/workspace";
 import {
   Card,
   CardContent,
@@ -169,12 +171,18 @@ export default async function PostsPage() {
     redirect("/login");
   }
 
-  const [{ data: posts }, { data: profileData }] = await Promise.all([
+  const activeWorkspaceId = await getActiveWorkspaceIdServer();
+
+  const postsQuery = applyWorkspaceFilter(
     supabase
       .from("posts")
-      .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions, scheduled_for")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false }),
+      .select("id, title, content, status, character_count, updated_at, hashtags, content_pillars, image_url, impressions, reactions, scheduled_for"),
+    user.id,
+    activeWorkspaceId
+  ).order("updated_at", { ascending: false });
+
+  const [{ data: posts }, { data: profileData }] = await Promise.all([
+    postsQuery,
     supabase
       .from("creator_profiles")
       .select("subscription_tier")

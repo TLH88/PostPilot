@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
+import { getActiveWorkspaceId, applyWorkspaceFilter } from "@/lib/workspace";
 import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { HelpLink, HelpStepList, HelpTip } from "@/components/help-link";
@@ -62,11 +63,13 @@ export default function AnalyticsPage() {
       .single();
     if (profile?.subscription_tier) setTier(profile.subscription_tier as SubscriptionTier);
 
-    // Fetch all posted/archived posts with analytics
-    const { data } = await supabase
-      .from("posts")
-      .select("id, title, content, content_pillars, status, posted_at, impressions, reactions, comments_count, reposts, engagements")
-      .eq("user_id", user.id)
+    // Fetch all posted/archived posts with analytics, scoped to active workspace (or individual mode)
+    const activeWorkspaceId = getActiveWorkspaceId();
+    const { data } = await applyWorkspaceFilter(
+      supabase.from("posts").select("id, title, content, content_pillars, status, posted_at, impressions, reactions, comments_count, reposts, engagements"),
+      user.id,
+      activeWorkspaceId
+    )
       .in("status", ["posted", "archived"])
       .order("posted_at", { ascending: false });
 

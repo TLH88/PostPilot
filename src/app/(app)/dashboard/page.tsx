@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveWorkspaceIdServer } from "@/lib/workspace-server";
+import { applyWorkspaceFilter } from "@/lib/workspace";
 import { PROVIDER_DISPLAY_NAMES, getAvailableModels, getDefaultModel, type AIProvider } from "@/lib/ai/providers";
 import {
   Card,
@@ -47,29 +49,31 @@ export default async function DashboardPage() {
     .single();
 
   const displayName = profile?.full_name || "there";
+  const activeWorkspaceId = await getActiveWorkspaceIdServer();
 
-  // Fetch stats in parallel
+  // Fetch stats in parallel, scoped to active workspace (or individual mode)
   const [ideasResult, draftsResult, scheduledResult, postedResult] =
     await Promise.all([
-      supabase
-        .from("ideas")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "draft"),
-      supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "scheduled"),
-      supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .in("status", ["posted", "archived"]),
+      applyWorkspaceFilter(
+        supabase.from("ideas").select("id", { count: "exact", head: true }),
+        user.id,
+        activeWorkspaceId
+      ),
+      applyWorkspaceFilter(
+        supabase.from("posts").select("id", { count: "exact", head: true }),
+        user.id,
+        activeWorkspaceId
+      ).eq("status", "draft"),
+      applyWorkspaceFilter(
+        supabase.from("posts").select("id", { count: "exact", head: true }),
+        user.id,
+        activeWorkspaceId
+      ).eq("status", "scheduled"),
+      applyWorkspaceFilter(
+        supabase.from("posts").select("id", { count: "exact", head: true }),
+        user.id,
+        activeWorkspaceId
+      ).in("status", ["posted", "archived"]),
     ]);
 
   const stats = [
@@ -109,23 +113,29 @@ export default async function DashboardPage() {
 
   // Fetch recent ideas and drafts in parallel
   const [recentIdeasResult, recentDraftsResult] = await Promise.all([
-    supabase
-      .from("ideas")
-      .select("id, title, created_at")
-      .eq("user_id", user.id)
+    applyWorkspaceFilter(
+      supabase.from("ideas").select("id, title, created_at"),
+      user.id,
+      activeWorkspaceId
+    )
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase
-      .from("posts")
-      .select("id, title, content, status, updated_at, image_url, content_pillars")
-      .eq("user_id", user.id)
+    applyWorkspaceFilter(
+      supabase
+        .from("posts")
+        .select("id, title, content, status, updated_at, image_url, content_pillars"),
+      user.id,
+      activeWorkspaceId
+    )
       .neq("status", "archived")
       .order("updated_at", { ascending: false })
       .limit(5),
   ]);
 
-  const recentIdeas = recentIdeasResult.data ?? [];
-  const recentDrafts = recentDraftsResult.data ?? [];
+  type RecentIdea = { id: string; title: string; created_at: string };
+  type RecentDraft = { id: string; title: string | null; content: string; status: string; updated_at: string; image_url: string | null; content_pillars: string[] | null };
+  const recentIdeas: RecentIdea[] = (recentIdeasResult.data as RecentIdea[] | null) ?? [];
+  const recentDrafts: RecentDraft[] = (recentDraftsResult.data as RecentDraft[] | null) ?? [];
 
   // Fetch content pillar distribution from posts + ideas
   const { data: profileFull } = await supabase
@@ -137,10 +147,11 @@ export default async function DashboardPage() {
   const contentPillars: string[] = profileFull?.content_pillars ?? [];
 
   // Count pillars from all posts (including archived — archived posts still count for metrics)
-  const { data: pillarPosts } = await supabase
-    .from("posts")
-    .select("content_pillars")
-    .eq("user_id", user.id);
+  const { data: pillarPosts } = await applyWorkspaceFilter(
+    supabase.from("posts").select("content_pillars"),
+    user.id,
+    activeWorkspaceId
+  );
 
   const pillarCounts: Record<string, number> = {};
   for (const pillar of contentPillars) {

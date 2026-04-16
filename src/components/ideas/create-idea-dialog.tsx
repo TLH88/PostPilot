@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getActiveWorkspaceId } from "@/lib/workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,7 @@ export function CreateIdeaDialog({
         .from("ideas")
         .insert({
           user_id: user.id,
+          workspace_id: getActiveWorkspaceId(),
           title: trimmedTitle,
           description: description.trim() || null,
           content_pillars: contentPillar ? [contentPillar] : [],

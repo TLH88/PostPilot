@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getActiveWorkspaceId } from "@/lib/workspace";
+import { getActiveWorkspaceId, applyWorkspaceFilter } from "@/lib/workspace";
 import { logActivity } from "@/lib/activity";
 import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority } from "@/lib/constants";
 import type { Idea } from "@/types";
@@ -314,12 +314,15 @@ export default function IdeasPage() {
 
       if (!user) return;
 
+      const activeWorkspaceId = getActiveWorkspaceId();
+      const ideasQuery = applyWorkspaceFilter(
+        supabase.from("ideas").select("*"),
+        user.id,
+        activeWorkspaceId
+      ).order("created_at", { ascending: false });
+
       const [ideasResult, profileResult] = await Promise.all([
-        supabase
-          .from("ideas")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
+        ideasQuery,
         supabase
           .from("creator_profiles")
           .select("content_pillars")

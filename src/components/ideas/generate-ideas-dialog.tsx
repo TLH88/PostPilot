@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getActiveWorkspaceId } from "@/lib/workspace";
 import type { Idea } from "@/types";
 import {
   Card,
@@ -207,6 +208,7 @@ export function GenerateIdeasDialog({
         .from("ideas")
         .insert({
           user_id: user.id,
+          workspace_id: getActiveWorkspaceId(),
           title: idea.title,
           description: idea.description || null,
           content_pillars: idea.content_pillars?.length ? idea.content_pillars : [],
