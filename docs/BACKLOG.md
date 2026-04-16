@@ -1,6 +1,23 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-16 (Trial system + Team collaboration suite shipped: BP-023, BP-046-051, BP-087 done; BP-025 API prep done pending LinkedIn approval)
+> Last updated: 2026-04-16 (Trial system + Team collaboration suite shipped: BP-023, BP-046-051, BP-087 done; BP-025 API prep done pending LinkedIn approval. Added BP-088–BP-097 from 48-hour system review — see [docs/reviews/2026-04-16-system-review.md](reviews/2026-04-16-system-review.md))
+>
+> **2026-04-16 STRATEGIC PIVOT:** Billing deferred until Free→Pro viability is validated. All Team+ features feature-flagged behind BP-098. See [docs/reviews/2026-04-16-backlog-reprioritization.md](reviews/2026-04-16-backlog-reprioritization.md) for the new priority tiers (P0–P3 + Deferred) and sprint plan.
+>
+> **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2.
+
+## Priority Legend (post-2026-04-16 pivot)
+
+| Tier | Meaning |
+|------|---------|
+| **P0 / Critical** | Foundation for the new direction — must land first |
+| **P1 / Critical** or **P1 / High** | Free→Pro viability blocker |
+| **P2 / Medium** | Free→Pro polish & engagement |
+| **P3 / Low** | Pro tier differentiation, can wait |
+| **Deferred (Team)** | Team+ feature, hidden behind BP-098 flag, no active work |
+| **Deferred (Revenue)** | Billing/monetization, on hold until product viability proven |
+| **Blocked** | External dependency (e.g. LinkedIn API approval) |
+| **Superseded** | Replaced by a newer BP that shipped |
 
 ## Status Key
 
@@ -172,7 +189,8 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 ### BP-015: Stripe Billing Integration
 
 **Status:** Backlog
-**Priority:** Critical
+**Priority:** Deferred (Revenue) — was Critical
+**Re-prioritized:** 2026-04-16 — billing deferred until Free→Pro product viability is validated through user feedback. See [reprioritization report](reviews/2026-04-16-backlog-reprioritization.md).
 **Source:** Pricing strategy
 **Date Added:** 2026-04-01
 **Phase:** 1
@@ -213,8 +231,9 @@ Enforce usage limits per tier: posts/month, brainstorms/month, AI chat messages/
 
 ### BP-017: Pricing Page
 
-**Status:** Backlog
-**Priority:** High
+**Status:** Backlog (informational page may be live; Checkout deferred)
+**Priority:** Deferred (Revenue) — was High
+**Re-prioritized:** 2026-04-16 — keep the page as marketing/info only; strip Stripe Checkout integration; add "alpha — all features free" messaging. Re-activate when BP-015 reactivates.
 **Source:** Pricing strategy
 **Date Added:** 2026-04-01
 **Phase:** 1
@@ -227,7 +246,8 @@ Public pricing page with tier comparison table, feature breakdown, FAQ, and Stri
 ### BP-018: Feature Gating Logic
 
 **Status:** Backlog
-**Priority:** High
+**Priority:** P0 / Critical — was High
+**Re-prioritized:** 2026-04-16 — promoted to P0 foundation. The gating utility (`hasFeature(tier, feature)`) becomes the single source of truth for both tier checks AND the new master Team-features flag (see BP-098). Must short-circuit Team feature requests to false when `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=false`.
 **Source:** Pricing strategy
 **Date Added:** 2026-04-01
 **Phase:** 1
@@ -275,7 +295,8 @@ Pre-built post structures: story arc, hot take, how-to guide, listicle, question
 ### BP-021: Manual Analytics
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** P1 / High — was Medium
+**Re-prioritized:** 2026-04-16 — biggest gap in the Creator-tier value proposition. Without engagement tracking, "track your performance" is hollow. Critical for Free→Pro viability.
 **Source:** Product evaluation (Creator tier value)
 **Date Added:** 2026-04-01
 **Phase:** 1
@@ -321,8 +342,9 @@ Add workspace type selector at onboarding start: "Individual Creator" vs "Brand/
 
 ### BP-024: Multi-User Workspaces
 
-**Status:** Backlog
-**Priority:** High
+**Status:** Backlog (schema + much of UI shipped via BP-023, BP-046–051; remaining scope flagged)
+**Priority:** Deferred (Team) — was High
+**Re-prioritized:** 2026-04-16 — Team feature, hidden behind BP-098 master flag. Not actively worked.
 **Source:** Report feedback
 **Date Added:** 2026-04-01
 **Phase:** 2
@@ -364,7 +386,8 @@ Read post engagement data from LinkedIn API. Requires `r_member_postAnalytics` s
 ### BP-026: Trending Topics for Brainstorming
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** P2 / Medium
+**Re-prioritized:** 2026-04-16 — Free→Pro brainstorm value-add. Ship the AI-only path first; defer RSS option.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
@@ -377,7 +400,8 @@ Inject trending industry news into brainstorm context via RSS feeds from industr
 ### BP-027: Voice Consistency Validation
 
 **Status:** Backlog
-**Priority:** Low
+**Priority:** P3 / Low
+**Re-prioritized:** 2026-04-16 — Pro tier polish, no urgency. Revisit after Free→Pro viability validated.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
@@ -390,7 +414,8 @@ After each draft, compare generated text against voice samples. Show tone score 
 ### BP-028: Guided Enhancement Workflows
 
 **Status:** Backlog
-**Priority:** Low
+**Priority:** P2 / Medium — was Low
+**Re-prioritized:** 2026-04-16 — promoted. High-leverage AI feature that differentiates PostPilot from "another AI wrapper." Real Free→Pro value.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
@@ -418,8 +443,9 @@ Generate images for LinkedIn posts using DALL-E 3 via user's existing OpenAI BYO
 
 ### BP-030: Approval Workflows
 
-**Status:** Backlog
-**Priority:** Medium
+**Status:** SUPERSEDED by BP-050 (shipped 2026-04-16)
+**Priority:** Superseded — was Medium
+**Re-prioritized:** 2026-04-16 — closed. Functionality delivered via the more comprehensive BP-050 (Configurable Approval Workflow). Refer to BP-050 and BP-089 (status transitions fix) for current state.
 **Source:** Product evaluation
 **Date Added:** 2026-04-01
 **Phase:** 3
@@ -432,7 +458,8 @@ Draft review/approve chain for teams. Editor submits for review, Admin approves 
 ### BP-031: Bulk Operations
 
 **Status:** Backlog
-**Priority:** Low
+**Priority:** P3 / Low
+**Re-prioritized:** 2026-04-16 — Pro power-user feature; defer until Free→Pro validation done.
 **Source:** Product evaluation
 **Date Added:** 2026-04-01
 **Phase:** 3
@@ -445,7 +472,8 @@ Batch brainstorm (50 ideas at once), batch schedule, batch archive. Professional
 ### BP-032: A/B Testing for Hooks
 
 **Status:** Backlog
-**Priority:** Low
+**Priority:** P3 / Low
+**Re-prioritized:** 2026-04-16 — Pro tier; depends on analytics data flowing (BP-021 ships first).
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 3
@@ -458,7 +486,8 @@ Generate multiple hook versions for the same post. Track which performs better v
 ### BP-033: Content Pillar ROI Dashboard
 
 **Status:** Backlog
-**Priority:** Low
+**Priority:** P3 / Low
+**Re-prioritized:** 2026-04-16 — Pro tier; depends on analytics data flowing.
 **Source:** Product evaluation
 **Date Added:** 2026-04-01
 **Phase:** 3
@@ -471,7 +500,8 @@ Show which content pillars drive the most engagement. Requires analytics data (B
 ### BP-034: Past-Due Checker — Direct Publish Button
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** P1 / High — was Medium
+**Re-prioritized:** 2026-04-16 — solo-creator publish reliability. When auto-publish misses a slot, the user needs an obvious recovery action.
 **Source:** LinkedIn integration follow-up
 **Date Added:** 2026-04-01
 **Phase:** 1
@@ -483,8 +513,9 @@ Add "Publish Now" button to past-due checker dialog when user has active LinkedI
 
 ### BP-035: Guided Tutorial — First Post Walkthrough
 
-**Status:** Backlog
-**Priority:** High
+**Status:** Backlog (Tutorial SDK Phase 1 shipped 2026-04-15; functional cleanup pending)
+**Priority:** P1 / Critical — was High
+**Re-prioritized:** 2026-04-16 — promoted to viability blocker. Tutorial SDK shipped but per BP-084 the system "is not functioning properly." With Team paths hidden, every new user walks the Individual Creator tutorial — if it's broken, alpha fails. Scope: fix state management, targeting, wait-for-action detection.
 **Source:** Owner request
 **Date Added:** 2026-04-01
 **Phase:** 1
@@ -556,7 +587,8 @@ Create an interactive guided tutorial that walks new users through onboarding, s
 ### BP-036: Emoji Picker in Post Editor
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** P2 / Medium
+**Re-prioritized:** 2026-04-16 — small win, high visibility. LinkedIn posts use emojis heavily. Ship in Sprint 4.
 **Source:** Owner request
 **Date Added:** 2026-04-02
 **Phase:** 1
@@ -575,7 +607,8 @@ Add an emoji picker to the post editor formatting toolbar so users can easily in
 ### BP-037: Clarify Version Management & Convert to Post UX
 
 **Status:** Backlog
-**Priority:** High
+**Priority:** P1 / High
+**Re-prioritized:** 2026-04-16 — confirmed P1. UX confusion blocks Free→Paid conversion. Ship in Sprint 2.
 **Source:** Owner request (user confusion)
 **Date Added:** 2026-04-02
 **Phase:** 1
@@ -619,7 +652,8 @@ Users need the ability to manually change a post's status, particularly to mark 
 ### BP-045: Third-Party Ad Integration (Free Tier)
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** Deferred (Revenue) — was Medium
+**Re-prioritized:** 2026-04-16 — revenue-side feature. Defer until Free-tier monetization strategy is decided after viability validation.
 **Source:** Owner request
 **Date Added:** 2026-04-04
 **Phase:** 1
@@ -761,7 +795,8 @@ Dedicated view for reviewers to see all posts awaiting their approval.
 ### BP-052: Brand Consistency Scoring
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** Deferred (Team) — was Medium
+**Re-prioritized:** 2026-04-16 — Team feature, hidden behind BP-098 flag. No active work.
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
 **Phase:** T3 (consider pulling forward as differentiator)
@@ -781,7 +816,8 @@ AI checks posts against brand voice guidelines before publishing. Shows alignmen
 ### BP-053: Content Briefs
 
 **Status:** Backlog
-**Priority:** Medium
+**Priority:** Deferred (Team) — was Medium
+**Re-prioritized:** 2026-04-16 — Team feature, hidden behind BP-098 flag. No active work.
 **Source:** Team feature scoping
 **Date Added:** 2026-04-04
 **Phase:** T3
@@ -1503,8 +1539,9 @@ All of this should be available on **all tiers**. Tagging and prioritization are
 
 ### BP-084: Tutorial Card Visual Redesign
 
-**Status:** Backlog
-**Priority:** High
+**Status:** Backlog (verify scope vs Tutorial SDK Phase 1 shipped 2026-04-15)
+**Priority:** P2 / Medium — was High
+**Re-prioritized:** 2026-04-16 — Tutorial SDK Phase 1 shipped a new card system (`OverviewCard`, `SimpleCard` with border-beam). Verify whether the spec in this BP is already addressed before doing more work. If gaps remain, fold the visual work into BP-035 (functional cleanup).
 **Source:** Owner UX direction with reference mockups
 **Date Added:** 2026-04-11
 
@@ -1684,7 +1721,8 @@ interface TutorialStep {
 ### BP-085: AI Usage Monitoring, Cost Analysis & Budget Enforcement (Admin Portal)
 
 **Status:** Backlog
-**Priority:** High
+**Priority:** P1 / High
+**Re-prioritized:** 2026-04-16 — confirmed P1. We're providing managed AI access (BP-054) to alpha users. Without cost telemetry, runaway usage could quietly bleed the business. Scope down to Phase 1 (data capture) + minimal admin KPI page. Defer the budget enforcement and upsell intelligence layers.
 **Source:** Owner — need visibility into AI spend, abuse detection, and upsell opportunities
 **Date Added:** 2026-04-11
 
@@ -2270,6 +2308,555 @@ When a user develops an idea into a post (or creates a new post) and clicks "App
 - [ ] Calendar month/week/day views all show posted posts
 - [ ] Hover preview works for posted posts with "Edit" button (no "Reschedule")
 - [ ] Upcoming Posts panel is unaffected (still only shows future scheduled posts)
+
+---
+
+<!-- =================================================================== -->
+<!-- BP-088 through BP-097 added by 48-hour system review on 2026-04-16. -->
+<!-- See docs/reviews/2026-04-16-system-review.md for context.            -->
+<!-- All entries tagged: Source: [2026-04-16 Review]                      -->
+<!-- =================================================================== -->
+
+### BP-088: Authorization Audit on Team-Feature API Routes
+
+**Status:** Backlog (scope to Free/Pro endpoints first; Team-only endpoint hardening waits for BP-098 unflag)
+**Priority:** P0 / Critical (scoped to Free/Pro)
+**Re-prioritized:** 2026-04-16 — keep Critical for endpoints reachable by Free/Pro users. Team-only endpoints become safer once BP-098 hides their UI; full Team audit defers until Team unflags.
+**Source:** [2026-04-16 Review] — Code Review team finding C1, C3
+**Date Added:** 2026-04-16
+
+#### Problem
+Two team-feature API endpoints have insufficient authorization checks. Both shipped in commits `fd913e5` and `97ec2a0`.
+
+1. **`DELETE /api/posts/assign`** at [src/app/api/posts/assign/route.ts:88-124](../src/app/api/posts/assign/route.ts) — fetches the post's `workspace_id` but never verifies the caller is a workspace member or post owner before unassigning. Any authenticated user can unassign any post by ID. The `POST` handler in the same file does check membership at lines 33-44; the `DELETE` handler must mirror it.
+2. **`PATCH /api/posts/comments`** at [src/app/api/posts/comments/route.ts:131-158](../src/app/api/posts/comments/route.ts) — relies entirely on RLS for resolve/unresolve authorization. No defense-in-depth check that the caller is the comment author OR workspace owner/admin.
+
+#### Requirements
+1. `DELETE /api/posts/assign`: Add the same workspace membership check as the `POST` handler before performing the update.
+2. `PATCH /api/posts/comments`: Add an explicit role/authorship check before the update (caller must be comment author OR workspace owner/admin).
+3. Audit all other team-feature endpoints created in this sprint for missing application-level authorization:
+   - `/api/posts/approval` (POST and GET)
+   - `/api/posts/comments` (DELETE — already checks `eq("user_id", user.id)`, OK)
+   - `/api/notifications` (all methods)
+   - `/api/activity` (GET)
+   - `/api/workspace/members` (GET, PATCH, DELETE)
+   - `/api/workspace/invite`
+4. Document in code review checklist: "all new endpoints must check authorization at the application layer, not rely solely on RLS."
+
+#### Acceptance Criteria
+- [ ] DELETE /api/posts/assign returns 403 for non-members
+- [ ] PATCH /api/posts/comments returns 403 when caller is neither author nor owner/admin
+- [ ] Manual test of all listed endpoints confirms application-layer authorization
+- [ ] Add a brief note to CLAUDE.md (if it exists) about defense-in-depth requirement
+
+---
+
+### BP-089: Approval Workflow Status Transitions
+
+**Status:** Backlog
+**Priority:** Deferred (Team) — was Critical
+**Re-prioritized:** 2026-04-16 — bug exists but only affects Team users; behind BP-098 flag, no users exposed. Fix when Team unflags.
+**Source:** [2026-04-16 Review] — Code Review + UI/UX team finding C2, P1
+**Date Added:** 2026-04-16
+
+#### Problem
+The approval decision handler at [src/app/api/posts/approval/route.ts:144-150](../src/app/api/posts/approval/route.ts) contains dead-code logic:
+
+```ts
+const newStatus = decision === "approved" ? "draft" : "draft"; // approved moves forward, changes_requested goes back to draft
+```
+
+Both branches resolve to `"draft"`. The comment says "approved moves forward" but the code does not move it forward. As a result, an approved post ends up with `status="draft"` and `approval_status="approved"` — there is no `"ready"` state, and no clear next-step UI for the editor.
+
+#### Requirements
+1. Define a new post status `"ready"` (or similar) in the post status enum / type definitions.
+2. Update the approval handler so `decision === "approved"` sets `status="ready"`.
+3. Update the post editor to show a clear "Ready to Publish" affordance when `status="ready"`:
+   - Visible badge in the top bar
+   - "Schedule" and "Publish Now" buttons surfaced prominently
+   - Clear CTA: "This post has been approved. Publish or schedule to send it live."
+4. Update calendar/dashboard queries that filter on `status` to include `"ready"` posts in the appropriate views.
+5. Update the activity feed labels so "post_approved" reads naturally with the new status.
+6. Optional: when approval is granted, send the author a notification with the title "Your post is ready to publish."
+
+#### Acceptance Criteria
+- [ ] Approving a post sets `status="ready"` and `approval_status="approved"`
+- [ ] Requesting changes sets `status="draft"` and `approval_status="changes_requested"`
+- [ ] Post editor shows "Ready to Publish" UI when in `ready` status
+- [ ] Author receives notification when their post is approved (with correct deep-link, see BP-093)
+- [ ] No existing flows break (drafts, scheduled, posted statuses unchanged)
+
+---
+
+### BP-090: Eliminate `window.location.reload()` from Post Editor
+
+**Status:** Backlog
+**Priority:** Deferred (Team) — was Critical
+**Re-prioritized:** 2026-04-16 — both reload sites are in Team-only post editor sections (ApprovalControls onChange, SubmitForReviewDialog onSubmitted). Behind BP-098 flag. Fix when Team unflags.
+**Source:** [2026-04-16 Review] — UI/UX team finding C4
+**Date Added:** 2026-04-16
+
+#### Problem
+Two locations in [src/app/(app)/posts/[id]/page.tsx](../src/app/(app)/posts/[id]/page.tsx) trigger a full page reload after approval actions:
+- Line 1520: `<ApprovalControls onChange={() => window.location.reload()} />`
+- Line 2276: `onSubmitted` callback in SubmitForReviewDialog
+
+Each reload wipes:
+- Tabbed right-panel preference (briefly resets and re-applies from localStorage, causing flicker)
+- AI Assistant chat conversation
+- Scroll position
+- In-progress edits not yet auto-saved (10-second debounce window)
+
+Reviewers will encounter this every time they approve or request changes. It feels broken.
+
+#### Requirements
+1. Replace both `window.location.reload()` calls with proper state refresh:
+   - Re-fetch the post record via Supabase and update local state
+   - Re-fetch the approval history (already done by ApprovalControls when it re-renders)
+   - Trigger an Activity tab refresh if it's currently visible
+2. Use Next.js `router.refresh()` if the post page has any server-component children that need to revalidate.
+3. Add a brief visual confirmation (toast or status badge change animation) so the user knows the action succeeded.
+
+#### Acceptance Criteria
+- [ ] Approving a post does not reload the page
+- [ ] Submitting for review does not reload the page
+- [ ] Post status, approval_status, and approval history all update correctly without reload
+- [ ] AI chat conversation persists after approval actions
+- [ ] No regressions in tabbed panel persistence
+
+---
+
+### BP-091: Approval UX — Visible Controls, Empty-State CTAs, Role Help
+
+**Status:** Backlog
+**Priority:** Deferred (Team) — was High
+**Re-prioritized:** 2026-04-16 — Team-only UX. Behind BP-098 flag.
+**Source:** [2026-04-16 Review] — UI/UX team findings H1, H2, M3
+**Date Added:** 2026-04-16
+
+#### Problem
+Three related UX gaps in the team-collaboration UI:
+
+1. **ApprovalControls visibility unclear after tabbed panel refactor (562fa0a):** The Comments and Activity panels were moved to tabs, but the inline `ApprovalControls` card was supposed to remain. Manual walkthrough is needed to confirm reviewers can act on pending approvals from the editor (the only documented path is `/workspace/reviews`).
+2. **"No eligible reviewers" dialog dead-end:** When the workspace has no other members with review-eligible roles, [src/components/posts/submit-for-review-dialog.tsx](../src/components/posts/submit-for-review-dialog.tsx) shows the message but offers only Cancel. No deep-link to invite or to manage roles.
+3. **Reviewer role model is invisible:** The hierarchy (owner > admin > editor > member > viewer) and "only owner/admin/editor can review" rule is enforced in code but never explained to users in-product.
+
+#### Requirements
+1. Confirm or restore visible `ApprovalControls` in the post editor for workspace posts. If the existing inline placement is hard to spot, consider adding "Approvals" as a fourth tab in the right panel.
+2. In the "No eligible reviewers" empty state of `SubmitForReviewDialog`, add an "Invite Member" button that links to `/workspace/members` (or opens an invite dialog directly).
+3. Add a "Roles & Permissions" help card on `/workspace/members` (collapsible) explaining each role's capabilities, especially review eligibility.
+4. Add a brief tooltip on the "Submit for Review" button explaining "Editors, admins, and owners can be picked as reviewers."
+
+#### Acceptance Criteria
+- [ ] Reviewers can see and act on pending approvals from the post editor without leaving the page
+- [ ] Empty reviewer dialog has a clear next-action button
+- [ ] Members page explains the role model
+- [ ] Submit-for-review button has a helpful tooltip
+
+---
+
+### BP-092: LinkedIn Analytics — Gate UI on Scope Grant
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Re-prioritized:** 2026-04-16 — confirmed P1. Affects Creator/Pro users today; without gating, every "Refresh from LinkedIn" click fails. Sprint 2.
+**Source:** [2026-04-16 Review] — System Logic + UI/UX teams finding H3
+**Date Added:** 2026-04-16
+
+#### Problem
+BP-025 is explicitly blocked on LinkedIn app approval for the `r_member_postAnalytics` scope. However, BP-087 (Published Post View) shipped a "Refresh from LinkedIn" button that calls the gated endpoint. For every user today, this button will fail. The published post view also presents engagement metrics with no indication of whether the values came from LinkedIn or were entered manually.
+
+Users will think the feature is broken instead of pending.
+
+#### Requirements
+1. Hide the "Refresh from LinkedIn" button entirely until the user's `linkedin_scopes` includes `r_member_postAnalytics`. Replace with a small "Coming soon: auto-refresh from LinkedIn" note (linked to a help article).
+2. Add a "Manual entry" badge or label on the engagement analytics card while LinkedIn auto-fetch is unavailable.
+3. When `analytics_fetched_at` is set on a post, show "Last fetched from LinkedIn: [relative time]" on the analytics card. When null, show "Manually entered" with timestamp.
+4. Add a Settings → LinkedIn note: "Engagement analytics auto-refresh requires additional LinkedIn permissions. We'll enable this in a future update."
+
+#### Acceptance Criteria
+- [ ] Refresh button hidden when scope is missing
+- [ ] Engagement card clearly indicates data source (LinkedIn vs manual)
+- [ ] Settings page explains the pending feature
+- [ ] When/if scope is granted, the existing implementation activates automatically
+
+---
+
+### BP-093: Notification Deep-Links + Workspace Context Indicator
+
+**Status:** Backlog
+**Priority:** Deferred (Team) — was High
+**Re-prioritized:** 2026-04-16 — Team-only UX (notifications + workspace badge). Behind BP-098 flag.
+**Source:** [2026-04-16 Review] — UI/UX team findings H4, M4
+**Date Added:** 2026-04-16
+
+#### Problem
+Two UX context issues:
+
+1. **Notifications don't deep-link to context.** All notifications use `action_url: "/posts/${postId}"`. A "you were mentioned in a comment" notification opens the post editor on whatever tab the user last had open (might be AI Assistant) — not the comment thread.
+2. **No workspace context indicator in top bar.** Once a Team user is in a workspace, only the sidebar workspace switcher shows which workspace they're in. With sidebar collapsed, users can't tell which workspace they're editing in.
+
+#### Requirements
+1. Update notification creation in `/api/posts/comments/route.ts` and `/api/posts/approval/route.ts`:
+   - Mention notifications: `action_url: /posts/${postId}?panel=comments#comment-${commentId}`
+   - Comment notifications (post owner/assignee): `action_url: /posts/${postId}?panel=comments`
+   - Approval decision notifications: `action_url: /posts/${postId}?panel=activity`
+2. Update post editor to read `?panel=` query param on mount and open the correct tab (overriding the localStorage default for that page load only).
+3. Add a workspace name pill to the top bar (next to status/search) when an active workspace is set. Click to open workspace switcher.
+4. On the post editor, add a small workspace breadcrumb above the title.
+
+#### Acceptance Criteria
+- [ ] Mention notifications open Comments tab and scroll to the right comment
+- [ ] Approval notifications open Activity tab
+- [ ] Top bar shows workspace name when active
+- [ ] Post editor shows workspace context in header
+
+---
+
+### BP-094: Route-Level Tier Gating for Workspace + Notification Routes
+
+**Status:** Backlog (folded into BP-098)
+**Priority:** P0 / Critical — was High
+**Re-prioritized:** 2026-04-16 — promoted. Now central to the Team-features feature-flag strategy. Implementation merges with BP-098.
+**Source:** [2026-04-16 Review] — System Logic team finding H5
+**Date Added:** 2026-04-16
+
+#### Problem
+Team-tier features are gated at the component level (`hasFeature(userTier, "workspaces")`), but routes like `/workspace/reviews`, `/workspace/members`, `/notifications`, and `/activity` are accessible by URL to Free, Creator, and Pro users. They see broken or empty pages.
+
+#### Requirements
+1. Add tier check at the layout or middleware level. If `!hasFeature(userTier, "workspaces")` and pathname starts with `/workspace/`, `/notifications`, or `/activity`, redirect to `/pricing?upgrade=workspaces` (or to the dashboard with a friendly toast).
+2. Alternatively, render a "Team-tier feature" upsell page on these routes for non-Team users instead of redirecting.
+3. Audit the sidebar / mobile nav to ensure these items are also hidden for non-Team users (check that they already are; if not, fix).
+
+#### Acceptance Criteria
+- [ ] Free/Creator/Pro users cannot access `/workspace/*`, `/notifications`, `/activity` directly
+- [ ] Sidebar/mobile-nav consistently hides these for non-Team users
+- [ ] Upsell or redirect provides clear value proposition
+
+---
+
+### BP-095: Observability — Kill Silent Failures + Workspace Filter Audit
+
+**Status:** Backlog
+**Priority:** P0 / High — was Medium
+**Re-prioritized:** 2026-04-16 — promoted to P0. Foundation for catching real issues during alpha/beta testing. Apply across the codebase, not just Team helpers.
+**Source:** [2026-04-16 Review] — Code Review team findings M1, M2
+**Date Added:** 2026-04-16
+
+#### Problem
+Two observability/maintainability issues introduced by the team-collaboration shipping:
+
+1. **Silent failures in helpers.** [src/lib/activity.ts:41-43](../src/lib/activity.ts) catches all errors with `catch {}`. Same pattern in `src/lib/notifications.ts`. If RLS or schema changes break these helpers, no telemetry will surface the problem until users complain.
+2. **Inconsistent workspace scoping.** `applyWorkspaceFilter()` is the canonical helper but isn't used uniformly. Some queries manually filter on `workspace_id`. Risk of drift — a future write path could miss the filter and silently leak data across tenants.
+
+#### Requirements
+1. Update silent-catch blocks in `lib/activity.ts` and `lib/notifications.ts` to call `logApiError()` (or at minimum `console.error` with a labeled prefix like `[activity-log]`) before returning silently. Don't change the "best-effort, never block" semantics — just make failures visible.
+2. Audit all server-side queries on `posts`, `ideas`, and any other workspace-scoped tables for consistent use of `applyWorkspaceFilter()`. Document any exceptions.
+3. Add a brief comment in `src/lib/workspace.ts` explaining when to use the helper vs manually filter.
+4. Consider an ESLint rule or grep-based check to catch direct `.from("posts")` queries that don't use the helper.
+
+#### Acceptance Criteria
+- [ ] Failed activity-log inserts produce a console error
+- [ ] Failed notification inserts produce a console error
+- [ ] All `posts` and `ideas` server queries use `applyWorkspaceFilter` (or have a documented exemption)
+- [ ] Helper documentation updated
+
+---
+
+### BP-096: Approval Deadlines + Reviewer Reminders
+
+**Status:** Backlog (deferred to Phase T4)
+**Priority:** Medium
+**Source:** [2026-04-16 Review] — System Logic team finding M5
+**Date Added:** 2026-04-16
+
+#### Problem
+A post submitted for review can sit in `status="review"` indefinitely. There is no deadline tracking, no automatic reminder to reviewers, and no escalation path. For Team-tier customers running real publishing workflows, this is a noticeable gap — content gets stuck.
+
+#### Requirements
+1. Add an optional `approval_deadline` field to `posts` (timestamp, nullable).
+2. Allow editor to set a deadline when submitting for review.
+3. Daily cron / Edge Function: notify reviewers about pending approvals approaching deadline (24h, 4h before).
+4. Optional: escalation policy — if no decision after a configurable threshold, notify workspace admins.
+5. Show countdown badge on review queue and post editor.
+
+#### Acceptance Criteria
+- [ ] Editors can set an optional deadline on submission
+- [ ] Reviewers receive reminder notifications as deadline approaches
+- [ ] Admins notified on overdue (configurable)
+
+#### Notes
+This is a Phase T4 enhancement per ROADMAP. Listed here as a tracked deferred item from the 2026-04-16 review.
+
+---
+
+### BP-097: Playwright E2E for Free→Pro Happy Path
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Re-prioritized:** 2026-04-16 — re-scoped from Team-collaboration E2E to Free→Pro happy path. The Team test waits behind BP-098.
+**Source:** [2026-04-16 Review] — Lead synthesis improvement opportunity I4 (re-scoped)
+**Date Added:** 2026-04-16
+
+#### Problem
+The Free→Pro happy path is the entire product right now (Team is feature-flagged). It touches signup, onboarding, LinkedIn OAuth, AI brainstorm, idea-to-post flow, scheduling, publishing, and analytics — but has zero automated test coverage. Regressions during the upcoming Sprints 1-4 are likely.
+
+#### Requirements
+1. Set up Playwright (if not already configured) targeting the deployed Vercel preview URL (per project workflow — no localhost).
+2. Write a single happy-path E2E test for the solo creator that covers:
+   - Sign up with new email (or use a test account fixture)
+   - Complete onboarding (Individual Creator path; Brand/Team should not appear when BP-098 flag is off)
+   - Connect LinkedIn (mock OAuth callback or use a sandbox app)
+   - Brainstorm ideas (assert ≥1 idea generated)
+   - Develop an idea into a post (navigate to editor)
+   - Use AI to generate a draft (assert content populated)
+   - Schedule the post for a future time
+   - Verify it appears on the calendar
+   - Mark as posted (manual flow, since real LinkedIn publish in tests is risky)
+   - Enter manual analytics numbers (BP-021 prereq)
+3. Run the test on every PR to `develop` branch via GitHub Actions or Vercel preview hook.
+4. Document how to add new E2E tests in a brief README.
+5. Future: add a Team-suite E2E test once BP-098 is unflagged.
+
+#### Acceptance Criteria
+- [ ] Playwright configured and running against preview deployments
+- [ ] Free→Pro happy-path test covers all listed steps
+- [ ] Test runs in CI (under 5 minutes)
+- [ ] No Team-only UI elements appear during the Free→Pro flow
+- [ ] Documentation added for future test contributors
+
+---
+
+### BP-098: Team Features Master Feature Flag
+
+**Status:** Backlog
+**Priority:** P0 / Critical
+**Source:** [2026-04-16 Reprioritization] — Strategic pivot to Free→Pro focus
+**Date Added:** 2026-04-16
+
+#### Problem
+The Team-collaboration suite (BP-023, BP-046–051, BP-087, plus supporting work) shipped in the last 48 hours: ~3,000 LOC across components, API routes, migrations, helpers, types, and nav items. The owner has decided to defer billing and focus on validating the Free→Pro experience. Until that validation is complete, all Team-tier UI must be hidden from Free, Creator, and Pro users so they don't encounter incomplete or confusing workflows.
+
+We need a single flag that turns the entire Team suite off for end users while keeping the code in place for later activation.
+
+#### Requirements
+
+**Layer 1: Master Environment Flag**
+- Define `NEXT_PUBLIC_TEAM_FEATURES_ENABLED` env var (default: `"false"`)
+- Expose via a typed helper:
+  ```ts
+  // src/lib/feature-flags.ts
+  export const TEAM_FEATURES_ENABLED =
+    process.env.NEXT_PUBLIC_TEAM_FEATURES_ENABLED === "true";
+  ```
+
+**Layer 2: Modify `hasFeature()` to short-circuit (depends on BP-018)**
+- When the master flag is off, any check for a Team-tier feature returns `false` regardless of the user's actual tier
+- Identify the list of Team-feature keys (workspaces, comments, activity feed, notifications, approval, review queue, etc.) and short-circuit them centrally
+
+**Layer 3: Route-level redirect (folds in BP-094)**
+- Middleware or layout-level redirect for `/workspace/*`, `/notifications`, `/activity` when flag is off
+- Redirect target: `/dashboard` (with optional toast: "This feature isn't available in your plan.")
+
+**Layer 4: Hide nav items**
+- Sidebar and mobile nav filter out Activity, Reviews, Notifications when flag is off
+- Top bar: hide notifications bell when flag is off
+
+**Layer 5: Onboarding workspace-type selector**
+- `/onboarding/type` route: hide the "Brand/Team" option entirely when flag is off (or auto-skip the route and route directly to LinkedIn-connect step)
+
+**Layer 6: Settings → Workspace setup wizard**
+- Hide entirely when flag is off
+
+#### What Stays Visible
+- Database schema and migrations remain in place (no rollback needed; tables are inert without the UI)
+- API routes remain in code; they require Team-tier auth so Free/Pro users cannot reach them by URL
+- Pricing page (BP-017) keeps Team tier listed for transparency, but with "coming soon" badge
+
+#### Acceptance Criteria
+- [ ] `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=false` (default) hides all Team UI
+- [ ] Sidebar shows only: Dashboard, Ideas, Posts, Calendar, Analytics, Settings
+- [ ] Mobile nav matches sidebar
+- [ ] Top bar: no notifications bell
+- [ ] Post editor: no Comments/Activity tabs, no assignment card, no approval controls, no Submit-for-Review button
+- [ ] Onboarding: Brand/Team option hidden or skipped
+- [ ] URL `/workspace/reviews`, `/workspace/members`, `/notifications`, `/activity` all redirect to `/dashboard`
+- [ ] No 500 errors in any flag-off code path
+- [ ] Free, Creator, Pro tier users can complete the full create→publish loop without encountering Team UI
+- [ ] Setting `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=true` restores the Team experience exactly as today (no functional changes when the flag is on)
+
+#### Notes
+- This is the **gating BP** for the new strategic direction. Land this first; everything else depends on it.
+- Pair the work with a quick smoke test of all Free/Pro flows to confirm nothing leaks Team UI.
+- After BP-098 lands, BP-094 is mostly subsumed but kept open as a tracking item for the route-level work.
+
+---
+
+### BP-099: Simplified Guided UI Mode (Conversational Assistant)
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Source:** Owner — captured 2026-04-16. Idea originated in a prior session and was not previously written into the backlog.
+**Date Added:** 2026-04-16
+
+#### Vision
+
+A toggleable "Guided Mode" that turns PostPilot's UI into a full-time conversational assistant for less technical users. Instead of presenting the full, dense product surface and expecting the user to know what to do, the system proactively asks the user what they want to accomplish, walks them through the workflow step by step, and — after each completed task — asks "what would you like to do next?" with a curated, context-aware set of options.
+
+The simplified mode does **not** replace the existing UI. It overlays/augments it: real components (Idea Generator modal, Post Editor, AI Assistant panel, Schedule modal, etc.) are still used. The Guided Mode adds an always-present assistant that narrates, prompts, and confirms. Power users can keep the standard UI; less technical users get a coached experience.
+
+This addresses a clear gap: PostPilot has many features, and a brand-new, non-technical user can be overwhelmed before they ever publish their first post. Guided Mode is the difference between "I tried it and gave up" and "It walked me through it and I posted in 5 minutes."
+
+#### Problem
+
+PostPilot has accumulated significant surface area: voice profile setup, BYOK or managed AI, content pillars, Idea Bank, post editor with AI chat / hook analyzer / version management / hashtag tools / image generation, calendar, analytics, and now (when re-enabled) team workspaces. For a less technical user, knowing **where to start** and **what to do next** is the primary obstacle. Documentation, tooltips, and one-shot tutorials help but aren't enough — the user needs an assistant that stays with them throughout the session, not just on first login.
+
+#### Canonical Walkthrough (Owner's Reference Example)
+
+> **System on login:** "What would you like to do?" Options: *Create a new AI-assisted post · Brainstorm new ideas · Schedule a post · View my analytics · Manage my settings*
+>
+> **User selects:** "Create a new AI-assisted post"
+>
+> **System:** Opens the AI Idea Generator modal. "First, tell me what you'd like to brainstorm about. Enter a topic and pick a content pillar, then click Generate." (User-facing prompts highlight the topic field and the pillar selector.)
+>
+> **User:** Enters topic, picks pillar, clicks Generate.
+>
+> **System:** AI generates ideas. "Great — here are some ideas. Pick at least one you'd like to develop later and add it to your Idea Bank."
+>
+> **User:** Selects ideas, saves to Idea Bank. The Idea Generator closes.
+>
+> **System:** Navigates the user to the Idea Bank. "Which of these ideas would you like to develop into a LinkedIn post? Click the Develop button on the one you want to start with."
+>
+> **User:** Clicks Develop on an idea. The post editor opens with the idea pre-populated. The AI Assistant starts writing the initial draft automatically.
+>
+> **System:** "I'm drafting your post in the AI Assistant panel on the right. When it's done, you can review it. If you want changes, just ask the AI assistant — or click 'Apply to Editor' to take over and edit it yourself."
+>
+> **User:** Reviews draft, applies it to editor, makes any edits.
+>
+> **System:** "Looking good! Want to add an image? You can generate one with AI or upload your own from the Post Image section. If you'd rather skip the image, you can move on."
+>
+> **User:** Generates/uploads an image, OR skips.
+>
+> **System:** "Ready to share? You can publish to LinkedIn right now, or schedule it for a later date and time."
+>
+>   - **If user chooses "Publish now":** System publishes via LinkedIn integration. "🎉 Your post is live on LinkedIn! Want to start another one?"
+>   - **If user chooses "Schedule":** Schedule modal opens. User picks date/time. "🎉 Scheduled for [date/time]. Want to start another one?"
+
+This canonical example becomes the reference implementation for the V1 "Create a new AI-assisted post" workflow. Other workflows follow the same pattern.
+
+#### Requirements
+
+##### 1. Guided Mode Toggle
+- Settings → New section "Guided Mode" with a master toggle (default: **on for new accounts**, **off for existing accounts** at rollout)
+- A subtle but persistent indicator in the UI when Guided Mode is active (e.g., a small assistant chip in the top bar)
+- Easy way to dismiss/disable from inside any guided step ("Skip guidance · I'll explore on my own") that turns Guided Mode off and remembers the preference
+- Easy way to re-enable from Settings or from a Help menu item
+
+##### 2. Conversational Assistant Panel
+- A persistent assistant surface (slide-out panel, bottom drawer, or floating chip — design choice during implementation)
+- Renders as a chat-like conversation: system messages, suggested action buttons, and confirmation messages
+- When the user takes a suggested action (clicks a real UI element), the assistant detects it and advances the conversation
+- When the user goes off-script (clicks something outside the suggested flow), the assistant gracefully acknowledges and offers to either continue with the original goal or pivot
+
+##### 3. Workflow Engine
+A state machine that drives guided sessions. Each workflow is a sequence of steps with:
+- A user-facing prompt
+- An expected user action (click, navigate, form-input, "task complete" signal)
+- A success message + a "what next?" branch with context-aware options
+- A "skip this step" affordance
+- A timeout/help fallback ("Need help finding it?")
+
+Reuse the action-detection patterns already built for the Tutorial SDK (`packages/tutorial-sdk/src/core/action-detector.ts`) — click, navigate, formInput, elementExists detectors are already battle-tested.
+
+##### 4. Workflow Catalog (V1 Scope)
+Ship V1 with these workflows. Each is one full guided journey from "what do you want to do?" through "congratulations, you did it":
+
+| Workflow | Trigger | End state |
+|---|---|---|
+| **Create a new AI-assisted post** (canonical example above) | Login menu, post-completion menu, dashboard CTA | Post published or scheduled |
+| **Brainstorm new ideas without developing** | Login menu, idea bank empty state | Ideas saved to Idea Bank |
+| **Develop an existing idea** | Login menu (when ideas exist), Idea Bank | Post published or scheduled |
+| **Schedule an existing draft** | Login menu (when drafts exist), Posts page | Post scheduled |
+| **Set up my profile / voice** | First-login flow, settings prompt | Voice profile complete |
+| **Connect LinkedIn** | First-login flow, settings prompt | LinkedIn OAuth complete |
+
+Each workflow ends by asking "What would you like to do next?" with options filtered by user state (e.g., don't suggest "Develop an existing idea" when the Idea Bank is empty).
+
+##### 5. Workflow Catalog (Post-V1, Documented but Deferred)
+- **Edit / improve a previous post** (use Hook Analyzer, ask AI for variations)
+- **Review my analytics and pick a winning topic to repeat**
+- **Manage my settings** (AI provider, theme, notifications)
+- **Reschedule or unschedule a post**
+- **Manually mark a post as posted**
+- **Past-due post recovery** (pairs with BP-034)
+
+##### 6. Login → Welcome Prompt
+- When Guided Mode is on, every login lands at a welcome prompt: "Welcome back, [name]. What would you like to do today?"
+- Options curated by user state:
+  - Always shown: "Create a new AI-assisted post"
+  - Conditional: "Develop an existing idea" (only if Idea Bank has unprocessed ideas)
+  - Conditional: "Schedule an existing draft" (only if there are unpublished drafts)
+  - Conditional: "Connect LinkedIn" (only if not yet connected)
+  - Conditional: "Set up your voice profile" (only if voice profile incomplete)
+  - Always shown: "Just let me explore" (one-time bypass for the session)
+
+##### 7. Context-Aware "What Next?"
+After each completed workflow, the assistant asks "What would you like to do next?" with the same conditional logic as the welcome prompt — but informed by the workflow that was just completed. Examples:
+- After publishing a post → suggest "Schedule another post," "Generate more ideas," "Mark a different post as posted"
+- After saving brainstormed ideas → suggest "Develop one of these ideas now," "Generate more ideas," "Take a break"
+- After scheduling → suggest "Create another post," "View your calendar," "Done for now"
+
+##### 8. Off-Script Handling
+- If the user clicks something outside the suggested flow, the assistant:
+  - Acknowledges: "Looks like you opened the [thing]. Want help with that, or should I keep helping you with [original goal]?"
+  - Offers to switch the active workflow OR pause the current one
+  - Never blocks or disables the rest of the UI — Guided Mode is additive, not restrictive
+
+##### 9. Persistence
+- Guided Mode preference: per-user, stored in `creator_profiles.guided_mode_enabled`
+- Active workflow state: in-memory only (no need to resume across sessions for V1)
+- "Don't show me this workflow's intro again" preference: per-workflow flag stored in `creator_profiles.guided_workflows_dismissed` (jsonb)
+
+##### 10. Tier Availability
+**Available to all tiers** including Free. This is onboarding quality, not a paid feature. Do **not** gate it.
+
+#### Technical Notes (Architecture Suggestions)
+
+- **Reuse the Tutorial SDK** (`packages/tutorial-sdk/`) for action detection, spotlight overlay, and timeout handling. Guided Mode is essentially "long-running, branching, multi-workflow tutorials" — the engine primitives are the same.
+- **New package or module** for workflow definitions (`src/lib/guided-mode/workflows/`). Each workflow is a typed array of steps.
+- **AI Assistant integration:** the existing AI Assistant panel may be the right host for the conversational layer. Consider extending it rather than building a new panel.
+- **Avoid hard-coupling** workflow steps to specific component selectors when avoidable. Use stable `data-tour-id` (already in use for tutorials) attributes.
+- **Action verification:** when the user clicks a suggested action, the workflow engine verifies the resulting state (e.g., "the modal opened," "the post status changed to scheduled") before advancing. Don't just assume the click did what we expected.
+
+#### Out of Scope for V1
+- Cross-session workflow resume ("you started creating a post yesterday — want to continue?") — capture as future BP if requested
+- Voice/audio guidance — text only for V1
+- Multi-language support — English only
+- Analytics on workflow completion rates — capture as future BP
+- A/B testing different prompt copy — future
+- LLM-generated dynamic prompts — V1 uses static, hand-authored prompts for control and predictability
+
+#### Acceptance Criteria
+
+- [ ] Guided Mode toggle in Settings, default ON for new accounts, OFF for existing accounts
+- [ ] Persistent assistant surface visible in the UI when Guided Mode is on
+- [ ] Login welcome prompt with state-aware options
+- [ ] All 6 V1 workflows ship and are tested end-to-end
+- [ ] After each workflow ends, "what next?" prompt appears with context-aware options
+- [ ] Off-script clicks are handled gracefully (acknowledge + offer to switch or pause)
+- [ ] User can disable Guided Mode mid-flow with one click
+- [ ] Re-enabling Guided Mode is discoverable in Settings and Help
+- [ ] No regressions in standard (non-guided) UI for existing users
+- [ ] Available to all tiers (Free, Creator, Pro); not gated
+
+#### Notes
+
+- **Strategic alignment:** This is a **viability multiplier** for the Free→Pro segment. Less technical users are exactly the alpha-testing audience the new direction targets. Without Guided Mode, the product's surface area is a barrier to first-time success.
+- **Relationship to BP-035 (Tutorial cleanup):** complementary, not competing. Tutorials are one-shot education; Guided Mode is persistent assistance. Land BP-035 first (so the Tutorial SDK foundation is solid), then build Guided Mode on top of the same engine.
+- **Relationship to BP-084 (Tutorial card visual redesign):** the new card design from BP-084 may be reused as the visual language for Guided Mode prompts. Design consistency.
+- **Effort estimate:** **L–XL** (1.5–2 weeks of focused work for V1 with 6 workflows). Possible to phase: V1a = Create Post workflow only (3-5 days), V1b = remaining 5 workflows (1-1.5 weeks).
+- **Suggested sprint placement:** After Sprint 2 (P1 viability bug fixes land first). Could be its own dedicated Sprint 2.5 or split across Sprints 3 and 4 of the [reprioritization plan](reviews/2026-04-16-backlog-reprioritization.md). Recommend the phased approach so the canonical Create Post workflow ships fast and gets user feedback before investing in the other 5.
 
 ---
 

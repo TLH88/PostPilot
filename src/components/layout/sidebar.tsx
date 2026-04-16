@@ -21,9 +21,10 @@ import {
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { NAV_ITEMS, GATED_FEATURES, SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
+import { NAV_ITEMS, SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
 import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
 import { hasFeature } from "@/lib/feature-gate";
+import { TEAM_FEATURES_ENABLED } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -36,13 +37,6 @@ const iconMap: Record<string, LucideIcon> = {
   BarChart3,
   Activity,
   CheckSquare,
-};
-
-// Map nav item href to feature gate key
-const NAV_GATE_MAP: Record<string, string> = {
-  "/library": "content_library",
-  "/analytics": "analytics",
-  "/workspace/reviews": "workspaces",
 };
 
 interface SidebarProps {
@@ -79,8 +73,8 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
 
       <Separator />
 
-      {/* Workspace Switcher */}
-      <WorkspaceSwitcher />
+      {/* Workspace Switcher — only when Team features are enabled */}
+      {TEAM_FEATURES_ENABLED && <WorkspaceSwitcher />}
 
       {/* New Post Button */}
       <div className="px-3 pt-4 pb-2">
@@ -94,6 +88,14 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
       <nav id="tour-sidebar-nav" className="flex-1 space-y-1 px-3 py-2">
         {NAV_ITEMS.map((item) => {
           const Icon = iconMap[item.icon];
+          const itemFeature = "feature" in item ? item.feature : undefined;
+          const itemHideWhenGated = "hideWhenGated" in item ? item.hideWhenGated : false;
+          const isGated = itemFeature && !hasFeature(userTier, itemFeature);
+
+          // Hide entirely when the item is gated and configured to hide
+          // (used for Team-tier items so they vanish when BP-098 flag is off).
+          if (isGated && itemHideWhenGated) return null;
+
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
 
@@ -110,7 +112,7 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
             >
               {Icon && <Icon className="size-4 shrink-0" />}
               {item.label}
-              {NAV_GATE_MAP[item.href] && !hasFeature(userTier, NAV_GATE_MAP[item.href]) && (
+              {isGated && (
                 <Lock className="size-3 ml-auto text-muted-foreground" />
               )}
             </Link>

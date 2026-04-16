@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, type SubscriptionTier } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { hasFeature } from "@/lib/feature-gate";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Dashboard";
@@ -27,7 +28,7 @@ function getPageTitle(pathname: string): string {
 
 interface TopBarProps {
   userName: string;
-  userTier?: "free" | "creator" | "professional";
+  userTier?: SubscriptionTier;
 }
 
 export function TopBar({ userName, userTier = "free" }: TopBarProps) {
@@ -35,6 +36,10 @@ export function TopBar({ userName, userTier = "free" }: TopBarProps) {
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pageTitle = getPageTitle(pathname);
+
+  // BP-098: Notifications bell is part of the Team-collaboration suite.
+  // Hide it entirely when the master flag is off.
+  const showNotificationsBell = hasFeature(userTier, "workspaces");
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -67,7 +72,7 @@ export function TopBar({ userName, userTier = "free" }: TopBarProps) {
 
         {/* Theme toggle + Sign out */}
         <div id="tour-top-controls" className="flex items-center gap-1">
-          <NotificationsBell />
+          {showNotificationsBell && <NotificationsBell />}
           <ThemeToggle />
           <Button
             variant="ghost"

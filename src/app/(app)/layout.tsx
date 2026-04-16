@@ -9,6 +9,7 @@ import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
+import type { SubscriptionTier } from "@/lib/constants";
 
 export default async function AppLayout({
   children,
@@ -34,7 +35,7 @@ export default async function AppLayout({
 
   const onboardingCompleted = profile?.onboarding_completed ?? false;
   const userName = profile?.full_name || user.email?.split("@")[0] || "User";
-  const userTier = (profile?.subscription_tier as "free" | "creator" | "professional") ?? "free";
+  const userTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
 
   return (
     <HelpSidebarProvider>

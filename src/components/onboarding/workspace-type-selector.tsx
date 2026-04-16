@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { User, Building2, Check, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { TEAM_FEATURES_ENABLED } from "@/lib/feature-flags";
 
 interface WorkspaceTypeSelectorProps {
   onContinue?: (type: "individual" | "brand") => void;
@@ -15,10 +16,25 @@ interface WorkspaceTypeSelectorProps {
  * BP-023: Initial workspace type selector shown at the start of onboarding.
  * Individual → standard onboarding flow
  * Brand/Team → workspace setup wizard (requires Team tier)
+ *
+ * BP-098: When the master Team-features flag is off, the Brand/Team option is
+ * hidden entirely and the user is auto-routed to the individual flow on mount.
+ * This keeps onboarding linear for the Free→Pro audience.
  */
 export function WorkspaceTypeSelector({ onContinue }: WorkspaceTypeSelectorProps) {
   const router = useRouter();
   const [selected, setSelected] = useState<"individual" | "brand" | null>(null);
+
+  // Auto-skip the selector when Team features are disabled.
+  useEffect(() => {
+    if (!TEAM_FEATURES_ENABLED) {
+      if (onContinue) {
+        onContinue("individual");
+      } else {
+        router.replace("/onboarding?type=individual");
+      }
+    }
+  }, [onContinue, router]);
 
   function handleContinue() {
     if (!selected) return;
@@ -33,6 +49,12 @@ export function WorkspaceTypeSelector({ onContinue }: WorkspaceTypeSelectorProps
       // Continue with the standard onboarding (user stays on current page)
       router.push("/onboarding?type=individual");
     }
+  }
+
+  // While the redirect effect runs, render nothing (avoids flash of the
+  // selector before the user is rerouted to the individual onboarding flow).
+  if (!TEAM_FEATURES_ENABLED) {
+    return null;
   }
 
   return (

@@ -91,15 +91,29 @@ export const AUTOSAVE_DEBOUNCE_MS = 2000;
 export const SAVE_STATUS_RESET_MS = 2000;
 export const MAX_RESUME_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
+/**
+ * Sidebar / mobile-nav items.
+ *
+ * `feature` (optional) — gating key from GATED_FEATURES. When set, the item is
+ * filtered out of the rendered nav for users whose tier doesn't grant the
+ * feature, OR when the master feature flag for that feature is off
+ * (e.g. BP-098 hides workspaces-gated items globally). Items without `feature`
+ * are visible to everyone.
+ *
+ * `hideWhenGated` — when true, omit the item entirely instead of rendering a
+ * lock icon. Used for Team-tier items so they disappear when BP-098 flag is
+ * off. Items that should always render (with a Lock icon for non-eligible
+ * tiers) leave this false.
+ */
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   { href: "/ideas", label: "Idea Bank", icon: "Lightbulb" },
   { href: "/posts", label: "Posts", icon: "FileText" },
-  { href: "/library", label: "Library", icon: "BookOpen" },
+  { href: "/library", label: "Library", icon: "BookOpen", feature: "content_library", hideWhenGated: false },
   { href: "/calendar", label: "Calendar", icon: "Calendar" },
-  { href: "/analytics", label: "Analytics", icon: "BarChart3" },
-  { href: "/activity", label: "Activity", icon: "Activity" },
-  { href: "/workspace/reviews", label: "Reviews", icon: "CheckSquare" },
+  { href: "/analytics", label: "Analytics", icon: "BarChart3", feature: "analytics", hideWhenGated: false },
+  { href: "/activity", label: "Activity", icon: "Activity", feature: "workspaces", hideWhenGated: true },
+  { href: "/workspace/reviews", label: "Reviews", icon: "CheckSquare", feature: "workspaces", hideWhenGated: true },
 ] as const;
 
 // Best times to post on LinkedIn (based on engagement research)

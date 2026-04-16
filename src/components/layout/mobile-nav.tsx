@@ -44,12 +44,6 @@ const iconMap: Record<string, LucideIcon> = {
   CheckSquare,
 };
 
-const NAV_GATE_MAP: Record<string, string> = {
-  "/library": "content_library",
-  "/analytics": "analytics",
-  "/workspace/reviews": "workspaces",
-};
-
 interface MobileNavProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -106,6 +100,13 @@ export function MobileNav({ open, onOpenChange, userName, userTier = "free" }: M
         <nav className="flex-1 space-y-1 px-3 py-2">
           {NAV_ITEMS.map((item) => {
             const Icon = iconMap[item.icon];
+            const itemFeature = "feature" in item ? item.feature : undefined;
+            const itemHideWhenGated = "hideWhenGated" in item ? item.hideWhenGated : false;
+            const isGated = itemFeature && !hasFeature(userTier, itemFeature);
+
+            // Hide entirely when gated + configured to hide (Team items under BP-098).
+            if (isGated && itemHideWhenGated) return null;
+
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
 
@@ -123,7 +124,7 @@ export function MobileNav({ open, onOpenChange, userName, userTier = "free" }: M
               >
                 {Icon && <Icon className="size-4 shrink-0" />}
                 {item.label}
-                {NAV_GATE_MAP[item.href] && !hasFeature(userTier, NAV_GATE_MAP[item.href]) && (
+                {isGated && (
                   <Lock className="size-3 ml-auto text-muted-foreground" />
                 )}
               </Link>
