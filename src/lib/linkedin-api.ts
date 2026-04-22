@@ -37,6 +37,42 @@ function getClientCredentials() {
 
 // --- Functions ---
 
+/**
+ * BP-101: Escape user text for LinkedIn's "Little Text Format" (the format
+ * used by the commentary field of the REST Posts API).
+ *
+ * Per LinkedIn's spec
+ * (https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format),
+ * these characters are reserved and MUST be backslash-escaped, even if
+ * they're not part of a supported element/template:
+ *
+ *     | { } @ [ ] ( ) < > # \ * _ ~
+ *
+ * If left unescaped, LinkedIn silently truncates the post at the first
+ * unexpected reserved character. Exception: we preserve "#word" hashtags
+ * because users commonly type them directly in their post body expecting
+ * LinkedIn to link them. Standalone "#" (followed by whitespace,
+ * punctuation, or end-of-string) still gets escaped.
+ *
+ * This function is duplicated in the Deno edge function
+ * supabase/functions/publish-scheduled-posts/index.ts — keep them in sync.
+ */
+export function escapeLinkedInText(text: string): string {
+  if (!text) return text;
+
+  // 1. Escape backslash first so we don't double-escape our own escapes.
+  let out = text.replace(/\\/g, "\\\\");
+
+  // 2. Escape all other reserved chars (except #, handled below).
+  out = out.replace(/[|{}@\[\]()<>*_~]/g, "\\$&");
+
+  // 3. Handle # specially — escape only when NOT followed by a word char,
+  // so `#leadership` remains a hashtag but `# 1` becomes `\# 1`.
+  out = out.replace(/#(?![A-Za-z0-9_])/g, "\\#");
+
+  return out;
+}
+
 export async function exchangeCodeForTokens(
   code: string,
   redirectUri: string
@@ -155,15 +191,22 @@ export async function publishToLinkedIn(
   title?: string | null,
   imageUrn?: string | null
 ): Promise<LinkedInPublishResult> {
+  // BP-101: Escape user-provided title + content for LinkedIn's Little Text
+  // Format. Hashtags from the explicit `hashtags` array are already in the
+  // correct "#tag" form and must NOT be escaped (that's how LinkedIn knows
+  // to render them as hashtag links).
+  const safeTitle = title ? escapeLinkedInText(title) : title;
+  const safeContent = escapeLinkedInText(content);
+
   const hashtagText = hashtags
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
     .join(" ");
 
   // Prepend title as a bold first line if provided
   const bodyWithTitle =
-    title && title !== "Untitled Post"
-      ? `${title}\n\n${content}`
-      : content;
+    safeTitle && safeTitle !== "Untitled Post"
+      ? `${safeTitle}\n\n${safeContent}`
+      : safeContent;
 
   const fullText = hashtagText
     ? `${bodyWithTitle}\n\n${hashtagText}`

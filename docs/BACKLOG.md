@@ -7,6 +7,8 @@
 > **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2.
 >
 > **2026-04-16 (production bug report):** Added BP-100 (P1 Critical, confirmed) — scheduled posts published via the Edge Function silently drop the user's selected image. Root cause identified: Edge Function never updated after image support shipped. Added BP-101 (P2 Watching) — possible historical text-truncation bug in scheduled posts; not currently reproducible, monitoring for recurrence.
+>
+> **2026-04-22 (BP-101 reproduced + fixed):** BP-101 promoted to P1 Critical and shipped as Done (Edge Function v16 + src/lib/linkedin-api.ts). Root cause: LinkedIn's REST Posts API `commentary` field uses "Little Text Format" with 15 reserved characters that must be backslash-escaped (`|{}@[]()<>#\\*_~`). When unescaped, LinkedIn silently truncates the post at the first reserved character. New `escapeLinkedInText()` helper in both Deno (Edge Function) and Node runtimes handles this.
 
 ## Priority Legend (post-2026-04-16 pivot)
 
@@ -2753,36 +2755,62 @@ The 4 most recent scheduled posts that successfully published all had `image_url
 
 ---
 
-### BP-101: Watch Item — Possible Text Truncation in Scheduled Posts
+### BP-101: LinkedIn Text Truncation on Unescaped Reserved Characters
 
-**Status:** Watching (not actively worked)
-**Priority:** P2 / Medium (until reproducible)
-**Source:** Owner bug report 2026-04-16
+**Status:** Done (2026-04-22, Edge Function v16 + src/lib/linkedin-api.ts)
+**Priority:** P1 / Critical — was P2 / Watching
+**Source:** Owner bug report 2026-04-16, reproduced + root-caused 2026-04-22
 **Date Added:** 2026-04-16
+**Completed:** 2026-04-22
 
 #### Problem
-The owner has observed approximately 3 scheduled posts (older, before this week) that appeared to publish to LinkedIn with only ~1/3 of the post body — described as "almost as if the system only published what you would see in the preview" (the LinkedIn preview component truncates to ~210 characters at the "see more" cutoff for visual purposes). The two most recent scheduled posts (2026-04-14 and 2026-04-16) both published with the **full** text intact, so the bug is not currently reproducing.
+Scheduled posts containing certain reserved characters (most commonly parentheses `(` and `)`) were silently truncated by LinkedIn at publish time. The full post content was stored correctly in the database, but LinkedIn's REST Posts API only published the text up to (but not including) the first unescaped reserved character. This looked like random partial publishing because it only affected posts that happened to contain those specific characters.
 
-#### Investigation done so far
-- Reviewed `src/components/posts/linkedin-preview.tsx`: the "see more" truncation at `LINKEDIN.HOOK_VISIBLE_LENGTH` (210 chars) is purely a visual cutoff. The full `content` is what would normally be sent to LinkedIn.
-- Reviewed the current Edge Function (`publish-scheduled-posts/index.ts` v14): sends full `post.content` to LinkedIn with no truncation logic.
-- Reviewed `src/app/api/linkedin/publish/route.ts`: same — full content sent.
-- No code path in the current codebase truncates content before publishing.
+#### Reproduction (2026-04-21)
+Post `397308f9-d142-4388-9c2f-fe6946edb2b6` ("3 Practices That Make Lifelong Learning Stick") was scheduled for 2026-04-21 17:00 UTC and published via Edge Function v15. Database stored the full 1,614-char body; LinkedIn published only the text up to "3. Never stop seeking feedback" — cutting off exactly before `  (this one is key)❗` (the first unescaped `(` in the post). Remaining ~720 chars were silently dropped. Published URL: `https://www.linkedin.com/feed/update/urn:li:share:7452400769162514432/`.
 
-#### Hypotheses (none confirmed)
-1. **Older Edge Function version had a truncation bug** that has since been fixed by an unrelated commit. Past Edge Function commits include `9ea1bd4` (10-minute window fix), `c259b46` (JWT fix), `33b96a5` (initial). One of these earlier versions may have introduced a content-handling bug now resolved.
-2. **Auto-save race condition.** User scheduled a post while the editor's 10-second auto-save debounce hadn't flushed the latest edits. The scheduled version was a stale draft. Possible but doesn't fit "cut to 1/3" — that would feel like "version from 30 seconds ago" instead.
-3. **LinkedIn "see more" collapse** on the user's view fooled the eye — full text was actually published but the LinkedIn UI auto-collapsed at the hook line. Owner has been informed and will verify on any future occurrence.
+Owner manually corrected the live LinkedIn post.
 
-#### Action plan
-- **Owner:** continue monitoring scheduled publishes. If text truncation recurs, capture the LinkedIn URL + the post ID in PostPilot before correcting. Share both so we can compare the database `content.length` against what's live on LinkedIn.
-- **If reproducible:** promote to a Critical BP and investigate. Add a content-length log entry in the Edge Function so we have telemetry on what was sent.
-- **If not reproducible after 2-3 weeks:** close as historical / resolved-by-other-fix.
+#### Root cause
+LinkedIn's REST Posts API `commentary` field uses the "Little Text Format" (LTF) — a mini-markup grammar for mentions, hashtags, and hashtag templates. Per LinkedIn's [LTF specification](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format), the following characters are RESERVED and must be backslash-escaped when they appear as literal text:
+
+> `|  {  }  @  [  ]  (  )  <  >  #  \  *  _  ~`
+
+The spec explicitly states: "All reserved characters need to be escaped with a backslash, **even if those characters are not used in one of the supported elements or templates.**"
+
+When unescaped, LinkedIn silently truncates the `commentary` at the first unexpected reserved character — no error, no warning, status 200 returned. This explained every historical symptom the owner had reported:
+- "Cut short to about 1/3 of the text" — posts with `(`, `[`, `{` early in the body
+- "Full text went through" — posts without any reserved characters
+- "Almost as if the system only published what you see in the preview" — the truncation point happened to be where the preview's "see more" fold is
+
+Neither the Edge Function (`publish-scheduled-posts/index.ts`) nor the manual-publish route (`src/app/api/linkedin/publish/route.ts`) was escaping reserved characters before sending the `commentary` field.
+
+#### Fix
+Added a shared helper `escapeLinkedInText()` in both the Deno Edge Function and `src/lib/linkedin-api.ts` (Node). The helper:
+
+1. **Escapes backslashes first** so we don't double-escape our own escapes.
+2. **Escapes all other reserved chars** (`|{}@[]()<>*_~`) with a prefix `\`.
+3. **Special-cases `#`**: escapes only when NOT followed by a word character. So `#leadership` stays as a hashtag (linked), but `rank # 1` becomes `rank \# 1` (literal).
+
+Applied to both user-provided `title` and `content` before they're combined into the LinkedIn payload. The explicit `hashtags` array is NOT escaped — those are already in the `#tag` form and must remain unescaped for LinkedIn to render them as hashtag links.
+
+#### Deployment
+- **Edge Function v16** deployed to Supabase project `rgzqhyniuzhqfxqrgsdd` via MCP on 2026-04-22.
+- **Node lib** change lands with this commit; takes effect on the next Vercel deploy.
+- Previously affected posts on LinkedIn: owner manually corrected each one at the time; no backfill needed.
 
 #### Acceptance Criteria
-- [ ] Owner reports next occurrence (or confirms no recurrence after monitoring period)
-- [ ] If reproducible: capture exact post ID + LinkedIn URL pair for diff analysis
-- [ ] If reproducible: add content-length logging to the Edge Function before next deploy
+- [x] Root cause identified and confirmed via LinkedIn's own LTF spec
+- [x] `escapeLinkedInText()` helper implemented in both runtimes with docstring linking to the spec
+- [x] Escape applied to `content` and `title` in both Edge Function and manual-publish paths
+- [x] `#hashtag` patterns preserved as linked hashtags (not escaped)
+- [x] Edge Function v16 deployed and healthy
+- [x] `tsc --noEmit` clean
+- [ ] Owner validation: next scheduled post with `(`, `[`, `{`, etc. in the body publishes the full text on LinkedIn
+
+#### Notes
+- Hypotheses #1–3 in the original BP-101 (older Edge Function version bug, auto-save race, "see more" visual fold) are all now disproven. The actual cause was a LinkedIn API contract issue that has been present since day one of scheduled publishing.
+- The two copies of `escapeLinkedInText()` (Deno + Node) must stay in sync. When Node-side LinkedIn payload construction changes in `src/lib/linkedin-api.ts`, mirror the change in `supabase/functions/publish-scheduled-posts/index.ts`. This is the same structural tech-debt noted in BP-100 (parallel publish implementations across runtimes).
 
 ---
 
@@ -3027,3 +3055,5 @@ After each completed workflow, the assistant asks "What would you like to do nex
 - **BP-049:** Notifications Center (2026-04-16)
 - **BP-050:** Configurable Approval Workflow (2026-04-16)
 - **BP-051:** Review Queue (2026-04-16)
+- **BP-100:** Scheduled Posts Drop Images — Edge Function out of sync (2026-04-16)
+- **BP-101:** LinkedIn Text Truncation on Unescaped Reserved Characters (2026-04-22)
