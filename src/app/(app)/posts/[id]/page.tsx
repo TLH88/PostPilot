@@ -1845,23 +1845,41 @@ export default function PostWorkspacePage() {
                   <MoreHorizontal className="size-3.5" />
                   Actions
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                <DropdownMenuContent align="start" className="w-80 whitespace-normal">
+                  {/* BP-037: Sub-text under each action so users know exactly
+                      what each does — especially which ones publish to LinkedIn. */}
+
                   {/* Post to LinkedIn */}
                   <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing || status === "posted" || status === "archived"}>
-                    <LinkedInIcon className="size-3.5 mr-2 text-[#0A66C2]" />
-                    Post to LinkedIn
+                    <LinkedInIcon className="size-3.5 mr-2 mt-0.5 shrink-0 text-[#0A66C2]" />
+                    <div className="flex flex-col">
+                      <span>Post to LinkedIn</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Publish immediately to your LinkedIn account
+                      </span>
+                    </div>
                   </DropdownMenuItem>
 
                   {/* Schedule Post */}
                   <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)} disabled={status === "archived"}>
-                    <CalendarClock className="size-3.5 mr-2" />
-                    Schedule Post
+                    <CalendarClock className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Schedule Post</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Publish automatically at a chosen date and time
+                      </span>
+                    </div>
                   </DropdownMenuItem>
 
                   {/* Manually Posted */}
                   <DropdownMenuItem onClick={() => setMarkPostedOpen(true)} disabled={status === "posted" || status === "archived"}>
-                    <Check className="size-3.5 mr-2" />
-                    Manually Posted
+                    <Check className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Manually Posted</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Mark as posted if you shared it outside PostPilot
+                      </span>
+                    </div>
                   </DropdownMenuItem>
 
                   {/* View on LinkedIn */}
@@ -1869,8 +1887,13 @@ export default function PostWorkspacePage() {
                     onClick={() => post?.linkedin_post_url && window.open(post.linkedin_post_url, "_blank")}
                     disabled={!post?.linkedin_post_url}
                   >
-                    <ExternalLink className="size-3.5 mr-2" />
-                    View on LinkedIn
+                    <ExternalLink className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                    <div className="flex flex-col">
+                      <span>View on LinkedIn</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Open the live post in a new tab
+                      </span>
+                    </div>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
@@ -1925,22 +1948,42 @@ export default function PostWorkspacePage() {
                   <Save className="size-3.5" />
                   Versions
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
+                <DropdownMenuContent align="start" className="w-80 whitespace-normal">
+                  {/* BP-037: Sub-text under each version action so users know
+                      these are drafting/saving actions — NOT publishing to LinkedIn. */}
+
                   <DropdownMenuItem onClick={saveVersion} disabled={savingVersion || !content.trim()}>
-                    <Save className="size-3.5 mr-2" />
-                    Save Version
+                    <Save className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Save Version</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Snapshot this draft so you can return to it later
+                      </span>
+                    </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => createPostFromVersion(activeVersion ?? undefined)}
                     disabled={!content.trim()}
                   >
-                    <FilePlus2 className="size-3.5 mr-2" />
-                    Save as New Post
+                    <FilePlus2 className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Save as New Post</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Create a separate post in PostPilot from this content. Does not publish to LinkedIn.
+                      </span>
+                    </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!hasFeature(userTier, "templates") || !content.trim()}>
-                    <Tag className="size-3.5 mr-2" />
-                    Save as Template
-                    {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                    <Tag className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                    <div className="flex flex-col flex-1">
+                      <div className="flex items-center gap-2">
+                        <span>Save as Template</span>
+                        {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Reuse this structure as a starting point for future posts
+                      </span>
+                    </div>
                   </DropdownMenuItem>
                   {versions.length > 0 && (
                     <>

@@ -503,11 +503,12 @@ Show which content pillars drive the most engagement. Requires analytics data (B
 
 ### BP-034: Past-Due Checker — Direct Publish Button
 
-**Status:** Backlog
+**Status:** Done (2026-04-22) — functionality had already landed in commit `ff01faf`; verified during Sprint 2 pass
 **Priority:** P1 / High — was Medium
 **Re-prioritized:** 2026-04-16 — solo-creator publish reliability. When auto-publish misses a slot, the user needs an obvious recovery action.
 **Source:** LinkedIn integration follow-up
 **Date Added:** 2026-04-01
+**Completed:** 2026-04-22 (verified; code shipped earlier in commit `ff01faf`)
 **Phase:** 1
 
 **Description:**
@@ -610,11 +611,12 @@ Add an emoji picker to the post editor formatting toolbar so users can easily in
 
 ### BP-037: Clarify Version Management & Convert to Post UX
 
-**Status:** Backlog
+**Status:** Done (2026-04-22)
 **Priority:** P1 / High
 **Re-prioritized:** 2026-04-16 — confirmed P1. UX confusion blocks Free→Paid conversion. Ship in Sprint 2.
 **Source:** Owner request (user confusion)
 **Date Added:** 2026-04-02
+**Completed:** 2026-04-22 (rename to "Save as New Post" landed earlier in commit `ff01faf`; Sprint 2 added explicit helper sub-text under every item in both Actions and Versions dropdowns so each action's outcome is unambiguous)
 **Phase:** 1
 
 **Description:**
@@ -2461,11 +2463,12 @@ Three related UX gaps in the team-collaboration UI:
 
 ### BP-092: LinkedIn Analytics — Gate UI on Scope Grant
 
-**Status:** Backlog
+**Status:** Done (2026-04-22)
 **Priority:** P1 / High
 **Re-prioritized:** 2026-04-16 — confirmed P1. Affects Creator/Pro users today; without gating, every "Refresh from LinkedIn" click fails. Sprint 2.
 **Source:** [2026-04-16 Review] — System Logic + UI/UX teams finding H3
 **Date Added:** 2026-04-16
+**Completed:** 2026-04-22 — replaced the "Reconnect LinkedIn" dead-end with an honest "Auto-sync coming soon" message (reconnecting wouldn't help — LinkedIn hasn't approved our analytics scope yet). Added a data-source badge on the engagement card: blue "Synced from LinkedIn · [timestamp]" when fetched, gray "Manually entered" when user-entered. Connect button preserved for users who aren't connected at all (still useful for publishing).
 
 #### Problem
 BP-025 is explicitly blocked on LinkedIn app approval for the `r_member_postAnalytics` scope. However, BP-087 (Published Post View) shipped a "Refresh from LinkedIn" button that calls the gated endpoint. For every user today, this button will fail. The published post view also presents engagement metrics with no indication of whether the values came from LinkedIn or were entered manually.
@@ -3057,3 +3060,6 @@ After each completed workflow, the assistant asks "What would you like to do nex
 - **BP-051:** Review Queue (2026-04-16)
 - **BP-100:** Scheduled Posts Drop Images — Edge Function out of sync (2026-04-16)
 - **BP-101:** LinkedIn Text Truncation on Unescaped Reserved Characters (2026-04-22)
+- **BP-034:** Past-Due Checker — Direct Publish Button (2026-04-22)
+- **BP-037:** Clarify Version Management & Convert to Post UX (2026-04-22)
+- **BP-092:** LinkedIn Analytics — Gate UI on Scope Grant (2026-04-22)

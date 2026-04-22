@@ -86,36 +86,57 @@ export function RefreshAnalyticsButton({
 }
 
 function ScopeNotice({ linkedinConnected }: { linkedinConnected: boolean }) {
-  const [reconnecting, setReconnecting] = useState(false);
+  // BP-092: When the user IS connected to LinkedIn but doesn't have the
+  // r_member_postAnalytics scope, reconnecting will NOT fix it because the
+  // LinkedIn app itself doesn't have the scope approved yet (blocked on
+  // LinkedIn app approval per BP-025). Showing a "Reconnect" button sends
+  // the user in circles. Instead, tell them the truth: analytics auto-sync
+  // is coming soon, and they can enter metrics manually in the meantime.
+  //
+  // If they're NOT connected at all, the Connect button is still useful
+  // because connecting enables publish-to-LinkedIn even without the
+  // analytics scope.
+  const [connecting, setConnecting] = useState(false);
 
-  function handleReconnect() {
-    setReconnecting(true);
+  function handleConnect() {
+    setConnecting(true);
     window.location.href = "/api/linkedin/connect";
   }
 
+  if (linkedinConnected) {
+    // Connected but no analytics scope — the honest "coming soon" message.
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p>
+              <span className="font-medium">Auto-sync from LinkedIn is coming soon.</span>{" "}
+              Until LinkedIn approves our analytics permissions, enter your
+              engagement numbers manually below.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Not connected at all — offer Connect (useful for publishing too).
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
       <div className="flex items-start gap-2">
         <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
         <div className="flex-1 space-y-1.5">
-          <p>
-            {linkedinConnected
-              ? "Your LinkedIn connection doesn't include analytics permissions. Reconnect to enable automatic engagement sync."
-              : "Connect your LinkedIn account to enable automatic engagement sync."}
-          </p>
+          <p>Connect your LinkedIn account to unlock direct publishing and (soon) automatic engagement sync.</p>
           <Button
             variant="outline"
             size="xs"
-            onClick={handleReconnect}
-            disabled={reconnecting}
+            onClick={handleConnect}
+            disabled={connecting}
             className="gap-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-900 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200"
           >
             <Link2 className="size-3" />
-            {reconnecting
-              ? "Redirecting..."
-              : linkedinConnected
-                ? "Reconnect LinkedIn"
-                : "Connect LinkedIn"}
+            {connecting ? "Redirecting..." : "Connect LinkedIn"}
           </Button>
         </div>
       </div>
