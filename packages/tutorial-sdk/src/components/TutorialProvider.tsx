@@ -65,8 +65,16 @@ export function TutorialProvider({
   }, [engine]);
 
   // ── Navigation awareness: close tutorial if user navigates away ────────
+  //
+  // BP-035 / Phase C.3: The previous implementation closed the tutorial
+  // immediately on any unexpected path change. That tripped on transient
+  // redirects (e.g. an OnboardingGuard briefly bouncing to /onboarding
+  // and back to /dashboard) — the tutorial would die before the redirect
+  // resolved. Fix: debounce by 600ms. If the path stays on the unexpected
+  // value, close. If it bounces back to the expected value, do nothing.
 
   const lastTutorialPathRef = useRef<string | undefined>(currentPath);
+  const NAV_AWAY_DEBOUNCE_MS = 600;
 
   useEffect(() => {
     if (!state.isActive || !state.activeTutorial) {
@@ -94,13 +102,25 @@ export function TutorialProvider({
       currentPath !== lastTutorialPathRef.current &&
       !currentPath.startsWith(lastTutorialPathRef.current + "/")
     ) {
-      engine.close();
+      // Debounce: only close if the path stays on the new value. If it bounces
+      // back (transient redirect), this effect re-runs and the timeout is
+      // cleaned up before it fires.
+      const closeTimer = setTimeout(() => {
+        engine.close();
+      }, NAV_AWAY_DEBOUNCE_MS);
+      return () => clearTimeout(closeTimer);
     }
 
     lastTutorialPathRef.current = currentPath;
   }, [currentPath, state.isActive, state.activeTutorial, state.currentStep, engine]);
 
   // ── Action detection & timer setup per step ───────────────────────────
+  //
+  // BP-035 / Phase C.2: Replaced the fixed 1200ms setup delay with route-aware
+  // gating. If the step has a route and we haven't arrived there yet, defer
+  // setup — the effect will re-fire when `currentPath` updates. A small 300ms
+  // cushion remains to give React a beat to commit the new page before we
+  // attach action listeners. Steps without a route set up almost immediately.
 
   useEffect(() => {
     // Cleanup previous step's listeners
@@ -114,7 +134,17 @@ export function TutorialProvider({
     const step = state.activeTutorial.steps[state.currentStep];
     if (!step) return;
 
-    // Wait for navigation to complete before setting up detection
+    // If the step expects to land on a specific route and we're not there yet,
+    // defer. The effect re-fires on currentPath changes, picking us up once
+    // navigation completes — no fixed-duration guess required.
+    if (step.route && currentPath) {
+      const onTargetRoute =
+        currentPath === step.route ||
+        currentPath.startsWith(step.route + "/");
+      if (!onTargetRoute) return;
+    }
+
+    const POST_NAV_CUSHION_MS = 300;
     const setupDelay = setTimeout(() => {
       // Set up action detection for interactive steps
       if (state.mode === "interactive" && step.action && step.action !== "manual") {
@@ -133,7 +163,7 @@ export function TutorialProvider({
           });
         }
       }
-    }, step.route ? 1200 : 300); // Longer delay if navigating
+    }, POST_NAV_CUSHION_MS);
 
     return () => {
       clearTimeout(setupDelay);

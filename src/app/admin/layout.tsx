@@ -9,6 +9,7 @@ import {
   Shield,
   ArrowLeft,
   Activity,
+  Wrench,
 } from "lucide-react";
 import { verifyAdmin } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +22,7 @@ const ADMIN_NAV = [
   { href: "/admin/workspaces", label: "Workspaces", icon: Building2 },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/system", label: "System", icon: Settings },
+  { href: "/admin/dev-tools", label: "Dev Tools", icon: Wrench },
 ];
 
 export default async function AdminLayout({

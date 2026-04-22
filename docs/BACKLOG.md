@@ -518,12 +518,42 @@ Add "Publish Now" button to past-due checker dialog when user has active LinkedI
 
 ### BP-035: Guided Tutorial — First Post Walkthrough
 
-**Status:** Backlog (Tutorial SDK Phase 1 shipped 2026-04-15; functional cleanup pending)
+**Status:** Done (2026-04-22) — Phases A, B, and C complete
 **Priority:** P1 / Critical — was High
 **Re-prioritized:** 2026-04-16 — promoted to viability blocker. Tutorial SDK shipped but per BP-084 the system "is not functioning properly." With Team paths hidden, every new user walks the Individual Creator tutorial — if it's broken, alpha fails. Scope: fix state management, targeting, wait-for-action detection.
 **Source:** Owner request
 **Date Added:** 2026-04-01
+**Completed:** 2026-04-22 — three-phase functional cleanup of the Tutorial SDK.
 **Phase:** 1
+
+#### What was shipped (2026-04-22)
+
+After a scoping audit of both tutorial systems in the codebase, three concrete phases landed:
+
+**Phase A — Cleanup + bug fixes**
+- Deleted 7 dead files from the pre-SDK tutorial system (`src/lib/tutorials/tutorial-provider.tsx`, `tutorial-engine.ts`, `tutorial-storage.ts`, `tutorial-definitions.ts`, and the three old `src/components/tutorial/*` files: `tutorial-auto-start.tsx`, `tutorial-card.tsx`, `tutorial-overlay.tsx`). Nothing imported them — they were orphaned after the new SDK replaced them. Also removed two stale comments in `dashboard/page.tsx`.
+- Fixed `engine.close()` in `packages/tutorial-sdk/src/core/engine.ts` — it was calling `saveProgressQuietly(0)` on every close, which permanently killed the `getProgress()` resume-from-saved-step logic in `start()`. Now preserves saved progress so users can resume where they left off when they return to the app.
+- Fixed the `formInput` early-fire bug in `packages/tutorial-sdk/src/core/action-detector.ts`. Previously the detector completed on the first keystroke — advancing the tutorial before the user finished typing. Now requires ≥3 chars typed AND 1.2s of dwell time with no further keystrokes (OR explicit blur) before considering the step complete.
+- Tightened action-detector cleanup to be idempotent via a guarded `runCleanups()` helper. No more risk of double-cleanup throwing during complete + unmount races.
+
+**Phase B — Admin Dev Tools UI**
+- New `src/lib/dev-flags.ts` — registry pattern for diagnostic toggles. Each flag declares id, windowVar, name, description, defaultState, whenToUse, and appliesTo.
+- New `src/components/dev-flags-applier.tsx` — mounts in `(app)/layout.tsx`, reads saved flag states from `localStorage` on boot, applies them to `window` globals for consumer code.
+- New `src/app/admin/dev-tools/page.tsx` — self-documenting admin page. Each flag renders as a card with toggle switch, description, default-state badge, "When to use" callout, scope badge (Browser/Server/Both), and a technical reference line showing the window variable and flag id. Includes a heads-up banner and "How developer flags work" footnote so the admin never has to read the source to understand the pattern.
+- Added "Dev Tools" entry to admin nav with a wrench icon.
+- Currently registered: one flag — `tutorial_debug` (Tutorial SDK debug logging). Every action-detector code path now reads the flag via a `debugEnabled()` helper and logs verbosely when on. Adding future flags is one entry in the `DEV_FLAGS` array.
+
+**Phase C — UX improvements**
+- `TutorialGate.tsx` smart re-prompt: previously marked "shown" on BOTH accept and decline, so a user who accepted and closed the tutorial mid-way could never see the gate again and had to discover Help → Tutorials to retry. Now: if saved progress is non-zero and the tutorial isn't marked complete, the gate shows a "Want to pick up where you left off?" resume prompt (↩️ icon, "Resume tour" button) instead of the standard welcome. If declined or completed, the gate stays away.
+- `TutorialProvider.tsx` route-aware setup gating (replaces the fixed 1200ms delay): if a step has a `route` and `currentPath` doesn't match, setup defers. The effect re-fires automatically when navigation completes, so cold/slow pages no longer miss their click listeners. A small 300ms cushion remains to let React commit the new page.
+- `TutorialProvider.tsx` debounced navigation-aware close (600ms): previously any unexpected pathname change closed the tutorial immediately, which tripped on transient redirects (e.g. OnboardingGuard briefly bouncing to `/onboarding` and back). Now closes only if the user stays on the new path; a bounce-back cancels the timer.
+
+#### How to diagnose future tutorial issues
+1. Sign in as admin → `/admin` → "Dev Tools"
+2. Turn on "Tutorial SDK debug logging"
+3. Reproduce the issue with the browser console open
+4. Copy the `[tutorial-sdk]` log lines — they show every poll, click match, formInput dwell, navigation, and step transition
+5. Turn the flag off when done
 
 **Description:**
 Create an interactive guided tutorial that walks new users through onboarding, settings configuration, and creating their first post end-to-end. The tutorial should feel like a coach walking alongside the user, not a wall of text.
@@ -3063,3 +3093,4 @@ After each completed workflow, the assistant asks "What would you like to do nex
 - **BP-034:** Past-Due Checker — Direct Publish Button (2026-04-22)
 - **BP-037:** Clarify Version Management & Convert to Post UX (2026-04-22)
 - **BP-092:** LinkedIn Analytics — Gate UI on Scope Grant (2026-04-22)
+- **BP-035:** Guided Tutorial — Functional Cleanup (2026-04-22)

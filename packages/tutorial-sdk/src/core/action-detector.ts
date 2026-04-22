@@ -9,6 +9,18 @@ export interface ActionDetectorOptions {
   currentPath?: string;
 }
 
+/** Read at runtime so admins can flip it via the Dev Tools page (BP-035 / Phase B). */
+function debugEnabled(): boolean {
+  return typeof window !== "undefined" && (window as { __TUTORIAL_DEBUG?: boolean }).__TUTORIAL_DEBUG === true;
+}
+
+function debugLog(...args: unknown[]) {
+  if (debugEnabled()) {
+    // eslint-disable-next-line no-console
+    console.log("[tutorial-sdk]", ...args);
+  }
+}
+
 /**
  * Sets up DOM listeners to detect when a user completes a step's required action.
  * Returns a cleanup function to remove all listeners.
@@ -31,12 +43,29 @@ export function setupActionDetector(
 
   const cleanups: Array<() => void> = [];
   let completed = false;
+  let cleanedUp = false;
+
+  // BP-035 / Phase A.4: Guarded cleanup is idempotent. Both complete() and the
+  // returned cleanup function call this; we ensure cleanups run exactly once
+  // even if both code paths fire (e.g. unmount races with action completion).
+  function runCleanups() {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    cleanups.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        // Cleanups should be best-effort; never throw out of teardown
+      }
+    });
+  }
 
   function complete() {
     if (completed) return;
     completed = true;
+    debugLog(`step "${step.id}" action "${action}" detected`);
     // Run all cleanups immediately
-    cleanups.forEach((fn) => fn());
+    runCleanups();
     setTimeout(onComplete, 500);
   }
 
@@ -49,6 +78,7 @@ export function setupActionDetector(
       function handleClick(e: Event) {
         const target = e.target as Element;
         if (target.closest(selector!)) {
+          debugLog("click matched", { selector });
           complete();
         }
       }
@@ -67,6 +97,7 @@ export function setupActionDetector(
           window.location.pathname === targetRoute ||
           window.location.pathname.startsWith(targetRoute + "/")
         ) {
+          debugLog("navigate matched", { targetRoute, currentPath: window.location.pathname });
           complete();
         }
       }, 300);
@@ -81,6 +112,7 @@ export function setupActionDetector(
       // Strategy 1: Poll for element existence
       const interval = setInterval(() => {
         if (document.querySelector(selector)) {
+          debugLog("elementExists matched", { selector });
           complete();
         }
       }, 500);
@@ -89,6 +121,7 @@ export function setupActionDetector(
       // Strategy 2: MutationObserver for faster detection
       const observer = new MutationObserver(() => {
         if (document.querySelector(selector)) {
+          debugLog("elementExists matched via mutation", { selector });
           complete();
         }
       });
@@ -104,6 +137,18 @@ export function setupActionDetector(
       const selector = step.clickTarget || step.selector;
       if (!selector) break;
 
+      // BP-035 / Phase A.3: Previously this fired complete() the moment the
+      // input had ANY value, so the tutorial advanced after the user typed
+      // a single letter. That made multi-line input or "type then click"
+      // workflows impossible.
+      //
+      // Fix: require an input to (a) have non-whitespace content AND (b)
+      // remain stable for FORM_INPUT_DWELL_MS — i.e. the user has paused
+      // typing — before considering the step complete. We also complete
+      // immediately on blur (user explicitly moved on).
+      const FORM_INPUT_DWELL_MS = 1200;
+      const FORM_INPUT_MIN_LENGTH = 3;
+
       // Helper to find the actual native input element
       function findInput(): HTMLInputElement | HTMLTextAreaElement | null {
         // Try direct selector first
@@ -116,12 +161,32 @@ export function setupActionDetector(
         return el.querySelector("input, textarea");
       }
 
-      // Strategy 1: Capture-phase listeners for input, change, and keyup
-      // (keyup is the most reliable for React-controlled inputs)
+      let lastValue = "";
+      let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+
+      function clearDwell() {
+        if (dwellTimer) {
+          clearTimeout(dwellTimer);
+          dwellTimer = null;
+        }
+      }
+
+      function scheduleDwellComplete(value: string) {
+        clearDwell();
+        dwellTimer = setTimeout(() => {
+          // Re-read at fire time in case the user kept typing
+          const input = findInput();
+          const finalValue = input?.value.trim() ?? "";
+          if (finalValue.length >= FORM_INPUT_MIN_LENGTH && finalValue === value.trim()) {
+            debugLog("formInput dwell completed", { selector, value: finalValue });
+            complete();
+          }
+        }, FORM_INPUT_DWELL_MS);
+      }
+
       function handleInputEvent(e: Event) {
         const target = e.target as HTMLInputElement | null;
-        if (!target || !target.value) return;
-        // Check by ID match, containment, or closest
+        if (!target || target.value == null) return;
         const matchEl = document.querySelector(selector!);
         if (!matchEl) return;
         if (
@@ -129,42 +194,68 @@ export function setupActionDetector(
           matchEl.contains(target) ||
           target.closest(selector!)
         ) {
-          if (target.value.trim().length > 0) {
+          const trimmed = target.value.trim();
+          lastValue = target.value;
+          // Only schedule completion when the user has typed at least
+          // FORM_INPUT_MIN_LENGTH chars — keeps the tutorial from
+          // advancing on a single letter or accidental keystroke.
+          if (trimmed.length >= FORM_INPUT_MIN_LENGTH) {
+            scheduleDwellComplete(target.value);
+          } else {
+            clearDwell();
+          }
+        }
+      }
+
+      function handleBlur(e: Event) {
+        const target = e.target as HTMLInputElement | null;
+        if (!target || target.value == null) return;
+        const matchEl = document.querySelector(selector!);
+        if (!matchEl) return;
+        if (
+          matchEl === target ||
+          matchEl.contains(target) ||
+          target.closest(selector!)
+        ) {
+          const trimmed = target.value.trim();
+          if (trimmed.length >= FORM_INPUT_MIN_LENGTH) {
+            debugLog("formInput completed via blur", { selector, value: trimmed });
             complete();
           }
         }
       }
+
       for (const evt of ["input", "change", "keyup"]) {
         document.addEventListener(evt, handleInputEvent, true);
         cleanups.push(() => document.removeEventListener(evt, handleInputEvent, true));
       }
+      document.addEventListener("blur", handleBlur, true);
+      cleanups.push(() => document.removeEventListener("blur", handleBlur, true));
 
-      // Strategy 2: Poll the input value every 300ms
-      // This is the most reliable fallback for React-controlled inputs
+      // Polling fallback for React-controlled inputs whose change events
+      // sometimes don't fire as expected. Same dwell rules apply.
       const pollInterval = setInterval(() => {
-        const el = document.querySelector(selector!);
         const input = findInput();
-        if (typeof window !== "undefined" && (window as any).__TUTORIAL_DEBUG) {
-          console.log("[tutorial-sdk] formInput poll:", {
-            selector,
-            elFound: !!el,
-            elTag: el?.tagName,
-            inputFound: !!input,
-            inputTag: input?.tagName,
-            value: input?.value,
-          });
+        if (!input) {
+          debugLog("formInput poll — input not found", { selector });
+          return;
         }
-        if (input && input.value.trim().length > 0) {
-          complete();
+        const value = input.value;
+        const trimmed = value.trim();
+        debugLog("formInput poll", { selector, value, trimmedLen: trimmed.length, lastValue });
+        if (trimmed.length >= FORM_INPUT_MIN_LENGTH && value !== lastValue) {
+          lastValue = value;
+          scheduleDwellComplete(value);
         }
       }, 300);
       cleanups.push(() => clearInterval(pollInterval));
+      cleanups.push(clearDwell);
       break;
     }
   }
 
   return () => {
     completed = true;
-    cleanups.forEach((fn) => fn());
+    runCleanups();
   };
 }

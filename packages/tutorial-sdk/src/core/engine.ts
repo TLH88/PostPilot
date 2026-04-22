@@ -152,16 +152,18 @@ export class TutorialEngine {
   }
 
   close() {
-    const wasActive = this.state.isActive;
-    const tutorialId = this.state.activeTutorial?.id;
-
+    // BP-035 / Phase A.2: Preserve progress when the user closes mid-tutorial
+    // so they can resume later. The previous implementation called
+    // saveProgressQuietly(0) on every close, wiping the user's place — which
+    // made the resume-from-saved-step logic in start() effectively dead code.
+    //
+    // Behavior now:
+    //   - If the user closes while in progress, leave the saved current_step
+    //     alone. start() will pick them up where they left off.
+    //   - If the user was on the last step (or beyond), call complete()
+    //     instead of close() — that's a separate code path.
     this.state = { ...INITIAL_STATE };
     this.emit();
-
-    // If we were on the last step, mark as completed
-    if (wasActive && tutorialId) {
-      this.saveProgressQuietly(0); // Reset progress on close
-    }
   }
 
   async complete() {

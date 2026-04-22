@@ -24,28 +24,63 @@ interface TutorialGateProps {
 
 /**
  * First-login gate component.
- * Shows a modal asking the user if they'd like a tutorial.
- * Only appears once — records the user's choice via the storage adapter.
+ *
+ * BP-035 / Phase C.1: Smarter re-prompt logic.
+ *
+ * The previous implementation marked `first_login_prompt_shown=true` on BOTH
+ * accept and decline. If the user accepted and the tutorial then crashed or
+ * the user closed it before finishing, they would never see the gate again
+ * and had to discover the Help → Tutorials menu to retry.
+ *
+ * New behavior:
+ *   - User has never seen the gate AND tutorial is not completed → show
+ *     the standard "Want a tour?" modal.
+ *   - User accepted previously, started the tutorial, but didn't finish AND
+ *     hasn't completed it AND we have saved progress > 0 → show a "resume"
+ *     prompt instead.
+ *   - User declined OR completed the tutorial → never show again.
+ *
+ * The decline check still uses `isFirstLogin()` for backwards compatibility.
+ * Resume detection uses `getProgress()` and `isCompleted()`.
  */
 export function TutorialGate({
   tutorial,
   storage,
   userId,
-  title = "Welcome! Would you like a quick tour?",
-  description = "We'll show you around the app in just a few minutes. You can always access tutorials later from the Help page.",
+  title,
+  description,
   acceptText = "Yes, show me around",
   declineText = "No thanks, I'll explore on my own",
 }: TutorialGateProps) {
   const [show, setShow] = useState(false);
+  const [mode, setMode] = useState<"first-login" | "resume">("first-login");
   const { startTutorial } = useTutorial();
 
   useEffect(() => {
     let cancelled = false;
     async function check() {
       try {
+        // Tutorial already completed — never re-prompt
+        const completed = await storage.isCompleted(tutorial.id, userId);
+        if (cancelled || completed) return;
+
         const firstLogin = await storage.isFirstLogin(userId);
-        if (!cancelled && firstLogin) {
-          // Small delay so the app has time to render first
+        if (cancelled) return;
+
+        if (firstLogin) {
+          setMode("first-login");
+          setTimeout(() => {
+            if (!cancelled) setShow(true);
+          }, 1500);
+          return;
+        }
+
+        // User has been prompted before. If they have meaningful progress
+        // (started but didn't finish), offer to resume.
+        const progress = await storage.getProgress(tutorial.id, userId);
+        if (cancelled) return;
+        if (progress > 0 && progress < tutorial.steps.length) {
+          setMode("resume");
           setTimeout(() => {
             if (!cancelled) setShow(true);
           }, 1500);
@@ -58,12 +93,16 @@ export function TutorialGate({
     return () => {
       cancelled = true;
     };
-  }, [storage, userId]);
+  }, [storage, userId, tutorial]);
 
   async function handleAccept() {
     setShow(false);
     try {
-      await storage.markFirstLoginPromptShown(userId, "accepted");
+      // Only mark "shown" the very first time. Resume prompts don't
+      // need to update this — the user is already past first-login.
+      if (mode === "first-login") {
+        await storage.markFirstLoginPromptShown(userId, "accepted");
+      }
     } catch {
       // Continue even if storage fails
     }
@@ -73,11 +112,31 @@ export function TutorialGate({
   async function handleDecline() {
     setShow(false);
     try {
-      await storage.markFirstLoginPromptShown(userId, "declined");
+      // For first-login: record the decline so the gate doesn't reappear.
+      // For resume: dismiss this session — but the gate will re-offer on
+      // a future session as long as progress is incomplete. To permanently
+      // dismiss, the user can complete or restart the tutorial from Help.
+      if (mode === "first-login") {
+        await storage.markFirstLoginPromptShown(userId, "declined");
+      }
     } catch {
       // Continue even if storage fails
     }
   }
+
+  // Pick copy based on mode
+  const computedTitle =
+    title ??
+    (mode === "resume"
+      ? "Want to pick up where you left off?"
+      : "Welcome! Would you like a quick tour?");
+  const computedDescription =
+    description ??
+    (mode === "resume"
+      ? "You started a tour earlier but didn't finish. Want to continue, or skip for now? You can always restart any tutorial from the Help page."
+      : "We'll show you around the app in just a few minutes. You can always access tutorials later from the Help page.");
+  const computedAccept = mode === "resume" ? "Resume tour" : acceptText;
+  const computedDecline = mode === "resume" ? "Skip for now" : declineText;
 
   return (
     <AnimatePresence>
@@ -128,7 +187,9 @@ export function TutorialGate({
             }}
           >
             {/* Icon */}
-            <div style={{ fontSize: "40px", marginBottom: "16px" }}>👋</div>
+            <div style={{ fontSize: "40px", marginBottom: "16px" }}>
+              {mode === "resume" ? "↩️" : "👋"}
+            </div>
 
             {/* Title */}
             <h2
@@ -139,7 +200,7 @@ export function TutorialGate({
                 lineHeight: 1.3,
               }}
             >
-              {title}
+              {computedTitle}
             </h2>
 
             {/* Description */}
@@ -151,7 +212,7 @@ export function TutorialGate({
                 color: "var(--tutorial-muted-foreground, #6b7280)",
               }}
             >
-              {description}
+              {computedDescription}
             </p>
 
             {/* Buttons */}
@@ -176,7 +237,7 @@ export function TutorialGate({
                   cursor: "pointer",
                 }}
               >
-                {acceptText}
+                {computedAccept}
               </button>
               <button
                 onClick={handleDecline}
@@ -192,7 +253,7 @@ export function TutorialGate({
                   cursor: "pointer",
                 }}
               >
-                {declineText}
+                {computedDecline}
               </button>
             </div>
           </div>

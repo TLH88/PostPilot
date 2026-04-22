@@ -9,6 +9,7 @@ import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
+import { DevFlagsApplier } from "@/components/dev-flags-applier";
 import type { SubscriptionTier } from "@/lib/constants";
 
 export default async function AppLayout({
@@ -41,6 +42,7 @@ export default async function AppLayout({
     <HelpSidebarProvider>
       <TutorialBridge userId={user.id}>
       <div className="relative min-h-screen bg-background">
+        <DevFlagsApplier />
         <OnboardingGuard onboardingCompleted={onboardingCompleted} />
         <PastDueChecker />
         <TrialExpiryChecker />

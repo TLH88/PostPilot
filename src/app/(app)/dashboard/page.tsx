@@ -27,8 +27,6 @@ import { ContentPillarBalance } from "@/components/dashboard/content-pillar-bala
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
-// Old tutorial auto-start disabled — replaced by TutorialGate in tutorial-bridge
-// import { TutorialAutoStart } from "@/components/tutorial/tutorial-auto-start";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -167,7 +165,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* TutorialAutoStart removed — first-login is handled by TutorialGate in layout */}
       {/* Onboarding banner */}
       {profile && !profile.onboarding_completed && (
         <Card className="border-primary/20 bg-primary/5">
