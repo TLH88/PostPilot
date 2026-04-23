@@ -1,6 +1,15 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-16 (Trial system + Team collaboration suite shipped: BP-023, BP-046-051, BP-087 done; BP-025 API prep done pending LinkedIn approval. Added BP-088–BP-097 from 48-hour system review — see [docs/reviews/2026-04-16-system-review.md](reviews/2026-04-16-system-review.md))
+> Last updated: 2026-04-24 (Subscription Model v2 pricing pivot: BYOK gated to Pro+, Personal on system keys. Added BP-115–BP-126 under a new EPIC grouping scheme. BP-114 extended to cover Creator Profile → User Profile rename. Extensive impact on BP-018, BP-045, BP-054.)
+>
+> **2026-04-24 (SUBSCRIPTION MODEL v2):** Reversed the "BYOK is default across all paid tiers" decision. New model:
+> - Free ($0): system keys, strict quotas, full ads
+> - Personal ($20/mo): system keys only, **no BYOK**, limited ads, no Library, no Templates
+> - Professional ($50/mo): system keys with hard quotas (100 posts / 200 image gens / 200 brainstorms / 500 chats / month, unlimited scheduled posts + versions); **BYOK unlocks unlimited**
+> - Team ($100/mo + $6/user): BYOK included and encouraged; no higher-tier trial
+> Annual discount changed from 17% → 15%. See BP-115 for the parent spec and rollout order (BP-123 cost study first).
+>
+> **2026-04-24 (EPIC grouping introduced):** All active backlog items are now grouped under numbered EPICs (see "EPIC Groupings" section below). New BPs must be assigned to an EPIC at creation. Existing items have been retroactively grouped.
 >
 > **2026-04-16 STRATEGIC PIVOT:** Billing deferred until Free→Pro viability is validated. All Team+ features feature-flagged behind BP-098. See [docs/reviews/2026-04-16-backlog-reprioritization.md](reviews/2026-04-16-backlog-reprioritization.md) for the new priority tiers (P0–P3 + Deferred) and sprint plan.
 >
@@ -32,6 +41,104 @@
 | Backlog | Identified, not yet started |
 | In Progress | Currently being worked on |
 | Done | Completed and deployed |
+
+---
+
+## EPIC Groupings
+
+Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs so related work ships together. Any new BP must be assigned to an EPIC at creation. This index is the entry point for session planning — pick an EPIC, then pull its items in priority order.
+
+### EPIC 1 — Subscription Model v2 (P0, pricing pivot)
+**Parent:** BP-115. Rollout order: cost study → copy → gates → trial fix → ads.
+- **BP-115** Subscription Model v2 parent spec — P0 / Critical
+- **BP-116** Pricing page copy + feature table rewrite — P0 / Critical
+- **BP-117** Feature-gate refactor for new matrix (supersedes scope of BP-018) — P0 / Critical
+- **BP-118** Free-tier trial-expired messaging fix — P1 / High
+- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — P2 / Medium
+- **BP-123** Token cost study (pre-GTM action) — P1 / High
+- **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
+- **BP-125** Pro-tier image-generation BYOK — P1 / High
+- *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
+
+### EPIC 2 — Billing & Monetization (Stripe)
+Blocked on BP-015 un-deferring. Completes the revenue loop.
+- **BP-015** Stripe Billing Integration — Deferred (Revenue)
+- **BP-017** Pricing Page Checkout — Deferred (Revenue)
+- **BP-122** Payment methods + invoices in Settings — Deferred (Revenue, child of BP-015)
+
+### EPIC 3 — Terminology & Help Content
+- **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — P2 / Medium (raised from P3)
+- **BP-120** Help content refresh (Personal rename, paid-feature badges, API key section) — P1 / High
+
+### EPIC 4 — Onboarding & Guidance
+- **BP-084** Tutorial card visual redesign — P2 / Medium
+- **BP-099** Simplified Guided UI mode — P1 / High
+- **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
+- *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
+
+### EPIC 5 — Team Collaboration (behind BP-098 flag)
+All Team items deferred until Free→Pro viability is validated.
+- **BP-098** Team features master flag — P0 / Critical
+- **BP-024** Multi-user workspaces — Deferred (Team)
+- **BP-052** Brand consistency scoring — Deferred (Team)
+- **BP-053** Content briefs — Deferred (Team)
+- **BP-089** Approval status transitions — Deferred (Team)
+- **BP-090** Eliminate `window.location.reload()` in post editor — Deferred (Team)
+- **BP-091** Approval UX polish — Deferred (Team)
+- **BP-093** Notification deep-links + workspace context indicator — Deferred (Team)
+- **BP-096** Approval deadlines + reviewer reminders — Deferred (Team, Phase T4)
+
+### EPIC 6 — Analytics & Insights
+- **BP-021** Manual analytics — P1 / High
+- **BP-025** LinkedIn API analytics — Blocked (LinkedIn approval)
+- **BP-033** Content pillar ROI dashboard — P3 / Low
+
+### EPIC 7 — AI Enhancements
+- **BP-026** Trending topics for brainstorming — P2 / Medium
+- **BP-027** Voice consistency validation — P3 / Low
+- **BP-028** Guided enhancement workflows — P2 / Medium
+- **BP-031** Bulk operations — P3 / Low
+- **BP-032** A/B testing for hooks — P3 / Low
+
+### EPIC 8 — Reliability & Bug Fixes
+- **BP-100** Scheduled posts drop images — P1 / Critical
+- **BP-110** Cancel in-progress image generation — P2 / Medium
+- **BP-112** `Button` outline variant footgun — P3 / Low
+
+### EPIC 9 — Security, Authorization & Observability
+- **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
+- **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
+- **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
+
+### EPIC 10 — Admin & Cost Controls
+- **BP-085** AI usage monitoring, cost analysis & budget enforcement — P1 / High
+- **BP-127** Complete AI route logging coverage (close the BP-085 gap) — P1 / High
+- **BP-128** Brainstorm prompt caching refactor — P2 / Medium
+
+### EPIC 11 — Quality & Testing
+- **BP-097** Playwright E2E for Free→Pro happy path — P1 / High
+
+### EPIC 12 — Developer Experience & Tooling
+- **BP-126** Safe local-dev auth bypass (replaces removed `/api/dev/auto-login`) — P1 / High
+
+### Recommended Execution Order (Sprint Themes)
+
+1. **Pre-GTM Sprint 1 — Pricing foundation + dev unblock** (EPIC 1 + 12)
+   → BP-123 cost study, BP-126 local-dev login, BP-115 parent spec, BP-116 pricing page
+2. **Pre-GTM Sprint 2 — Gating, trial polish & logging** (EPIC 1 + 10)
+   → BP-117 gate refactor, BP-118 trial messaging, BP-125 image-gen BYOK, BP-127 complete AI logging, BP-085 admin cost controls
+3. **Pre-GTM Sprint 3 — Hardening** (EPIC 9 + 11 + 8)
+   → BP-088, BP-095, BP-113, BP-097, BP-100
+4. **Pre-GTM Sprint 4 — Polish & consistency** (EPIC 3 + 4)
+   → BP-114 (extended), BP-120, BP-121, BP-084, BP-099
+5. **Revenue Launch** (EPIC 2)
+   → Un-defer BP-015, ship BP-017 checkout, BP-122 payment UI
+6. **Post-launch ARPU & polish** (EPIC 1 + 8 + 7 + 10)
+   → BP-119 ads, BP-124 credit packs, BP-128 brainstorm caching, BP-110, BP-112, BP-026, BP-028
+7. **Team tier activation** (EPIC 5) — only after Free→Pro is validated; un-flag BP-098
+8. **Long-tail** (EPIC 6 + 7)
+   → BP-021, BP-033, BP-027, BP-031, BP-032
+9. **Blocked** — BP-025 awaits LinkedIn `r_member_postAnalytics` approval
 
 ---
 
@@ -3198,34 +3305,50 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ---
 
-### BP-114: Full Tier Rename — "creator" → "personal" Internal Key
+### BP-114: Full Tier Rename (Creator → Personal) + User Profile Rename (Creator Profile → User Profile)
 
 **Status:** Backlog
-**Priority:** P3 / Low
-**Source:** Follow-up from display-only tier rename (2026-04-23)
-**Date Added:** 2026-04-23
+**Priority:** P2 / Medium (raised from P3 on 2026-04-24 — scope expanded to also cover the User Profile rename)
+**Source:** Follow-up from display-only tier rename (2026-04-23); scope extended 2026-04-24 with owner direction to rename Creator Profile → User Profile end-to-end.
+**Date Added:** 2026-04-23 · **Scope extended:** 2026-04-24
+**EPIC:** Terminology & Help Content (EPIC 3)
 
-**Problem:** On 2026-04-23 we renamed the tier's *display label* from "Creator" to "Personal" in `SUBSCRIPTION_TIERS.creator.label`. The internal tier key in the DB (`subscription_tier` column), Stripe price lookups, feature-gate checks, URL params, and the `CreatorProfile` type name all still use `"creator"`. This works fine but is inconsistent — new devs reading the code will need to know that "creator" in code means "Personal" in the UI.
+**Supersedes earlier memory note** that Creator Profile was intentionally not being renamed. Owner's 2026-04-24 direction: *"Do the full rename, we always want to do things the most correct way possible, especially pre-GTM."*
 
-**What to change:**
+**Two coordinated renames in this BP:**
+
+**Part A — Tier key `creator` → `personal`** (original scope):
 - Migration to update all `subscription_tier` column values from `'creator'` → `'personal'`.
 - Update the `SubscriptionTier` TypeScript union.
 - Update every lowercase `"creator"` reference in code (feature-gate tables, tier order, colors, style maps, admin dropdowns, trial tier guard, etc.).
 - Coordinate Stripe: the Stripe metadata or product mapping needs to be updated to use `personal` as the tier ID.
 - Backfill plan for any external references (Stripe webhook handlers, analytics, email templates).
 
+**Part B — User's voice/tone profile "Creator Profile" → "User Profile"** (added 2026-04-24):
+- Table rename: `creator_profiles` → `user_profiles`. All RLS policies, indexes, and triggers renamed accordingly.
+- TypeScript type rename: `CreatorProfile` → `UserProfile` across all files.
+- UI copy rename: every "Creator Profile" visible string → "User Profile". Includes settings page, onboarding, edit profile page, dashboard references.
+- Help articles updated (coordinate with BP-120).
+- Route rename if applicable (e.g., `/settings/creator-profile` → `/settings/user-profile`) with a 301 redirect from the old path for any bookmarked URLs.
+- Workspace type `individual_creator` stays as `individual` or `individual_user` — owner to confirm on implementation.
+
 **Security / guardrails:**
-- This is a larger, riskier rename. Probably worth a coordinated cutover and not a progressive migration — rename everything in one deploy.
-- Stripe side needs to be tested end-to-end against a test account before rollout.
+- Riskier than Part A alone because it renames a table with encrypted LinkedIn token columns. Coordinated cutover in a single deploy.
+- Full backup of `creator_profiles` before migration; tested on a Supabase branch first via MCP.
+- Stripe side tested end-to-end against a test account before rollout.
+- All LinkedIn OAuth flows retested after rename (the token columns live on this table).
 
 **Acceptance criteria:**
 - [ ] All code references to `"creator"` as a tier key replaced with `"personal"`.
-- [ ] DB migration cleanly flips existing rows.
+- [ ] DB migration for tier values cleanly flips existing rows.
+- [ ] `creator_profiles` table renamed to `user_profiles` (or equivalent) with all RLS/indexes/triggers intact.
+- [ ] `CreatorProfile` TypeScript type renamed to `UserProfile` project-wide.
+- [ ] Zero user-facing references to "Creator Profile" remain (grep across components, help content, API error messages).
 - [ ] Stripe metadata updated and webhook handler tested.
-- [ ] CreatorProfile TypeScript type remains (it's the user's profile, different concept).
+- [ ] LinkedIn OAuth connect/disconnect/publish flows retested after rename.
 - [ ] All existing feature-gate checks work unchanged.
 
-**Effort:** M · **Expected ROI:** Low (internal consistency; no user-facing benefit — only worth doing if a new dev consistently gets confused by the mismatch)
+**Effort:** L (Part A = M, Part B = M; table rename adds risk surface) · **Expected ROI:** Medium (terminology consistency matters pre-GTM; "User Profile" is the industry standard and avoids the "are you a creator?" confusion)
 
 ---
 
@@ -3333,6 +3456,612 @@ After each completed workflow, the assistant asks "What would you like to do nex
 - UI-only. Reuse existing permission/plan-gated CTA components (e.g., `<GenerateIdeasButton>`) — do not duplicate click handlers.
 
 **Effort:** S · **Expected ROI:** Low-Medium
+
+---
+
+### BP-115: Subscription Model v2 — BYOK Gated to Pro+, Personal on System Keys
+
+**Status:** Backlog (parent/spec)
+**Priority:** P0 / Critical
+**Source:** Owner pricing pivot 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Child BPs:** BP-116, BP-117, BP-118, BP-119, BP-123, BP-124, BP-125
+
+**Problem:** The prior model ("BYOK is default across all paid tiers") has been reversed. Under the new model we eat the AI cost for Free + Personal and for Pro users who choose not to BYOK, and use BYOK + unlimited usage as the headline Pro-tier value driver.
+
+**New tier matrix:**
+
+| Tier | Price | AI Keys | Quotas | Ads |
+|------|-------|---------|--------|-----|
+| Free | $0 | System keys only | 3 posts, 2 brainstorms (10 ideas), 20 chats/mo | Full (intrusive placements OK) |
+| Personal | $20/mo (annual $204, 15% off) | **System keys only — no BYOK** | Personal-tier quotas (TBD in BP-123) | Limited, non-intrusive only |
+| Professional | $50/mo (annual $510, 15% off) | System keys **or** BYOK | System: 100 posts, 200 image gens, 200 brainstorms, 500 chats/mo, unlimited scheduled + versions. **BYOK unlocks unlimited.** | None |
+| Team | $100/mo + $6/user (annual 15% off) | BYOK included and encouraged | Unlimited | None |
+
+**Key decisions (owner-confirmed 2026-04-24):**
+- Free users keep **permanent** system-key access with strict quotas after their 14-day managed trial ends (not lockout). Copy needs to reflect this (BP-118).
+- Pro overage = **hard stop**. Upgrade-to-unlimited prompt offers "Add personal API keys" or "Upgrade to Team." Credit-pack workaround explored in BP-124.
+- When a Pro user has personal keys configured, system keys are **disabled** for that user (never used as a fallback).
+- Team users get BYOK included; there is **no higher tier to trial**, so Team users are not eligible for a trial extension.
+- Annual discount across all paid tiers is **15%** (not 17% as previously documented).
+
+**Rollout order:**
+1. **BP-123** — Token cost study (must come first; informs quota tuning).
+2. **BP-116** — Pricing page + FAQ copy.
+3. **BP-117** — Feature-gate refactor (server-side + client-side).
+4. **BP-118** — Free-tier trial-expired messaging fix.
+5. **BP-125** — Image-generation BYOK.
+6. **BP-119** — Ad strategy for Free + Personal.
+7. **BP-124** — Credit-pack exploration (post-launch if data supports it).
+
+**Impact on existing backlog:**
+- **BP-018** (Feature Gating Logic) — original scope absorbed into BP-117. BP-018 will be marked Superseded.
+- **BP-045** (Third-Party Ad Integration) — un-deferred under BP-119.
+- **BP-054/BP-055** (Managed AI Access) — already shipped, but now becomes the *default* path for Free + Personal, not just the trial path.
+- **BP-085** (AI Usage Monitoring) — becomes critical, not just high-priority, because our costs now depend on per-user usage.
+
+**Acceptance criteria (for the parent):**
+- [ ] All seven child BPs are completed and deployed.
+- [ ] ROADMAP.md pricing table reflects the new model.
+- [ ] Token cost study (BP-123) confirms unit economics are viable.
+- [ ] No "BYOK required" copy remains for Free/Personal tiers.
+- [ ] No "unlimited usage" copy remains for Pro without-BYOK path.
+
+**Effort:** XL across all child BPs · **Expected ROI:** Critical (defines the revenue model)
+
+---
+
+### BP-116: Pricing Page Copy & Feature Table for Subscription Model v2
+
+**Status:** Done (2026-04-24 — display layer shipped; enforcement follows in BP-117)
+**Priority:** P0 / Critical
+**Source:** Owner pricing pivot 2026-04-24
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+
+**What to change** (in `src/app/pricing/page.tsx` + FAQ module):
+
+**Subheading & prices:**
+- Replace the current subhead "All plans include your choice of AI provider" (no longer true — Free/Personal are system-keys only). Suggested replacement: "Start free. Upgrade when you're ready for more."
+- Prices: Free $0, Personal $20/mo, Pro $50/mo, Team $100/mo + $6/user.
+- Annual savings: **15%** (not 17%). Annual prices: Personal $204, Pro $510, Team $1020 base + $61.20/user.
+
+**Feature row renames:**
+- "Post Scheduling" → "Scheduled Posts / month"
+- "Manual Analytics" → "Post Performance Analytics"
+- "Hook Analysis" → "AI Hook Analysis"
+- "Enhance & Hashtags" → "AI Enhancement & Hashtags"
+
+**Professional tier row text:**
+- System keys: "100 posts · 200 image gens · 200 brainstorms · 500 AI chats / month · unlimited scheduled posts · unlimited versions"
+- BYOK: "Unlimited everything when you bring your own AI key"
+
+**Personal tier row text:**
+- "System AI models only — no BYOK"
+- "Limited, non-intrusive ads"
+- "No Content Library"
+- "No Post Templates"
+
+**FAQ update:**
+- Current: *"Yes! Personal and Professional plans include a 14-day free trial with full access to all features. No credit card required to start your trial."*
+- New: *"Yes! Free and Personal plans include a 14 day free trial with full access to all Professional tier features. No credit card required to start your trial."*
+
+**Feature comparison section:** Audit every row to match the new matrix. Anything that says "BYOK" or "your own API key" on the Personal row is wrong now.
+
+**Acceptance criteria:**
+- [ ] Pricing page subhead is accurate under the new model.
+- [ ] Feature comparison table reflects every change above — no stale rows.
+- [ ] Annual prices computed at 15% savings (not 17%).
+- [ ] FAQ "free trial" entry updated to Free + Personal.
+- [ ] Feature name renames applied everywhere they appear (not just pricing — also admin, settings, marketing landing).
+
+**Effort:** S · **Expected ROI:** High (misleading pricing is the #1 conversion risk — must be accurate before any paid traffic)
+
+---
+
+### BP-117: Feature-Gate Refactor for Subscription Model v2 (Supersedes BP-018)
+
+**Status:** Backlog
+**Priority:** P0 / Critical
+**Source:** Owner pricing pivot 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+**Supersedes:** BP-018 (original "Feature Gating Logic" scope is absorbed here)
+
+**What to change:**
+
+**Constants + capability matrix (`src/lib/constants.ts`):**
+- Rewrite `SUBSCRIPTION_TIERS` and the feature capability table to match the v2 matrix in BP-115.
+- **Personal:** `byok: false`, `contentLibrary: false`, `postTemplates: false`, `adExperience: "limited"`.
+- **Pro:** system-key quotas exposed as named constants (`PRO_MONTHLY_POSTS = 100`, `PRO_MONTHLY_IMAGE_GENS = 200`, `PRO_MONTHLY_BRAINSTORMS = 200`, `PRO_MONTHLY_AI_CHATS = 500`). BYOK lifts all quotas.
+- **Team:** unlimited, BYOK encouraged.
+
+**Usage accounting:**
+- Extend the existing usage quota system (BP-016, Done) with the four Pro system-key counters.
+- Increment per successful AI call that used system keys. Never increment when using BYOK.
+- Reset monthly on subscription renewal date (not calendar month) to match Stripe billing cycle.
+
+**Server-side enforcement (the real gates):**
+- Every AI API route — `/api/ai/brainstorm`, `/api/ai/chat`, `/api/ai/enhance`, `/api/ai/analyze-hook`, `/api/ai/hashtags`, `/api/ai/generate-image`, `/api/posts/generate-*`, etc. — checks the caller's tier + BYOK status + current usage before serving.
+- **Hard stop behavior:** 402 Payment Required (or similar) with a structured error body that the client can translate into the correct upgrade CTA ("Add personal API keys for unlimited" vs. "Upgrade to Pro" vs. "Upgrade to Team").
+- **System-key disable when BYOK active:** `getUserAIClient()` (already exists) always prefers BYOK. Add a hard rule: if the user has a valid personal key configured for the requested capability, system keys are never used for that call regardless of tier.
+
+**Client-side UX:**
+- Disabled Generate buttons show a tooltip with remaining quota ("42 of 100 posts used this month · renews Nov 15") and the upgrade CTA.
+- Usage dashboard card (Settings → Usage) with per-feature progress bars for Pro users on system keys.
+- Personal users: visible upsell copy on Content Library / Post Templates entry points.
+
+**Admin:**
+- Extend the admin user table with per-feature usage columns (current month).
+
+**Security / guardrails:**
+- Client gates are UX only. All enforcement duplicated server-side.
+- Managed-AI-trial (BP-054) still grants Pro-tier access during the 14-day trial window — trial users should not hit system-key quota walls during their trial.
+- Usage counters are atomic (use a Supabase RPC with row lock, not client-side optimistic increment).
+
+**Acceptance criteria:**
+- [ ] Personal user attempting BYOK / Content Library / Post Templates is blocked client + server with upgrade CTA.
+- [ ] Pro user without BYOK hits a hard stop at each quota; structured error body drives the right UI.
+- [ ] Pro user with BYOK never hits any quota.
+- [ ] Team users see unlimited everything.
+- [ ] System keys are never used when a valid personal key is present.
+- [ ] Usage counters are accurate across concurrent requests.
+- [ ] Admin portal shows per-user usage correctly.
+- [ ] Managed-AI-trial users during their 14-day window are treated as Pro (no quota walls).
+
+**Effort:** L · **Expected ROI:** Critical (revenue mechanics depend on this being correct end-to-end)
+
+---
+
+### BP-118: Free-Tier Trial-Expired Messaging Fix
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Source:** Owner observation 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+
+**Problem:** Settings currently shows a "trial expired" warning to Free users that reads as if they've lost AI access entirely. They haven't — Free tier keeps permanent system-key access with strict quotas. Additionally, users who trialed Pro with personal keys configured and reverted to Personal quietly lose BYOK (by design under v2) with no clear in-app explanation — their configured keys are preserved but inactive, and the UI doesn't say so.
+
+**What to change:**
+
+**Free-tier users (managed trial ended):**
+- Rewrite the settings banner. Before: "Your trial has expired" (ominous). After: "Your 14-day Pro trial has ended. You still have access to PostPilot's free-tier AI limits ({{posts}} posts, {{brainstorms}} brainstorms, {{chats}} chats per month). Upgrade any time for more."
+- Remove any "you need to add an API key" implication for Free users.
+
+**Personal-tier users (reverted from Pro trial with BYOK configured):**
+- New informational toast on first login after revert: "Your Personal plan uses PostPilot's built-in AI models. The personal API keys you configured during your Pro trial are saved but inactive. Upgrade to Pro anytime to reactivate them."
+- AI provider settings card: when BYOK fields are filled but inactive, show an "Inactive on Personal — reactivated on Pro upgrade" pill next to the provider name.
+
+**No changes to underlying logic** — this is a pure copy/UX fix. The `TrialExpiryChecker` component and `account_status` field behavior remain unchanged.
+
+**Acceptance criteria:**
+- [ ] Free users no longer see "trial expired" without context; the message accurately describes what they still have access to.
+- [ ] Personal users with configured BYOK see a clear explanation in both toast + settings.
+- [ ] `TrialExpiryChecker` behavior unchanged.
+- [ ] Existing admin trial-management UX unaffected.
+
+**Effort:** XS · **Expected ROI:** High (prevents panic churn at trial end; reduces support burden)
+
+---
+
+### BP-119: Ad Placement Evaluation + Integration (Free + Personal Tiers)
+
+**Status:** Backlog — structured as two phases (evaluation → integration)
+**Priority:** P2 / Medium for Phase 1 (evaluation); Phase 2 (integration) stays P2 until we're ready to monetize Free tier post-GTM
+**Source:** Owner pricing pivot 2026-04-24; scope formalized 2026-04-24 into evaluation + integration phases per owner request
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+**Supersedes:** BP-045 (Third-Party Ad Integration — un-deferred under this new scope)
+
+**Problem:** Under Subscription Model v2, Free and Personal tiers should include ad inventory as (a) additional revenue and (b) a visible differentiator driving Free → Personal → Pro upgrades. We haven't evaluated *where* ads make sense, *what format* to allow, or *how intrusive* we're willing to be. A real integration can't start without this.
+
+---
+
+#### Phase 1 — Evaluation (deliverable: a decision memo, no code)
+
+**What to evaluate:**
+1. **Ad network options** — pros/cons of each:
+   - Google AdSense (easiest, high fill rate, lowest RPM, generic ad content)
+   - Carbon Ads (design-friendly, developer-audience — likely wrong fit for LinkedIn creators)
+   - Ethical Ads / BuySellAds (curated, higher RPM, smaller inventory)
+   - In-house "Upgrade to Pro" promotional slots (no external revenue but full brand control, useful even if we also run external ads)
+   - Hybrid (in-house upsell in prime slots + external network in fallback slots)
+2. **Format matrix** — what ad formats we're willing to accept:
+   - Banner (static or rotating)
+   - Native / in-content cards
+   - Side-panel ads
+   - Interstitial (post-action modal)
+   - Sponsored suggestions within AI output (e.g. in brainstorming — likely a "no" on ethical grounds)
+3. **Placement catalogue per tier** — every candidate location scored on visibility, intrusiveness, and conversion-harm risk:
+   - **Free tier candidates:** banner above dashboard, footer of every app page, between Recent Drafts and Recent Ideas on dashboard, Posts list page interstitials, empty-state areas, side-panel on settings/library, interstitial on first-save-of-the-month (don't every save).
+   - **Personal tier candidates:** sparse footer only, settings page sidebar, login/signup page, empty-state CTAs. **Hard rules:** never in the post editor, never during AI-generation flow, never mid-publish.
+   - **Pro/Team:** none, ever.
+4. **Conversion-impact risk** — for each placement, estimate (qualitatively pre-launch, measured A/B post-launch): does this ad unit hurt Free→Personal or Personal→Pro conversion rates more than the ad revenue is worth?
+5. **Revenue projection** — rough RPM assumptions × expected impression volume per placement × tier user counts = monthly revenue floor.
+6. **Ethical constraints** — no ads inside AI-generated content; no ads that could be mistaken for the user's own LinkedIn posts; no re-marketing pixels that sell user data.
+
+**Deliverable:** `docs/ad-strategy/2026-XX-ad-placement-evaluation.md` — one memo with:
+- Recommended ad network (single or hybrid) with justification.
+- Placement matrix per tier (a table: location × format × expected RPM × intrusiveness score × conversion-risk score × recommendation).
+- Hard rules list (the "never" constraints).
+- Revenue projection range (low / mid / high scenarios).
+- A Phase 2 scope proposal for integration (which 3–5 placements to ship first).
+
+**Phase 1 acceptance criteria:**
+- [ ] Memo exists at the path above.
+- [ ] Owner signs off on network choice, hard rules, and first-integration scope.
+- [ ] Any placements the owner vetoes are struck from the matrix before Phase 2 begins.
+
+---
+
+#### Phase 2 — Integration (kicks off only after Phase 1 memo is approved)
+
+- Ship the Phase-1-approved placements wrapped in a tier-aware `<AdSlot>` component that reads the user's tier and renders the right inventory (or nothing) for that location.
+- Ad loading must be lazy and deferred — never block first paint, never impact Core Web Vitals.
+- Upgrade CTAs sit alongside or within ad inventory so the impression converts.
+- Add a feature flag to disable ads globally for a specific user (for customer-support escalations).
+
+**Phase 2 acceptance criteria:**
+- [ ] Free users see ads in the 3–5 approved placements from the Phase 1 memo.
+- [ ] Personal users see at most 1 ad per non-critical page, never mid-editor, always non-intrusive format.
+- [ ] Pro/Team users never see ads (verified in tests).
+- [ ] Lighthouse performance score on `/dashboard` drops by less than 5 points vs pre-ad baseline.
+- [ ] Admin can disable ads for a specific user via flag (support escape hatch).
+
+---
+
+**Effort:** Phase 1 = S (memo only, 3–6 hours). Phase 2 = L (integration + testing, dependent on network choice).
+**Expected ROI:** Medium — augments Free-tier revenue, creates concrete upgrade incentive, but needs careful tuning to avoid hurting paid conversion.
+
+---
+
+### BP-120: Help Content Refresh — Personal Rename, Paid-Feature Badges, API Key Section
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Source:** Owner observations 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Terminology & Help Content (EPIC 3)
+
+**What to change** (help content store + `/help` page):
+
+**Section reorganization:**
+- Add a new Help-page section header **"Finding & Creating Personal AI Provider API Keys"**. Today the relevant articles are listed directly under "Guided Tutorials" with no clear grouping. Move them into this dedicated section so users searching for "how do I get an API key" find them immediately.
+
+**Tier labeling on paid-only articles:**
+- Every help article about a paid-only feature gets a clear badge at the top: "Paid feature — Personal and above", "Paid feature — Pro and above", or "Team feature". Content Library is the canonical example (Personal+). Also: Post Templates (Personal+), Hook Analysis (Personal+), Image Generation (Personal+), BYOK (Pro+), Team/Approval features (Team+).
+
+**Terminology sweep:**
+- Replace every reference to the old "Creator" tier with "Personal" in help articles.
+- Update "Creator Profile" → "User Profile" throughout help content (coordinated with BP-114 extension — do together in one PR to avoid stale references).
+
+**Acceptance criteria:**
+- [ ] Help page TOC has a dedicated "Finding & Creating Personal AI Provider API Keys" section, linked from the main help nav.
+- [ ] Every paid-feature article visibly labeled with the minimum tier at the top.
+- [ ] Zero remaining references to "Creator tier" in help content (verify with grep across `src/content/help/` or wherever help articles live).
+- [ ] Zero remaining references to "Creator Profile" in help content.
+- [ ] All internal help-article links continue to resolve.
+
+**Effort:** S · **Expected ROI:** Medium (reduces onboarding confusion under new tier names; better article discoverability for the API-key workflow — which is critical for Pro conversion)
+
+---
+
+### BP-121: Tutorial "Don't Show Again" Checkbox + Settings Reset
+
+**Status:** Backlog
+**Priority:** P2 / Medium
+**Source:** Owner feedback 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Onboarding & Guidance (EPIC 4)
+
+**Problem:** Tutorials (shipped under BP-035 Phases A–C) currently re-appear each time a user hits a qualifying surface. Users who've learned the product (or who don't want tutorials at all) have no way to suppress a given tutorial while keeping the others.
+
+**What to change:**
+- Add a **"Don't show this again"** checkbox to every tutorial card.
+- Persistence: user-scoped table (`tutorial_dismissals` with `{user_id, tutorial_id, dismissed_at}`) with RLS. Alternatively, extend an existing `user_preferences` jsonb column.
+- **Per-tutorial granularity (confirmed):** a user can suppress the post editor tutorial while keeping the idea bank one.
+- **Reversible from Settings (confirmed):** new Settings subsection "Tutorials" listing every dismissed tutorial with a "Re-enable" button, plus a single-click "Reset all tutorials" action.
+
+**Acceptance criteria:**
+- [ ] Checkbox visible on every tutorial card.
+- [ ] Dismissal persists across sessions and devices (server-side storage, not localStorage).
+- [ ] Settings shows the list of dismissed tutorials with per-tutorial re-enable.
+- [ ] "Reset all" clears every dismissal for the current user.
+- [ ] Migration applied to production Supabase.
+
+**Effort:** S · **Expected ROI:** Medium (removes a steady UX annoyance without hiding the learn-the-product path; supports power users without alienating new ones)
+
+---
+
+### BP-122: Payment Methods + Invoices in Account Settings
+
+**Status:** Backlog
+**Priority:** Deferred (Revenue) — blocked on BP-015 (Stripe Billing Integration)
+**Source:** Owner request 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Billing & Monetization (EPIC 2)
+**Parent:** BP-015
+
+**Problem:** Once Stripe is wired up (BP-015), users need an in-app way to view + manage their subscription without going through support.
+
+**What to change (when BP-015 ships):**
+- New Settings → Billing tab.
+- View current plan, next renewal date, amount billed.
+- Update payment method via Stripe Customer Portal (simplest integration) or embedded Stripe Elements (more branded).
+- Invoice list with download links (PDF).
+- Cancel / pause / downgrade flow with confirmation + retention offer.
+- Usage-to-date meter for Pro system-key quotas (cross-references BP-117 counters).
+
+**Security / guardrails:**
+- Stripe Customer Portal sessions are short-lived tokens — re-authenticate on each access.
+- Webhook handler validates Stripe signatures (already built under BP-015 when it ships).
+- Downgrade preserves user data; upgrade applies immediately with pro-ration.
+
+**Acceptance criteria:**
+- [ ] User can view + change payment method without contacting support.
+- [ ] User can download every past invoice.
+- [ ] Downgrade flow preserves all user work (posts, ideas, library items).
+- [ ] Upgrade applies immediately with pro-rated billing.
+- [ ] Usage meter accurate against the BP-117 counters.
+
+**Effort:** M · **Expected ROI:** High (completes the revenue loop; materially reduces support burden)
+
+---
+
+### BP-123: Token Cost Study — Tier Max-Cost, Average-Cost-to-Serve, Quota & Model Recommendations (Pre-GTM)
+
+**Status:** Backlog (pre-GTM action) — scope expanded 2026-04-24
+**Priority:** P1 / High
+**Source:** Owner pricing pivot 2026-04-24 (cost-exposure concern); scope expanded same day to cover all four tiers, average-user baseline, and recommendation outputs
+**Date Added:** 2026-04-24 · **Scope extended:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+
+**Problem:** Under Subscription Model v2 we eat AI cost for Free + Personal + Pro-without-BYOK + Team-without-BYOK. Without a data-backed understanding of per-user cost, Personal at $20 and Pro at $50 may be unprofitable. The study also needs to inform several pending decisions: Personal-tier quotas (undefined in BP-115), default system model choice, whether to push cache control, and break-even targets for GTM.
+
+**Three primary outputs:**
+
+1. **Max-cost-per-tier (worst case):** For every tier, compute the monthly AI cost if a user exhausts every quota at p95 token usage per call. Tiers:
+   - Free ($0): 3 posts + 2 brainstorms + 20 chats
+   - Personal ($20): quotas to be *recommended* by this study
+   - Pro without BYOK ($50): 100 posts + 200 image gens + 200 brainstorms + 500 chats
+   - Team without BYOK ($100+): unlimited today — compute per-month cost at reasonable heavy-user assumptions
+   For each tier: worst-case $, revenue, **margin**, break-even user count against fixed $150/mo infra.
+
+2. **Expected-cost-to-serve the average user:** Use Tony Hungate's account (`tony.hungate@email.com`, UID `3cbf1932-b55a-426a-b5d8-8063daaa9aed`) as the baseline. Pull all his `ai_usage_events` since account creation, extrapolate to a monthly rate, compute cost under each tier's system-model routing.
+
+3. **Recommendations memo:**
+   - Recommended Personal-tier monthly quotas (posts / brainstorms / chats / image gens / scheduled / versions).
+   - Recommended default system model per feature (Haiku vs Sonnet vs 4o-mini vs 4o, etc.).
+   - Should Personal price stay at $20 or move?
+   - Should we require cache control on brainstorm/chat (BP-009 injects 25 recent items — big cacheable payload)?
+
+**Additional insights the study must produce** (cheap-to-compute once data is pulled):
+
+A. **Cost-per-feature breakdown** — which AI features drive the majority of cost (likely image-gen + brainstorm with history injection).
+B. **Model-mix analysis** — current % of calls per model. Where are we using Sonnet where Haiku would suffice?
+C. **Usage distribution (p50 / p95 / p99)** across all users — so Personal quotas can be set at the right percentile (p95 user should feel the limit is generous; p99 should get pushed to Pro).
+D. **Hidden cost drivers** — quantify BP-009 history-injection impact, long system prompts, retry loops.
+E. **Prompt-caching opportunity** — current cache usage (if any); potential savings at ~90% off cached reads.
+F. **Break-even math per tier** — how many paying users of each tier cover infra + tier's worst-case AI burn.
+G. **Gateway vs direct cost** — Vercel AI Gateway margin vs direct-provider pricing. At what call volume does direct integration pay for itself?
+H. **Upgrade-path economics** — is Personal $20 structurally profitable or a loss-leader that works only because it drives Pro upgrades? Changes the pricing conversation.
+
+**Pricing baseline (owner-confirmed 2026-04-24):** Use **Vercel AI Gateway rates** (our actual cost including Vercel margin), not direct-provider list prices.
+
+**Data sources:**
+- `ai_usage_events` (BP-085 Phase 1+2 shipped) — per-call token + model + feature logging.
+- `usage_quotas` (BP-016 shipped) — current quota definitions.
+- `creator_profiles` — user tier + account status for cohort segmentation.
+- Static: current Vercel AI Gateway pricing per model.
+- Static: BP-009 brainstorm prompt construction (to understand cacheable vs fresh tokens).
+
+**Deliverable:** `docs/cost-studies/2026-04-token-cost-study.md` — structured memo with methodology, all eight insights (A–H), per-tier max-cost and break-even tables, expected-cost-to-serve Tony's account, and four concrete recommendations.
+
+**Acceptance criteria:**
+- [ ] Per-feature avg + p95 + p99 + max token usage documented.
+- [ ] Max monthly $/user computed for Free, Personal (at recommended quotas), Pro-no-BYOK, Team-no-BYOK.
+- [ ] Expected monthly $/user for Tony's usage pattern under each tier.
+- [ ] Per-feature cost breakdown with dominant-cost driver identified.
+- [ ] Model-mix analysis with explicit recommendations where a cheaper model would work.
+- [ ] Usage distribution histogram/table for the user population.
+- [ ] Prompt-caching opportunity quantified with $ savings estimate.
+- [ ] Break-even user count for each tier at worst case.
+- [ ] Gateway-vs-direct cost comparison at projected launch volume.
+- [ ] Four concrete recommendations: (1) Personal quotas, (2) default system model per feature, (3) Personal price decision, (4) cache-control priority.
+- [ ] Memo reviewed and decisions committed before BP-116 / BP-117 ship.
+
+**Effort:** M–L · **Expected ROI:** Critical (prevents unit-economics disaster at scale; informs every other BP in EPIC 1, plus Personal-quota definition)
+
+---
+
+### BP-124: Pro-Tier Credit Pack Purchase (Exploration / Spec Only)
+
+**Status:** Backlog (exploration — no code yet)
+**Priority:** P3 / Low (post-launch)
+**Source:** Owner pricing pivot 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+
+**Problem:** Under v2, Pro users without BYOK hit a hard stop when they exhaust monthly quotas. That's a jarring "can't use the product" moment mid-month. A credit pack add-on (e.g., "+50 posts for $10" or "+100 image gens for $15") would soften that, grow ARPU, and give the user a lower-friction alternative than configuring BYOK.
+
+**What to do (spec only — no code in this BP):**
+- Decide credit pack sizes + prices (informed by BP-123 cost study).
+- Decide expiration policy: roll over? lose at month end? lose at renewal?
+- Decide tier eligibility: Pro-only, or also Personal?
+- Spec Stripe product structure for one-time purchases tied to the user's subscription.
+- Decide whether credits substitute for the monthly quota or are additive on top.
+
+**Deliverable:** `docs/specs/credit-packs.md` with pricing, expiration, Stripe model, and a build/hold recommendation.
+
+**Acceptance criteria:**
+- [ ] Written spec in `docs/specs/credit-packs.md`.
+- [ ] Decision committed: build now (follow-up BP created), or hold until we see real usage patterns post-GTM.
+
+**Effort:** S (spec) · **Expected ROI:** Medium (prevents hard-stop churn; adds ARPU lever beyond the tier ladder)
+
+---
+
+### BP-125: Pro-Tier Image Generation Provider BYOK
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Source:** Owner pricing pivot 2026-04-24
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Parent:** BP-115
+
+**Problem:** Under v2, Pro users get unlimited everything via BYOK — but image generation requires a provider that supports image-gen (currently OpenAI DALL-E). Today's BYOK flow may not clearly surface the requirement: a user could add a text-only Anthropic key, see their post-generation go unlimited, and then discover image-gen is still quota-limited with no obvious path forward.
+
+**What to do:**
+- **Audit current behavior first:** trace `/api/ai/generate-image` + AI provider settings to see how provider keys are matched to image capability today. Specifically: does the current "OpenAI BYOK key" flag unlock image-gen automatically, or is image-gen still on system keys regardless?
+- If the current OpenAI key auto-unlocks image-gen: add clarifying copy in the AI provider settings card ("Your OpenAI key also unlocks image generation") and surface it on the Pro-tier upsell.
+- If it does NOT: add a dedicated **"Image Generation Provider"** row in AI provider settings, supporting OpenAI (DALL-E 3) initially. Design it so adding providers (Stability AI, Replicate, Flux) later is a one-row extension, not a refactor.
+- Pro-tier settings copy: "Generate unlimited images when you bring an image-capable AI key."
+- Server-side: if a Pro user attempts image-gen without an image-capable key, return a clear 402 with the CTA "Add an image provider" — don't silently fall back to system-key quota (that defeats the unlimited promise).
+
+**Acceptance criteria:**
+- [ ] Audit memo documents current image-gen provider-key logic.
+- [ ] Pro BYOK user with OpenAI key either: (a) gets unlimited image-gen automatically with clear UI confirmation, or (b) is clearly prompted to add an image-capable provider.
+- [ ] Settings UI makes the text-vs-image provider distinction obvious.
+- [ ] Server-side image-gen rejects text-only keys with an actionable error, not a silent system-key fallback.
+
+**Effort:** M · **Expected ROI:** High (closes the "unlimited with BYOK" promise; avoids the worst Pro-user surprise)
+
+---
+
+### BP-126: Safe Local-Dev Auth Bypass (Replaces Removed `/api/dev/auto-login`)
+
+**Status:** Done (2026-04-24 — verified working on localhost by owner)
+**Priority:** P1 / High
+**Source:** Owner observation 2026-04-24 — local testing blocked after 2026-04-23 security cleanup removed `/api/dev/auto-login`
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
+**EPIC:** Developer Experience & Tooling (EPIC 12)
+
+**Problem:** Commit `b7184da` (2026-04-23) removed `/api/dev/auto-login` because it was an auth-bypass surface even with env gates. Without it, logging in on localhost requires going through LinkedIn OAuth, which is friction for every dev-test cycle. We need a local-dev login path that **cannot** be deployed to any production or preview environment.
+
+**What to change (multi-layer gate, safest possible):**
+
+**New `/api/dev/local-login` route:**
+- **Gate 1 — Build env:** `if (process.env.NODE_ENV !== "development") return new Response(null, { status: 404 });` as the literal first line of the handler. Outside dev mode, the route is invisible.
+- **Gate 2 — Runtime host:** reject any request whose `Host` header is not `localhost`, `127.0.0.1`, or an IPv6 loopback. Real hostnames get 404.
+- **Gate 3 — Shared secret:** requires a header `x-local-dev-secret` that matches a value in `.env.local` (never committed, never set in Vercel). Missing/wrong → 404, not 401 (don't even acknowledge the route exists).
+- **Login target:** dedicated test email `local-dev@mypostpilot.app`. Generates a magic-link token via Supabase `service_role`.
+
+**Deployment safety:**
+- `.gitignore` already ignores `src/app/api/dev/*` by default (per `b7184da` — the rule remained after the auto-login removal). Keep it that way so the new route file is **never committed**. Each dev maintains their own copy locally.
+- Login page shows a "Dev Login" button **only** when `process.env.NODE_ENV === "development"` AND `window.location.hostname === "localhost"`. Compiled out of production bundles by Next.js tree-shaking.
+- Document setup in a new `docs/dev-setup.md` so a future dev (or reinstall) can reproduce the path.
+
+**Security / guardrails:**
+- Three independent gates that all must pass. Any single gate returning 404 silently hides the route.
+- Route file is not committed → zero chance of accidental preview/prod deploy unless a dev consciously commits it.
+- Single hardcoded test email means even if the route were reachable, the blast radius is one account.
+- No allowlist to maintain, no env var to forget in Vercel.
+- Verify with a `next build` bundle inspection that no reference to `/api/dev/local-login` appears in the production output.
+
+**Acceptance criteria:**
+- [ ] Tony can log in on localhost without hitting LinkedIn OAuth.
+- [ ] Route returns 404 if any of: not in dev mode, host is not localhost, or shared secret missing/wrong.
+- [ ] Route file is not committed (stays in `.gitignore`).
+- [ ] No references to the route exist in the production bundle.
+- [ ] Setup captured in `docs/dev-setup.md`.
+
+**Effort:** S · **Expected ROI:** High (unblocks local testing permanently without re-opening an auth-bypass surface)
+
+---
+
+### BP-127: Complete AI Route Logging Coverage
+
+**Status:** Backlog
+**Priority:** P1 / High
+**Source:** Data gap surfaced during BP-123 cost study (2026-04-24). Owner confirmed: "Logging and accurate usage tracking are extremely important for this project."
+**Date Added:** 2026-04-24
+**EPIC:** Admin & Cost Controls (EPIC 10)
+**Related:** BP-085 (usage logging infrastructure — Phase 1+2 shipped), BP-123 (cost study that identified the gap)
+
+**Problem:** BP-085 Phase 1+2 shipped `ai_usage_events` logging for the three highest-volume routes: `brainstorm`, `chat`, `generate-image`. Five additional AI-consuming routes are NOT writing to `ai_usage_events`:
+- `/api/ai/enhance`
+- `/api/ai/hashtags`
+- `/api/ai/analyze-hook`
+- `/api/ai/draft` (post generation)
+- `/api/ai/idea-generate` (or wherever single-idea generation lives)
+
+**Why it matters now:** Under Subscription Model v2 (BP-115) we eat AI cost for Free + Personal + Pro-without-BYOK users. Without complete per-route logging:
+- Future cost studies cannot compute per-feature $/user without re-hitting the same blind spot BP-123 encountered (had to estimate 5 routes from `cost-table.ts` rather than measure).
+- BP-117's usage counters (post quotas, etc.) can't reconcile against actual AI spend.
+- BP-085 Phase 3 budget enforcement will under-report, making any "approaching budget" alert unreliable.
+- We can't audit whether the model-swap in BP-117 actually reduced cost as predicted.
+
+**What to change:**
+- For each of the 5 unlogged routes, follow the existing BP-085 pattern: after a successful AI call, write a row to `ai_usage_events` with route, provider, model, source, token counts (input/output/cached/reasoning), `cost_usd` (from Gateway billing response when available, else `estimateTokenCostUsd()` from `src/lib/ai/cost-table.ts`), `cost_source`, latency, success, error_code.
+- Factor the logging into a shared helper (`logAiUsageEvent()`) if one doesn't already exist — avoid copy-pasting the pattern five times.
+- Ensure the logging is non-blocking (fire-and-forget with error swallowing) so a logging failure never breaks the user's AI call.
+- Audit that BYOK-direct image-gen (currently logged with `cost_source='estimated'`) stays on the same code path.
+
+**Security / guardrails:**
+- Logs already respect RLS (`user_id` scoped). Unchanged.
+- Never log raw prompt or response content — only counts and metadata (the existing pattern is correct; verify the new routes match).
+- Redact any API-key-adjacent fields in error logs.
+
+**Acceptance criteria:**
+- [ ] All 5 routes write to `ai_usage_events` on both success and failure.
+- [ ] Shared `logAiUsageEvent()` helper used across all 8 logged routes (including the 3 existing ones — refactor if needed).
+- [ ] A new SQL query `SELECT route, COUNT(*) FROM ai_usage_events GROUP BY route;` returns rows for all 8 routes after one week of usage.
+- [ ] Admin portal's usage dashboard reflects the new routes (BP-085 Phase 2 UI; may need minor updates).
+- [ ] Logging latency adds < 5ms to the critical path (measure before/after).
+
+**Effort:** S–M · **Expected ROI:** High (unlocks accurate unit-economics monitoring; pre-requisite for BP-128 measuring its own impact)
+
+---
+
+### BP-128: Brainstorm Prompt Caching Refactor
+
+**Status:** Backlog
+**Priority:** P2 / Medium
+**Source:** BP-123 cost study finding (2026-04-24) — brainstorm has 0% cache hit rate because BP-009 history injection rotates entire context every call. Owner-approved.
+**Date Added:** 2026-04-24
+**EPIC:** Admin & Cost Controls (EPIC 10)
+**Related:** BP-009 (history-enhanced brainstorming — the reason for 0% caching), BP-127 (needed to measure this BP's impact accurately)
+
+**Problem:** From the cost study data: brainstorm input tokens total 16,763 across 7 calls, with **0 cached tokens** (0% hit rate). Root cause: BP-009 injects 15 recent posts + 10 recent ideas into the prompt context. Since the user's recent activity changes between calls, the full prompt string is unique every time, defeating provider-side automatic caching.
+
+Contrast: chat hits 30.8% cache (14,080 / 45,695 tokens) on gpt-4.1 because chat's system prompt is stable and only the conversation history grows.
+
+**Why it matters:** Brainstorm is the 2nd most expensive text route per call ($0.010 on gpt-4.1, $0.002 on gpt-4.1-mini). At Personal's 20 brainstorms/month × 8 active users = 160 calls/month on system keys. 50% cache hit would save ~$0.10–$0.50/month per user. Modest absolute numbers now, but:
+- Scales linearly with paid-user count.
+- Enables broader caching patterns we'll want for chat and other routes under v2.
+- Zero-cost after the one-time refactor.
+
+**What to change:**
+1. **Audit `src/lib/ai/prompts.ts` and the brainstorm route** — identify the stable vs volatile sections of the current prompt:
+   - **Stable prefix candidates:** system instructions, voice profile, content pillars, formatting rules.
+   - **Volatile tail:** recent posts/ideas history (BP-009), current input topic.
+2. **Restructure the prompt** so everything stable comes first, everything volatile at the end. This is the minimum change that enables provider-side automatic caching.
+3. **For Anthropic providers**: add explicit `cache_control: { type: "ephemeral" }` markers at the boundary between stable and volatile content (Haiku/Sonnet support this; 90% discount on cached reads).
+4. **Evaluate switching default system provider for brainstorm to Anthropic Haiku.** Haiku has cheaper per-token input pricing ($0.80/M vs gpt-4.1-mini $0.40/M — actually gpt-4.1-mini is cheaper on input but Haiku has 90% cached-read discount vs OpenAI's minimal discount). Net: with caching at 50%+ hit rate, Haiku becomes cheaper than gpt-4.1-mini. Decision hinges on real cache-hit measurement post-refactor.
+5. **Measurement:** after deployment, wait 1 week, query `ai_usage_events` for brainstorm `SUM(cached_tokens) / SUM(input_tokens)` — target >40% hit rate. Needs BP-127 if we expand the same treatment to other routes.
+
+**Security / guardrails:**
+- No auth/data changes — prompt structure only.
+- Verify refactored prompt produces equivalent-quality output via A/B on a small set of real user prompts (invite back Tony's feedback before full rollout).
+- Document the "stable before volatile" pattern in `CLAUDE.md` or a dev doc so future prompts follow the same convention.
+
+**Acceptance criteria:**
+- [ ] Brainstorm prompt restructured: stable sections before volatile sections.
+- [ ] Cache_control markers added for Anthropic providers.
+- [ ] Post-deploy measurement shows cache hit rate >40% for brainstorm after 1 week.
+- [ ] Output quality validated on at least 5 real inputs (subjective; owner sign-off).
+- [ ] Decision committed on whether to switch default brainstorm system model to Anthropic Haiku.
+
+**Effort:** M · **Expected ROI:** Medium (small $ savings now; establishes caching pattern reusable across other routes; validates the Haiku-vs-mini default-provider question)
 
 ---
 

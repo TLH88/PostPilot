@@ -4,6 +4,180 @@
 
 ---
 
+## 2026-04-24 Part 2: Pre-GTM Sprint 1 kickoff — BP-123 cost study + BP-126 local-dev login
+
+Follow-up to the morning planning session. Executed two EPIC-1 items end-to-end.
+
+### BP-123 — Token Cost Study (deliverable)
+- **Memo written:** [docs/cost-studies/2026-04-token-cost-study.md](cost-studies/2026-04-token-cost-study.md)
+- **Data pulled** via Supabase MCP (`ai_usage_events`, `usage_quotas`, `post_image_versions`, `creator_profiles`) — 36 logged AI events over 11 days, 2 distinct users, Tony's account (`3cbf1932-...`) as the baseline "heavy active user" proxy per owner direction.
+- **Findings that need owner sign-off before BP-116 / BP-117 can proceed:**
+  1. Switch default system model from gpt-4.1 → gpt-4.1-mini for chat/brainstorm/enhance/draft. ~78% per-call cost reduction at no user-visible quality cost.
+  2. Default system-key image gen to gpt-image-1 ($0.040) not gpt-image-1.5 ($0.050) — 20% saving.
+  3. **Recommended Personal quotas:** 30 posts / 20 brainstorms / 150 chats / 30 image gens per month. Covers Tony's usage profile with 0.9–1.6× headroom. Worst-case cost: $3.23/mo (or $1.57 with model swap) against $20 revenue = 84–92% margin.
+  4. Personal at $20 is viable.
+  5. Prompt caching opportunity on brainstorm (currently 0% cache hit due to BP-009 history injection rotating context every call) — restructure prompt for stable prefix or switch to Anthropic Haiku for 90% cached-read discount.
+- **Break-even math:** 7 Personal users or 4 Pro users cover $130/mo infra. Realistic GTM target: 15 paid users across tiers within 90 days.
+- **Data gaps flagged:** BP-085 logging only covers brainstorm/chat/image-gen routes. enhance/hashtag/analyze-hook/draft/idea-generate are NOT logged — follow-up BP worth creating to close the observability gap before GTM.
+
+### BP-126 — Safe Local-Dev Auth Bypass (Done, verified on localhost)
+Replaces the removed `/api/dev/auto-login` (deleted 2026-04-23 for security). Three independent gates, route file gitignored so it never ships to Vercel.
+
+- **New route file (gitignored, never committed):** `src/app/api/dev/local-login/route.ts`
+  - Gate 1: `NODE_ENV !== "development"` → 404
+  - Gate 2: Host not in {localhost, 127.0.0.1, [::1]} → 404
+  - Gate 3: `x-local-dev-secret` header missing or not matching server `LOCAL_DEV_LOGIN_SECRET` → 404
+  - On pass: uses Supabase admin client to generate a magic-link token for `LOCAL_DEV_LOGIN_EMAIL` (configurable per session via `?email=` query param), redirects browser to `/callback` which exchanges the OTP and sets session cookies.
+- **Login page update** (`src/app/(auth)/login/page.tsx`): Added a dashed amber "Local dev only" panel with a Dev Login button. Rendered only when `process.env.NODE_ENV === "development"` AND `window.location.hostname` is a loopback. Tree-shaken out of production builds.
+- **Documentation:** [docs/dev-setup.md](dev-setup.md) — full setup instructions, explicit list of what NOT to do (never commit the route, never add `LOCAL_DEV_LOGIN_*` to Vercel env), troubleshooting section.
+- **Verified** via `git check-ignore -v`: the route file matches `.gitignore:40 src/app/api/dev/**/*`. The file does not and cannot appear in `git status`.
+- **End-to-end verified** on localhost: owner successfully logged in via the Dev Login button. Two setup gotchas surfaced during verification and captured in [docs/dev-setup.md](dev-setup.md): (1) the original docs said "pick a random string" without generating one, now includes `node -e "…randomBytes(32)…"` command; (2) `.env.local` values must have no surrounding quotes or they're read literally (caused an initial 12-vs-22 length mismatch). Added per-gate diagnostic logging to the route: 404 response stays opaque, but the dev-server terminal now prints which gate failed — invaluable for first-time setup.
+
+### Tracked files that will be in the eventual commit
+- `docs/BACKLOG.md` — BP-123 scope-expanded entry, BP-126 spec (already landed earlier this session)
+- `docs/ROADMAP.md` — already landed earlier this session
+- `docs/ACTIVITY_LOG.md` — this entry
+- `docs/cost-studies/2026-04-token-cost-study.md` — new file
+- `docs/dev-setup.md` — new file
+- `src/app/(auth)/login/page.tsx` — dev-login button wiring
+
+### Untracked and intentionally left alone
+- `src/app/api/dev/local-login/route.ts` — per gitignore rule, must never be committed.
+
+### Follow-up items that emerged this session (all resolved same-day)
+- **Potential new BP:** wire `enhance`, `hashtags`, `analyze-hook`, `draft`, `idea-generate` routes to `ai_usage_events` so future cost studies don't re-hit the data gap. EPIC 10 (Admin & Cost Controls) is the right home. → **Created as BP-127 (P1 / High)**.
+- **Potential new BP:** brainstorm prompt caching refactor (move stable prefix before volatile history; consider Anthropic Haiku for 90% cached-read discount). → **Created as BP-128 (P2 / Medium), placed in EPIC 10**.
+- **Decision needed from owner before proceeding to BP-116 / BP-117:** sign off on the four recommendations in §11 of the cost-study memo. → **Owner approved all four 2026-04-24 with one amendment: Personal chat quota raised from 150 → 200/month. Cost-study memo §11 updated with approval timestamps, worst-case margin recomputed to 80.5% (current models) / 91.7% (after model swap). Still healthy.**
+
+### Owner decisions this session (2026-04-24 late)
+1. ✅ Default system model switch → mini-tier per provider (ships in BP-117).
+2. ✅ System-key image gen default → `gpt-image-1` (ships in BP-117).
+3. ✅ Personal quotas: 30 posts / 20 brainstorms / **200 chats** / 30 images / unlimited scheduled + versions (ships in BP-117).
+4. ✅ Personal $20/mo confirmed (ships in BP-116).
+5. ✅ Create BP-127 (complete AI route logging coverage).
+6. ✅ Create BP-128 (brainstorm prompt caching refactor).
+
+### BP-119 formalized into two phases (same-day owner request)
+Owner asked for explicit ad placement evaluation tracking. BP-119 already covered the scope but was scoped as one monolithic item. Restructured into:
+- **Phase 1 — Evaluation (S effort, memo-only):** deliverable is `docs/ad-strategy/2026-XX-ad-placement-evaluation.md`. Evaluates ad networks, format matrix, placement catalogue per tier, conversion-impact risk, revenue projection, ethical constraints. Must be owner-approved before Phase 2 starts.
+- **Phase 2 — Integration (L effort):** ships a tier-aware `<AdSlot>` component across the 3–5 placements approved in Phase 1. Feature-flag support for per-user disable. Lighthouse impact capped.
+BP-119 title renamed "Ad Placement Evaluation + Integration (Free + Personal Tiers)".
+
+### Pre-GTM Sprint 2 updated scope
+→ BP-117 gate refactor, BP-118 trial messaging, BP-125 image-gen BYOK, **BP-127 complete AI logging**, BP-085 admin cost controls.
+Sprint 6 (Post-launch ARPU & polish) adds BP-128 brainstorm caching.
+
+### Next action
+Start BP-116 (pricing page copy + feature table rewrite) — all inputs now locked.
+
+---
+
+## 2026-04-24 Part 3 — BP-116 pricing page rewrite shipped (display layer)
+
+Owner approved cost-study recommendations and gave the "proceed" signal. Shipped BP-116 end-to-end.
+
+**Files changed (2):**
+- [src/lib/constants.ts](src/lib/constants.ts) — `SUBSCRIPTION_TIERS` prices bumped to v2 ($20 / $50 / $100+$6); `TIER_FEATURES` matrix fully rewritten for v2 (feature renames, new Pro system-key quotas, Personal restrictions, ad tier split). Explicit inline comments mark the `limits` values as pre-v2 pending BP-117 migration — important so the next dev doesn't assume display and enforcement are aligned.
+- [src/app/pricing/page.tsx](src/app/pricing/page.tsx) — `ANNUAL_PRICES` computed at 15% off (Personal $204, Pro $510, Team $1,020); hardcoded card prices updated; subhead rewritten ("Start free. Upgrade when you're ready for more." — removed misleading "All plans include your choice of AI provider"); 3 FAQ entries rewritten (BYOK now Pro+ only, providers supported split by tier, free trial → Free AND Personal plans trial Professional tier, billing 15% off); "BYOK Highlight" section renamed to "AI that fits your plan" with copy reflecting Free/Personal on system keys vs Pro/Team on BYOK; "(save 17%)" → "(save 15%)".
+
+**Display/enforcement split (intentional):**
+- This BP touched the **display layer** only — what users see on the pricing page.
+- Quota enforcement in `SUBSCRIPTION_TIERS.limits` still carries pre-v2 values (creator: unlimited posts / 15 brainstorms / 200 chats / 15 scheduled). BP-117 will migrate those to v2-approved quotas (30 / 20 / 200 / 30 + add image_generation column) with server-side hard-stop behavior.
+- During the gap between BP-116 shipping and BP-117 shipping, the pricing page will show tighter limits than are currently enforced. This is the "overly generous" direction — safe. Not the reverse.
+- Trial logic (`TRIABLE_TIERS = {"creator", "professional"}`) intentionally left alone. BP-117 will restrict Personal trials since Personal is no longer the target (Pro is). Doesn't impact current FAQ because we only have 6 beta users, none paid.
+
+**Grep sweep:**
+- No remaining hardcoded old prices ($19, $49, $99, $190, $490, $990, $5.99) anywhere in `src/`.
+- No "17%" or "save 17" references left.
+- Old feature-name strings ("Post Scheduling", "Manual Analytics", "Hook Analysis", "Enhance & Hashtags") only appear in two help-content files: `src/components/help-sidebar.tsx` and `src/lib/tutorials/definitions.ts`. These are **BP-120** scope (help content refresh) — intentionally left for that BP to handle.
+- `Ad-Free` term removed entirely from the codebase (replaced by `ad_experience` with Full / Limited / None values).
+
+**What ships next:**
+- BP-126 already Done from earlier this session.
+- **BP-117** — Feature-gate refactor (supersedes original BP-018) is the logical next item in Pre-GTM Sprint 2. That's where the model swap (gpt-4.1 → gpt-4.1-mini), image-gen default change, quota enforcement, and BYOK gate all land.
+
+**Git state at end of session:**
+- Modified tracked files: BACKLOG.md, ROADMAP.md, ACTIVITY_LOG.md, `src/app/(auth)/login/page.tsx`, `src/lib/constants.ts`, `src/app/pricing/page.tsx`.
+- New untracked files: `docs/cost-studies/2026-04-token-cost-study.md`, `docs/dev-setup.md`.
+- Gitignored (never committed): `src/app/api/dev/local-login/route.ts`.
+- Nothing committed or pushed yet — waiting for owner review.
+
+---
+
+## 2026-04-24: Subscription Model v2 pricing pivot + EPIC backlog restructure
+
+Planning-only session — no code shipped. Owner directed a major strategic pivot plus a structural change to how the backlog is organized. All documentation artifacts updated; implementation work queued as BP-115–BP-126.
+
+### Strategic pivot: Subscription Model v2
+Reversed the 2026-04-01 "BYOK is default across all paid tiers" decision. New model:
+- **Free ($0):** system keys only, strict quotas (3 posts / 2 brainstorms / 20 chats per month), full ads
+- **Personal ($20/mo, annual $204 = 15% off):** system keys only, **no BYOK**, limited non-intrusive ads, no Content Library, no Post Templates
+- **Professional ($50/mo, annual $510 = 15% off):** system keys with hard quotas (100 posts / 200 image gens / 200 brainstorms / 500 AI chats per month, unlimited scheduled + versions); BYOK unlocks unlimited everything
+- **Team ($100/mo + $6/user, 15% off annual):** BYOK included and encouraged; no higher-tier trial eligibility
+
+**Key mechanical decisions:**
+- Pro-tier overage = **hard stop** (no auto-billing, no queue). Upgrade prompts offer BYOK or Team.
+- System keys are **disabled** for users with valid BYOK configured (never used as fallback).
+- Annual discount dropped from 17% to **15%** across all tiers.
+- Free and Personal users can trial Pro (14 days, one-time, 365-day cooldown). Team users have no higher tier to trial.
+
+### New BPs added (all under EPIC 1 "Subscription Model v2" unless noted)
+- **BP-115** — Subscription Model v2 parent spec (P0 / Critical)
+- **BP-116** — Pricing page copy + feature table rewrite (P0 / Critical)
+- **BP-117** — Feature-gate refactor (supersedes original BP-018 scope) (P0 / Critical)
+- **BP-118** — Free-tier trial-expired messaging fix (P1 / High)
+- **BP-119** — Personal limited-ads + Free ad strategy (un-defers BP-045) (P2 / Medium)
+- **BP-120** — Help content refresh: Personal rename, paid-feature badges, API key section header (P1 / High, EPIC 3)
+- **BP-121** — Tutorial "don't show again" + settings reset (P2 / Medium, EPIC 4)
+- **BP-122** — Payment methods + invoices in Settings (Deferred Revenue, EPIC 2)
+- **BP-123** — Token cost study (pre-GTM action) (P1 / High)
+- **BP-124** — Credit-pack purchase exploration (spec only) (P3 / Low)
+- **BP-125** — Pro-tier image-generation BYOK (P1 / High)
+- **BP-126** — Safe local-dev auth bypass replacing removed `/api/dev/auto-login` (P1 / High, EPIC 12)
+
+### BP-114 scope extended
+Raised from P3 to P2. Now covers both:
+- **Part A:** Tier key `creator` → `personal` (original scope — DB migration, TS union, Stripe metadata).
+- **Part B (new 2026-04-24):** Table rename `creator_profiles` → `user_profiles`, TS type `CreatorProfile` → `UserProfile`, all UI copy "Creator Profile" → "User Profile", help article sweep.
+Overrides the earlier memory note that Creator Profile was intentionally not renamed. Owner direction: do things the most correct way possible pre-GTM.
+
+### EPIC grouping introduced
+Twelve EPICs now organize the active backlog so related work ships together. Every new BP is assigned to an EPIC at creation. Recommended execution order published as a 9-sprint theme plan in BACKLOG.md.
+
+1. Subscription Model v2 (pricing pivot)
+2. Billing & Monetization (Stripe)
+3. Terminology & Help Content
+4. Onboarding & Guidance
+5. Team Collaboration (behind BP-098 flag)
+6. Analytics & Insights
+7. AI Enhancements
+8. Reliability & Bug Fixes
+9. Security, Authorization & Observability
+10. Admin & Cost Controls
+11. Quality & Testing
+12. Developer Experience & Tooling
+
+### Documentation artifacts updated
+- [docs/BACKLOG.md](BACKLOG.md) — new header banner, EPIC Index, 12 new BPs, BP-114 extended.
+- [docs/ROADMAP.md](ROADMAP.md) — pricing table rewritten for v2, BYOK-default decision marked reversed, two new key decisions added.
+- [docs/ACTIVITY_LOG.md](ACTIVITY_LOG.md) — this entry.
+
+### Impact on in-flight backlog items
+- **BP-018** (Feature Gating Logic, P0) — original scope absorbed into BP-117. Will be marked Superseded in a follow-up.
+- **BP-045** (Third-Party Ads, Deferred Revenue) — un-deferred and folded into BP-119.
+- **BP-054/055** (Managed AI Access, Done) — now becomes the *default* path for Free + Personal, not just trial.
+- **BP-085** (AI Usage Monitoring, P1) — priority effectively upgraded to Critical because unit economics depend on it.
+
+### Nothing deployed
+No migrations run, no code changed, no branch state modified. `develop` and `main` remain at `82d8dad`.
+
+### Follow-up for next session
+- **First up (Pre-GTM Sprint 1):** BP-123 token cost study, BP-126 local-dev login, BP-115/116/117 core pricing pivot.
+- Decide Personal-tier quotas (blocked on BP-123 findings).
+- Produce non-technical project review (Option B delivered in this session's final message).
+
+---
+
 ## 2026-04-23: BP-111 token validation, Past-Due redesign, Dashboard rework, Analytics toggle
 
 Big session of UX + reliability polish. All DB migrations applied to production Supabase via MCP. No API contracts changed.

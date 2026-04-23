@@ -152,18 +152,24 @@ export const SUBSCRIPTION_TIERS: Record<
   creator: {
     // Display label only — the internal tier key stays "creator" so Stripe
     // price lookups, DB values, and feature-gate checks keep working.
+    // Full rename (internal key + table) tracked in BP-114.
     label: "Personal",
-    price: "$19/mo",
+    price: "$20/mo",
     limits: { posts: -1, brainstorms: 15, chat_messages: 200, scheduled_posts: 15 },
+    // NOTE: these `limits` values are the pre-v2 enforcement numbers. BP-117
+    // will migrate them to the v2-approved quotas (30/20/200/30 +
+    // image_generation column). This BP-116 edit touches display only.
   },
   professional: {
     label: "Professional",
-    price: "$49/mo",
+    price: "$50/mo",
     limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+    // NOTE: same as creator above — BP-117 will flip these to 100/200/500/-1
+    // with BYOK unlocking unlimited.
   },
   team: {
     label: "Team",
-    price: "$99/mo + $5.99/user",
+    price: "$100/mo + $6/user",
     limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
   },
   enterprise: {
@@ -182,25 +188,29 @@ export const QUOTA_COLUMN_MAP: Record<QuotaType, string> = {
 } as const;
 
 // ── Tier Feature Matrix (used by pricing page + feature gating) ────────────────
+// NOTE: Updated 2026-04-24 for Subscription Model v2 (BP-116). Display values
+// reflect the v2-approved quotas. Quota ENFORCEMENT numbers in
+// `SUBSCRIPTION_TIERS.limits` still carry the pre-v2 values — BP-117 will
+// migrate the limits to match this table.
 export const TIER_FEATURES = [
-  { key: "posts", name: "Posts / month", free: "3", creator: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "brainstorms", name: "Brainstorms / month", free: "2", creator: "15", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "chat_messages", name: "AI Chat Messages / month", free: "20", creator: "200", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "scheduling", name: "Post Scheduling", free: "2", creator: "15", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "versions", name: "Post Versions", free: "1", creator: "5", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "image_generation", name: "AI Image Generation", free: false, creator: "5 / month", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "analytics", name: "Manual Analytics", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "ad_free", name: "Ad-Free Experience", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "posts", name: "Posts / mo", free: "3", creator: "30", professional: "100", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "brainstorms", name: "Brainstorms / mo", free: "2", creator: "20", professional: "200", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "chat_messages", name: "AI Chat Messages / mo", free: "20", creator: "200", professional: "500", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "scheduling", name: "Scheduled Posts / mo", free: "2", creator: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "versions", name: "Post Versions", free: "1", creator: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "image_generation", name: "AI Image Generation / mo", free: false, creator: "30", professional: "200", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "analytics", name: "Post Performance Analytics", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "ad_experience", name: "Ad Experience", free: "Full", creator: "Limited", professional: "None", team: "None", enterprise: "None" },
   { key: "workspaces", name: "Team Workspaces", free: false, creator: false, professional: false, team: true, enterprise: true },
   { key: "team_members", name: "Team Members", free: false, creator: false, professional: false, team: "5–150", enterprise: "150+" },
   { key: "brand_onboarding", name: "Brand Onboarding", free: false, creator: false, professional: false, team: true, enterprise: true },
-  { key: "content_library", name: "Content Library", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "hook_analysis", name: "Hook Analysis", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "templates", name: "Post Templates", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "content_library", name: "Content Library", free: false, creator: false, professional: true, team: true, enterprise: true },
+  { key: "hook_analysis", name: "AI Hook Analysis", free: false, creator: true, professional: true, team: true, enterprise: true },
+  { key: "templates", name: "Post Templates", free: false, creator: false, professional: true, team: true, enterprise: true },
   { key: "calendar", name: "Content Calendar", free: "View only", creator: true, professional: true, team: true, enterprise: true },
-  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "ai_models", name: "All AI Models", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "enhance", name: "Enhance & Hashtags", free: true, creator: true, professional: true, team: true, enterprise: true },
+  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, creator: false, professional: true, team: true, enterprise: true },
+  { key: "ai_models", name: "AI Models", free: "System", creator: "System", professional: "All", team: "All", enterprise: "All" },
+  { key: "enhance", name: "AI Enhancement & Hashtags", free: true, creator: true, professional: true, team: true, enterprise: true },
   { key: "support", name: "Support", free: "Community", creator: "Email", professional: "Priority", team: "Priority", enterprise: "Dedicated" },
 ] as const;
 
