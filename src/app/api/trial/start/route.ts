@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     if (!tier || !TRIABLE_TIERS.includes(tier)) {
       return NextResponse.json(
-        { error: "Invalid tier. Only Creator and Professional tiers are available for trial." },
+        { error: "Invalid tier. Only Personal and Professional tiers are available for trial." },
         { status: 400 }
       );
     }

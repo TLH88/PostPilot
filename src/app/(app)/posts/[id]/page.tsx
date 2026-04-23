@@ -1713,7 +1713,7 @@ export default function PostWorkspacePage() {
                   >
                     <Zap className="size-3.5 mr-2" />
                     {analyzingHook ? "Analyzing..." : "Analyze Hook"}
-                    {!hasFeature(userTier, "hook_analysis") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                    {!hasFeature(userTier, "hook_analysis") && <span className="ml-auto text-[10px] text-muted-foreground">Personal+</span>}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => insertAtCursor("\n")}>
                     <Pilcrow className="size-3.5 mr-2" />
@@ -1730,7 +1730,7 @@ export default function PostWorkspacePage() {
                   >
                     <BookOpen className="size-3.5 mr-2" />
                     Save to Library
-                    {!hasFeature(userTier, "content_library") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                    {!hasFeature(userTier, "content_library") && <span className="ml-auto text-[10px] text-muted-foreground">Personal+</span>}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={copyPostToClipboard}
@@ -1778,7 +1778,7 @@ export default function PostWorkspacePage() {
                     {imageUrl ? "Replace with AI" : "Generate with AI"}
                   </TooltipTrigger>
                   {!hasFeature(userTier, "image_generation") && (
-                    <TooltipContent>Creator plan required</TooltipContent>
+                    <TooltipContent>Personal plan or above required</TooltipContent>
                   )}
                 </Tooltip>
               </div>
@@ -2002,7 +2002,7 @@ export default function PostWorkspacePage() {
                     <div className="flex flex-col flex-1">
                       <div className="flex items-center gap-2">
                         <span>Save as Template</span>
-                        {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Creator+</span>}
+                        {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Personal+</span>}
                       </div>
                       <span className="text-[10px] text-muted-foreground leading-tight">
                         Reuse this structure as a starting point for future posts

@@ -51,7 +51,7 @@ const FAQ = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes! Creator and Professional plans include a 14-day free trial with full access to all features. No credit card required to start your trial.",
+    a: "Yes! Personal and Professional plans include a 14-day free trial with full access to all features. No credit card required to start your trial.",
   },
   {
     q: "How does billing work?",

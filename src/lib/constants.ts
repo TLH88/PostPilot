@@ -150,7 +150,9 @@ export const SUBSCRIPTION_TIERS: Record<
     limits: { posts: 3, brainstorms: 2, chat_messages: 20, scheduled_posts: 2 },
   },
   creator: {
-    label: "Creator",
+    // Display label only — the internal tier key stays "creator" so Stripe
+    // price lookups, DB values, and feature-gate checks keep working.
+    label: "Personal",
     price: "$19/mo",
     limits: { posts: -1, brainstorms: 15, chat_messages: 200, scheduled_posts: 15 },
   },

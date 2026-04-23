@@ -39,10 +39,10 @@ export function UpgradePrompt({
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold">
-              {feature} requires {tierLabel}
+              {feature} requires {tierLabel} or above
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Upgrade to {tierLabel} ({tierPrice}) to unlock {feature.toLowerCase()} and more.
+              Upgrade to {tierLabel} ({tierPrice}) or any higher plan to unlock {feature.toLowerCase()} and more.
             </p>
             <Link
               href="/pricing"

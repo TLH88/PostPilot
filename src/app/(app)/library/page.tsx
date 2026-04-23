@@ -45,17 +45,9 @@ export default function LibraryPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
-    // Fetch user's items + built-in items
-    const { data } = await supabase
-      .from("content_library")
-      .select("*")
-      .or(`user_id.eq.${user.id},is_builtin.eq.true`)
-      .order("is_builtin", { ascending: true })
-      .order("updated_at", { ascending: false });
-
-    setItems(data ?? []);
-
-    // Fetch pillars + tier for the save dialog
+    // Resolve tier first so we can short-circuit for free users. Built-in
+    // library items are RLS-readable by everyone (they're templates), so
+    // the only effective gate on what free users can see is this client.
     const { data: profile } = await supabase
       .from("creator_profiles")
       .select("content_pillars, subscription_tier")
@@ -65,10 +57,24 @@ export default function LibraryPage() {
     if (profile?.content_pillars) {
       setContentPillars(profile.content_pillars);
     }
-    if (profile?.subscription_tier) {
-      setTier(profile.subscription_tier as SubscriptionTier);
+    const resolvedTier = (profile?.subscription_tier as SubscriptionTier | undefined) ?? "free";
+    setTier(resolvedTier);
+
+    if (!hasFeature(resolvedTier, "content_library")) {
+      setItems([]);
+      setLoading(false);
+      return;
     }
 
+    // Fetch user's items + built-in items
+    const { data } = await supabase
+      .from("content_library")
+      .select("*")
+      .or(`user_id.eq.${user.id},is_builtin.eq.true`)
+      .order("is_builtin", { ascending: true })
+      .order("updated_at", { ascending: false });
+
+    setItems(data ?? []);
     setLoading(false);
   }, [supabase]);
 
@@ -135,10 +141,15 @@ export default function LibraryPage() {
         </Button>
       </div>
 
-      {/* Upgrade prompt for free tier */}
+      {/* Upgrade prompt for free tier — gate the whole library behind this.
+          Previously the items grid rendered for everyone, which let free
+          users copy built-in examples. */}
       {!canUseLibrary && (
         <UpgradePrompt feature="Content Library" requiredTier="creator" variant="banner" />
       )}
+
+      {canUseLibrary && (
+      <>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -282,6 +293,9 @@ export default function LibraryPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      </>
       )}
 
       {/* Save dialog */}
