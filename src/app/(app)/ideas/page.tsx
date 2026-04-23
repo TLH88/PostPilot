@@ -47,6 +47,7 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toUserMessage } from "@/lib/errors/to-user-message";
 import { formatDistanceToNow } from "date-fns";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 import { IdeaProcessFlow } from "@/components/ideas/idea-process-flow";
@@ -485,8 +486,7 @@ export default function IdeasPage() {
       );
       toast.success("Idea updated successfully!");
     } catch (error) {
-      console.error("Edit idea error:", error);
-      toast.error("Failed to update idea.");
+      toast.error(toUserMessage(error, "Failed to update idea."));
     }
   }
 
@@ -509,8 +509,7 @@ export default function IdeasPage() {
       );
       toast.success("Idea archived.");
     } catch (error) {
-      console.error("Archive idea error:", error);
-      toast.error("Failed to archive idea.");
+      toast.error(toUserMessage(error, "Failed to archive idea."));
     }
   }
 
@@ -577,8 +576,7 @@ export default function IdeasPage() {
       toast.success("Post created! Redirecting to editor...");
       router.push(`/posts/${post.id}?fromIdea=true&ideaDescription=${encodeURIComponent(idea.description || "")}`);
     } catch (error) {
-      console.error("Develop idea error:", error);
-      toast.error("Failed to create post from idea.");
+      toast.error(toUserMessage(error, "Failed to create post from idea."));
       setDevelopingId(null);
     }
   }
@@ -906,19 +904,24 @@ export default function IdeasPage() {
             <p className="text-sm text-muted-foreground">
               No ideas match your filters.
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2"
-              onClick={() => {
-                setStatusFilter("all");
-                setPriorityFilter("all");
-                setTagFilter([]);
-                setSearchQuery("");
-              }}
-            >
-              Clear filters
-            </Button>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                  setTagFilter([]);
+                  setSearchQuery("");
+                }}
+              >
+                Clear filters
+              </Button>
+              <Button size="sm" onClick={() => setGenerateOpen(true)}>
+                <Sparkles className="size-4" />
+                Generate new ideas
+              </Button>
+            </div>
           </div>
         )
       ) : (

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 /**
  * Persistent banner shown across all pages when LinkedIn posting is disconnected.
@@ -83,25 +82,24 @@ export function LinkedInStatusBanner() {
         <AlertTriangle className="size-4 shrink-0" />
         <span>LinkedIn posting is disconnected. Reconnect to publish posts directly.</span>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+      <button
+        type="button"
         disabled={connecting}
         onClick={() => {
           setConnecting(true);
           window.location.href = "/api/linkedin/connect";
         }}
+        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-blue-600 px-2.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {connecting ? (
           <>
-            <Loader2 className="size-3.5 animate-spin mr-1" />
+            <Loader2 className="size-3.5 animate-spin" />
             Connecting...
           </>
         ) : (
           "Reconnect Now"
         )}
-      </Button>
+      </button>
     </div>
   );
 }

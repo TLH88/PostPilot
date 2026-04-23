@@ -16,6 +16,8 @@ export interface CreatorProfile {
   use_emojis: boolean;
   use_hashtags: boolean;
   onboarding_completed: boolean;
+  /** Zero-indexed step the user last reached in onboarding. Null = not persisted yet. */
+  onboarding_current_step?: number | null;
   ai_provider: "anthropic" | "openai" | "google" | "perplexity";
   ai_model: string | null;
   ai_api_key_encrypted: string | null;

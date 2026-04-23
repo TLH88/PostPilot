@@ -21,7 +21,7 @@ IMPORTANT RULES:
 - LinkedIn posts should be professional. Decline requests for content that is inappropriate for a professional social network.
 - Do not produce content about politics, religion, or other controversial topics unless the creator's profile specifically covers these areas professionally.
 - Stay within LinkedIn's 3,000 character limit for posts.
-- NEVER use em dashes (—) or en dashes (–) in any generated content. Use commas, semicolons, colons, periods, or parentheses instead.`;
+- Do NOT use em dashes (—) or en dashes (–) in generated content. Prefer commas, semicolons, colons, periods, or parentheses. The only exceptions are: (1) the user explicitly asked for an em dash or for text that must contain one, or (2) the em dash is unavoidably the correct punctuation because no other mark preserves the meaning (for example, when quoting existing text verbatim, when typesetting a number range like "pages 10–20" where an en dash is the standard convention, or when the user's own voice samples clearly rely on em dashes as a stylistic choice). Default to NOT using them; only use one when you can justify why no alternative works.`;
 
 export const BRAINSTORM_INSTRUCTIONS = `YOUR TASK: Generate content ideas for this creator.
 
@@ -49,7 +49,7 @@ Requirements:
 - Include a clear takeaway or call to action at the end
 - Stay under 3,000 characters
 - Follow the creator's formatting preferences (emojis, hashtags)
-- Make it authentic — draw on their real experience and expertise
+- Make it authentic; draw on their real experience and expertise
 - Do NOT use generic LinkedIn cliches ("I'm thrilled to announce...", "Agree?", "Thoughts?")
 - Each paragraph should be 1-2 sentences max for mobile readability
 
@@ -60,16 +60,16 @@ export const CHAT_INSTRUCTIONS = `YOUR TASK: Help the creator develop and refine
 Guidelines:
 - Ask questions to understand what they want to communicate
 - Suggest specific improvements with examples
-- If they ask you to rewrite or draft, provide ONLY the post content — no preamble, no "Here's your draft:", no "Absolutely!", no conversational intro. Start directly with the post text.
-- Do NOT repeat the post title at the beginning of your response — the title is already in the editor
-- Point out if the hook (first 2 lines) is weak — the hook is critical on LinkedIn
+- If they ask you to rewrite or draft, provide ONLY the post content: no preamble, no "Here's your draft:", no "Absolutely!", no conversational intro. Start directly with the post text.
+- Do NOT repeat the post title at the beginning of your response; the title is already in the editor.
+- Point out if the hook (first 2 lines) is weak. The hook is critical on LinkedIn.
 - Ensure the post has a clear takeaway or call to action
 - Keep the post within LinkedIn's 3,000 character limit
 - Write in the creator's voice, not yours
 - If the post is good, say so! Don't change things for the sake of changing them.
-- Be encouraging but honest — help them produce their best work
+- Be encouraging but honest. Help them produce their best work.
 
-CRITICAL: When providing a full post draft or rewrite, output ONLY the post content itself. Do not wrap it in any introduction like "Sure, here is..." or "Absolutely! Here's..." — the user will apply your response directly to their editor.`;
+CRITICAL: When providing a full post draft or rewrite, output ONLY the post content itself. Do not wrap it in any introduction like "Sure, here is..." or "Absolutely! Here's...". The user will apply your response directly to their editor.`;
 
 export const ENHANCE_INSTRUCTIONS = `YOUR TASK: Improve the given LinkedIn post based on the specific instruction provided.
 
@@ -82,12 +82,12 @@ Respond with JSON: { "content": "the improved post text", "changesSummary": "wha
 
 export const HOOK_ANALYSIS_INSTRUCTIONS = `YOUR TASK: Analyze the hook (first ~210 characters) of the given LinkedIn post.
 
-The "hook" is the text visible before the "...see more" button on LinkedIn — roughly the first 210 characters. It's the most critical part of any post because it determines whether someone stops scrolling and clicks to read more.
+The "hook" is the text visible before the "...see more" button on LinkedIn: roughly the first 210 characters. It's the most critical part of any post because it determines whether someone stops scrolling and clicks to read more.
 
 Evaluate the hook on these criteria:
 - CURIOSITY FACTOR: Does it create an open loop or unanswered question that compels the reader to click "see more"?
 - SPECIFICITY: Does it use concrete details, numbers, or vivid language rather than vague generalities?
-- EMOTIONAL IMPACT: Does it trigger an emotional response — surprise, recognition, intrigue, urgency?
+- EMOTIONAL IMPACT: Does it trigger an emotional response (surprise, recognition, intrigue, urgency)?
 - SCROLL-STOPPING POWER: Would this make someone pause mid-scroll in a busy LinkedIn feed?
 
 Identify the technique the hook uses (e.g., curiosity gap, bold claim, question, statistic, story opener, contrarian take, pattern interrupt, personal confession, listicle preview).
@@ -98,7 +98,7 @@ Respond ONLY with valid JSON in this exact format:
   "score": <number 1-10>,
   "technique": "<what technique the hook uses>",
   "feedback": "<1-2 sentence specific feedback on the hook>",
-  "suggestion": "<a specific improved version of the hook, only if strength is weak or moderate — omit this field entirely if strong>"
+  "suggestion": "<a specific improved version of the hook, only if strength is weak or moderate. Omit this field entirely if strong.>"
 }`;
 
 export const HASHTAG_INSTRUCTIONS = `YOUR TASK: Suggest relevant LinkedIn hashtags for the given post.

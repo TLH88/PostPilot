@@ -41,6 +41,7 @@ export default function AnalyticsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [topPostsExpanded, setTopPostsExpanded] = useState(false);
   const [topPostsPage, setTopPostsPage] = useState(0);
+  const [topPostsMetric, setTopPostsMetric] = useState<"impressions" | "engagement">("impressions");
   const [pillarsExpanded, setPillarsExpanded] = useState(false);
   const [pillarsPage, setPillarsPage] = useState(0);
   const [trackedExpanded, setTrackedExpanded] = useState(false);
@@ -89,10 +90,25 @@ export default function AnalyticsPage() {
     ? ((totalReactions + totalComments + totalReposts) / totalImpressions * 100).toFixed(1)
     : "0.0";
 
-  // Top posts by impressions (sorted, not sliced — pagination handles display)
-  const allTopPosts = [...trackedPosts]
+  // Helper: derive an engagement total for a post. Prefer LinkedIn's
+  // aggregated `engagements` field when present; otherwise fall back to
+  // reactions + comments + reposts.
+  function engagementTotal(p: Post): number {
+    if (typeof p.engagements === "number" && p.engagements > 0) return p.engagements;
+    return (p.reactions ?? 0) + (p.comments_count ?? 0) + (p.reposts ?? 0);
+  }
+
+  // Sorted lists for the "Top Performing Posts" card — one per metric.
+  // Pagination handles display.
+  const topPostsByImpressions = [...trackedPosts]
     .sort((a, b) => (b.impressions ?? 0) - (a.impressions ?? 0));
-  const maxImpressions = allTopPosts[0]?.impressions ?? 1;
+  const topPostsByEngagement = [...trackedPosts]
+    .sort((a, b) => engagementTotal(b) - engagementTotal(a));
+  const allTopPosts =
+    topPostsMetric === "impressions" ? topPostsByImpressions : topPostsByEngagement;
+  const topMetricValue = (p: Post): number =>
+    topPostsMetric === "impressions" ? (p.impressions ?? 0) : engagementTotal(p);
+  const maxTopMetric = topMetricValue(allTopPosts[0] ?? ({} as Post)) || 1;
 
   // Pillar performance
   const pillarMap = new Map<string, { impressions: number; reactions: number; count: number }>();
@@ -226,13 +242,50 @@ export default function AnalyticsPage() {
             </Card>
           ) : (
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Top Posts by Impressions */}
+              {/* Top Performing Posts */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Eye className="size-4 text-blue-500" />
-                    Top Posts by Impressions
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      {topPostsMetric === "impressions" ? (
+                        <Eye className="size-4 text-blue-500" />
+                      ) : (
+                        <Heart className="size-4 text-emerald-500" />
+                      )}
+                      Top Performing Posts
+                    </CardTitle>
+                    {/* Metric toggle — mirrors the trends chart toggle */}
+                    <div className="flex rounded-lg border border-input p-0.5 bg-muted/50 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTopPostsMetric("impressions");
+                          setTopPostsPage(0);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          topPostsMetric === "impressions"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Impressions
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTopPostsMetric("engagement");
+                          setTopPostsPage(0);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          topPostsMetric === "engagement"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Engagement
+                      </button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {(() => {
@@ -243,11 +296,16 @@ export default function AnalyticsPage() {
                       ? allTopPosts.slice(topPostsPage * PAGE_SIZE, (topPostsPage + 1) * PAGE_SIZE)
                       : allTopPosts.slice(0, defaultCount);
                     const totalPages = Math.ceil(total / PAGE_SIZE);
+                    const barColor =
+                      topPostsMetric === "impressions"
+                        ? "bg-blue-500"
+                        : "bg-emerald-500";
 
                     return (
                       <>
                         {visible.map((post) => {
-                          const pct = maxImpressions > 0 ? ((post.impressions ?? 0) / maxImpressions) * 100 : 0;
+                          const value = topMetricValue(post);
+                          const pct = maxTopMetric > 0 ? (value / maxTopMetric) * 100 : 0;
                           return (
                             <Link key={post.id} href={`/posts/${post.id}`} className="block">
                               <div className="rounded-md p-2 hover:bg-hover-highlight transition-colors space-y-1">
@@ -256,11 +314,14 @@ export default function AnalyticsPage() {
                                     {post.title || (post.content?.slice(0, 40) + "...") || "Untitled"}
                                   </span>
                                   <span className="text-muted-foreground tabular-nums shrink-0">
-                                    {(post.impressions ?? 0).toLocaleString()}
+                                    {value.toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                  <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
+                                  <div
+                                    className={`h-full rounded-full ${barColor} transition-all`}
+                                    style={{ width: `${Math.max(pct, 2)}%` }}
+                                  />
                                 </div>
                               </div>
                             </Link>
@@ -413,8 +474,8 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 {(() => {
-                  const PAGE_SIZE = 25;
-                  const defaultCount = 25;
+                  const PAGE_SIZE = 10;
+                  const defaultCount = 10;
 
                   const sortedPosts = [...trackedPosts].sort((a, b) => {
                     if (sortColumn === "posted_at") {

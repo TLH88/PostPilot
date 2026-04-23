@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart3, ChevronDown, ChevronRight, Info } from "lucide-react";
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -10,11 +16,20 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+const MODAL_PAGE_SIZE = 25;
 
 // ─── Category Mapping ─────────────────────────────────────────────────────────
 // Groups individual pillars into broader categories based on keyword matching.
@@ -226,19 +241,33 @@ interface ContentPillarBalanceProps {
   pillarCounts: Record<string, number>;
   totalPosts: number;
   title?: string;
+  /**
+   * When set, only the top `previewLimit` categories are shown in the card
+   * and a "View all" button opens a paginated modal listing every category.
+   */
+  previewLimit?: number;
 }
 
 export function ContentPillarBalance({
   pillarCounts,
   totalPosts,
   title,
+  previewLimit,
 }: ContentPillarBalanceProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
+  const [viewAllOpen, setViewAllOpen] = useState(false);
 
   const categories = categorizePillars(pillarCounts);
   const hasUnderserved = categories.some((c) => c.totalCount === 0);
+
+  const visibleCategories =
+    typeof previewLimit === "number"
+      ? categories.slice(0, previewLimit)
+      : categories;
+  const hasMore =
+    typeof previewLimit === "number" && categories.length > previewLimit;
 
   function toggleCategory(name: string) {
     setExpandedCategories((prev) => {
@@ -291,7 +320,7 @@ export function ContentPillarBalance({
           </p>
         ) : (
           <div className="space-y-2">
-            {categories.map((category) => {
+            {visibleCategories.map((category) => {
               const pct =
                 totalPosts > 0
                   ? Math.round((category.totalCount / totalPosts) * 100)
@@ -393,7 +422,162 @@ export function ContentPillarBalance({
             })}
           </div>
         )}
+        {hasMore && totalPosts > 0 && (
+          <button
+            type="button"
+            onClick={() => setViewAllOpen(true)}
+            className="mt-3 w-full text-center text-xs font-medium text-primary hover:underline"
+          >
+            View all categories
+          </button>
+        )}
       </CardContent>
+      {hasMore && (
+        <ContentBalanceModal
+          open={viewAllOpen}
+          onOpenChange={setViewAllOpen}
+          categories={categories}
+          totalPosts={totalPosts}
+          title={title ?? "Content Balance"}
+        />
+      )}
     </Card>
+  );
+}
+
+// ─── View-all modal ───────────────────────────────────────────────────────────
+
+interface ContentBalanceModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categories: PillarCategory[];
+  totalPosts: number;
+  title: string;
+}
+
+function ContentBalanceModal({
+  open,
+  onOpenChange,
+  categories,
+  totalPosts,
+  title,
+}: ContentBalanceModalProps) {
+  const [page, setPage] = useState(0);
+
+  const total = categories.length;
+  const totalPages = Math.max(1, Math.ceil(total / MODAL_PAGE_SIZE));
+  const start = page * MODAL_PAGE_SIZE;
+  const visible = categories.slice(start, start + MODAL_PAGE_SIZE);
+  const canPrev = page > 0;
+  const canNext = page < totalPages - 1;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[640px] max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {visible.map((category) => {
+            const pct =
+              totalPosts > 0
+                ? Math.round((category.totalCount / totalPosts) * 100)
+                : 0;
+            const isUnderserved = category.totalCount === 0;
+            return (
+              <div key={category.name} className="space-y-1 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span
+                    className={
+                      isUnderserved
+                        ? "text-yellow-600 font-medium"
+                        : "font-medium"
+                    }
+                  >
+                    {category.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {category.totalCount} post
+                    {category.totalCount !== 1 ? "s" : ""} ({pct}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      isUnderserved ? "bg-yellow-300" : "bg-primary"
+                    }`}
+                    style={{ width: `${Math.max(pct, 2)}%` }}
+                  />
+                </div>
+                {category.pillars.length > 1 && (
+                  <div className="ml-3 mt-1 space-y-1 border-l-2 border-muted pl-3">
+                    {category.pillars.map((pillar) => {
+                      const pillarPct =
+                        totalPosts > 0
+                          ? Math.round((pillar.count / totalPosts) * 100)
+                          : 0;
+                      return (
+                        <div
+                          key={pillar.name}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <span
+                            className={
+                              pillar.count === 0
+                                ? "text-yellow-600"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {pillar.name}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">
+                            {pillar.count} post
+                            {pillar.count !== 1 ? "s" : ""} ({pillarPct}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
+          <span>
+            {total === 0
+              ? "0 categories"
+              : `${start + 1}–${Math.min(start + MODAL_PAGE_SIZE, total)} of ${total}`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={!canPrev}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft className="size-3.5" />
+              Previous
+            </Button>
+            <span className="tabular-nums">
+              Page {page + 1} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              disabled={!canNext}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

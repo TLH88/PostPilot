@@ -202,7 +202,9 @@ export default async function PostsPage() {
   const archivedPosts = allPosts.filter((p) => p.status === "archived");
 
   // Grouped filters
-  const inWorkPosts = allPosts.filter((p) => ["draft", "review", "scheduled"].includes(p.status));
+  // Scheduled posts have their own tab — keep "In Work" focused on the
+  // stages where the user is actively editing or reviewing.
+  const inWorkPosts = allPosts.filter((p) => ["draft", "review"].includes(p.status));
   const completePosts = allPosts.filter((p) => ["posted", "archived"].includes(p.status));
 
   return (
@@ -282,9 +284,6 @@ export default async function PostsPage() {
           <TabsTrigger value="in_work">
             In Work ({inWorkPosts.length})
           </TabsTrigger>
-          <TabsTrigger value="complete">
-            Complete ({completePosts.length})
-          </TabsTrigger>
           <TabsTrigger value="draft">
             Drafts ({draftPosts.length})
           </TabsTrigger>
@@ -297,12 +296,18 @@ export default async function PostsPage() {
             Scheduled ({scheduledPosts.length})
           </TabsTrigger>
           {pastDuePosts.length > 0 && (
-            <TabsTrigger value="past_due">
+            <TabsTrigger
+              value="past_due"
+              title="Posts that missed their scheduled publish time. Reschedule, publish now, or mark as posted to resolve."
+            >
               Past Due ({pastDuePosts.length})
             </TabsTrigger>
           )}
           <TabsTrigger value="posted">
             Posted ({postedPosts.length})
+          </TabsTrigger>
+          <TabsTrigger value="complete">
+            Complete ({completePosts.length})
           </TabsTrigger>
           {archivedPosts.length > 0 && (
             <TabsTrigger value="archived">
@@ -328,8 +333,19 @@ export default async function PostsPage() {
 
         <TabsContent value="complete">
           {completePosts.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No completed posts yet.
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                You haven&apos;t published any posts yet.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <NewPostButton label="Start a draft" />
+                <Link
+                  href="/calendar"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm hover:bg-accent"
+                >
+                  View calendar
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

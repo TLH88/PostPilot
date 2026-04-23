@@ -10,11 +10,57 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CalendarClock, Info, Link2Off } from "lucide-react";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
+import { ScheduleDialog } from "@/components/schedule-dialog";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
+
+function humanizePublishError(raw: string | null): {
+  message: string;
+  needsReconnect: boolean;
+} {
+  if (!raw) return { message: "", needsReconnect: false };
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("revoked_access_token") ||
+    lower.includes("token has been revoked")
+  ) {
+    return {
+      message:
+        "LinkedIn disconnected PostPilot, so we couldn't publish. Reconnect LinkedIn in Settings and try again.",
+      needsReconnect: true,
+    };
+  }
+  if (lower.includes("expired_access_token") || lower.includes("jwt expired")) {
+    return {
+      message:
+        "Your LinkedIn session expired before we could publish. Reconnect LinkedIn in Settings and try again.",
+      needsReconnect: true,
+    };
+  }
+  if (lower.includes("401") || lower.includes("unauthorized")) {
+    return {
+      message:
+        "LinkedIn rejected our authorization. Reconnect LinkedIn in Settings and try again.",
+      needsReconnect: true,
+    };
+  }
+  if (lower.includes("429") || lower.includes("rate limit")) {
+    return {
+      message:
+        "LinkedIn is temporarily rate-limiting this account. Wait a few minutes and try publishing again.",
+      needsReconnect: false,
+    };
+  }
+  // Fallback — show a short, generic message. We intentionally do NOT dump
+  // the raw JSON to the user.
+  return {
+    message: "LinkedIn rejected the post. Try publishing again, or reconnect LinkedIn if the issue persists.",
+    needsReconnect: false,
+  };
+}
 
 interface PastDuePost {
   id: string;
@@ -31,6 +77,7 @@ export function PastDueChecker() {
   const [open, setOpen] = useState(false);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [publishPreviewOpen, setPublishPreviewOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [authorName, setAuthorName] = useState("Your Name");
   const [authorHeadline, setAuthorHeadline] = useState("Your headline");
 
@@ -144,14 +191,6 @@ export function PastDueChecker() {
     moveToNext();
   }
 
-  async function handleNotYet() {
-    await supabase
-      .from("posts")
-      .update({ status: "past_due" })
-      .eq("id", current.id);
-    moveToNext();
-  }
-
   function handlePublishNow() {
     if (linkedinConnected) {
       // Open preview dialog
@@ -162,32 +201,129 @@ export function PastDueChecker() {
     }
   }
 
+  async function handleReschedule(date: Date) {
+    // Security: scoped by id; RLS enforces user ownership. We only touch
+    // scheduling fields — never publish directly from this flow.
+    await supabase
+      .from("posts")
+      .update({
+        status: "scheduled",
+        scheduled_for: date.toISOString(),
+        publish_error: null,
+      })
+      .eq("id", current.id);
+    setRescheduleOpen(false);
+    moveToNext();
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Scheduled Post Past Due</DialogTitle>
-            <DialogDescription>
-              This post was scheduled for {scheduledDate}. Did you post it to
-              LinkedIn?
-            </DialogDescription>
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <DialogTitle>A Scheduled Post Failed to Publish to LinkedIn</DialogTitle>
+                <DialogDescription>
+                  Review the details below and choose how you want to resolve it.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-3 rounded-lg border bg-muted/50 p-4">
-            <p className="text-sm font-medium">{displayTitle}</p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {contentSummary}
+          {/* 1. Which post failed */}
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              The post that failed
             </p>
-            <p className="text-xs text-muted-foreground">
-              Scheduled: {scheduledDate}
-            </p>
-            {current.publish_error && (
-              <div className="flex items-start gap-2 rounded-md bg-red-50 p-2 text-xs text-red-700">
-                <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
-                <span>Auto-publish failed: {current.publish_error}</span>
+            <div className="space-y-2 rounded-lg border bg-muted/50 p-4">
+              <p className="text-sm font-semibold break-words">{displayTitle}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed break-words">
+                {contentSummary}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Scheduled for: {scheduledDate}
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Root cause + fix */}
+          {(() => {
+            const humanized = humanizePublishError(current.publish_error);
+            // Strong signals of an auth issue — lead with certainty.
+            const definitelyAuth = humanized.needsReconnect || !linkedinConnected;
+            const isNonAuthError =
+              !!current.publish_error && !humanized.needsReconnect;
+            const headline = isNonAuthError
+              ? "LinkedIn rejected the publish request"
+              : definitelyAuth
+                ? "LinkedIn needs to be reconnected"
+                : "LinkedIn may need to be reconnected";
+            const explainer = humanized.needsReconnect
+              ? humanized.message
+              : isNonAuthError
+                ? humanized.message
+                : !linkedinConnected
+                  ? "PostPilot isn't currently connected to LinkedIn, so auto-publish can't run. Reconnect to restore publishing permissions."
+                  : "Auto-publish to LinkedIn failed. The most common cause is that LinkedIn's connection to PostPilot was revoked or became invalid. LinkedIn doesn't notify us when this happens, so we can't always detect it. Reconnect to refresh your publishing permissions.";
+
+            return (
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Likely cause
+                </p>
+                <div className="rounded-lg border border-red-200 bg-red-50/80 p-3.5 dark:border-red-900/50 dark:bg-red-950/30">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+                      <Link2Off className="size-4 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div>
+                        <p className="text-sm font-semibold text-red-900 dark:text-red-200">
+                          {headline}
+                        </p>
+                        <p className="mt-1 text-xs text-red-800/90 dark:text-red-300/90 break-words">
+                          {explainer}
+                        </p>
+                        <p className="mt-1 text-[11px] text-red-800/70 dark:text-red-300/70">
+                          You&apos;ll be sent to LinkedIn to approve PostPilot, then returned here.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          window.location.href = "/api/linkedin/connect";
+                        }}
+                        className="gap-1.5 bg-red-600 text-white hover:bg-red-700"
+                      >
+                        <LinkedInIcon className="size-3.5" />
+                        Reconnect LinkedIn
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+            );
+          })()}
+
+          {/* 3. Explain the action buttons */}
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Your options
+            </p>
+            <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50/60 p-2.5 text-xs text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+              <Info className="size-3.5 mt-0.5 shrink-0" />
+              <span>
+                <strong>Reschedule</strong> picks a new date and time.{" "}
+                <strong>Publish now</strong> sends it to LinkedIn immediately
+                (requires a working connection).{" "}
+                <strong>I posted it manually</strong> marks it as posted if you
+                already shared it yourself.
+              </span>
+            </div>
           </div>
 
           {posts.length > 1 && (
@@ -196,20 +332,25 @@ export function PastDueChecker() {
             </p>
           )}
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={handleNotYet}>
-              Not yet
+          <DialogFooter className="flex flex-wrap justify-end gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setRescheduleOpen(true)}
+            >
+              <CalendarClock className="size-3.5" />
+              Reschedule
             </Button>
             <Button
               variant="outline"
-              className="gap-2"
+              size="sm"
               onClick={handlePublishNow}
             >
-              <LinkedInIcon className="size-3.5 text-[#0A66C2]" />
-              {linkedinConnected ? "Publish to LinkedIn now" : "Post to LinkedIn now"}
+              {linkedinConnected ? "Publish now" : "Open LinkedIn"}
             </Button>
-            <Button onClick={handleConfirmPosted}>
-              Yes, I posted it to LinkedIn
+            <Button size="sm" onClick={handleConfirmPosted}>
+              I posted it manually
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -228,6 +369,13 @@ export function PastDueChecker() {
         showEditorLink
         onPublished={() => moveToNext()}
         onTokenExpired={() => setLinkedinConnected(false)}
+      />
+
+      {/* Reschedule dialog */}
+      <ScheduleDialog
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+        onSchedule={handleReschedule}
       />
     </>
   );

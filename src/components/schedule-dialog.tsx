@@ -26,6 +26,20 @@ interface ScheduleDialogProps {
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
 const MINUTES = ["00", "15", "30", "45"];
 
+function clampHour(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  if (n < 1) return 1;
+  if (n > 12) return 12;
+  return Math.floor(n);
+}
+
+function clampMinute(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 59) return 59;
+  return Math.floor(n);
+}
+
 /** Get the next N upcoming suggested time slots from now */
 function getUpcomingSuggestions(count: number): Date[] {
   const now = new Date();
@@ -209,35 +223,56 @@ export function ScheduleDialog({
               Time
             </label>
             <div className="flex items-center gap-2">
-              <select
+              <input
+                list="schedule-hours"
+                inputMode="numeric"
                 value={hour}
-                onChange={(e) => setHour(parseInt(e.target.value))}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") return;
+                  const n = parseInt(raw, 10);
+                  if (Number.isFinite(n)) setHour(n);
+                }}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setHour(clampHour(n));
+                }}
+                aria-label="Hour"
                 className={cn(
-                  "h-9 rounded-md border border-input bg-popover text-popover-foreground px-2 text-sm outline-none",
+                  "h-9 w-16 rounded-md border border-input bg-popover text-popover-foreground px-2 text-sm outline-none tabular-nums",
                   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 )}
-              >
+              />
+              <datalist id="schedule-hours">
                 {HOURS.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
+                  <option key={h} value={h} />
                 ))}
-              </select>
+              </datalist>
               <span className="text-sm font-medium">:</span>
-              <select
+              <input
+                list="schedule-minutes"
+                inputMode="numeric"
                 value={minute}
-                onChange={(e) => setMinute(e.target.value)}
+                onChange={(e) => {
+                  // Allow freehand typing — no padding mid-edit
+                  setMinute(e.target.value);
+                }}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  const clamped = Number.isFinite(n) ? clampMinute(n) : 0;
+                  setMinute(String(clamped).padStart(2, "0"));
+                }}
+                aria-label="Minute"
                 className={cn(
-                  "h-9 rounded-md border border-input bg-popover text-popover-foreground px-2 text-sm outline-none",
+                  "h-9 w-16 rounded-md border border-input bg-popover text-popover-foreground px-2 text-sm outline-none tabular-nums",
                   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 )}
-              >
+              />
+              <datalist id="schedule-minutes">
                 {MINUTES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
+                  <option key={m} value={m} />
                 ))}
-              </select>
+              </datalist>
               <div className="flex rounded-md border border-input">
                 <button
                   type="button"
@@ -268,11 +303,18 @@ export function ScheduleDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col sm:items-stretch">
+          {!isValid && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              {!selectedDate
+                ? "Pick a date on the calendar above to continue."
+                : "That time has already passed. Pick a time in the future."}
+            </p>
+          )}
           <Button
             onClick={handleSchedule}
             disabled={!isValid}
-            className="gap-1.5"
+            className="gap-1.5 self-end"
           >
             <CalendarIcon className="size-3.5" />
             Schedule Post

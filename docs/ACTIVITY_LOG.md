@@ -4,6 +4,95 @@
 
 ---
 
+## 2026-04-23: BP-111 token validation, Past-Due redesign, Dashboard rework, Analytics toggle
+
+Big session of UX + reliability polish. All DB migrations applied to production Supabase via MCP. No API contracts changed.
+
+### Reliability & security
+- **BP-111 — Proactive LinkedIn token validation** (P1 / High). LinkedIn doesn't notify us when a user revokes PostPilot from their side, so the old `/api/linkedin/status` endpoint could report "connected" even when the token was dead. Shipped:
+  - Migration `20260423_add_linkedin_token_validated_at.sql` — adds nullable `linkedin_token_validated_at timestamptz` to `creator_profiles`.
+  - New endpoint `POST /api/linkedin/validate` — makes a live `/v2/userinfo` call against the stored token, falls back to the refresh-token flow on 401, and on hard failure clears every `linkedin_*` column on the profile. Throttled to at most one real LinkedIn call per user per hour via the new column.
+  - New client component `src/components/linkedin/token-validator.tsx` mounted in `(app)/layout.tsx`. Fires once per browser session on mount; on a revoked/refresh_failed result it shows a reconnect toast and `router.refresh()`es so the existing global `LinkedInStatusBanner` surfaces immediately.
+- **BP-103 migration applied to production** via Supabase MCP — contextual onboarding CTA now fully active.
+
+### Past-Due dialog redesign
+- Title changed to **"A Scheduled Post Failed to Publish to LinkedIn"** with amber caution icon pill.
+- Restructured into three labeled sections: **The post that failed** → **Likely cause** → **Your options**.
+- Raw LinkedIn error JSON replaced with a `humanizePublishError()` mapping (revoked, expired, 401, 429, generic).
+- **Likely cause** section now always renders with a prominent **Reconnect LinkedIn** button that drives `/api/linkedin/connect`, because we can't reliably detect a revoked-on-LinkedIn's-side token. Copy adapts between "needs to be" (definite) and "may need to be" (uncertain).
+- "Not yet" button removed (it was effectively a no-op — the post was already `past_due`). Remaining buttons: Reschedule, Publish now (no LinkedIn icon), I posted it manually.
+- Dialog widened 480 → 600px, added `break-words` so long titles don't overflow.
+
+### Schedule Dialog improvements
+- Hour + minute inputs now use `<input list="…">` + `<datalist>` so users can type any hour 1–12 or minute 0–59 freely while still getting the preset dropdown (00/15/30/45). Values clamped and zero-padded on blur.
+- Added amber feedback when the Schedule Post button is disabled: either *"Pick a date on the calendar above to continue."* or *"That time has already passed. Pick a time in the future."*
+- Calendar reschedule now opens the same `LinkedInShareDialog` confirmation that the editor uses (instead of a plain toast).
+
+### Dashboard rework
+- Welcome greeting uses first name only. Subtitle + Recent Ideas description rewritten in a collaborative "creative partner" tone.
+- Right column widened 20% → 24%; removed the misaligned top spacer so the Monthly Usage card now sits flush with the left column's first section.
+- Recent Drafts grid: `xl:grid-cols-4` → `xl:grid-cols-3`.
+- Drafts limit dropped from 5 → 3; added two new sections with the same pattern: **Recent Scheduled Posts** (purple) and **Recently Posted** (emerald). Extracted a local `PostCardsSection` helper to share the layout.
+- Each of the three post sections now sits in its own themed container (colored left border + subtle background tint + icon pill) that echoes the stats row at the top.
+- Recent Ideas list now shows a one-line truncated description beneath each title.
+- `Info` tooltips added to every dashboard section: Recent Drafts, Recent Scheduled Posts, Recently Posted, Recent Ideas, Monthly Usage, Recent Activity. Content Balance already had one.
+- AI-provider guard and onboarding banner unchanged.
+
+### Calendar entries (dark-mode fix)
+- `POST_STATUSES` and `PUBLISH_METHODS` color classes swapped: previously `bg-<color>-100 text-<color>-800` (washed out in dark mode), now `bg-<color>-800 text-<color>-100` (saturated pill + light text). Works in both modes; different statuses are now visually distinct.
+
+### Posts page
+- Scheduled removed from the **In Work** filter — scheduled posts only appear in their own tab + All.
+- Tab order reorganized: **In Work · Drafts · In Review · Scheduled · Past Due · Posted · Complete · Archived · All**. In Review / Past Due still render conditionally.
+
+### Analytics page
+- `All Tracked Posts` paginated at **10 per page** (was 25).
+- `Top Posts by Impressions` card renamed to **Top Performing Posts** with a toggle mirroring the Post Trends chart pattern. Flips between **Impressions** (blue bar + eye icon) and **Engagement** (emerald bar + heart icon). Engagement uses LinkedIn's aggregated `engagements` field when present, otherwise `reactions + comments_count + reposts`.
+
+### AI prompt fix
+- The em-dash rule in `src/lib/ai/prompts.ts` was silently self-defeating because the surrounding prompt text itself was full of em dashes — models strongly mimic the punctuation style of their own system prompt. Stripped em dashes from the prompt instructions; rewrote the rule to allow em dashes only when explicitly requested or unavoidably correct (e.g. quoting verbatim).
+
+### UI / polish
+- Global `LinkedInStatusBanner` "Reconnect Now" button: the `Button` component's `outline` variant turned out to be an exact copy of `default` (blue gradient), which overrode the amber utility classes. Swapped to a native `<button>` with explicit `bg-blue-600 text-white` styling that reads the same in both modes. Captured the root cause as **BP-112** (Button outline variant footgun) for later cleanup.
+- Removed duplicate LinkedIn banners from Posts & Calendar — the layout's global banner already covers this. BP-104 marked **Superseded**.
+- Empty-state CTA polish on Ideas filtered-empty and Posts "Complete" tab (shared component + contextual buttons).
+
+### Backlog activity
+- New: **BP-110** (Cancel In-Progress Image Generation, P2 / M), **BP-111** (shipped this session), **BP-112** (Button outline variant fix, P3 / S).
+- Moved to Done: **BP-102, 103, 105, 106, 107, 108, 109, 111**.
+- Superseded: **BP-104** (covered by existing global banner + BP-111 validation).
+
+### Migrations applied to production
+- `20260422_add_onboarding_current_step.sql` (deferred from yesterday's session — applied today).
+- `20260423_add_linkedin_token_validated_at.sql`.
+
+---
+
+## 2026-04-22: UX Improvement Run — BP-102 through BP-109 [UX-IMPROVE-2026-04-22]
+
+Ran a functional/UX review of the app, added 8 backlog items (BP-102–BP-109) and landed all 8 in a single session. Every change is additive and behind existing permission/RLS checks; no API contracts changed.
+
+- **BP-102 — AI-provider guard**: new `src/lib/ai/has-ai-access.ts` helper mirrors the client-safe subset of `getUserAIClient()` logic. Dashboard now renders an amber warning card when the user has no usable AI access (no BYOK key, gateway unavailable, no managed/trial access); Generate Ideas button gains a `disabledReason` prop and is disabled with a tooltip. Authoritative server-side checks in `/api/ai/*` are untouched.
+- **BP-103 — Contextual onboarding CTA**: new migration `20260422_add_onboarding_current_step.sql` adds a nullable `onboarding_current_step` column. Onboarding page persists the step on each Next (fire-and-forget, RLS-scoped) and hydrates on mount. Dashboard banner now reads "Step X of 6 — <label>" with a resume link when progress exists; falls back to the prior binary copy if the column isn't present yet. Queries touching the new column are wrapped in try/catch so deploys without the migration still work.
+- **BP-104 — LinkedIn connection banner**: new `src/components/linkedin/connection-banner.tsx` (server) and `connection-banner-client.tsx` (client). Rendered on `/posts` (server) and `/calendar` (client — fetches `/api/linkedin/status`). Error variant for disconnected/expired, amber warning when ≤ 7 days remain. Fails open.
+- **BP-105 — BYOK copy rewrite**: settings header renamed to "AI Model (Optional)" with plain-English copy. Gateway toggle relabeled "Use PostPilot's built-in AI". Locked-state copy softened.
+- **BP-106 — Past-Due clarification**: `PastDueChecker` now has an inline explainer banner and a new **Reschedule** action that opens the existing `ScheduleDialog`. Tooltip added to the Past Due tab. Reschedule only updates `scheduled_for` + status and clears `publish_error` — never publishes.
+- **BP-107 — Idea→Post context**: post editor fetches and shows a "From: <idea title>" badge linking back to the idea when `posts.idea_id` is set. New-post default title changed from "Untitled Post" to `null` so the list falls back to a content preview.
+- **BP-108 — Error-message mapping**: new `src/lib/errors/to-user-message.ts` classifies Supabase codes (PGRST*, 23505, 23503, 42501), HTTP statuses, network errors, RLS/permission, rate-limit, and AI-key failures. Logs raw errors for debuggability. Migrated top call sites in `ideas/page.tsx` and `new-post-button.tsx`; remaining ~60 call sites will migrate opportunistically.
+- **BP-109 — Shared EmptyState + CTA fixes**: new `src/components/ui/empty-state.tsx`. Ideas filtered-empty now offers "Clear filters" + "Generate new ideas"; Posts "Complete" tab now offers "Start a draft" + "View calendar" instead of a bare "No completed posts yet."
+
+### Deploy checklist
+- Run migration `20260422_add_onboarding_current_step.sql` before / alongside the code deploy. Dashboard and onboarding are defensive and will tolerate a lag, but the contextual CTA stays in "binary" mode until the column exists.
+- No other schema changes. `posts.idea_id` is already present in the schema.
+- No API contracts changed. `/api/linkedin/status` response shape is unchanged.
+
+### Deferred in this run
+- **BP-102 post-editor AI chat guard**: would require refactoring the editor's client component. Left as follow-up.
+- **BP-108 bulk migration of remaining `toast.error` sites**: mapper is shipped; rest can migrate opportunistically to avoid a noisy single PR.
+- **BP-109 full first-run EmptyState migration on ideas/posts**: shared component shipped; first-run states already had reasonable CTAs and were not the bottleneck. Filtered / "complete-tab" dead-ends — the actual user-facing problems — are resolved.
+
+---
+
 ## 2026-04-16: Team Collaboration Features, Trial System, Analytics Polish
 
 ### BP-087: Published Post View + BP-025 API Prep

@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId } from "@/lib/workspace";
 import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
+import { toUserMessage } from "@/lib/errors/to-user-message";
 
 const SLOW_THRESHOLD_MS = 10_000; // 10 seconds — show "taking longer" message
 const FAIL_THRESHOLD_MS = 60_000; // 60 seconds — show error + log
@@ -132,7 +133,7 @@ export function NewPostButton({ className, label, id }: { className?: string; la
       const activeWorkspaceId = getActiveWorkspaceId();
       const insertPayload: Record<string, unknown> = {
         user_id: user.id,
-        title: "Untitled Post",
+        title: null,
         content: "",
         status: "draft",
         hashtags: [],
@@ -152,7 +153,7 @@ export function NewPostButton({ className, label, id }: { className?: string; la
         .single();
 
       if (error) {
-        toast.error("Failed to create post. Please try again.");
+        toast.error(toUserMessage(error, "Failed to create post. Please try again."));
         logCreationFailure("unknown", `DB insert error: ${error.message}`);
         setIsCreating(false);
         return;
@@ -180,7 +181,7 @@ export function NewPostButton({ className, label, id }: { className?: string; la
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to create post. Please try again.");
+      toast.error(toUserMessage(err, "Failed to create post. Please try again."));
       logCreationFailure("unknown", `Exception: ${msg}`);
       setIsCreating(false);
     }

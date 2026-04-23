@@ -87,16 +87,15 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Provider</CardTitle>
+          <CardTitle>AI Model (Optional)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            PostPilot includes built-in AI for everyone, so most users don&apos;t
-            need to do anything here. If you&apos;re on the Professional or
-            Enterprise plan and prefer to use your own AI account (for example,
-            your own OpenAI or Anthropic account), you can add your personal
-            access keys below. This is sometimes called &ldquo;BYOK&rdquo; or
-            &ldquo;Bring Your Own Key.&rdquo;
+            PostPilot includes built-in AI. You don&apos;t need to do anything
+            here to get started. If you&apos;d prefer to use your own OpenAI or
+            Anthropic account instead, add your API key below and you&apos;ll
+            be billed by that provider directly. Available on the Professional
+            and Enterprise plans.
           </p>
           <AIProviderSettings
             currentProvider={profile?.ai_provider ?? "anthropic"}

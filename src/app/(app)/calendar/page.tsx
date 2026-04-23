@@ -48,6 +48,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { PostPreviewSheet } from "@/components/posts/post-preview-sheet";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
@@ -79,6 +80,21 @@ export default function CalendarPage() {
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [reschedulePost, setReschedulePost] = useState<Post | null>(null);
 
+  // Confirmation dialog shown after a successful reschedule — matches the
+  // post editor's behavior so the UX is consistent across entry points.
+  const [scheduleConfirmOpen, setScheduleConfirmOpen] = useState(false);
+  const [scheduleConfirmDate, setScheduleConfirmDate] = useState<Date | null>(null);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/linkedin/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.connected && !data.expired) setLinkedinConnected(true);
+      })
+      .catch(() => {});
+  }, []);
+
   // Preview sheet state
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
@@ -109,7 +125,8 @@ export default function CalendarPage() {
             : p
         )
       );
-      toast.success("Post rescheduled successfully!");
+      setScheduleConfirmDate(date);
+      setScheduleConfirmOpen(true);
     } else {
       toast.error("Failed to reschedule post.");
     }
@@ -853,6 +870,14 @@ export default function CalendarPage() {
         onOpenChange={setRescheduleDialogOpen}
         onSchedule={handleReschedule}
         initialDate={reschedulePost?.scheduled_for ? new Date(reschedulePost.scheduled_for) : undefined}
+      />
+
+      {/* Post-reschedule confirmation — same dialog used by the post editor */}
+      <LinkedInShareDialog
+        open={scheduleConfirmOpen}
+        onOpenChange={setScheduleConfirmOpen}
+        scheduledFor={scheduleConfirmDate}
+        linkedinConnected={linkedinConnected}
       />
 
       {/* Post preview sheet */}

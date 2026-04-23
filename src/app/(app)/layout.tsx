@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { OnboardingGuard } from "@/components/layout/onboarding-guard";
 import { PastDueChecker } from "@/components/past-due-checker";
+import { LinkedInTokenValidator } from "@/components/linkedin/token-validator";
 import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
@@ -46,6 +47,7 @@ export default async function AppLayout({
         <OnboardingGuard onboardingCompleted={onboardingCompleted} />
         <PastDueChecker />
         <TrialExpiryChecker />
+        <LinkedInTokenValidator />
         <ReleaseNotesModal />
         {/* Sidebar - hidden on mobile */}
         <Sidebar userName={userName} userTier={userTier} />

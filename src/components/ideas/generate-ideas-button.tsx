@@ -9,9 +9,14 @@ import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
 interface GenerateIdeasButtonProps {
   className?: string;
   id?: string;
+  /**
+   * When set, the button is disabled and renders the reason as a tooltip.
+   * Used by callers that have already resolved AI access on the server.
+   */
+  disabledReason?: string;
 }
 
-export function GenerateIdeasButton({ className, id }: GenerateIdeasButtonProps) {
+export function GenerateIdeasButton({ className, id, disabledReason }: GenerateIdeasButtonProps) {
   const [open, setOpen] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
   const [contentPillars, setContentPillars] = useState<string[]>([]);
@@ -48,6 +53,9 @@ export function GenerateIdeasButton({ className, id }: GenerateIdeasButtonProps)
         id={id}
         onClick={() => setOpen(true)}
         className={className}
+        disabled={!!disabledReason}
+        title={disabledReason}
+        aria-disabled={!!disabledReason}
       >
         <Lightbulb className="size-4" />
         Generate Ideas

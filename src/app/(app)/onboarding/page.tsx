@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERTISE_SUGGESTIONS, TONE_OPTIONS } from "@/lib/constants";
 import {
@@ -81,11 +81,18 @@ const INDUSTRY_SUGGESTIONS = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const { getAvailableModels, getDefaultModel } = useModels();
 
-  const [currentStep, setCurrentStep] = useState(0);
+  // Clamp any ?step= param into a valid index; otherwise we'll hydrate from
+  // the profile's persisted onboarding_current_step in the effect below.
+  const requestedStepParam = searchParams.get("step");
+  const requestedStep = requestedStepParam
+    ? Math.max(0, Math.min(STEPS.length - 1, parseInt(requestedStepParam, 10) || 0))
+    : null;
+  const [currentStep, setCurrentStep] = useState(requestedStep ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
@@ -130,11 +137,35 @@ export default function OnboardingPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
+      if (!user) return;
+      setUserId(user.id);
+
+      // Hydrate persisted step only if the URL didn't ask for a specific one.
+      // Wrapped in try/catch so that environments without the new column
+      // don't break onboarding.
+      if (requestedStep === null) {
+        try {
+          const { data } = await supabase
+            .from("creator_profiles")
+            .select("onboarding_current_step, onboarding_completed")
+            .eq("user_id", user.id)
+            .single();
+          const persisted = (
+            data as { onboarding_current_step?: number | null } | null
+          )?.onboarding_current_step;
+          if (!data?.onboarding_completed && typeof persisted === "number") {
+            setCurrentStep(
+              Math.max(0, Math.min(STEPS.length - 1, persisted))
+            );
+          }
+        } catch {
+          // Column may not exist yet; fall back to default step 0.
+        }
       }
     }
     getUser();
+    // requestedStep is computed from URL and stable per render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase.auth]);
 
   const handleFileUpload = useCallback(
@@ -320,6 +351,17 @@ export default function OnboardingPage() {
 
       if (error) throw error;
 
+      // Clear the persisted step pointer — separate call so that
+      // environments without the new column still complete onboarding.
+      try {
+        await supabase
+          .from("creator_profiles")
+          .update({ onboarding_current_step: null })
+          .eq("user_id", userId);
+      } catch {
+        // column may not exist; harmless
+      }
+
       // Save AI provider settings (encryption handled server-side)
       try {
         await fetch("/api/settings/ai-provider", {
@@ -347,7 +389,17 @@ export default function OnboardingPage() {
 
   const goNext = () => {
     if (currentStep < STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
+      const next = currentStep + 1;
+      setCurrentStep(next);
+      // Fire-and-forget persistence — RLS ensures this only touches the
+      // current user's row. Failures shouldn't block the UI.
+      if (userId) {
+        supabase
+          .from("creator_profiles")
+          .update({ onboarding_current_step: next })
+          .eq("user_id", userId)
+          .then(() => undefined);
+      }
     } else {
       handleSubmit();
     }

@@ -9,6 +9,8 @@
 > **2026-04-16 (production bug report):** Added BP-100 (P1 Critical, confirmed) — scheduled posts published via the Edge Function silently drop the user's selected image. Root cause identified: Edge Function never updated after image support shipped. Added BP-101 (P2 Watching) — possible historical text-truncation bug in scheduled posts; not currently reproducible, monitoring for recurrence.
 >
 > **2026-04-22 (BP-101 reproduced + fixed):** BP-101 promoted to P1 Critical and shipped as Done (Edge Function v16 + src/lib/linkedin-api.ts). Root cause: LinkedIn's REST Posts API `commentary` field uses "Little Text Format" with 15 reserved characters that must be backslash-escaped (`|{}@[]()<>#\\*_~`). When unescaped, LinkedIn silently truncates the post at the first reserved character. New `escapeLinkedInText()` helper in both Deno (Edge Function) and Node runtimes handles this.
+>
+> **2026-04-22 (UX Improvement Run):** Added BP-102 through BP-109 from a functional review of the application. All eight items are tagged **[UX-IMPROVE-2026-04-22]** for traceability. See the review and scope docs for the full rationale. Recommended order: Sprint 1 = BP-102, BP-104, BP-105 (low-effort, high-ROI); Sprint 2 = BP-103, BP-107 (schema migrations); Sprint 3 = BP-106, BP-108, BP-109 (polish + error hardening).
 
 ## Priority Legend (post-2026-04-16 pivot)
 
@@ -3014,6 +3016,267 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ---
 
+### BP-102: [UX-IMPROVE-2026-04-22] AI-Provider Guard on Dashboard & Editor
+
+**Status:** Done (2026-04-22)
+**Priority:** P1 / High
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** When a user has no AI provider configured, they can still click "Generate Ideas" or open the post AI chat, and only discover the misconfiguration via a cryptic mid-flow API error. High first-use abandonment risk.
+
+**What to change:**
+- Add a warning card on the dashboard before Quick Actions when `creator_profiles.ai_provider` is null AND the managed-gateway fallback is not available to the user's plan.
+- Disable the "Generate Ideas" button and the AI chat entry point on the post editor; show a tooltip "Set up AI provider first" linking to `/settings#ai-provider`.
+- Add a small helper `src/lib/ai/has-ai-access.ts` as a single source of truth.
+
+**Security / guardrails:**
+- Client-side guard is UX-only. Keep the authoritative server-side check in `/api/ai/draft` and `/api/ai/brainstorm` untouched.
+- No RLS changes. Profile already scoped by `user_id`.
+
+**Effort:** S · **Expected ROI:** High
+
+---
+
+### BP-103: [UX-IMPROVE-2026-04-22] Contextual Onboarding CTA
+
+**Status:** Done (2026-04-23 — migration applied to production, banner active)
+**Priority:** P1 / High
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** Dashboard onboarding banner is binary (done / not-done) and doesn't tell the user which step to resume. New users don't know if "profile setup" is optional or blocking.
+
+**What to change:**
+- Migration: add `creator_profiles.onboarding_current_step smallint NULL` (additive; `onboarding_completed` column stays).
+- Update `src/app/(app)/onboarding/page.tsx` to persist `onboarding_current_step` on each Next click.
+- Update the dashboard banner at `src/app/(app)/dashboard/page.tsx:172` to show step-aware copy ("Step 3 of 6 — Define your expertise") with a "Resume" CTA linking to `/onboarding?step=<n>`.
+
+**Security / guardrails:**
+- Validate the step param server-side before advancing (do not let users skip required fields).
+- Nullable column, no backfill required.
+
+**Effort:** M · **Expected ROI:** High
+
+---
+
+### BP-104: [UX-IMPROVE-2026-04-22] LinkedIn Connection Banner on Posts & Calendar
+
+**Status:** Superseded — the existing global `LinkedInStatusBanner` (rendered by the app layout on all non-onboarding pages) already covers this use case. The BP-104 page-specific banners shipped on 2026-04-22 caused visible duplicate banners on Posts and Calendar, and were removed on 2026-04-23. The pre-existing global banner plus BP-111's proactive token validation now handle disconnected-state surfacing. If/when a "token expires in ≤ 7 days" warning is wanted, enhance the global banner directly.
+**Priority:** P1 / High
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** Users draft and schedule posts only to discover at publish time that LinkedIn is disconnected or their token is about to expire. Last-mile disappointment = churn.
+
+**What to change:**
+- New thin client wrapper `src/components/linkedin/connection-banner.tsx` reusing the existing `/api/linkedin/status` endpoint and expiry logic in `src/app/(app)/settings/linkedin-connection.tsx`.
+- Render the banner on `src/app/(app)/posts/page.tsx` and `src/app/(app)/calendar/page.tsx`.
+- Variants: **error** (disconnected), **warning** (expires in ≤ 7 days), **hidden** (healthy).
+- Include "Reconnect" button linking to `/settings#linkedin`.
+
+**Security / guardrails:**
+- Do not expose access/refresh tokens in the status response (preserve the existing contract).
+- A failed status check must render the page without breaking it — log the error, hide the banner.
+
+**Effort:** S · **Expected ROI:** High
+
+---
+
+### BP-105: [UX-IMPROVE-2026-04-22] BYOK Copy Rewrite
+
+**Status:** Done (2026-04-22)
+**Priority:** P2 / Medium
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** AI provider settings copy uses "BYOK", "managed gateway", "AI provider" jargon that confuses non-technical users and reduces self-serve upgrade conversion.
+
+**What to change:**
+- Rewrite the settings AI section header (`src/app/(app)/settings/page.tsx:~93`) to plain language: "AI Model (Optional) — PostPilot includes built-in AI. Want to use your own OpenAI or Anthropic account? Add your API key here and you'll be billed by them instead of us."
+- Rename "Use PostPilot AI Gateway" toggle → "Use PostPilot's built-in AI".
+- Soften the locked-state copy in `src/app/(app)/settings/ai-provider-settings.tsx` to emphasize the upgrade benefit conversationally.
+
+**Security / guardrails:**
+- Copy-only change. `hasFeature(subscriptionTier, "byok_ai_keys")` gating unchanged.
+
+**Effort:** S · **Expected ROI:** Medium
+
+---
+
+### BP-106: [UX-IMPROVE-2026-04-22] Past-Due Clarification + Reschedule Action
+
+**Status:** Done (2026-04-22, extended 2026-04-23 with full dialog redesign + always-on reconnect section)
+**Priority:** P2 / Medium
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** The "Past Due" status appears in the Posts tab without any inline explanation, and the recovery dialog has no "Reschedule" path — only "Publish now" or "Mark as posted".
+
+**What to change:**
+- Add a one-line explainer at the top of the Past-Due dialog in `src/components/past-due-checker.tsx`: "These posts missed their scheduled publish time. Pick one option below to resolve each."
+- Add a **Reschedule** action that opens the existing `ScheduleDialog` pre-filled with the post's content.
+- Add a tooltip on the Past Due tab badge in `src/app/(app)/posts/page.tsx:~299`: "Posts that missed their scheduled time."
+
+**Security / guardrails:**
+- Reschedule must **only** update `scheduled_for` and reset status to `scheduled` via the existing scheduling API. Never publish directly.
+
+**Effort:** S · **Expected ROI:** Medium
+
+---
+
+### BP-107: [UX-IMPROVE-2026-04-22] Preserve Idea→Post Context
+
+**Status:** Done (2026-04-22)
+**Priority:** P2 / Medium
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** When a user clicks "Develop" on an idea, the resulting post loses its connection to the source idea in the UI. The post editor shows no breadcrumb back to the originating idea. The new-post placeholder "Untitled Post" is also discouraging to new users.
+
+**What to change:**
+- Ensure `posts.idea_id` column exists (check `src/types/database.ts` first); if missing, add with `ON DELETE SET NULL`.
+- Post editor (`src/app/(app)/posts/[id]/page.tsx`): when `idea_id` is present, render a breadcrumb "From idea: [title]" linking to the idea.
+- Change the "Untitled Post" placeholder in `src/components/posts/new-post-button.tsx:~135` to "Start typing…".
+- Fetch the linked idea via RLS-scoped Supabase client (never service role).
+
+**Security / guardrails:**
+- Enforce `posts.workspace_id = ideas.workspace_id` at insert time in the `handleDevelop` flow.
+- FK `ON DELETE SET NULL` — deleting an idea must not cascade-delete posts.
+
+**Effort:** M · **Expected ROI:** Medium
+
+---
+
+### BP-108: [UX-IMPROVE-2026-04-22] Error-Message Mapping Utility
+
+**Status:** Done (2026-04-22 — utility shipped + top call sites migrated; remaining sites will migrate opportunistically)
+**Priority:** P2 / Medium
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** Many `toast.error` call sites pass raw Supabase or AI errors through to users (e.g., `"row violates RLS policy"`). Erodes trust even when the app recovers.
+
+**What to change:**
+- New utility `src/lib/errors/to-user-message.ts`: `toUserMessage(error: unknown, fallback: string): string` — classifies Supabase codes (`PGRST*`, `23505`), HTTP statuses, AI quota markers, network errors.
+- Log the raw error to console in every path (debuggability must not regress).
+- Sanitize output — never leak table names, RLS policy names, or user IDs.
+- Migrate the top ~10 high-traffic call sites (ideas, posts, onboarding, settings, LinkedIn). Rest can be migrated opportunistically.
+
+**Security / guardrails:**
+- Client-side mapper. Does not widen any trust boundary.
+
+**Effort:** M · **Expected ROI:** Low-Medium (compounds across flows)
+
+---
+
+### BP-112: Fix `Button` Outline Variant Footgun
+
+**Status:** Backlog
+**Priority:** P3 / Low
+**Source:** Owner feedback 2026-04-23 (surfaced while fixing the LinkedIn banner reconnect button)
+**Date Added:** 2026-04-23
+
+**Problem:** In `src/components/ui/button.tsx`, the `outline` variant is defined with the exact same classes as `default` — `bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md …` — instead of a real outlined style. As a result, anywhere in the codebase that uses `<Button variant="outline">` with override classes like `border-amber-300 text-amber-800 hover:bg-amber-100` silently gets a blue gradient button instead, because utility `bg-*` classes can't override a gradient `background-image`. This caused a visible styling bug on the global LinkedIn status banner's "Reconnect Now" button.
+
+**What to change:**
+- Replace the `outline` variant in `src/components/ui/button.tsx` with a real outlined style (transparent background, bordered, foreground text, hover fill). Something like `"border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground"`.
+- Grep for `variant="outline"` across the codebase and visually audit each site to make sure the new (correct) styling still reads well. Some call sites may have been relying on the incorrect blue styling; those should be switched to `variant="default"` explicitly.
+
+**Security / guardrails:**
+- UI only — no auth, data, or API surface changes.
+
+**Acceptance criteria:**
+- [ ] `outline` variant renders as a true outlined button (no blue gradient).
+- [ ] Utility class overrides (e.g. `className="border-amber-300 text-amber-800"`) now take effect as expected.
+- [ ] No callers regress visually — any site that wanted the blue look is explicitly switched to `variant="default"`.
+
+**Effort:** S · **Expected ROI:** Low-Medium (prevents future silent styling bugs; unlocks correct theming on existing outline buttons)
+
+---
+
+### BP-111: Proactive LinkedIn Token Validation at Login
+
+**Status:** Done (2026-04-23 — migration applied, endpoint + client validator live)
+**Priority:** P1 / High
+**Source:** Owner feedback 2026-04-23 — users are discovering revoked tokens only when a scheduled post goes past due
+**Date Added:** 2026-04-23
+
+**Problem:** LinkedIn doesn't notify us when a user revokes PostPilot from their LinkedIn settings (or when LinkedIn force-invalidates a token). Our `/api/linkedin/status` endpoint only checks the stored `linkedin_token_expires_at` timestamp, so a revoked-but-not-yet-expired token still reads as "connected" until we try to publish and get a 401. The user's first signal of a problem is a failed scheduled post hours or days later.
+
+**What to change:**
+- **Migration:** add `creator_profiles.linkedin_token_validated_at timestamptz` (nullable, additive).
+- **New endpoint** `POST /api/linkedin/validate`: calls LinkedIn's `/v2/userinfo` with the stored access token. If 200 → update `linkedin_token_validated_at = now()`. If 401/403 → first try the existing refresh-token flow; if refresh also fails, clear `linkedin_connected_at` / `linkedin_token_expires_at` / `linkedin_member_id` and return `{ valid: false, reason: "revoked" }`. Throttle: if `linkedin_token_validated_at` is within the last hour, skip the API call and return `{ valid: true, cached: true }`.
+- **New client component** `<LinkedInTokenValidator />` mounted in `(app)/layout.tsx`: POSTs to the validate endpoint once per session on mount. On `valid: false` with reason `revoked`, triggers `router.refresh()` so the existing LinkedInConnectionBanner (BP-104) re-renders as "disconnected" on the very next page they visit.
+
+**Security / guardrails:**
+- Endpoint is session-auth'd; only touches `creator_profiles` rows for the current user (RLS enforced).
+- Never returns the access token in the response, only `{ valid, reason, cached }`.
+- Token refresh is only attempted when we have a stored refresh token; failures to refresh are swallowed as "revoked" without leaking LinkedIn error bodies.
+- Throttle prevents hammering LinkedIn: max 1 API call per user per hour.
+
+**Acceptance criteria:**
+- [x] Users with a revoked token see the disconnect banner on the first page load after session start, not when a scheduled post fails.
+- [x] LinkedIn API is called at most once per user per hour regardless of navigation.
+- [x] No tokens leak in any API response.
+
+**Effort:** S · **Expected ROI:** High (eliminates the single worst scheduled-posting failure mode)
+
+---
+
+### BP-110: Cancel In-Progress Image Generation
+
+**Status:** Backlog
+**Priority:** P2 / Medium
+**Source:** Owner feedback 2026-04-23
+**Date Added:** 2026-04-23
+
+**Problem:** Once a user clicks "Generate Image" the request runs to completion with no way to cancel. If the user changes their mind, picks the wrong prompt, or the generation is taking too long, they have to wait for it to finish (and pay the quota/credit cost) before they can try again.
+
+**What to change:**
+- Add a **Cancel** button that appears only while a generation is in flight, replacing or sitting beside the "Generating..." spinner in the image panel.
+- Client side: abort the `fetch` via `AbortController` so the UI returns to idle immediately and the user can start a new generation.
+- Server side (`/api/ai/generate-image`): honor the aborted request where possible. For providers that support cancellation (e.g. cancelable HTTP calls), pass through the `AbortSignal`. For providers that don't, ensure the orphaned response isn't written to DB or storage after cancel.
+- **Quota handling:** do not debit the user's image-generation quota for a generation that was cancelled before the provider returned a billable result. If the provider has already started billing by the time we cancel (e.g., DALL-E's generation is mostly stateless-per-call), document the behavior honestly in the confirmation toast ("This may still count against your monthly limit"). Preference: don't charge if we can avoid it.
+- Show a neutral toast on successful cancel: "Image generation canceled."
+
+**Security / guardrails:**
+- Only the user who started the generation can cancel it (already enforced by `user_id` scoping on the route).
+- Cancellation must not leave partial rows in `post_image_versions` or orphaned files in the `post-images` storage bucket — any DB insert / file upload must be guarded by an `if (signal.aborted) return` check before commit, and any already-uploaded file on abort should be cleaned up.
+- Do not expose provider-level request IDs in the cancel response.
+
+**Acceptance criteria:**
+- [ ] Cancel button visible during in-flight generation only.
+- [ ] Clicking Cancel returns the UI to idle within 1 second.
+- [ ] Cancelled generations do not create `post_image_versions` rows or leave files in storage.
+- [ ] Quota is not debited for cancellations (or this is explicitly surfaced in copy if unavoidable).
+- [ ] Starting a new generation immediately after cancel works without stale-state errors.
+
+**Effort:** M · **Expected ROI:** Medium (user control + cost savings on wasted generations)
+
+---
+
+### BP-109: [UX-IMPROVE-2026-04-22] Shared EmptyState Component + CTA Migration
+
+**Status:** Done (2026-04-22 — component shipped + filtered empty-state CTAs added)
+**Priority:** P3 / Low
+**Source:** UX Improvement Run 2026-04-22
+**Date Added:** 2026-04-22
+
+**Problem:** Empty states are implemented inline on each page with inconsistent tone and missing CTAs. Filtered-result empty states on Ideas are dead-ends ("No ideas match your filters" with only a Clear filters button).
+
+**What to change:**
+- New shared component `src/components/ui/empty-state.tsx` with slots: icon, title, description, primary CTA, secondary CTA, plus a `variant` prop (`first-run | filtered | archived`).
+- Migrate `src/app/(app)/ideas/page.tsx:~119` and `:~905`, plus `src/app/(app)/posts/page.tsx:~146` and `:~329`.
+- Filtered variants always include a "Clear filters" secondary action alongside the primary CTA.
+
+**Security / guardrails:**
+- UI-only. Reuse existing permission/plan-gated CTA components (e.g., `<GenerateIdeasButton>`) — do not duplicate click handlers.
+
+**Effort:** S · **Expected ROI:** Low-Medium
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -3094,3 +3357,11 @@ After each completed workflow, the assistant asks "What would you like to do nex
 - **BP-037:** Clarify Version Management & Convert to Post UX (2026-04-22)
 - **BP-092:** LinkedIn Analytics — Gate UI on Scope Grant (2026-04-22)
 - **BP-035:** Guided Tutorial — Functional Cleanup (2026-04-22)
+- **BP-102:** AI-Provider Guard on Dashboard & Editor (2026-04-22)
+- **BP-105:** BYOK Copy Rewrite (2026-04-22)
+- **BP-106:** Past-Due Clarification + Reschedule Action (2026-04-22, extended 2026-04-23)
+- **BP-107:** Preserve Idea→Post Context (2026-04-22)
+- **BP-108:** Error-Message Mapping Utility (2026-04-22)
+- **BP-109:** Shared EmptyState Component + CTA Migration (2026-04-22)
+- **BP-103:** Contextual Onboarding CTA (2026-04-23 — migration applied)
+- **BP-111:** Proactive LinkedIn Token Validation at Login (2026-04-23)

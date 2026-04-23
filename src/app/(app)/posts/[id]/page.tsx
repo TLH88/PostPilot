@@ -131,6 +131,7 @@ export default function PostWorkspacePage() {
   const [status, setStatus] = useState<Post["status"]>("draft");
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [sourceIdea, setSourceIdea] = useState<{ id: string; title: string } | null>(null);
 
   // ── Version state ─────────────────────────────────────────────────────────
   const [versions, setVersions] = useState<PostVersion[]>([]);
@@ -322,6 +323,19 @@ export default function PostWorkspacePage() {
       setStatus(p.status);
       setContentPillarsState(p.content_pillars ?? []);
       setImageUrl(p.image_url ?? null);
+
+      // Fetch the source idea title if this post was developed from one.
+      // RLS on `ideas` keeps this scoped to the current user — safe.
+      if (p.idea_id) {
+        supabase
+          .from("ideas")
+          .select("id, title")
+          .eq("id", p.idea_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setSourceIdea({ id: data.id, title: data.title });
+          });
+      }
       if (p.scheduled_for) {
         setLastScheduledDate(new Date(p.scheduled_for));
       }
@@ -1290,6 +1304,16 @@ export default function PostWorkspacePage() {
           <Badge variant="secondary" className={cn("shrink-0", statusConfig.color)}>
             {statusConfig.label}
           </Badge>
+          {sourceIdea && (
+            <Link
+              href={`/ideas?highlight=${sourceIdea.id}`}
+              className="hidden md:inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/60 px-2 py-0.5 text-xs text-amber-900 hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-950/50 max-w-[240px] truncate"
+              title={`Developed from idea: ${sourceIdea.title}`}
+            >
+              <Lightbulb className="size-3 shrink-0" />
+              <span className="truncate">From: {sourceIdea.title}</span>
+            </Link>
+          )}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {saveStatus === "saving" && (
               <>

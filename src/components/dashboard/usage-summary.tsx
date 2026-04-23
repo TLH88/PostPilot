@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Gauge } from "lucide-react";
+import { Gauge, Info } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type QuotaType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +60,18 @@ export function UsageSummary() {
           <span className="flex items-center gap-2">
             <Gauge className="size-4 text-primary" />
             Monthly Usage
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label="About Monthly Usage" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Info className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-sm">
+                  How much of your plan you&apos;ve used this month across posts, brainstorms, AI chat, and scheduling. Resets at the start of each billing cycle.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </span>
           <Badge variant="secondary" className={cn("text-[10px]", TIER_BADGE_COLORS[tier] ?? TIER_BADGE_COLORS.free)}>
             {tierConfig?.label ?? "Free"}

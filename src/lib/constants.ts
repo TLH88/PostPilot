@@ -7,19 +7,23 @@ export const LINKEDIN = {
 export const APP_NAME = "PostPilot";
 export const APP_DESCRIPTION = "Your AI-powered LinkedIn content partner";
 
+// Pill and text colors are the reverse of the original pairing: the previously
+// dark shade (e.g. yellow-800) is now the background and the previously light
+// shade (yellow-100) is now the text. This keeps the hue strong enough to
+// distinguish statuses at a glance in both light and dark modes.
 export const POST_STATUSES = {
-  draft: { label: "Draft", color: "bg-yellow-100 text-yellow-800" },
-  review: { label: "In Review", color: "bg-blue-100 text-blue-800" },
-  scheduled: { label: "Scheduled", color: "bg-purple-100 text-purple-800" },
-  posted: { label: "Posted to LinkedIn", color: "bg-green-100 text-green-800" },
-  past_due: { label: "Past Due", color: "bg-red-100 text-red-800" },
-  archived: { label: "Archived", color: "bg-gray-100 text-gray-800" },
+  draft: { label: "Draft", color: "bg-yellow-800 text-yellow-100" },
+  review: { label: "In Review", color: "bg-blue-800 text-blue-100" },
+  scheduled: { label: "Scheduled", color: "bg-purple-800 text-purple-100" },
+  posted: { label: "Posted to LinkedIn", color: "bg-green-800 text-green-100" },
+  past_due: { label: "Past Due", color: "bg-red-800 text-red-100" },
+  archived: { label: "Archived", color: "bg-gray-800 text-gray-100" },
 } as const;
 
 export const PUBLISH_METHODS = {
-  scheduled: { label: "Auto-Published", color: "bg-green-100 text-green-800" },
-  direct: { label: "Direct Publish", color: "bg-blue-100 text-blue-800" },
-  manual: { label: "Manually Posted", color: "bg-teal-100 text-teal-800" },
+  scheduled: { label: "Auto-Published", color: "bg-green-800 text-green-100" },
+  direct: { label: "Direct Publish", color: "bg-blue-800 text-blue-100" },
+  manual: { label: "Manually Posted", color: "bg-teal-800 text-teal-100" },
 } as const;
 
 export const IDEA_STATUSES = {

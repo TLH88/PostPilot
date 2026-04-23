@@ -523,17 +523,17 @@ export function AIProviderSettings({
             <Zap className="size-4 text-amber-500 mt-0.5 shrink-0" />
             <div className="space-y-0.5 min-w-0">
               <div className="text-sm font-semibold">
-                Use PostPilot AI Gateway
+                Use PostPilot&apos;s built-in AI
               </div>
               <p className="text-xs text-muted-foreground">
-                Route AI requests through PostPilot&apos;s managed gateway for
-                automatic provider fallbacks, unified billing, and the best
-                reliability. Turn this off only if you want to use your own
-                provider keys directly.
+                Let PostPilot handle AI for you — billing is included with your
+                plan and we automatically fall back if one provider is slow or
+                down. Turn this off only if you want to use your own OpenAI or
+                Anthropic account (added below).
               </p>
               {!byokUnlocked && (
                 <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1 pt-1">
-                  <Lock className="size-3" /> AI Gateway is required on the{" "}
+                  <Lock className="size-3" /> Required on the{" "}
                   {subscriptionTier === "free" ? "Free" : "Creator"} plan.
                 </p>
               )}
@@ -555,12 +555,12 @@ export function AIProviderSettings({
             <div className="text-center space-y-2 p-6 max-w-sm">
               <Lock className="size-6 mx-auto text-muted-foreground" />
               <p className="text-sm font-medium">
-                Bring Your Own Key (BYOK) is available on the Professional plan
-                and above.
+                Want to use your own AI account?
               </p>
               <p className="text-xs text-muted-foreground">
-                Upgrade to configure your own AI provider keys for full control
-                and direct billing.
+                Upgrade to Professional or Enterprise to add your own OpenAI or
+                Anthropic API key. You&apos;ll be billed by that provider
+                directly instead of us.
               </p>
               <Link
                 href="/pricing"

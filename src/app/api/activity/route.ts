@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const workspaceId = searchParams.get("workspaceId");
     const postId = searchParams.get("postId");
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 200);
+    const offset = Math.max(parseInt(searchParams.get("offset") ?? "0"), 0);
 
     // BP-088: When the caller filters by workspaceId, verify they're a member
     // of that workspace at the application layer. RLS on activity_log already
@@ -35,9 +36,9 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("activity_log")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (postId) {
       query = query.eq("post_id", postId);
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       query = query.eq("user_id", user.id);
     }
 
-    const { data: entries, error } = await query;
+    const { data: entries, error, count } = await query;
     if (error) throw error;
 
     // Fetch actor profiles
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
         actor_name: profileMap[e.user_id] ?? "Unknown",
         post_title: e.post_id ? postMap[e.post_id] ?? null : null,
       })),
+      total: count ?? 0,
     });
   } catch (error) {
     logApiError("api/activity GET", error);
