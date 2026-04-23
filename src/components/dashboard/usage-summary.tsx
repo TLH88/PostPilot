@@ -23,6 +23,7 @@ const QUOTA_LABELS: Record<QuotaType, string> = {
   brainstorms: "Brainstorms",
   chat_messages: "AI Messages",
   scheduled_posts: "Scheduled",
+  image_generations: "Images",
 };
 
 interface UsageData {
@@ -44,6 +45,7 @@ export function UsageSummary() {
           brainstorms: data.brainstorms,
           chat_messages: data.chat_messages,
           scheduled_posts: data.scheduled_posts,
+          image_generations: data.image_generations ?? { used: 0, limit: 0 },
         });
       })
       .catch(() => {});
@@ -83,6 +85,8 @@ export function UsageSummary() {
         {(Object.entries(QUOTA_LABELS) as [QuotaType, string][]).map(([key, label]) => {
           const u = usage[key];
           if (!u) return null;
+          // Hide rows for quotas the user has no access to (e.g. Free + Images).
+          if (u.limit === 0) return null;
           const isUnlimited = u.limit === -1;
           const pct = isUnlimited ? 0 : u.limit > 0 ? Math.min((u.used / u.limit) * 100, 100) : 0;
           const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-primary";

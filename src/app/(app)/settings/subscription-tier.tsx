@@ -54,6 +54,7 @@ const QUOTA_LABELS: Record<QuotaType, string> = {
   brainstorms: "Brainstorms / month",
   chat_messages: "AI messages / month",
   scheduled_posts: "Scheduled posts",
+  image_generations: "AI image generations / month",
 };
 
 interface SubscriptionTierProps {

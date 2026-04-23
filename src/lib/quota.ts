@@ -20,6 +20,7 @@ export interface QuotaStatus {
   brainstorms: { used: number; limit: number };
   chat_messages: { used: number; limit: number };
   scheduled_posts: { used: number; limit: number };
+  image_generations: { used: number; limit: number };
 }
 
 /**
@@ -159,6 +160,10 @@ export async function getQuotaStatus(userId: string): Promise<QuotaStatus> {
     scheduled_posts: {
       used: quota.scheduled_posts,
       limit: limits.scheduled_posts,
+    },
+    image_generations: {
+      used: quota.image_generations_used ?? 0,
+      limit: limits.image_generations,
     },
   };
 }

@@ -133,8 +133,12 @@ export const SCHEDULING_SUGGESTIONS = [
 
 // ── Subscription Tiers & Quota Limits ─────────────────────────────────────────
 // -1 = unlimited
+//
+// Quotas below reflect Subscription Model v2 (BP-117 Phase A, 2026-04-24).
+// Pro tier numbers are the system-key ceiling; BYOK users bypass these via
+// `getUserAIClient()` → BP-117 Phase B handles the enforcement logic.
 export type SubscriptionTier = "free" | "creator" | "professional" | "team" | "enterprise";
-export type QuotaType = "posts" | "brainstorms" | "chat_messages" | "scheduled_posts";
+export type QuotaType = "posts" | "brainstorms" | "chat_messages" | "scheduled_posts" | "image_generations";
 
 export const SUBSCRIPTION_TIERS: Record<
   SubscriptionTier,
@@ -147,7 +151,7 @@ export const SUBSCRIPTION_TIERS: Record<
   free: {
     label: "Free",
     price: "$0/mo",
-    limits: { posts: 3, brainstorms: 2, chat_messages: 20, scheduled_posts: 2 },
+    limits: { posts: 3, brainstorms: 2, chat_messages: 20, scheduled_posts: 2, image_generations: 0 },
   },
   creator: {
     // Display label only — the internal tier key stays "creator" so Stripe
@@ -155,27 +159,23 @@ export const SUBSCRIPTION_TIERS: Record<
     // Full rename (internal key + table) tracked in BP-114.
     label: "Personal",
     price: "$20/mo",
-    limits: { posts: -1, brainstorms: 15, chat_messages: 200, scheduled_posts: 15 },
-    // NOTE: these `limits` values are the pre-v2 enforcement numbers. BP-117
-    // will migrate them to the v2-approved quotas (30/20/200/30 +
-    // image_generation column). This BP-116 edit touches display only.
+    limits: { posts: 30, brainstorms: 20, chat_messages: 200, scheduled_posts: -1, image_generations: 30 },
   },
   professional: {
     label: "Professional",
     price: "$50/mo",
-    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
-    // NOTE: same as creator above — BP-117 will flip these to 100/200/500/-1
-    // with BYOK unlocking unlimited.
+    // System-key ceiling. BYOK lifts every limit to unlimited (BP-117 Phase B).
+    limits: { posts: 100, brainstorms: 200, chat_messages: 500, scheduled_posts: -1, image_generations: 200 },
   },
   team: {
     label: "Team",
     price: "$100/mo + $6/user",
-    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1, image_generations: -1 },
   },
   enterprise: {
     label: "Enterprise",
     price: "Custom",
-    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1, image_generations: -1 },
   },
 } as const;
 
@@ -185,6 +185,7 @@ export const QUOTA_COLUMN_MAP: Record<QuotaType, string> = {
   brainstorms: "brainstorms_used",
   chat_messages: "chat_messages_used",
   scheduled_posts: "scheduled_posts",
+  image_generations: "image_generations_used",
 } as const;
 
 // ── Tier Feature Matrix (used by pricing page + feature gating) ────────────────
@@ -214,11 +215,15 @@ export const TIER_FEATURES = [
   { key: "support", name: "Support", free: "Community", creator: "Email", professional: "Priority", team: "Priority", enterprise: "Dedicated" },
 ] as const;
 
-// Features that require a minimum tier (used by feature gating)
+// Features that require a minimum tier (used by feature gating).
+// Updated 2026-04-24 for Subscription Model v2 (BP-117 Phase A):
+//   content_library  → professional (Personal removed per cost-study decision)
+//   templates        → professional (Personal removed per cost-study decision)
+//   hook_analysis, analytics, image_generation — stay Personal+ per the v2 matrix.
 export const GATED_FEATURES: Record<string, SubscriptionTier> = {
-  content_library: "creator",
+  content_library: "professional",
   hook_analysis: "creator",
-  templates: "creator",
+  templates: "professional",
   image_generation: "creator",
   analytics: "creator",
   byok_ai_keys: "professional",
