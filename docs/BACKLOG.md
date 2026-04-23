@@ -3170,6 +3170,65 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ---
 
+### BP-113: Server-side RLS Gating for `content_library` Built-in Items
+
+**Status:** Backlog
+**Priority:** P2 / Medium
+**Source:** Follow-up from library content-lock security fix (2026-04-23)
+**Date Added:** 2026-04-23
+
+**Problem:** The `content_library` table contains built-in library items (hooks, CTAs, closings, snippets) marked `is_builtin=true`. These rows are currently readable by any authenticated user, which the existing RLS policy allows because they're intended as templates. This session added a client-side gate so free-tier users don't see the library grid at all, and the client-side `loadItems` short-circuits before fetching. But anyone running a hand-crafted `fetch()` from DevTools can still read the built-in rows. The client-side gate is a UX enforcement, not a security boundary.
+
+**What to change:**
+- Add or amend the `content_library` RLS SELECT policy so built-in rows are only readable by users whose `subscription_tier` satisfies `hasFeature("content_library")`.
+- Implementation sketch: the policy can join `creator_profiles` on `auth.uid()` and check `subscription_tier IN ('creator','professional','team','enterprise')` (or use a `has_library_access(uid)` SQL function for reuse).
+- Keep user-owned rows (`user_id = auth.uid()`) readable regardless of tier so downgrade doesn't orphan their saved content.
+
+**Security / guardrails:**
+- New policy MUST NOT restrict user-owned rows; only built-in rows.
+- Test with a free-tier test user: `fetch('/rest/v1/content_library?is_builtin=eq.true')` should return an empty set.
+- Do not remove the client-side gate (BP-102/BP-109 pattern); defense in depth.
+
+**Acceptance criteria:**
+- [ ] Free-tier user calling the REST endpoint directly returns empty for built-in rows.
+- [ ] Free-tier user still sees their own saved library items (if they had access at a prior tier).
+- [ ] Paid-tier user sees both their own items and built-ins as today.
+
+**Effort:** S · **Expected ROI:** Medium (closes the actual data-leak surface; cheap insurance)
+
+---
+
+### BP-114: Full Tier Rename — "creator" → "personal" Internal Key
+
+**Status:** Backlog
+**Priority:** P3 / Low
+**Source:** Follow-up from display-only tier rename (2026-04-23)
+**Date Added:** 2026-04-23
+
+**Problem:** On 2026-04-23 we renamed the tier's *display label* from "Creator" to "Personal" in `SUBSCRIPTION_TIERS.creator.label`. The internal tier key in the DB (`subscription_tier` column), Stripe price lookups, feature-gate checks, URL params, and the `CreatorProfile` type name all still use `"creator"`. This works fine but is inconsistent — new devs reading the code will need to know that "creator" in code means "Personal" in the UI.
+
+**What to change:**
+- Migration to update all `subscription_tier` column values from `'creator'` → `'personal'`.
+- Update the `SubscriptionTier` TypeScript union.
+- Update every lowercase `"creator"` reference in code (feature-gate tables, tier order, colors, style maps, admin dropdowns, trial tier guard, etc.).
+- Coordinate Stripe: the Stripe metadata or product mapping needs to be updated to use `personal` as the tier ID.
+- Backfill plan for any external references (Stripe webhook handlers, analytics, email templates).
+
+**Security / guardrails:**
+- This is a larger, riskier rename. Probably worth a coordinated cutover and not a progressive migration — rename everything in one deploy.
+- Stripe side needs to be tested end-to-end against a test account before rollout.
+
+**Acceptance criteria:**
+- [ ] All code references to `"creator"` as a tier key replaced with `"personal"`.
+- [ ] DB migration cleanly flips existing rows.
+- [ ] Stripe metadata updated and webhook handler tested.
+- [ ] CreatorProfile TypeScript type remains (it's the user's profile, different concept).
+- [ ] All existing feature-gate checks work unchanged.
+
+**Effort:** M · **Expected ROI:** Low (internal consistency; no user-facing benefit — only worth doing if a new dev consistently gets confused by the mismatch)
+
+---
+
 ### BP-112: Fix `Button` Outline Variant Footgun
 
 **Status:** Backlog

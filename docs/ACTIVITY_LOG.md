@@ -66,6 +66,68 @@ Big session of UX + reliability polish. All DB migrations applied to production 
 - `20260422_add_onboarding_current_step.sql` (deferred from yesterday's session — applied today).
 - `20260423_add_linkedin_token_validated_at.sql`.
 
+### 2026-04-23 Part 2 — Security cleanup, tier rename, merge to main
+
+Continued the session well past the first commit. Four threads:
+
+**1. Dev auto-login removal (security)**
+- `/api/dev/auto-login` endpoint (shipped in `de60853`) plus client glue on login/signup pages were removed. Even though the endpoint had three gates (VERCEL_ENV != production, shared-secret header, email allowlist), it remained an auth-bypass surface with no compelling current use case. The intended automation flow wasn't working anyway; admin impersonation covers the real need.
+- Deleted: `src/app/api/dev/auto-login/route.ts` + directory.
+- Reverted the dev-only branches in `src/app/(auth)/login/page.tsx` and `src/app/(auth)/signup/page.tsx`.
+- Updated the callback route comment (magic-link OTP path is now used only by admin impersonation, not dev auto-login).
+- `.gitignore` simplified: the default `src/app/api/dev/*` ignore rule remains (so future dev-only tooling stays local by default); the explicit allow-rule for auto-login/route.ts was removed.
+- Any Vercel env vars for this feature (`DEV_AUTO_LOGIN_TOKEN`, `DEV_AUTO_LOGIN_ALLOWED_EMAILS`, `NEXT_PUBLIC_DEV_LOGIN_EMAIL`) should be deleted from project settings — **action item for you**.
+- Shipped as commit `b7184da`.
+
+**2. Library content lock + Creator → Personal display rename**
+- **Library paywall bug fix (security)**: free-tier users could view and copy built-in library items even though the upgrade banner was shown. The banner rendered above the grid but the filters, search, and cards were unconditional. In `src/app/(app)/library/page.tsx`, the entire content body (filters + search + grid) is now wrapped in `{canUseLibrary && (…)}`, and `loadItems` resolves the user's tier first and short-circuits before fetching `content_library` — so built-in rows never cross the wire for free users. Note: `content_library` rows with `is_builtin=true` are still RLS-readable by all authenticated users by design (they're templates). For a true server gate, a per-tier RLS policy is the correct follow-up — captured as **BP-113**.
+- **Creator → Personal (display-only)**: `SUBSCRIPTION_TIERS.creator.label` in `src/lib/constants.ts` changed from "Creator" to "Personal". Internal tier key stays `"creator"` everywhere — no Stripe price-lookup changes, no DB migration, no feature-gate ripple. Also swept the 7 hardcoded user-facing references:
+  - Pricing page FAQ
+  - Trial API error message (`src/app/api/trial/start/route.ts`)
+  - AI provider settings locked-state fallback copy
+  - 3× "Creator+" feature badges + 1× "Creator plan required" tooltip in the post editor
+  - "Creator Profile" (user's voice/tone profile) and "Individual Creator" (workspace type in onboarding) are intentionally unchanged — different concept, not the tier. If a future session wants a full rename (including the DB tier key), that's **BP-114** on the backlog.
+- **Upgrade banner copy**: `UpgradePrompt` banner variant now reads *"<feature> requires <tier> or above"* and *"Upgrade to <tier> (<price>) or any higher plan to unlock …"*. Avoids implying Personal is the only upgrade path; keeps Pro/Team viable.
+- Shipped as commit `7b523b1`.
+
+**3. Tooltip build break fix (`675a7a8`)**
+- Earlier dashboard tooltips used the Radix pattern `<TooltipTrigger asChild><button>…</button></TooltipTrigger>`. But the project's Tooltip wraps **Base UI** (`@base-ui/react/tooltip`), whose `TooltipTrigger` doesn't accept `asChild` — it renders its own button by default. TypeScript build failed in Vercel.
+- Fix: dropped the wrapping `<button>` and `asChild` prop in all four tooltip sites (PostCardsSection, Recent Ideas, Monthly Usage, Recent Activity). `TooltipTrigger` now renders as the native button with className/aria-label applied directly, matching the pattern ContentPillarBalance was already using.
+
+**4. Safe merge of develop → main**
+- Before merging, discovered `main` had 4 direct-to-main hotfix commits not on develop: LinkedIn API version rollback (`d6f92f8`), ai_conversations 406 fix (`0f0e7f7`), schedule dialog dark-mode (`2e0c1b9`), admin impersonation middleware (`ad86775`). Direct `develop → main` could have silently regressed these.
+- **Took the safe path**: `git merge origin/main` into develop first. Textual conflict in `src/app/pricing/page.tsx` resolved semantically:
+  - Kept develop's full pricing implementation (trial flow, tier cards, "Personal" FAQ).
+  - Dropped main's stale `PRICING_HIDDEN = true` kill-switch. Main's version of the pricing page was a redirect stub from when pricing wasn't ready; develop has the real page now.
+  - Removed the auto-merge's duplicate `const router = useRouter()`.
+  - Restored the Pricing link in the landing page nav (`src/app/page.tsx`) that the auto-merge dropped — the page is live again so it needs to be discoverable.
+- Auto-merged files inspected manually: `src/components/schedule-dialog.tsx` (my datalist rewrite + main's dark-mode `bg-popover` styling both survived), `src/components/linkedin-share-dialog.tsx`, `src/app/(auth)/callback/route.ts`. All clean.
+- Merge commit `82d8dad` pushed to develop.
+- `git checkout main && git merge develop --ff-only` — clean fast-forward.
+- Pushed main: `df61d6c..82d8dad`.
+- Verified: `git log main..develop` and `git log develop..main` both empty. Branches sync.
+
+### Backlog activity (Part 2)
+- New: **BP-113** (server-side RLS gating for `content_library` built-in items), **BP-114** (full tier rename Creator → Personal including internal key + DB, only if you want end-to-end consistency).
+
+### Current repo state (for next-session handoff)
+- **Active branch**: `develop` (checked out after merge).
+- **Both branches at**: `82d8dad` (merge commit that pulled main's hotfixes forward).
+- **Production domain** `www.mypostpilot.app` deploys from `main` → next build will include everything shipped today.
+- **Preview** `postpilot-git-develop-*.vercel.app` deploys from `develop` → same commit.
+- **Migrations applied to Supabase production via MCP** (project `rgzqhyniuzhqfxqrgsdd`):
+  - `20260422_add_onboarding_current_step.sql` (BP-103)
+  - `20260423_add_linkedin_token_validated_at.sql` (BP-111)
+- **Local dirty files** that are intentionally never committed (pre-existing across sessions): `.claude/launch.json`, `.claude/settings.local.json`, `.claude/commands/`, `docs/images/tutorial-card-dark.png`, `docs/images/ScreenShots_Before/`, `public/NPOS Favicon.png`, `supabase/.temp/`.
+- **Backlog movement today**: Done — BP-102, 103, 105, 106, 107, 108, 109, 111. Superseded — BP-104. New & pending — BP-110, 112, 113, 114.
+- **Open items / things a next session should know**:
+  - **Vercel env var cleanup**: remove `DEV_AUTO_LOGIN_TOKEN`, `DEV_AUTO_LOGIN_ALLOWED_EMAILS`, `NEXT_PUBLIC_DEV_LOGIN_EMAIL` from Vercel Preview env.
+  - **New favicon**: `public/NPOS Favicon.png` is uncommitted — Tony's call whether to adopt it.
+  - **Tier rename is display-only**: `SUBSCRIPTION_TIERS.creator.label = "Personal"` but the internal tier key is still `"creator"`. Stripe/DB/feature-gate all still say `creator`. BP-114 tracks the full rename if ever wanted.
+  - **BP-108 migration still ongoing**: `toast.error` sites migrated in the top few call sites; ~50 remain to migrate opportunistically to the `toUserMessage()` mapper.
+  - **BP-102 post-editor AI chat guard** still deferred — dashboard warning + idea-generation guard cover the primary paths, but the in-editor chat has no client-side guard yet.
+  - **Known bug (still outstanding)**: auto-draft not generating when developing an idea into a post (per 2026-04-15 note).
+
 ---
 
 ## 2026-04-22: UX Improvement Run — BP-102 through BP-109 [UX-IMPROVE-2026-04-22]
