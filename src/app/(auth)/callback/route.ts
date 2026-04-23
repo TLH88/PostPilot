@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     return response;
   }
 
-  // Magic link OTP verification (admin impersonation + dev auto-login)
+  // Magic link OTP verification (used by admin impersonation)
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,

@@ -34,19 +34,10 @@ yarn-error.log*
 .env*
 
 # dev-only auth bypass routes — by default, nothing under src/app/api/dev/
-# ships to the repo. Exception: auto-login/route.ts is explicitly allowed
-# because it's gated on VERCEL_ENV !== "production" plus two additional
-# env-controlled checks (DEV_AUTO_LOGIN_TOKEN header + email allowlist).
-# See that file's header comment for the full security contract.
-#
-# If you add a NEW file under src/app/api/dev/, it will be ignored by
-# default — which is usually what you want for local-only tools. To make
-# another dev file shippable, add a matching allow-rule below and review
-# its security posture carefully before doing so.
+# ships to the repo. If you add a shippable file here, add a matching
+# allow-rule below and review its security posture carefully before doing so.
 src/app/api/dev/*
 src/app/api/dev/**/*
-!src/app/api/dev/auto-login/
-!src/app/api/dev/auto-login/route.ts
 
 # vercel
 .vercel
