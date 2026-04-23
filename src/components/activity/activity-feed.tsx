@@ -181,10 +181,11 @@ export function ActivityFeed({ workspaceId, postId, limit = 20, previewLimit, co
             {title}
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" aria-label={`About ${title}`} className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Info className="size-3.5" />
-                  </button>
+                <TooltipTrigger
+                  aria-label={`About ${title}`}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Info className="size-3.5" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs text-sm">
                   A running log of what&apos;s happened in your workspace recently — posts created, edited, scheduled, published, and more. Useful for picking up where you left off.

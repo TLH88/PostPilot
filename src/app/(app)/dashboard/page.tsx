@@ -96,10 +96,11 @@ function PostCardsSection({
           {tooltip && (
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" aria-label={`About ${title}`} className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Info className="size-3.5" />
-                  </button>
+                <TooltipTrigger
+                  aria-label={`About ${title}`}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Info className="size-3.5" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs text-sm">
                   {tooltip}
@@ -584,13 +585,14 @@ export default async function DashboardPage() {
                 Recent Ideas
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="About Recent Ideas" className="text-muted-foreground hover:text-foreground transition-colors">
-                        <Info className="size-3.5" />
-                      </button>
+                    <TooltipTrigger
+                      aria-label="About Recent Ideas"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Info className="size-3.5" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-xs text-sm">
-                      The latest ideas saved in your Idea Bank — including brainstorms we've generated and anything you've captured manually. Click one to start developing it into a post.
+                      The latest ideas saved in your Idea Bank — including brainstorms we&apos;ve generated and anything you&apos;ve captured manually. Click one to start developing it into a post.
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

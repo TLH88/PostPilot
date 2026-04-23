@@ -62,10 +62,11 @@ export function UsageSummary() {
             Monthly Usage
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <button type="button" aria-label="About Monthly Usage" className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Info className="size-3.5" />
-                  </button>
+                <TooltipTrigger
+                  aria-label="About Monthly Usage"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Info className="size-3.5" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs text-sm">
                   How much of your plan you&apos;ve used this month across posts, brainstorms, AI chat, and scheduling. Resets at the start of each billing cycle.
