@@ -14,13 +14,13 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
-const TIER_ORDER: SubscriptionTier[] = ["free", "creator", "professional", "team"];
-const ALL_TIERS: SubscriptionTier[] = ["free", "creator", "professional", "team", "enterprise"];
-const TRIABLE_TIERS = new Set(["creator", "professional"]);
+const TIER_ORDER: SubscriptionTier[] = ["free", "personal", "professional", "team"];
+const ALL_TIERS: SubscriptionTier[] = ["free", "personal", "professional", "team", "enterprise"];
+const TRIABLE_TIERS = new Set(["personal", "professional"]);
 
 const TIER_STYLE: Record<string, { highlight: boolean; badge?: string; border: string }> = {
   free: { highlight: false, border: "border-border" },
-  creator: { highlight: true, badge: "Most Popular", border: "border-primary" },
+  personal: { highlight: true, badge: "Most Popular", border: "border-primary" },
   professional: { highlight: false, border: "border-border" },
   team: { highlight: false, border: "border-border" },
   enterprise: { highlight: false, border: "border-border" },
@@ -29,13 +29,13 @@ const TIER_STYLE: Record<string, { highlight: boolean; badge?: string; border: s
 // Annual = monthly × 12 × 0.85 (15% discount)
 const ANNUAL_PRICES: Record<string, string | null> = {
   free: null,
-  creator: "$204/yr",
+  personal: "$204/yr",
   professional: "$510/yr",
   team: "$1,020/yr",
   enterprise: null,
 };
 
-const TIER_RANK: Record<string, number> = { free: 0, creator: 1, professional: 2, team: 3, enterprise: 4 };
+const TIER_RANK: Record<string, number> = { free: 0, personal: 1, professional: 2, team: 3, enterprise: 4 };
 
 const FAQ = [
   {
@@ -94,7 +94,7 @@ export default function PricingPage() {
       }
 
       const { data: profile } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("subscription_tier, account_status, trial_tier, last_trial_tiers")
         .eq("user_id", user.id)
         .single();
@@ -329,7 +329,7 @@ export default function PricingPage() {
                           <span className="text-muted-foreground"> forever</span>
                         </>
                       )}
-                      {tierKey === "creator" && (
+                      {tierKey === "personal" && (
                         <>
                           <span className="text-4xl font-bold">$20</span>
                           <span className="text-muted-foreground">/mo</span>

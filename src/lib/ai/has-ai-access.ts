@@ -1,4 +1,4 @@
-import type { CreatorProfile } from "@/types";
+import type { UserProfile } from "@/types";
 
 export type AIAccessStatus = {
   hasAccess: boolean;
@@ -6,7 +6,7 @@ export type AIAccessStatus = {
 };
 
 type ProfileSubset = Pick<
-  CreatorProfile,
+  UserProfile,
   | "ai_provider"
   | "ai_api_key_encrypted"
   | "force_ai_gateway"

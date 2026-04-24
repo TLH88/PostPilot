@@ -14,7 +14,7 @@ export async function POST() {
     }
 
     const { error } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .update({
         linkedin_access_token_encrypted: null,
         linkedin_access_token_iv: null,

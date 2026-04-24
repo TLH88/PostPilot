@@ -254,7 +254,7 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
     description: "Draft, refine, and improve posts with AI-powered help",
     content: (
       <>
-        <p>The AI Assistant uses your Creator Profile to generate content that matches your voice and style. It has full context of your current post including title, content, status, hashtags, and content pillar.</p>
+        <p>The AI Assistant uses your User Profile to generate content that matches your voice and style. It has full context of your current post including title, content, status, hashtags, and content pillar.</p>
         <p><strong>Auto-drafting:</strong> When you develop an idea from the Idea Bank, the AI automatically generates an initial draft for you.</p>
         <p><strong>Quick suggestions:</strong> Use the chips (Add a hook, Make it shorter, etc.) for instant improvements.</p>
         <p><strong>Free-form chat:</strong> Type any instruction for more specific requests.</p>
@@ -342,7 +342,7 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
       <>
         <p>Content pillars are the recurring themes that define your professional content. A balanced mix keeps your audience engaged and positions you as a well-rounded thought leader.</p>
         <p>The Content Pillar Balance chart on your dashboard shows how your posts are distributed across your pillars, highlighting any that need more attention.</p>
-        <p>You can set up your content pillars in your Creator Profile under Voice & Style.</p>
+        <p>You can set up your content pillars in your User Profile under Voice & Style.</p>
       </>
     ),
   },

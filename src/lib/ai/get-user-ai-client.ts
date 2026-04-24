@@ -7,7 +7,7 @@ import {
   type AIClient,
   type AIProvider,
 } from "./providers";
-import type { CreatorProfile } from "@/types";
+import type { UserProfile } from "@/types";
 
 // System-level API keys for managed/trial access (env vars, never exposed to browser)
 const SYSTEM_AI_KEYS: Partial<Record<AIProvider, string | undefined>> = {
@@ -23,7 +23,7 @@ const SYSTEM_AI_KEYS: Partial<Record<AIProvider, string | undefined>> = {
  * 1. managed_ai_access is true AND not expired, OR
  * 2. User is on an active trial (account_status='trial' and trial_ends_at is in the future)
  */
-function hasManagedAccess(profile: CreatorProfile): boolean {
+function hasManagedAccess(profile: UserProfile): boolean {
   // Active trial grants managed access
   if (profile.account_status === "trial" && profile.trial_ends_at) {
     if (new Date(profile.trial_ends_at) > new Date()) return true;
@@ -45,7 +45,7 @@ export type AISource = "gateway" | "byok" | "system_key";
 
 export interface UserAIContext {
   client: AIClient;
-  profile: CreatorProfile;
+  profile: UserProfile;
   source: AISource;
   provider: AIProvider;
   model: string;
@@ -53,7 +53,7 @@ export interface UserAIContext {
 
 /**
  * Get the AI client for a specific provider (or the active one).
- * Reads keys from ai_provider_keys table first, falls back to creator_profiles.
+ * Reads keys from ai_provider_keys table first, falls back to user_profiles.
  */
 export async function getUserAIClient(
   forProvider?: AIProvider
@@ -70,7 +70,7 @@ export async function getUserAIClient(
   }
 
   const { data: profile, error: profileError } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("*")
     .eq("user_id", user.id)
     .single();
@@ -79,7 +79,7 @@ export async function getUserAIClient(
     throw new Error("Please complete your profile first");
   }
 
-  const creatorProfile = profile as CreatorProfile;
+  const creatorProfile = profile as UserProfile;
   const targetProvider = forProvider || (creatorProfile.ai_provider as AIProvider);
 
   // Gateway is available if either OIDC (preferred, project-attributed) or the
@@ -121,7 +121,7 @@ export async function getUserAIClient(
     creatorProfile.ai_api_key_auth_tag &&
     creatorProfile.ai_provider === targetProvider
   ) {
-    // Fall back to legacy single-key on creator_profiles
+    // Fall back to legacy single-key on user_profiles
     apiKey = decrypt({
       ciphertext: creatorProfile.ai_api_key_encrypted,
       iv: creatorProfile.ai_api_key_iv,
@@ -181,7 +181,7 @@ export async function getUserAIClient(
 export async function getProviderApiKey(
   provider: AIProvider,
   keyType: "text" | "image" = "text"
-): Promise<{ apiKey: string; profile: CreatorProfile; source: AISource }> {
+): Promise<{ apiKey: string; profile: UserProfile; source: AISource }> {
   const supabase = await createClient();
 
   const {
@@ -191,14 +191,14 @@ export async function getProviderApiKey(
   if (!user) throw new Error("Unauthorized");
 
   const { data: profile } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("*")
     .eq("user_id", user.id)
     .single();
 
   if (!profile) throw new Error("Profile not found");
 
-  const creatorProfile = profile as CreatorProfile;
+  const creatorProfile = profile as UserProfile;
 
   // Try provider keys table first (filtered by key_type)
   const { data: providerKey } = await supabase
@@ -221,7 +221,7 @@ export async function getProviderApiKey(
     };
   }
 
-  // Fall back to legacy single-slot keys on creator_profiles
+  // Fall back to legacy single-slot keys on user_profiles
   if (keyType === "image") {
     if (
       creatorProfile.image_ai_provider === provider &&

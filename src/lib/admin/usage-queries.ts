@@ -218,7 +218,7 @@ export async function getTopUsers(
   // Enrich with user info
   const userIds = sorted.map(([id]) => id);
   const { data: profiles } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("user_id, full_name, subscription_tier")
     .in("user_id", userIds);
 
@@ -391,7 +391,7 @@ export async function getUserUsageDetail(
 
   // User info
   const { data: profile } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("full_name, subscription_tier")
     .eq("user_id", userId)
     .single();

@@ -14,7 +14,7 @@ import { logApiError } from "@/lib/api-utils";
  * detect.
  *
  * Throttled to at most one real API call per user per hour via
- * creator_profiles.linkedin_token_validated_at.
+ * user_profiles.linkedin_token_validated_at.
  *
  * Response shape:
  *   { valid: true,  cached: boolean }
@@ -37,7 +37,7 @@ export async function POST() {
     }
 
     const { data: profile, error } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select(
         "linkedin_connected_at, linkedin_token_expires_at, linkedin_token_validated_at, linkedin_access_token_encrypted, linkedin_access_token_iv, linkedin_access_token_auth_tag, linkedin_refresh_token_encrypted, linkedin_refresh_token_iv, linkedin_refresh_token_auth_tag"
       )
@@ -90,7 +90,7 @@ export async function POST() {
     try {
       await getLinkedInMemberId(accessToken);
       await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .update({ linkedin_token_validated_at: new Date().toISOString() })
         .eq("user_id", user.id);
       return NextResponse.json({ valid: true, cached: false });
@@ -129,7 +129,7 @@ export async function POST() {
             updateData.linkedin_refresh_token_auth_tag = encRefresh.authTag;
           }
           await supabase
-            .from("creator_profiles")
+            .from("user_profiles")
             .update(updateData)
             .eq("user_id", user.id);
 
@@ -138,7 +138,7 @@ export async function POST() {
           // Retry userinfo with the refreshed token.
           await getLinkedInMemberId(accessToken);
           await supabase
-            .from("creator_profiles")
+            .from("user_profiles")
             .update({ linkedin_token_validated_at: new Date().toISOString() })
             .eq("user_id", user.id);
           return NextResponse.json({ valid: true, cached: false });
@@ -180,7 +180,7 @@ async function markDisconnected(
   // disconnected. Tokens stay encrypted-at-rest but are no longer usable
   // because we null out the pointers and mark the connection as absent.
   await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .update({
       linkedin_connected_at: null,
       linkedin_token_expires_at: null,

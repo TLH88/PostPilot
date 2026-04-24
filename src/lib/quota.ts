@@ -25,14 +25,14 @@ export interface QuotaStatus {
 }
 
 /**
- * Get the user's subscription tier from creator_profiles.
+ * Get the user's subscription tier from user_profiles.
  */
 export async function getUserTier(
   userId: string
 ): Promise<SubscriptionTier> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("subscription_tier")
     .eq("user_id", userId)
     .single();
@@ -185,7 +185,7 @@ const QUOTA_TYPE_LABELS: Record<QuotaType, string> = {
  *     quotaType: "image_generations",
  *     used: 30,
  *     limit: 30,
- *     tier: "creator",
+ *     tier: "Personal",
  *     upgradePath: "byok" | "higher_tier"
  *   }
  *

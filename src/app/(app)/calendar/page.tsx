@@ -153,7 +153,7 @@ export default function CalendarPage() {
 
       // Fetch author profile for preview
       const { data: profile } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("full_name, headline")
         .eq("user_id", user.id)
         .single();

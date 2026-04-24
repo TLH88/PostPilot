@@ -6,7 +6,7 @@ import { encrypt } from "@/lib/encryption";
 import { logApiError } from "@/lib/api-utils";
 import { logActivity } from "@/lib/activity";
 import { createNotification } from "@/lib/notifications";
-import type { CreatorProfile, Post } from "@/types";
+import type { UserProfile, Post } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,9 +45,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch creator profile with LinkedIn tokens
+    // Fetch user profile with LinkedIn tokens
     const { data: profileData, error: profileError } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("*")
       .eq("user_id", user.id)
       .single();
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const profile = profileData as CreatorProfile;
+    const profile = profileData as UserProfile;
 
     // Check LinkedIn connection
     if (
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
           }
 
           await supabase
-            .from("creator_profiles")
+            .from("user_profiles")
             .update(updateData)
             .eq("user_id", user.id);
         } catch (refreshError) {

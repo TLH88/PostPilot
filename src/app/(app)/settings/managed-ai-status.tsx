@@ -22,7 +22,7 @@ export function ManagedAIStatus() {
       // /api/settings/provider-keys endpoint returns only safe metadata
       // (id, provider, is_active, etc) — no encrypted key fields.
       const { data: profile } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("managed_ai_access, managed_ai_expires_at")
         .eq("user_id", user.id)
         .single();

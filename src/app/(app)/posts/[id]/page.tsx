@@ -97,7 +97,7 @@ import { ApprovalControls } from "@/components/posts/approval-controls";
 import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 import { logActivity } from "@/lib/activity";
 // Tutorial target IDs on elements are used by the tutorial overlay
-import type { Post, PostVersion, AIMessage, AIConversation, CreatorProfile } from "@/types";
+import type { Post, PostVersion, AIMessage, AIConversation, UserProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
 const QUICK_SUGGESTIONS = [
@@ -144,7 +144,7 @@ export default function PostWorkspacePage() {
   const [deletingVersion, setDeletingVersion] = useState(false);
 
   // ── Profile state ─────────────────────────────────────────────────────────
-  const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userTier, setUserTier] = useState<SubscriptionTier>("free");
 
   // ── Chat state ────────────────────────────────────────────────────────────
@@ -345,13 +345,13 @@ export default function PostWorkspacePage() {
 
       // Fetch profile
       const { data: profileData } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
       if (profileData) {
-        setProfile(profileData as CreatorProfile);
+        setProfile(profileData as UserProfile);
         if (profileData.subscription_tier) {
           setUserTier(profileData.subscription_tier as SubscriptionTier);
         }
@@ -1497,7 +1497,7 @@ export default function PostWorkspacePage() {
       )}
       {["posted", "archived"].includes(status) && !hasFeature(userTier, "analytics") && (
         <div className="rounded-lg border bg-card p-4">
-          <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
+          <UpgradePrompt feature="Engagement Analytics" requiredTier="personal" variant="inline" />
         </div>
       )}
 

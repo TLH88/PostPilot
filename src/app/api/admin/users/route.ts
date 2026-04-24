@@ -11,9 +11,9 @@ export async function GET() {
   const { data: authData } = await supabase.auth.admin.listUsers();
   const authUsers = authData?.users ?? [];
 
-  // Fetch all creator profiles
+  // Fetch all user profiles
   const { data: profiles } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("user_id, full_name, subscription_tier, account_status, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, ai_api_key_encrypted, original_tier, trial_tier, trial_started_at, trial_ends_at, last_trial_tiers, created_at, updated_at")
     .order("created_at", { ascending: false });
 
@@ -146,7 +146,7 @@ export async function PATCH(request: NextRequest) {
 
   const supabase = createAdminClient();
   const { error } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .update(safeUpdates)
     .eq("user_id", userId);
 

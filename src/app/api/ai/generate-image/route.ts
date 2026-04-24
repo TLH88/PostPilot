@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Get profile to determine provider. Prefer image_ai_provider (dedicated
     // image setting) and fall back to the text ai_provider.
     const { data: profileData } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("ai_provider, image_ai_provider, image_ai_model")
       .eq("user_id", user.id)
       .single();

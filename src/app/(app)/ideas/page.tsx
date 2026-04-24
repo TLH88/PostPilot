@@ -325,7 +325,7 @@ export default function IdeasPage() {
       const [ideasResult, profileResult] = await Promise.all([
         ideasQuery,
         supabase
-          .from("creator_profiles")
+          .from("user_profiles")
           .select("content_pillars")
           .eq("user_id", user.id)
           .single(),

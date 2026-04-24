@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERTISE_SUGGESTIONS, TONE_OPTIONS } from "@/lib/constants";
-import type { CreatorProfile } from "@/types";
+import type { UserProfile } from "@/types";
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,13 +115,13 @@ export default function ProfilePage() {
       setUserEmail(user.email ?? "");
 
       const { data: profile } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
       if (profile) {
-        const p = profile as CreatorProfile;
+        const p = profile as UserProfile;
         setFullName(p.full_name ?? "");
         setHeadline(p.headline ?? "");
         setLinkedinUrl(p.linkedin_url ?? "");
@@ -287,7 +287,7 @@ export default function ProfilePage() {
       };
 
       const { error } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .upsert(profileData, { onConflict: "user_id" });
 
       if (error) throw error;
@@ -311,7 +311,7 @@ export default function ProfilePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Creator Profile
+            User Profile
           </h1>
           <p className="text-sm text-muted-foreground">
             Update your background, expertise, and writing style. The AI uses this info to generate posts that sound like you.

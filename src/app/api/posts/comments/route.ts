@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Fetch author profiles for display
     const userIds = Array.from(new Set((comments ?? []).map((c) => c.user_id)));
     const { data: profiles } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("user_id, full_name")
       .in("user_id", userIds.length > 0 ? userIds : [""]);
 

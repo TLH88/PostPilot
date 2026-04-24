@@ -125,7 +125,7 @@ export function GenerateIdeasDialog({
     if (!user) return;
 
     const { error } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .update({ content_pillars: updatedPillars })
       .eq("user_id", user.id);
 

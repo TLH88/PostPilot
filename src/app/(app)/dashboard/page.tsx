@@ -199,7 +199,7 @@ export default async function DashboardPage() {
 
   // Fetch profile for greeting + AI access resolution
   const { data: profile } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select(
       "full_name, onboarding_completed, ai_provider, ai_model, ai_api_key_encrypted, force_ai_gateway, managed_ai_access, managed_ai_expires_at, account_status, trial_ends_at"
     )
@@ -211,7 +211,7 @@ export default async function DashboardPage() {
   let onboardingCurrentStep: number | null = null;
   try {
     const { data: stepRow } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("onboarding_current_step")
       .eq("user_id", user.id)
       .single();
@@ -357,7 +357,7 @@ export default async function DashboardPage() {
 
   // Fetch content pillar distribution from posts + ideas
   const { data: profileFull } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("content_pillars")
     .eq("user_id", user.id)
     .single();

@@ -1,6 +1,6 @@
-import type { CreatorProfile } from "@/types";
+import type { UserProfile } from "@/types";
 
-export function buildCreatorContext(profile: CreatorProfile): string {
+export function buildCreatorContext(profile: UserProfile): string {
   const sections: string[] = [];
 
   sections.push("CREATOR PROFILE:");

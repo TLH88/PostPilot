@@ -146,7 +146,7 @@ export default function OnboardingPage() {
       if (requestedStep === null) {
         try {
           const { data } = await supabase
-            .from("creator_profiles")
+            .from("user_profiles")
             .select("onboarding_current_step, onboarding_completed")
             .eq("user_id", user.id)
             .single();
@@ -346,7 +346,7 @@ export default function OnboardingPage() {
       };
 
       const { error } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .upsert(profileData, { onConflict: "user_id" });
 
       if (error) throw error;
@@ -355,7 +355,7 @@ export default function OnboardingPage() {
       // environments without the new column still complete onboarding.
       try {
         await supabase
-          .from("creator_profiles")
+          .from("user_profiles")
           .update({ onboarding_current_step: null })
           .eq("user_id", userId);
       } catch {
@@ -395,7 +395,7 @@ export default function OnboardingPage() {
       // current user's row. Failures shouldn't block the UI.
       if (userId) {
         supabase
-          .from("creator_profiles")
+          .from("user_profiles")
           .update({ onboarding_current_step: next })
           .eq("user_id", userId)
           .then(() => undefined);

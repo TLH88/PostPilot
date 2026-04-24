@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Fetch actor names
     const triggerIds = Array.from(new Set((notifications ?? []).map((n) => n.triggered_by).filter(Boolean) as string[]));
     const { data: profiles } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("user_id, full_name")
       .in("user_id", triggerIds.length > 0 ? triggerIds : [""]);
 

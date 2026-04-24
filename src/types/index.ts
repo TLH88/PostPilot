@@ -1,4 +1,4 @@
-export interface CreatorProfile {
+export interface UserProfile {
   id: string;
   user_id: string;
   full_name: string | null;
@@ -47,7 +47,7 @@ export interface CreatorProfile {
   force_ai_gateway: boolean;
   // Account status & subscription
   account_status: "active" | "trial" | "suspended" | "churned";
-  subscription_tier: "free" | "creator" | "professional" | "team" | "enterprise";
+  subscription_tier: "free" | "personal" | "professional" | "team" | "enterprise";
   // Trial fields
   original_tier: string | null;
   trial_tier: string | null;

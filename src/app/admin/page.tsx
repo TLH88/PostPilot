@@ -32,7 +32,7 @@ function timeAgo(dateStr: string | null): string {
 
 const TIER_DOT_COLORS: Record<string, string> = {
   free: "bg-gray-400",
-  creator: "bg-blue-500",
+  personal: "bg-blue-500",
   professional: "bg-purple-500",
   team: "bg-amber-500",
   enterprise: "bg-gray-400",
@@ -44,7 +44,7 @@ export default async function AdminDashboard() {
   // Fetch all data in parallel
   const [authResult, profilesResult, postsResult, workspacesResult, quotasResult, ideasResult] = await Promise.all([
     supabase.auth.admin.listUsers(),
-    supabase.from("creator_profiles").select("user_id, full_name, subscription_tier, account_status, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, created_at, updated_at"),
+    supabase.from("user_profiles").select("user_id, full_name, subscription_tier, account_status, managed_ai_access, managed_ai_expires_at, onboarding_completed, ai_provider, created_at, updated_at"),
     supabase.from("posts").select("user_id, status, created_at"),
     supabase.from("workspaces").select("id", { count: "exact", head: true }),
     supabase.from("usage_quotas").select("user_id, posts_created, brainstorms_used, chat_messages_used, period_start").order("period_start", { ascending: false }),
@@ -235,7 +235,7 @@ export default async function AdminDashboard() {
         <div className="rounded-xl border bg-card p-5">
           <h3 className="text-base font-semibold mb-4">Users by Tier</h3>
           <div className="space-y-4">
-            {(["free", "creator", "professional", "team", "enterprise"] as const).map((tier) => {
+            {(["free", "personal", "professional", "team", "enterprise"] as const).map((tier) => {
               const count = tierCounts[tier] || 0;
               const pct = totalUsers > 0 ? (count / totalUsers) * 100 : 0;
               return (

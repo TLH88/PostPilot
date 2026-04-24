@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: updateError } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .update(updateData)
       .eq("user_id", user.id);
 

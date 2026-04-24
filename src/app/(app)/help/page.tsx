@@ -674,7 +674,7 @@ export default function HelpPage() {
       >
         <h4 className="text-sm font-semibold">How AI uses your voice profile</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          When you set up your Creator Profile, the AI learns your writing style, tone,
+          When you set up your User Profile, the AI learns your writing style, tone,
           expertise, and target audience. Every AI-generated draft is tailored to sound like you,
           not generic LinkedIn content. The AI also has full context of your current post, including
           title, content, status, hashtags, and content pillar.
@@ -704,7 +704,7 @@ export default function HelpPage() {
         </p>
 
         <Tip>
-          The better your Creator Profile, the more personalized and on-brand the AI output will be.
+          The better your User Profile, the more personalized and on-brand the AI output will be.
           Take time to fill in your expertise, tone, and example posts in Settings.
         </Tip>
       </CollapsibleCard>

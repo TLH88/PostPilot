@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
 
     // Fetch tier
     const { data: profile } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("subscription_tier")
       .eq("user_id", user.id)
       .single();
@@ -194,7 +194,7 @@ export default function AnalyticsPage() {
 
       {/* Feature gate */}
       {!canUseAnalytics && (
-        <UpgradePrompt feature="Analytics" requiredTier="creator" variant="banner" />
+        <UpgradePrompt feature="Analytics" requiredTier="personal" variant="banner" />
       )}
 
       {canUseAnalytics && (

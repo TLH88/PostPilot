@@ -91,7 +91,7 @@ export function PastDueChecker() {
 
     // Fetch profile for preview
     const { data: profile } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("full_name, headline")
       .eq("user_id", user.id)
       .single();
