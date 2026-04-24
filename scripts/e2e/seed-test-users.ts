@@ -102,7 +102,10 @@ async function upsertTestUser(tier: Tier): Promise<{ id: string; email: string }
     is_test_user: true,
     full_name: `E2E ${tier.charAt(0).toUpperCase() + tier.slice(1)}`,
     headline: `Playwright test user — ${tier} tier`,
-    onboarded_at: now,
+    // Real schema: onboarding_completed (bool) + onboarding_current_step (smallint).
+    // Mark tests as fully onboarded so specs can skip the intro flow.
+    onboarding_completed: true,
+    onboarding_current_step: 99,
     // Mark LinkedIn as connected with fake-but-structurally-valid values.
     // Any real LinkedIn API call will fail at decrypt, which is the guardrail.
     linkedin_connected_at: now,
