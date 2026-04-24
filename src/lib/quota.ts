@@ -201,6 +201,10 @@ export function buildQuotaExceededResponse(
   const upgradePath: "byok" | "higher_tier" =
     quota.tier === "professional" ? "byok" : "higher_tier";
 
+  // Return the user-facing tier display label (e.g. "Personal"), never the
+  // internal key (`creator`). Internal key rename is tracked by BP-114.
+  const tierLabel = SUBSCRIPTION_TIERS[quota.tier].label;
+
   return NextResponse.json(
     {
       error: `Monthly ${label} limit reached (${quota.used}/${quota.limit}).`,
@@ -208,7 +212,7 @@ export function buildQuotaExceededResponse(
       quotaType,
       used: quota.used,
       limit: quota.limit,
-      tier: quota.tier,
+      tier: tierLabel,
       upgradePath,
     },
     { status: 402 }
