@@ -13,6 +13,7 @@ import { TIER_FEATURES, SUBSCRIPTION_TIERS, TRIAL_COOLDOWN_DAYS, type Subscripti
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { WaitlistDialog } from "@/components/pricing/waitlist-dialog";
 
 const TIER_ORDER: SubscriptionTier[] = ["free", "personal", "professional", "team"];
 const ALL_TIERS: SubscriptionTier[] = ["free", "personal", "professional", "team", "enterprise"];
@@ -73,6 +74,7 @@ export default function PricingPage() {
   const router = useRouter();
   const [userState, setUserState] = useState<UserState | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
+  const [waitlistTier, setWaitlistTier] = useState<"team" | "enterprise" | null>(null);
 
   useEffect(() => {
     const previousTheme = theme;
@@ -132,9 +134,10 @@ export default function PricingPage() {
       return { label: "Get Started", action: () => router.push("/signup"), variant: "primary" };
     }
 
-    // Team — admin managed
+    // BP-130: Team — Coming Soon, waitlist signup. Stripe billing for the
+    // 5-seat-min / $100 + $6/user model is deferred to a future BP.
     if (tierKey === "team") {
-      return { label: "Contact Sales", action: () => router.push("mailto:sales@mypostpilot.app"), variant: "primary" };
+      return { label: "Join Waitlist", action: () => setWaitlistTier("team"), variant: "primary" };
     }
 
     // Not logged in
@@ -320,6 +323,14 @@ export default function PricingPage() {
                       </Badge>
                     </div>
                   )}
+                  {/* BP-130: Coming Soon badge for tiers that aren't yet GA. */}
+                  {tierKey === "team" && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-amber-500 text-white px-3 py-0.5 text-xs">
+                        Coming Soon
+                      </Badge>
+                    </div>
+                  )}
                   <CardHeader className="text-center pb-2">
                     <h3 className="text-lg font-semibold">{tier.label}</h3>
                     <div className="mt-2">
@@ -389,7 +400,13 @@ export default function PricingPage() {
 
           {/* Enterprise card */}
           <div className="mt-8 mx-auto max-w-2xl">
-            <Card className="flex flex-col">
+            <Card className="relative flex flex-col overflow-visible">
+              {/* BP-130: Coming Soon — Enterprise also deferred at GTM launch. */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-amber-500 text-white px-3 py-0.5 text-xs">
+                  Coming Soon
+                </Badge>
+              </div>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Enterprise</h3>
@@ -398,16 +415,23 @@ export default function PricingPage() {
                 <p className="mt-1 text-xs text-muted-foreground">150+ users — everything in Team with dedicated support, custom integrations, SSO, and SLA guarantees</p>
               </CardHeader>
               <CardContent>
-                <Link
-                  href="mailto:sales@mypostpilot.app"
+                <button
+                  onClick={() => setWaitlistTier("enterprise")}
                   className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Contact Sales
-                </Link>
+                </button>
               </CardContent>
             </Card>
           </div>
         </section>
+
+        {/* BP-130: Waitlist dialog (Team + Enterprise) */}
+        <WaitlistDialog
+          open={waitlistTier !== null}
+          onOpenChange={(o) => !o && setWaitlistTier(null)}
+          tier={waitlistTier ?? "team"}
+        />
 
         {/* Feature Comparison Table (desktop) */}
         <section className="border-t bg-muted/30 py-16">
