@@ -5,7 +5,7 @@ import {
   GUARDRAILS,
   BRAINSTORM_INSTRUCTIONS,
 } from "@/lib/ai/prompts";
-import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
+import { buildCreatorContext, buildSystemPromptWithCacheBoundary } from "@/lib/ai/context-builder";
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
 import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
@@ -111,13 +111,20 @@ export async function POST(request: NextRequest) {
       String(count)
     );
 
-    const systemPrompt = buildSystemPrompt(
-      BASE_PERSONALITY,
-      buildCreatorContext(profile),
-      interpolatedInstructions,
-      GUARDRAILS,
-      historyContext || undefined
-    );
+    // BP-128: split the prompt at the boundary between stable sections
+    // (personality + creator context + task instructions + guardrails) and
+    // volatile history. Anthropic providers use `cacheableSystemPrefixChars`
+    // to emit explicit cache_control markers and get ~90% off the prefix
+    // tokens on subsequent calls. OpenAI auto-caches on prefix match and
+    // ignores the hint.
+    const { prompt: systemPrompt, cacheableSystemPrefixChars } =
+      buildSystemPromptWithCacheBoundary(
+        BASE_PERSONALITY,
+        buildCreatorContext(profile),
+        interpolatedInstructions,
+        GUARDRAILS,
+        historyContext || undefined
+      );
 
     // Build user message
     let userMessage = `Generate ${count} LinkedIn post ideas for me.`;
@@ -130,6 +137,7 @@ export async function POST(request: NextRequest) {
 
     const response = await client.createMessage({
       systemPrompt,
+      cacheableSystemPrefixChars,
       messages: [{ role: "user", content: userMessage }],
       maxTokens: 2000,
     });

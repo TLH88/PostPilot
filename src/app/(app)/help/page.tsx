@@ -1,6 +1,24 @@
-import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbulb, BookOpen, Bot, CalendarDays, Play } from "lucide-react";
+import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbulb, BookOpen, Bot, CalendarDays, Play, KeyRound, Lock } from "lucide-react";
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { TutorialRestartSection, RunTutorialButton } from "@/components/tutorial/tutorial-restart-section";
+import { Badge } from "@/components/ui/badge";
+
+type PaidTier = "personal" | "professional" | "team";
+
+function HelpPaidBadge({ tier }: { tier: PaidTier }) {
+  const label =
+    tier === "team"
+      ? "Team feature"
+      : tier === "professional"
+      ? "Paid feature — Professional and above"
+      : "Paid feature — Personal and above";
+  return (
+    <Badge variant="secondary" className="mb-3 gap-1 font-normal">
+      <Lock className="size-3" />
+      {label}
+    </Badge>
+  );
+}
 
 function StepList({ children }: { children: React.ReactNode }) {
   return <ol className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-foreground/90">{children}</ol>;
@@ -79,12 +97,27 @@ export default function HelpPage() {
       </div>
       <TutorialRestartSection />
 
+      {/* ─── Finding & Creating Personal AI Provider API Keys ─── */}
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <KeyRound className="size-5 text-primary" />
+          <h2 id="api-keys" className="text-lg font-semibold">Finding &amp; Creating Personal AI Provider API Keys</h2>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          On the Professional plan you can bring your own API key (BYOK) for each supported AI
+          provider. The guides below walk you through creating, accessing, and billing keys for
+          OpenAI, Anthropic, Google, and Perplexity. Personal-plan users don&apos;t need to follow
+          these steps — you&apos;re on PostPilot&apos;s managed system keys.
+        </p>
+      </div>
+
       {/* ─── Anthropic ─── */}
       <CollapsibleCard
         title="Anthropic (Claude)"
         description="Claude Opus, Sonnet, and Haiku models"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="professional" />
         <BillingNote provider="Anthropic" />
 
         <h4 className="text-sm font-semibold">Creating a new API key</h4>
@@ -145,6 +178,7 @@ export default function HelpPage() {
         description="GPT-4.1, GPT-4o, o3, and o4-mini models"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="professional" />
         <BillingNote provider="OpenAI" />
 
         <h4 className="text-sm font-semibold">Creating a new API key</h4>
@@ -206,6 +240,7 @@ export default function HelpPage() {
         description="Gemini 2.5 Pro, Flash, and Flash Lite models"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="professional" />
         <BillingNote provider="Google" />
 
         <h4 className="text-sm font-semibold">Creating a new API key</h4>
@@ -263,6 +298,7 @@ export default function HelpPage() {
         description="Sonar Pro, Sonar Reasoning, and Deep Research models"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="professional" />
         <BillingNote provider="Perplexity" />
 
         <h4 className="text-sm font-semibold">Creating a new API key</h4>
@@ -330,6 +366,7 @@ export default function HelpPage() {
         description="Import impressions and engagement data from your LinkedIn profile"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="personal" />
         <p className="text-sm text-foreground/80 mb-3">
           LinkedIn provides analytics on your post performance including impressions and engagements.
           You can import this data into PostPilot in two passes : one for impressions and one for
@@ -573,6 +610,7 @@ export default function HelpPage() {
         description="Save and reuse your best hooks, CTAs, closings, and snippets"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="professional" />
         <p id="content-library" className="text-sm text-foreground/80 mb-3">
           The Content Library lets you save pieces of content you use frequently and insert them into
           any post with one click.
@@ -627,6 +665,7 @@ export default function HelpPage() {
         description="Use built-in templates or save your own post structures"
         defaultOpen={false}
       >
+        <HelpPaidBadge tier="professional" />
         <p id="templates" className="text-sm text-foreground/80 mb-3">
           Templates give you a head start on common post formats so you don&apos;t have to start
           from a blank page every time.
@@ -689,6 +728,7 @@ export default function HelpPage() {
         </p>
 
         <h4 id="hook-analysis" className="text-sm font-semibold">Hook analysis</h4>
+        <HelpPaidBadge tier="personal" />
         <p className="text-sm text-foreground/80 mb-3">
           The <strong>&quot;Analyze Hook&quot;</strong> feature in the Format menu evaluates your
           post&apos;s opening lines (the first ~210 characters visible before LinkedIn&apos;s

@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-04-24 Part 5: v2-adjacent cleanup — BP-120 help, BP-121 tutorial dismiss, BP-127 logging, BP-128 caching
+
+Closed every remaining v2-adjacent item across EPICs 3, 4, and 10. No new BP creation — all pre-existing.
+
+### BP-127 — AI route logging coverage (Done, audit-only)
+All 7 AI routes already call `logAiUsage` in both success and error paths (14 total calls). The cost-study blind spot was lack of traffic, not missing wiring. BACKLOG entry updated with the resolution note.
+
+### BP-120 — Help content refresh (Done, agent-driven)
+- Verified zero "Creator tier" / "Creator Profile" remnants — BP-114 sed run had pre-cleaned them.
+- Added reusable `HelpPaidBadge` component applied to all paid-only articles across `/help` and the help sidebar drawer (Content Library Pro+, Post Templates Pro+, Hook Analysis Personal+, Image Generation Personal+, Analytics Personal+, BYOK Pro+).
+- New top-level section "Finding & Creating Personal AI Provider API Keys" on `/help` (`#api-keys` anchor) wrapping the four BYOK provider cards with a short intro.
+
+### BP-121 — Tutorial "Don't show again" (MVP Done)
+- Migration `20260424_tutorial_dismissals.sql` applied to production. Surfaced that the base `tutorial_progress` / `tutorial_user_state` tables had never been applied — fixed in the same migration (the SDK was silently falling back to localStorage).
+- New host-side helpers `src/lib/tutorials/dismissals.ts`: dismiss, re-enable, list, reset-all.
+- SDK `TutorialStorageAdapter` interface extended with OPTIONAL dismiss methods (opt-in — hosts aren't forced to implement).
+- Help page tutorial list: **Hide** button per row, dismissed rows filter out, new **Dismissed Tutorials** subsection with per-tutorial **Re-enable** + **Reset all**.
+- **Not shipped (deferred):** in-tutorial-card "Don't show again" checkbox — requires SDK-level refactor of TutorialCard/OverviewCard/SimpleCard. Users can dismiss via Help page for now.
+
+### BP-128 — Brainstorm prompt caching (Done, awaiting measurement)
+- Audit confirmed prompt was already assembled stable-first / volatile-last. No reorder needed.
+- New optional field `cacheableSystemPrefixChars` on `AIRequestOptions` lets callers hint where the stable/volatile split is.
+- `AnthropicAIClient.buildSystem()` helper splits on the boundary and emits structured `system: [...]` with `cache_control: { type: "ephemeral" }` on the stable block. Anthropic grants ~90% discount on matched prefix tokens for ~5 minutes.
+- OpenAI clients ignore the hint (auto-caching on prefix match covers them).
+- Brainstorm route opts in via new `buildSystemPromptWithCacheBoundary` helper.
+- Measurement plan in BACKLOG: after admin flips system default to an Anthropic model via `/admin/system`, query `SUM(cached_tokens) / SUM(input_tokens)` for brainstorm after ~1 week of traffic. Target >40% hit rate.
+
+### Migrations applied to prod
+- `20260424_tutorial_dismissals.sql` (plus the base tutorial tables migration that had never been applied).
+- `20260424_system_ai_config.sql` (from Phase D of BP-117 earlier today — admin-configurable system default).
+- `20260424_rename_creator_tier_to_personal.sql` (BP-114).
+- `20260424_rename_creator_profiles_to_user_profiles.sql` (BP-114).
+- `20260424_add_image_generations_to_usage_quotas.sql` (BP-117 Phase A).
+
+### End-of-session state
+- develop: all commits pushed, tests green (type-check clean). Branch HEAD advancing through the day's work.
+- main: still at last v2-pivot merge point. **No v2 code has been merged to main yet** — the full v2 rollout lives entirely on develop.
+- All v2-adjacent BPs (115, 116, 117 A–D, 118, 119 Phase 1, 120, 121 MVP, 123, 124, 125, 126, 127, 128) now Done or Spec-Done on develop.
+
+---
+
 ## 2026-04-24 Part 2: Pre-GTM Sprint 1 kickoff — BP-123 cost study + BP-126 local-dev login
 
 Follow-up to the morning planning session. Executed two EPIC-1 items end-to-end.

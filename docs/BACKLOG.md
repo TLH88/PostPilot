@@ -3724,11 +3724,20 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-120: Help Content Refresh — Personal Rename, Paid-Feature Badges, API Key Section
 
-**Status:** Backlog
+**Status:** Done (2026-04-24 — agent-driven sweep)
 **Priority:** P1 / High
 **Source:** Owner observations 2026-04-24
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
 **EPIC:** Terminology & Help Content (EPIC 3)
+
+**Shipped:**
+- Verified zero "Creator tier" / "Creator Profile" remnants in help content (BP-114 pre-cleaned via sed).
+- Added reusable `HelpPaidBadge` component applied to Content Library (Pro+), Post Templates (Pro+), AI Hook Analysis (Personal+), AI Image Generation (Personal+), Post Performance Analytics (Personal+), BYOK cards (Pro+) across both `/help` page and the help sidebar drawer.
+- New top-level section on `/help` titled "Finding & Creating Personal AI Provider API Keys" with a short intro + the four BYOK provider cards wrapped under it. Anchor `#api-keys`.
+- `npx tsc --noEmit` clean.
+
+**Open follow-up (not blocking):**
+- AI Image Generation doesn't yet have a standalone `/help` card — only referenced inside Publishing to LinkedIn. Potential future expansion.
 
 **What to change** (help content store + `/help` page):
 
@@ -3755,11 +3764,21 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-121: Tutorial "Don't Show Again" Checkbox + Settings Reset
 
-**Status:** Backlog
+**Status:** MVP Done (2026-04-24). In-tutorial-card "Don't show again" checkbox deferred (requires SDK refactor of TutorialCard/TutorialOverlay) — tracked as follow-up.
 **Priority:** P2 / Medium
 **Source:** Owner feedback 2026-04-24
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Completed (MVP):** 2026-04-24
 **EPIC:** Onboarding & Guidance (EPIC 4)
+
+**Shipped (MVP):**
+- Migration `20260424_tutorial_dismissals.sql` + base `tutorial_progress` / `tutorial_user_state` tables created in production (they had never been applied — SDK was falling back to localStorage). Adds `dismissed` boolean + `dismissed_at` timestamp on `tutorial_progress`.
+- Host-side helpers `src/lib/tutorials/dismissals.ts`: `dismissTutorial`, `isTutorialDismissed`, `listDismissedTutorials`, `reEnableTutorial`, `resetAllDismissals`.
+- Tutorial SDK `TutorialStorageAdapter` interface extended with optional dismiss methods (opt-in; SDK doesn't force hosts to implement).
+- `TutorialRestartSection` on the Help page extended: each tutorial row now has a **Hide** button (dismisses the tutorial), dismissed tutorials filter out of the active lists, and a new **Dismissed Tutorials** subsection lists them with per-tutorial **Re-enable** plus a **Reset all** button.
+- `npx tsc --noEmit` clean.
+
+**Follow-up (not shipped — SDK refactor):**
+- In-tutorial "Don't show this again" checkbox on the card itself (during an active tutorial). Requires threading a `onDismiss` callback through `TutorialCard` → `OverviewCard` / `SimpleCard` in `packages/tutorial-sdk/`. Currently users must dismiss via the Help page's Hide button.
 
 **Problem:** Tutorials (shipped under BP-035 Phases A–C) currently re-appear each time a user hits a qualifying surface. Users who've learned the product (or who don't want tutorials at all) have no way to suppress a given tutorial while keeping the others.
 
@@ -4005,12 +4024,14 @@ H. **Upgrade-path economics** — is Personal $20 structurally profitable or a l
 
 ### BP-127: Complete AI Route Logging Coverage
 
-**Status:** Backlog
+**Status:** Done (2026-04-24 — audit closed; wiring was already complete, not a code gap).
 **Priority:** P1 / High
 **Source:** Data gap surfaced during BP-123 cost study (2026-04-24). Owner confirmed: "Logging and accurate usage tracking are extremely important for this project."
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
 **EPIC:** Admin & Cost Controls (EPIC 10)
 **Related:** BP-085 (usage logging infrastructure — Phase 1+2 shipped), BP-123 (cost study that identified the gap)
+
+**Resolution:** A fresh audit of `src/app/api/ai/**/route.ts` during Phase B of BP-117 confirmed that all seven AI routes (`analyze-hook`, `brainstorm`, `chat`, `draft`, `enhance`, `generate-image`, `hashtags`) already call `logAiUsage()` in both the success and error paths — 14 total calls, 2 per route. The cost-study blind spot wasn't missing wiring; it was simply that `enhance`, `hashtags`, `analyze-hook`, and `draft` weren't exercised during the 2026-04-12 → 2026-04-23 logging window. Once those routes see real v2 traffic the events will populate `ai_usage_events`. No code changes needed; closing this BP as "already covered."
 
 **Problem:** BP-085 Phase 1+2 shipped `ai_usage_events` logging for the three highest-volume routes: `brainstorm`, `chat`, `generate-image`. Five additional AI-consuming routes are NOT writing to `ai_usage_events`:
 - `/api/ai/enhance`
@@ -4049,12 +4070,23 @@ H. **Upgrade-path economics** — is Personal $20 structurally profitable or a l
 
 ### BP-128: Brainstorm Prompt Caching Refactor
 
-**Status:** Backlog
+**Status:** Done (2026-04-24 — Anthropic cache_control wired; awaiting real traffic to measure impact)
 **Priority:** P2 / Medium
 **Source:** BP-123 cost study finding (2026-04-24) — brainstorm has 0% cache hit rate because BP-009 history injection rotates entire context every call. Owner-approved.
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
 **EPIC:** Admin & Cost Controls (EPIC 10)
 **Related:** BP-009 (history-enhanced brainstorming — the reason for 0% caching), BP-127 (needed to measure this BP's impact accurately)
+
+**Shipped:**
+- Audit confirmed the brainstorm prompt was already assembled stable-first / volatile-last via `buildSystemPrompt` (personality + creator context + task instructions + guardrails before history). No reorder needed.
+- Added opt-in `cacheableSystemPrefixChars?: number` field to `AIRequestOptions` (`src/lib/ai/providers.ts`). Callers that know where the stable/volatile boundary is can hint the clients.
+- Extended `AnthropicAIClient` with a `buildSystem()` helper that splits the prompt on the boundary and emits a structured `system: [...]` array with `cache_control: { type: "ephemeral" }` on the stable block. Anthropic caches the prefix for ~5 minutes; subsequent matching calls get ~90% off those tokens. OpenAI auto-caches on prefix match (>1024 tokens) and ignores the hint — no behavior change.
+- New helper `buildSystemPromptWithCacheBoundary` in `context-builder.ts` returns `{ prompt, cacheableSystemPrefixChars }`. Brainstorm route now uses it and passes the hint through.
+- `npx tsc --noEmit` clean.
+
+**Measurement plan:**
+- After owner flips admin system default to an Anthropic model (via BP-117 Phase D2 `/admin/system`), wait ~1 week, then query `ai_usage_events` for brainstorm: `SUM(cached_tokens) / SUM(input_tokens)`. Target >40% cache hit rate to confirm the pattern is working.
+- Same hint can be applied to other routes (chat, enhance, draft) in follow-ups — the plumbing is reusable.
 
 **Problem:** From the cost study data: brainstorm input tokens total 16,763 across 7 calls, with **0 cached tokens** (0% hit rate). Root cause: BP-009 injects 15 recent posts + 10 recent ideas into the prompt context. Since the user's recent activity changes between calls, the full prompt string is unique every time, defeating provider-side automatic caching.
 

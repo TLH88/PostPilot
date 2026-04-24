@@ -2,9 +2,10 @@
 
 import { useState, useCallback, createContext, useContext } from "react";
 import { useRouter } from "next/navigation";
-import { HelpCircle, X, Play } from "lucide-react";
+import { HelpCircle, X, Play, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useTutorial } from "@postpilot/tutorial-sdk";
 import { TUTORIAL_REGISTRY } from "@/lib/tutorials/definitions";
 import {
@@ -14,6 +15,23 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+type HelpPaidTier = "personal" | "professional" | "team";
+
+function HelpPaidBadge({ tier }: { tier: HelpPaidTier }) {
+  const label =
+    tier === "team"
+      ? "Team feature"
+      : tier === "professional"
+      ? "Paid feature — Professional and above"
+      : "Paid feature — Personal and above";
+  return (
+    <Badge variant="secondary" className="gap-1 font-normal">
+      <Lock className="size-3" />
+      {label}
+    </Badge>
+  );
+}
 
 // ── Context for opening help from anywhere ──────────────────────────────────
 
@@ -138,6 +156,11 @@ function HelpContent({ articleId }: { articleId?: string }) {
       <div>
         <h3 className="font-semibold text-base">{article.title}</h3>
         <p className="text-muted-foreground text-xs mt-1">{article.description}</p>
+        {article.tier ? (
+          <div className="mt-2">
+            <HelpPaidBadge tier={article.tier} />
+          </div>
+        ) : null}
       </div>
       <div className="space-y-3 text-foreground/90 leading-relaxed">
         {article.content}
@@ -211,10 +234,11 @@ function GuidedToursSection() {
 
 // ── Article registry ────────────────────────────────────────────────────────
 
-const HELP_ARTICLES: Record<string, { title: string; description: string; content: React.ReactNode }> = {
+const HELP_ARTICLES: Record<string, { title: string; description: string; content: React.ReactNode; tier?: HelpPaidTier }> = {
   "content-library": {
     title: "Content Library",
     description: "Save and reuse your best hooks, CTAs, closings, and snippets",
+    tier: "professional",
     content: (
       <>
         <p>The Content Library lets you save pieces of content you use frequently and insert them into any post with one click.</p>
@@ -237,6 +261,7 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
   "templates": {
     title: "Post Templates",
     description: "Use built-in templates or save your own post structures",
+    tier: "professional",
     content: (
       <>
         <p>Templates give you a head start on common post formats so you don&apos;t have to start from a blank page.</p>
@@ -265,6 +290,7 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
   "hook-analysis": {
     title: "Hook Analysis",
     description: "Get AI feedback on your post's opening lines",
+    tier: "personal",
     content: (
       <>
         <p>The hook is the first ~210 characters of your post, visible before LinkedIn&apos;s "see more" link. It determines whether readers stop scrolling.</p>
@@ -308,6 +334,7 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
   "post-images": {
     title: "Post Images",
     description: "Upload, generate, and manage images for your posts",
+    tier: "personal",
     content: (
       <>
         <p>Add images to your LinkedIn posts to increase engagement. You can upload your own or generate images with AI.</p>
