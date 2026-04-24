@@ -59,20 +59,20 @@ function emailFor(tier: Tier): string {
  * Prereq: scripts/e2e/seed-test-users.ts has been run at least once against
  * the same project.
  *
- * How it works:
- *   1. admin.generateLink mints a one-time hashed token and returns an
- *      action_link of the form SUPABASE/auth/v1/verify?token=...&redirect_to=APP/callback.
- *   2. Navigating to the action_link has Supabase verify the token, then
- *      302 to APP/callback?token_hash=...&type=magiclink.
+ * How it works (SSR-friendly PKCE pattern):
+ *   1. admin.generateLink returns { hashed_token, email_otp, action_link }.
+ *      We use `hashed_token` directly; `action_link` is the email-click
+ *      variant that verifies on supabase.co and sets cookies there — no
+ *      good for a different origin.
+ *   2. Navigate directly to APP/callback?token_hash=<hashed>&type=magiclink.
  *   3. The app's /callback route (src/app/(auth)/callback/route.ts) calls
- *      verifyOtp with the token_hash, which sets session cookies on the
- *      APP domain (critical — cookies set on supabase.co don't transfer).
- *   4. /callback redirects to /dashboard with session cookies attached.
+ *      verifyOtp({ token_hash, type }), which validates the token and sets
+ *      session cookies on the APP domain (the one we're testing against).
+ *   4. /callback redirects to /dashboard with cookies attached.
  *
- * IMPORTANT: the preview URL (or a wildcard covering it) must be in
- * Supabase's Additional Redirect URLs list, or Supabase rejects the
- * redirectTo and falls back to the Site URL (prod). See README security
- * model section for setup.
+ * No Supabase redirect-URL list entry is required with this flow — we
+ * never call the verify endpoint's redirect_to. (The entries are still
+ * useful for other flows and are documented in README.)
  */
 export async function signInAsTier(page: Page, tier: Tier): Promise<void> {
   const email = emailFor(tier);
@@ -81,26 +81,31 @@ export async function signInAsTier(page: Page, tier: Tier): Promise<void> {
   const { data, error } = await client.auth.admin.generateLink({
     type: "magiclink",
     email,
-    options: {
-      redirectTo: `${APP_BASE_URL}/callback?next=/dashboard`,
-    },
   });
   if (error) throw error;
 
-  const actionLink = data.properties?.action_link;
-  if (!actionLink) {
-    throw new Error(`[e2e/session] generateLink returned no action_link for ${email}`);
+  const hashedToken = data.properties?.hashed_token;
+  if (!hashedToken) {
+    throw new Error(
+      `[e2e/session] generateLink returned no hashed_token for ${email}`
+    );
   }
 
-  // Consume the link. Supabase's verify endpoint will 302 to the app's
-  // /callback route, which sets session cookies on the app domain.
-  await page.goto(actionLink);
-  // Wait until we land on an app route that isn't /callback or /login.
-  // (The callback hands off to /dashboard on success, /login on failure.)
+  // Bypass supabase.co/auth/v1/verify entirely. Hit the app's /callback
+  // directly so verifyOtp runs on the app's server and cookies land on
+  // the preview domain.
+  const callbackUrl = new URL("/callback", APP_BASE_URL);
+  callbackUrl.searchParams.set("token_hash", hashedToken);
+  callbackUrl.searchParams.set("type", "magiclink");
+  callbackUrl.searchParams.set("next", "/dashboard");
+
+  await page.goto(callbackUrl.toString());
+
+  // Wait to settle on a post-callback route. Success hops to /dashboard;
+  // any verifyOtp failure bounces to /login (which is informative — we
+  // want the test to fail loudly rather than silently proceeding).
   await page.waitForURL(
-    (url) =>
-      !url.pathname.startsWith("/auth/v1/verify") &&
-      !url.pathname.startsWith("/callback"),
+    (url) => !url.pathname.startsWith("/callback"),
     { timeout: 15_000 }
   );
 }
