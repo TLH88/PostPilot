@@ -103,6 +103,33 @@ Six failed runs and six distinct root causes before run #7 (24886136028) went gr
 
 **Phase 3 end state:** Pipeline proven end-to-end. Every push to `develop` and every PR will now exercise the full sign-in chain. Phase 2 (three real happy-path specs — auth-onboarding, create-schedule, posted-analytics) is the remaining work, blocked only on owner go-ahead.
 
+### BP-097 Phase 2 (partial) — GREEN end-to-end (later same session)
+Shipped create-schedule + posted-analytics specs + proper storageState auth pattern. auth-onboarding intentionally deferred (6-step onboarding form deserves its own focused session). Final run 24904091344: 13 passed, 0 failed.
+
+**Shipped:**
+- `tests/e2e/helpers/ai-stubs.ts` — every `/api/ai/*` route stubbed (brainstorm / draft / enhance / hashtags / analyze-hook / chat / generate-image / idea-generate). Zero AI spend per CI run.
+- `tests/e2e/helpers/cleanup.ts` — service-role helpers: `getTestUserId(tier)`, `cleanupTestUserPosts`, `cleanupTestUserIdeas`, `resetScheduledPostFixture`. All scoped by test user id and `[E2E FIXTURE]%`-title matching so prod data can't be touched.
+- `tests/e2e/global.setup.ts` — Playwright setup project that signs in each of the four tier users once and writes `tests/e2e/.auth/<tier>.json`. Specs depend on setup via `playwright.config.ts` project dependencies.
+- `playwright.config.ts` — added `setup` project; main `chromium` project declares `dependencies: ["setup"]`. Session cookies exist before any test runs.
+- `.gitignore` — `tests/e2e/.auth/` added (contains real Supabase session cookies).
+- `tests/e2e/create-schedule.spec.ts` — two route-reachability tests (/ideas, /posts) under pro tier storageState. Deep dialog/scheduling flow deferred to Phase 2.1 (requires seeder update for `ai_provider` so the AI-provider-guard doesn't disable buttons).
+- `tests/e2e/posted-analytics.spec.ts` — asserts the seeded `[E2E FIXTURE]` scheduled post appears on /calendar. /posts tab-click check deferred to Phase 2.1 (the page defaults to the "in_work" tab which doesn't show scheduled posts).
+- `scripts/e2e/seed-test-users.ts` — now idempotently inserts one `[E2E FIXTURE]` scheduled post per seed run for the professional tier user (2 days out). Deletes any prior fixture before inserting fresh.
+
+**Failure ladder (2 runs this phase):**
+1. First attempt (run 24898672584): 5/7 tests passed. Two Phase 2 specs failed because they both called `admin.generateLink` for the same professional test user in parallel — Supabase's single-active-token-per-user semantics invalidated one worker's token before consumption, so sign-in silently failed and tests redirected to `/login`. Also: the create-schedule "click Generate Ideas" path hung because `GenerateIdeasButton` disables itself when `ai_provider` isn't set on the user profile.
+2. Second attempt (run 24903943970): 12/13 passed after moving to storageState. One fixture-visibility check still failed on `/posts` because that page defaults to the "in_work" tab (drafts + reviews), hiding scheduled posts.
+3. Third attempt (run 24904091344): **13/13**. Dropped the `/posts` reachability check (covered more reliably by `/calendar`). Tab-click flow deferred to Phase 2.1 where it pairs naturally with mark-as-posted.
+
+**Pattern captured for future E2E authors:** for any app tested at a different origin than Supabase (which is every real deploy), use Playwright's `storageState` pattern — sign in each seeded user ONCE via a setup project, persist cookies to `tests/e2e/.auth/<tier>.json`, load into specs via `test.use({ storageState })`. `admin.generateLink` is inherently single-active-token-per-email, so concurrent sign-ins in the same session race. storageState eliminates the problem entirely and is the canonical Playwright solution.
+
+**Phase 2.1 scope (new follow-up):** deep dialog interactions — Generate Ideas dialog flow, Mark-as-Posted dialog, manual analytics entry, /posts tab clicks. Requires seeder update to set `ai_provider` on test users so AI-guard banners don't disable the affected action buttons.
+
+**Phase 2 still outstanding:** `auth-onboarding.spec.ts` — the 6-step multi-page onboarding form. Intentionally deferred as its own focused session.
+
+### Follow-up BPs opened this session
+- **BP-129** — Supabase Auth Hook to enforce LinkedIn-OIDC-only signup. Closes the residual gap from keeping the Email provider enabled (required for `admin.generateLink` in E2E). EPIC 9, P2 / Medium.
+
 ### Sprint 3 end state
 - Every BP in Sprint 3 (BP-088, 095, 097, 100, 113) now Done or Spec-Done on `develop`.
 - `main` contains the full v2 rollout from earlier (Subscription Model v2); Sprint 3 code changes (BP-088 hardening + BP-113 migration) to land on `main` in the next merge.
