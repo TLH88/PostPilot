@@ -572,38 +572,37 @@ export function AIProviderSettings({
         </div>
       </div>
 
-      {/* Everything below the gateway toggle is BYOK config — gated */}
-      <div className="relative">
-        {!byokUnlocked && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-background/80 backdrop-blur-sm">
-            <div className="text-center space-y-2 p-6 max-w-sm">
-              <Lock className="size-6 mx-auto text-muted-foreground" />
-              <p className="text-sm font-medium">
-                Want to use your own AI account?
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Upgrade to Professional or Enterprise to add your own OpenAI or
-                Anthropic API key. You&apos;ll be billed by that provider
-                directly instead of us.
-              </p>
-              {/* BP-118: reassure users who configured BYOK during a Pro trial
-                   that their keys aren't lost — they just aren't being used. */}
-              {(textKeys.length > 0 || imageKeys.length > 0) && (
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                  Your previously configured key{textKeys.length + imageKeys.length > 1 ? "s are" : " is"} saved
-                  and will reactivate automatically when you upgrade.
-                </p>
-              )}
-              <Link
-                href="/pricing"
-                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 mt-2 pointer-events-auto"
-              >
-                Upgrade Plan
-              </Link>
-            </div>
-          </div>
-        )}
-
+      {/* Everything below the gateway toggle is BYOK config — gated.
+           BP-118 fix: when locked, render the lock card inline (sized by
+           its own content) instead of absolutely overlaying the fieldset,
+           which collapses in that state and caused the card to spill past
+           the container boundary. */}
+      {!byokUnlocked ? (
+        <div className="rounded-md border border-dashed bg-muted/20 p-6 text-center">
+          <Lock className="size-6 mx-auto text-muted-foreground" />
+          <p className="mt-2 text-sm font-medium">
+            Want to use your own AI account?
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
+            Upgrade to Professional or Enterprise to add your own OpenAI or
+            Anthropic API key. You&apos;ll be billed by that provider directly
+            instead of us.
+          </p>
+          {(textKeys.length > 0 || imageKeys.length > 0) && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 max-w-sm mx-auto">
+              Your previously configured key
+              {textKeys.length + imageKeys.length > 1 ? "s are" : " is"} saved
+              and will reactivate automatically when you upgrade.
+            </p>
+          )}
+          <Link
+            href="/pricing"
+            className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Upgrade Plan
+          </Link>
+        </div>
+      ) : (
         <fieldset
           disabled={!byokUnlocked}
           className={cn(
@@ -944,7 +943,7 @@ export function AIProviderSettings({
             )}
           </div>
         </fieldset>
-      </div>
+      )}
 
       <APIKeyHelpDrawer open={helpDrawerOpen} onOpenChange={setHelpDrawerOpen} />
     </div>
