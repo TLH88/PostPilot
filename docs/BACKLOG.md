@@ -63,7 +63,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 ### EPIC 2 — Billing & Monetization (Stripe)
 **Active — GTM blocker.** BP-015 un-deferred 2026-04-24 per owner direction.
 - **BP-015** Stripe Billing Integration (v2 — Elements + cardless trial) — **P0 / Critical**
-- **BP-130** "Coming Soon" gating for Team + Enterprise tiers at GTM launch — P1 / High
+- **BP-130** "Coming Soon" gating for Team + Enterprise tiers at GTM launch — **Done 2026-04-24**
 - **BP-017** Pricing Page Checkout — Deferred (subsumed into BP-015 for v2 — `/checkout` route ships there)
 - **BP-122** Payment methods + invoices in Settings — child of BP-015
 
@@ -110,7 +110,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
-- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — P2 / Medium
+- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — Function shipped 2026-04-24 (awaiting owner toggle in dashboard)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
 
@@ -510,8 +510,9 @@ Owner choice: ship grace period from day 1, or ship hard-delete-only and add gra
 
 ### BP-130: "Coming Soon" Gating for Team + Enterprise Tiers at GTM Launch
 
-**Status:** Backlog
+**Status:** **Done — shipped 2026-04-24.** Pricing page + waitlist form + admin view + server-side 403 stub all live on develop.
 **Priority:** P1 / High (ships alongside BP-015 — must land before revenue launch)
+**Completed:** 2026-04-24
 **Source:** 2026-04-24 owner design-decisions session
 **Date Added:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1) + Billing & Monetization (EPIC 2)
@@ -4394,8 +4395,9 @@ Contrast: chat hits 30.8% cache (14,080 / 45,695 tokens) on gpt-4.1 because chat
 
 ### BP-129: Supabase Auth Hook — Enforce LinkedIn-OIDC-Only Signup
 
-**Status:** Backlog
+**Status:** Function shipped + applied 2026-04-24 (commit pending). **One owner step left**: enable the hook in Supabase dashboard → Authentication → Hooks → Before User Created Hook → select `public.hook_linkedin_only_signup` → save. Until that toggle flips, the function exists but isn't invoked.
 **Priority:** P2 / Medium
+**Completed (code):** 2026-04-24
 **Source:** Phase 2 E2E setup 2026-04-24 — Tony flagged that the Email provider must stay enabled for `admin.generateLink` (E2E magic-link helper) to work, but Supabase exposes no per-provider signup toggle. Accepted the small residual gap today; this BP closes it properly.
 **Date Added:** 2026-04-24
 **EPIC:** Security, Authorization & Observability (EPIC 9)
