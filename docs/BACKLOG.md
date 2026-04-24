@@ -3651,13 +3651,14 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-119: Ad Placement Evaluation + Integration (Free + Personal Tiers)
 
-**Status:** Backlog — structured as two phases (evaluation → integration)
-**Priority:** P2 / Medium for Phase 1 (evaluation); Phase 2 (integration) stays P2 until we're ready to monetize Free tier post-GTM
+**Status:** Phase 1 Done (2026-04-24 — evaluation memo shipped). Phase 2 (integration) still Backlog; pending owner sign-off on memo decisions.
+**Priority:** P2 / Medium for Phase 1 (evaluation — complete); Phase 2 (integration) stays P2 until we're ready to monetize Free tier post-GTM
 **Source:** Owner pricing pivot 2026-04-24; scope formalized 2026-04-24 into evaluation + integration phases per owner request
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Phase 1 Completed:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1)
 **Parent:** BP-115
 **Supersedes:** BP-045 (Third-Party Ad Integration — un-deferred under this new scope)
+**Phase 1 deliverable:** [docs/ad-strategy/2026-04-ad-placement-evaluation.md](ad-strategy/2026-04-ad-placement-evaluation.md)
 
 **Problem:** Under Subscription Model v2, Free and Personal tiers should include ad inventory as (a) additional revenue and (b) a visible differentiator driving Free → Personal → Pro upgrades. We haven't evaluated *where* ads make sense, *what format* to allow, or *how intrusive* we're willing to be. A real integration can't start without this.
 
@@ -3883,12 +3884,13 @@ H. **Upgrade-path economics** — is Personal $20 structurally profitable or a l
 
 ### BP-124: Pro-Tier Credit Pack Purchase (Exploration / Spec Only)
 
-**Status:** Backlog (exploration — no code yet)
+**Status:** Spec Done (2026-04-24). Build decision recommended as "hold until post-GTM gates fire" — agent memo argues against immediate implementation.
 **Priority:** P3 / Low (post-launch)
 **Source:** Owner pricing pivot 2026-04-24
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Spec Completed:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1)
 **Parent:** BP-115
+**Deliverable:** [docs/specs/credit-packs.md](specs/credit-packs.md)
 
 **Problem:** Under v2, Pro users without BYOK hit a hard stop when they exhaust monthly quotas. That's a jarring "can't use the product" moment mid-month. A credit pack add-on (e.g., "+50 posts for $10" or "+100 image gens for $15") would soften that, grow ARPU, and give the user a lower-friction alternative than configuring BYOK.
 
