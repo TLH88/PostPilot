@@ -53,6 +53,28 @@ Every acceptance criterion is already met by the 2026-04-16 helper-docs pass:
 ### Migrations applied to prod this session
 - `content_library_builtin_rls_tier_gated` (BP-113)
 
+### BP-097 Phase 1 — Playwright scaffold + seeder + smoke spec (later same session)
+Owner decisions taken 2026-04-24: reuse prod Supabase with one test user per tier; magic-link auth (Supabase admin `generateLink`) bypasses LinkedIn OIDC; proposed emails approved (`e2e+<tier>@mypostpilot.app`); proceed now rather than deferring to post-Stripe.
+
+Phase 1 shipped:
+- **Migration** `supabase/migrations/20260425_add_is_test_user.sql` — adds `is_test_user boolean NOT NULL DEFAULT false` + partial index on `user_profiles`. Applied live via Supabase MCP. Explicitly NOT a security boundary; informational flag for admin-filter + seeder upserts.
+- **Dependencies** `@playwright/test` and `tsx` added to devDependencies in [package.json](package.json). Tony will `npm install` + `npx playwright install chromium` when ready — or CI will handle both.
+- **[playwright.config.ts](playwright.config.ts)** — `baseURL` driven by `E2E_BASE_URL`; no `webServer` block (per the no-localhost rule); CI uses 2 retries + 3 parallel workers.
+- **[scripts/e2e/seed-test-users.ts](scripts/e2e/seed-test-users.ts)** — idempotent upsert of four tier-specific users. Fake-but-structurally-valid LinkedIn token columns intentionally not decryptable (AES-GCM decrypt fails loudly if a test accidentally hits publish/validate = fail-safe).
+- **[scripts/e2e/teardown-test-users.ts](scripts/e2e/teardown-test-users.ts)** — optional cleanup keyed off `is_test_user=true`.
+- **[tests/e2e/helpers/session.ts](tests/e2e/helpers/session.ts)** — `signInAsTier(page, tier)` helper. Mints a single-use magic-link server-side, drives the browser through Supabase's verify endpoint, session cookie set. Never logs the link.
+- **[tests/e2e/smoke.spec.ts](tests/e2e/smoke.spec.ts)** — one anonymous landing-page test + one magic-link test per tier. Proves end-to-end that the scaffold works.
+- **[tests/e2e/README.md](tests/e2e/README.md)** — full security model + run instructions + future CI-secret list. Owner-facing.
+- **tsconfig.json** extended with exclusion for `tests/e2e` + `playwright.config.ts` (they have their own tsconfig via `tests/e2e/tsconfig.json`). Main Next.js type-check unaffected.
+- **.gitignore** — Playwright artifacts (`test-results/`, `playwright-report/`, `playwright/.cache/`).
+
+Phase 1 is a dry scaffold — `npm run test:e2e` won't actually run until Tony runs `npm install` (+ `npx playwright install chromium` for browser binaries). Nothing in Phase 1 blocks Phase 2 or 3, and none of this runs in CI yet.
+
+Still to come:
+- **Phase 2:** three real specs — `auth-onboarding.spec.ts`, `create-schedule.spec.ts`, `posted-analytics.spec.ts` — each parallelizable to hit the sub-5-minute target.
+- **Phase 3:** `.github/workflows/e2e.yml` — blocked on Tony adding `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` as GitHub Actions secrets.
+- **Follow-up BP:** filter `is_test_user = true` out of admin dashboards + cost-study queries so test users don't pollute metrics. Capture as a new BP in EPIC 10 when Phase 2 lands.
+
 ### Sprint 3 end state
 - Every BP in Sprint 3 (BP-088, 095, 097, 100, 113) now Done or Spec-Done on `develop`.
 - `main` contains the full v2 rollout from earlier (Subscription Model v2); Sprint 3 code changes (BP-088 hardening + BP-113 migration) to land on `main` in the next merge.
