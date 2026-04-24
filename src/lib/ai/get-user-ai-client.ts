@@ -8,6 +8,8 @@ import {
   type AIProvider,
 } from "./providers";
 import { getSystemAIDefaults } from "./system-defaults";
+import { hasFeature } from "@/lib/feature-gate";
+import type { SubscriptionTier } from "@/lib/constants";
 import type { UserProfile } from "@/types";
 
 // System-level API keys for managed/trial access (env vars, never exposed to browser)
@@ -97,8 +99,16 @@ export async function getUserAIClient(
   // so we treat it like "no BYOK" and fall through to system defaults.
   const forceGateway = userProfile.force_ai_gateway && gatewayAvailable;
 
+  // BP-125: tier-gating — Free and Personal are system-key only regardless
+  // of whether BYOK keys are on file. A user who configured BYOK during a
+  // Pro trial retains the keys in storage but they're inert on lower tiers.
+  // During an active trial the subscription_tier column is flipped to the
+  // trial tier, so trial users pass this check naturally.
+  const tier = (userProfile.subscription_tier as SubscriptionTier) ?? "free";
+  const byokAllowedForTier = hasFeature(tier, "byok_ai_keys");
+
   let providerKey: { api_key_encrypted: string; api_key_iv: string; api_key_auth_tag: string } | null = null;
-  if (!forceGateway) {
+  if (!forceGateway && byokAllowedForTier) {
     const { data } = await supabase
       .from("ai_provider_keys")
       .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
@@ -110,6 +120,7 @@ export async function getUserAIClient(
 
   const hasLegacyKey =
     !forceGateway &&
+    byokAllowedForTier &&
     userProfile.ai_api_key_encrypted &&
     userProfile.ai_api_key_iv &&
     userProfile.ai_api_key_auth_tag &&
@@ -219,14 +230,24 @@ export async function getProviderApiKey(
 
   const creatorProfile = profile as UserProfile;
 
+  // BP-125: tier-gating — only Pro/Team/Enterprise users may use BYOK.
+  // Image keys gated under byok_image_keys, text under byok_ai_keys (both
+  // currently map to "professional"). Free + Personal skip BYOK resolution
+  // entirely and fall through to the system-key path below.
+  const tier = (creatorProfile.subscription_tier as SubscriptionTier) ?? "free";
+  const byokGate = keyType === "image" ? "byok_image_keys" : "byok_ai_keys";
+  const byokAllowed = hasFeature(tier, byokGate);
+
   // Try provider keys table first (filtered by key_type)
-  const { data: providerKey } = await supabase
-    .from("ai_provider_keys")
-    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
-    .eq("user_id", user.id)
-    .eq("provider", provider)
-    .eq("key_type", keyType)
-    .single();
+  const { data: providerKey } = byokAllowed
+    ? await supabase
+        .from("ai_provider_keys")
+        .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+        .eq("user_id", user.id)
+        .eq("provider", provider)
+        .eq("key_type", keyType)
+        .single()
+    : { data: null };
 
   if (providerKey) {
     return {
@@ -240,8 +261,8 @@ export async function getProviderApiKey(
     };
   }
 
-  // Fall back to legacy single-slot keys on user_profiles
-  if (keyType === "image") {
+  // Fall back to legacy single-slot keys on user_profiles (still tier-gated)
+  if (byokAllowed && keyType === "image") {
     if (
       creatorProfile.image_ai_provider === provider &&
       creatorProfile.image_ai_api_key_encrypted &&
@@ -259,6 +280,7 @@ export async function getProviderApiKey(
       };
     }
   } else if (
+    byokAllowed &&
     creatorProfile.ai_provider === provider &&
     creatorProfile.ai_api_key_encrypted &&
     creatorProfile.ai_api_key_iv &&

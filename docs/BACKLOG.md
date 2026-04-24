@@ -3618,10 +3618,10 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-118: Free-Tier Trial-Expired Messaging Fix
 
-**Status:** Backlog
+**Status:** Done (2026-04-24 — commit ed202b7)
 **Priority:** P1 / High
 **Source:** Owner observation 2026-04-24
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1)
 **Parent:** BP-115
 
@@ -3911,12 +3911,35 @@ H. **Upgrade-path economics** — is Personal $20 structurally profitable or a l
 
 ### BP-125: Pro-Tier Image Generation Provider BYOK
 
-**Status:** Backlog
+**Status:** Done (2026-04-24)
 **Priority:** P1 / High
 **Source:** Owner pricing pivot 2026-04-24
-**Date Added:** 2026-04-24
+**Date Added:** 2026-04-24 · **Completed:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1)
 **Parent:** BP-115
+
+**Shipped:**
+- Tier-gated BYOK resolution in `getUserAIClient` + `getProviderApiKey`.
+  Free + Personal users now skip BYOK resolution entirely regardless of
+  whether keys are on file — Personal users with saved keys from a Pro
+  trial no longer leak past the system-key quota.
+- Generate-image route rejects non-image-capable providers (Anthropic,
+  Perplexity) with a clear 400 + `reason: "provider_not_image_capable"`
+  pointing the user to Settings → AI Model → Image Generation. Previously
+  would silently fail when the resolved provider had no image branch.
+- OpenAI text key continues to auto-unlock image gen (DALL-E uses the same
+  key), so Pro users with only a text OpenAI key still work without extra
+  config. Google (Gemini) image gen also honored via the dedicated image
+  key slot or text-key fallback.
+- Settings copy already updated in prior commits to invite Pro/Team/Enterprise
+  users to add their own AI provider keys without naming specific providers.
+  Follow-up copy revision when image-provider UI expands is marked with
+  `TODO(BP-125)` in `ai-provider-settings.tsx`.
+
+**Not in scope (deferred to follow-ups):**
+- Expanding the image-provider dropdown in settings to include more
+  providers (Stability AI, Replicate, Flux) — waiting on owner direction
+  + cost analysis.
 
 **Problem:** Under v2, Pro users get unlimited everything via BYOK — but image generation requires a provider that supports image-gen (currently OpenAI DALL-E). Today's BYOK flow may not clearly surface the requirement: a user could add a text-only Anthropic key, see their post-generation go unlimited, and then discover image-gen is still quota-limited with no obvious path forward.
 

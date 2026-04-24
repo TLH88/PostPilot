@@ -75,6 +75,23 @@ export async function POST(request: NextRequest) {
     imgModel = imageModel;
     userId = user.id;
 
+    // BP-125: reject image-gen for providers that don't support image models
+    // (Anthropic, Perplexity). Previously the route would resolve a text key
+    // for these providers, then silently fail because no branch matches.
+    // Return a clear 400 with a direction to configure an image-capable
+    // provider in Settings.
+    const IMAGE_CAPABLE_PROVIDERS: AIProvider[] = ["openai", "google"];
+    if (!IMAGE_CAPABLE_PROVIDERS.includes(provider)) {
+      return NextResponse.json(
+        {
+          error: `${provider} doesn't support image generation. Configure an image-capable provider (OpenAI or Google) under Settings → AI Model → Image Generation.`,
+          reason: "provider_not_image_capable",
+          provider,
+        },
+        { status: 400 }
+      );
+    }
+
     // Get API key for the selected provider — look up image keys first
     // (key_type='image' in ai_provider_keys), then fall back to text keys
     // so users with only a text key configured can still generate images.
