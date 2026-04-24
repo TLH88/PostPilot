@@ -582,9 +582,12 @@ export function AIProviderSettings({
           <p className="mt-2 text-sm font-medium">
             Want to use your own AI account?
           </p>
+          {/* TODO(BP-125): revisit once image AI provider configuration
+               expands and text-provider list grows. Copy should then mention
+               image providers explicitly and the broader supported set. */}
           <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-            Upgrade to Professional or Enterprise to add your own OpenAI or
-            Anthropic API key. You&apos;ll be billed by that provider directly
+            Upgrade to Professional, Team, or Enterprise to add your own AI
+            provider keys. You&apos;ll be billed by that provider directly
             instead of us.
           </p>
           {(textKeys.length > 0 || imageKeys.length > 0) && (
