@@ -95,6 +95,17 @@ Will require the following GitHub secrets:
 | `VERCEL_PROJECT_ID` | Same |
 | `SUPABASE_URL` | Same as prod |
 | `SUPABASE_SERVICE_ROLE_KEY` | Magic-link token generation |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Only if Vercel Deployment Protection is enabled — bypass the SSO wall on preview URLs (see below) |
+
+### Vercel Deployment Protection bypass
+
+If the project has Deployment Protection on, every unauthenticated request to a preview URL redirects to `vercel.com/login?next=...`. Playwright can't proceed without going through SSO, which defeats the point of automation.
+
+**Fix:** generate a bypass secret and pass it as a header on every request.
+
+1. **Vercel → Project `postpilot` → Settings → Deployment Protection → Protection Bypass for Automation** → click **Add Secret** → copy.
+2. **GitHub → Settings → Environments → `e2e-tests`** → add `VERCEL_AUTOMATION_BYPASS_SECRET` with that value.
+3. `playwright.config.ts` detects the env var and adds `x-vercel-protection-bypass` + `x-vercel-set-bypass-cookie: samesitenone` to every request, so the Supabase verify redirect and subsequent app requests all sail through. When the env var is unset, the config no-ops.
 
 Workflow will live at `.github/workflows/e2e.yml`. It will:
 

@@ -18,6 +18,26 @@ if (!baseURL) {
   );
 }
 
+/**
+ * Vercel Preview Protection bypass.
+ *
+ * If the target project has Deployment Protection enabled (SSO wall on
+ * preview URLs), unauthenticated requests redirect to vercel.com/login.
+ * The fix is Vercel's built-in automation bypass: send the secret as the
+ * `x-vercel-protection-bypass` header on every request. We also send
+ * `x-vercel-set-bypass-cookie: samesitenone` on the first request so the
+ * redirect chain (Supabase verify → app) carries the bypass through.
+ *
+ * Only added when the env var is set so this remains a no-op for projects
+ * without preview protection.
+ */
+const extraHTTPHeaders: Record<string, string> = {};
+if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+  extraHTTPHeaders["x-vercel-protection-bypass"] =
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  extraHTTPHeaders["x-vercel-set-bypass-cookie"] = "samesitenone";
+}
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -30,6 +50,7 @@ export default defineConfig({
 
   use: {
     baseURL,
+    extraHTTPHeaders,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

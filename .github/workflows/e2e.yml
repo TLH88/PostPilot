@@ -127,6 +127,11 @@ jobs:
           E2E_BASE_URL: ${{ steps.vercel.outputs.url }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Only needed when the Vercel project has Deployment Protection
+          # enabled. Secret generated in Vercel → Project → Settings →
+          # Deployment Protection → Protection Bypass for Automation.
+          # playwright.config.ts no-ops if this is unset.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: npm run test:e2e
 
       - name: Upload Playwright report
