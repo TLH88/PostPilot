@@ -48,13 +48,13 @@ export interface AIClient {
 
 // ── Provider config ───────────────────────────────────────────────────────────
 
-interface ProviderConfig {
+export interface ProviderConfig {
   defaultModel: string;
   baseURL?: string;
   availableModels: { value: string; label: string }[];
 }
 
-const PROVIDER_CONFIG: Record<AIProvider, ProviderConfig> = {
+export const PROVIDER_CONFIG: Record<AIProvider, ProviderConfig> = {
   anthropic: {
     defaultModel: "claude-sonnet-4-6",
     availableModels: [

@@ -7,6 +7,7 @@ import {
   type AIClient,
   type AIProvider,
 } from "./providers";
+import { getSystemAIDefaults } from "./system-defaults";
 import type { UserProfile } from "@/types";
 
 // System-level API keys for managed/trial access (env vars, never exposed to browser)
@@ -79,95 +80,113 @@ export async function getUserAIClient(
     throw new Error("Please complete your profile first");
   }
 
-  const creatorProfile = profile as UserProfile;
-  const targetProvider = forProvider || (creatorProfile.ai_provider as AIProvider);
+  const userProfile = profile as UserProfile;
+
+  // Candidate provider for BYOK check: caller's explicit pick, or the user's
+  // own preference. For system-key fallback we'll override with the admin
+  // default below.
+  const byokCandidateProvider = forProvider || (userProfile.ai_provider as AIProvider);
 
   // Gateway is available if either OIDC (preferred, project-attributed) or the
   // team-scoped API key is configured.
   const gatewayAvailable =
     !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
 
-  // Resolve the model string used for logging + gateway model ID
-  const resolvedModel = creatorProfile.ai_model || getDefaultModel(targetProvider);
+  // ─── BYOK resolution ──────────────────────────────────────────────────
+  // Force-gateway toggle bypasses BYOK keys entirely (testing/dev override),
+  // so we treat it like "no BYOK" and fall through to system defaults.
+  const forceGateway = userProfile.force_ai_gateway && gatewayAvailable;
 
-  // Force AI Gateway: testing/dev toggle that bypasses BYOK keys entirely.
-  // Takes precedence over all key lookups below.
-  if (creatorProfile.force_ai_gateway && gatewayAvailable) {
-    console.log(`[AI Gateway] FORCED ${targetProvider}/${resolvedModel} via user setting`);
-    const client = createGatewayClient(targetProvider, resolvedModel);
-    return { client, profile: creatorProfile, source: "gateway", provider: targetProvider, model: resolvedModel };
+  let providerKey: { api_key_encrypted: string; api_key_iv: string; api_key_auth_tag: string } | null = null;
+  if (!forceGateway) {
+    const { data } = await supabase
+      .from("ai_provider_keys")
+      .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+      .eq("user_id", user.id)
+      .eq("provider", byokCandidateProvider)
+      .single();
+    providerKey = data;
   }
 
-  // Try to get key from ai_provider_keys table first
-  const { data: providerKey } = await supabase
-    .from("ai_provider_keys")
-    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
-    .eq("user_id", user.id)
-    .eq("provider", targetProvider)
-    .single();
+  const hasLegacyKey =
+    !forceGateway &&
+    userProfile.ai_api_key_encrypted &&
+    userProfile.ai_api_key_iv &&
+    userProfile.ai_api_key_auth_tag &&
+    userProfile.ai_provider === byokCandidateProvider;
 
-  let apiKey: string;
+  const hasBYOK = !!(providerKey || hasLegacyKey);
 
-  if (providerKey) {
-    // Use key from the new provider keys table
-    apiKey = decrypt({
-      ciphertext: providerKey.api_key_encrypted,
-      iv: providerKey.api_key_iv,
-      authTag: providerKey.api_key_auth_tag,
-    });
-  } else if (
-    creatorProfile.ai_api_key_encrypted &&
-    creatorProfile.ai_api_key_iv &&
-    creatorProfile.ai_api_key_auth_tag &&
-    creatorProfile.ai_provider === targetProvider
-  ) {
-    // Fall back to legacy single-key on user_profiles
-    apiKey = decrypt({
-      ciphertext: creatorProfile.ai_api_key_encrypted,
-      iv: creatorProfile.ai_api_key_iv,
-      authTag: creatorProfile.ai_api_key_auth_tag,
-    });
-  } else {
-    // Managed AI access: prefer Vercel AI Gateway, fall back to direct system keys
-    if (!hasManagedAccess(creatorProfile)) {
-      throw new Error(
-        `No API key configured for ${targetProvider}. Please add your API key in Settings.`
-      );
-    }
-
-    // Route through Vercel AI Gateway if configured
-    if (gatewayAvailable) {
-      console.log(`[AI Gateway] Routing ${targetProvider}/${resolvedModel} via Vercel AI Gateway`);
-      const client = createGatewayClient(targetProvider, resolvedModel);
-      return { client, profile: creatorProfile, source: "gateway", provider: targetProvider, model: resolvedModel };
-    }
-
-    // Fallback: direct system keys (local dev / gateway not configured)
-    const systemKey = getSystemKey(targetProvider);
-    if (systemKey) {
-      console.log(`[Direct] Using system key for ${targetProvider}`);
-      apiKey = systemKey;
+  // ─── BYOK path: user's provider + user's model ────────────────────────
+  if (hasBYOK) {
+    let apiKey: string;
+    if (providerKey) {
+      apiKey = decrypt({
+        ciphertext: providerKey.api_key_encrypted,
+        iv: providerKey.api_key_iv,
+        authTag: providerKey.api_key_auth_tag,
+      });
     } else {
-      throw new Error(
-        `No API key configured for ${targetProvider}. Please add your API key in Settings.`
-      );
+      // legacy single-key on user_profiles
+      apiKey = decrypt({
+        ciphertext: userProfile.ai_api_key_encrypted!,
+        iv: userProfile.ai_api_key_iv!,
+        authTag: userProfile.ai_api_key_auth_tag!,
+      });
     }
+    const byokModel = userProfile.ai_model || getDefaultModel(byokCandidateProvider);
+    const client = createAIClient(byokCandidateProvider, apiKey, byokModel);
+    return {
+      client,
+      profile: userProfile,
+      source: "byok",
+      provider: byokCandidateProvider,
+      model: byokModel,
+    };
   }
 
-  // Determine source: BYOK if we found a personal key, system_key if we fell through to managed access
-  const source: AISource = (providerKey ||
-    (creatorProfile.ai_api_key_encrypted &&
-      creatorProfile.ai_provider === targetProvider))
-    ? "byok"
-    : "system_key";
+  // ─── System-key path: admin-configured default provider + model ───────
+  if (!hasManagedAccess(userProfile)) {
+    throw new Error(
+      `No API key configured for ${byokCandidateProvider}. Please add your API key in Settings.`
+    );
+  }
 
-  const client = createAIClient(
-    targetProvider,
-    apiKey,
-    creatorProfile.ai_model
-  );
+  const systemDefaults = await getSystemAIDefaults();
+  // Callers that specify forProvider (e.g. image gen) honor that — system
+  // defaults only apply when the route is provider-agnostic.
+  const systemProvider = forProvider || systemDefaults.provider;
+  const systemModel = forProvider ? getDefaultModel(forProvider) : systemDefaults.model;
 
-  return { client, profile: creatorProfile, source, provider: targetProvider, model: resolvedModel };
+  // Prefer Vercel AI Gateway (gateway source), fall back to direct system keys.
+  if (gatewayAvailable) {
+    const reason = forceGateway ? "FORCED" : "managed";
+    console.log(`[AI Gateway] ${reason} ${systemProvider}/${systemModel} via Vercel AI Gateway`);
+    const client = createGatewayClient(systemProvider, systemModel);
+    return {
+      client,
+      profile: userProfile,
+      source: "gateway",
+      provider: systemProvider,
+      model: systemModel,
+    };
+  }
+
+  const systemKey = getSystemKey(systemProvider);
+  if (!systemKey) {
+    throw new Error(
+      `No API key configured for ${systemProvider}. Please add your API key in Settings.`
+    );
+  }
+  console.log(`[Direct] Using system key for ${systemProvider}/${systemModel}`);
+  const client = createAIClient(systemProvider, systemKey, systemModel);
+  return {
+    client,
+    profile: userProfile,
+    source: "system_key",
+    provider: systemProvider,
+    model: systemModel,
+  };
 }
 
 /**

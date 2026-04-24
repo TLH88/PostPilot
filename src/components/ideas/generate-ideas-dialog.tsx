@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Sparkles, Loader2, Plus, Check } from "lucide-react";
 import { toast } from "sonner";
+import { maybeHandleQuotaExceeded } from "@/lib/errors/handle-quota-exceeded";
 
 // ---------------------------------------------------------------------------
 // Types for generated ideas from the brainstorm API
@@ -158,6 +159,10 @@ export function GenerateIdeasDialog({
         }),
       });
 
+      if (await maybeHandleQuotaExceeded(res)) {
+        setGenerating(false);
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         const msg = data.error || "Failed to generate ideas";

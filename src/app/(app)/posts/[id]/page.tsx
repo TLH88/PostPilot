@@ -40,6 +40,7 @@ import {
   FileEdit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { maybeHandleQuotaExceeded } from "@/lib/errors/handle-quota-exceeded";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -694,6 +695,7 @@ export default function PostWorkspacePage() {
         body: JSON.stringify({ content, count: 5 }),
       });
 
+      if (await maybeHandleQuotaExceeded(response)) return;
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         toast.error(errData.error || "Failed to suggest hashtags", {
@@ -864,6 +866,10 @@ export default function PostWorkspacePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
+      if (await maybeHandleQuotaExceeded(res)) {
+        setAnalyzingHook(false);
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         toast.error(data.error || "Hook analysis failed", {
@@ -1127,6 +1133,11 @@ export default function PostWorkspacePage() {
         }),
       });
 
+      if (await maybeHandleQuotaExceeded(response)) {
+        // Strip the optimistic aiMessage placeholder since no response is coming.
+        setChatMessages(updatedMessages);
+        return;
+      }
       if (!response.ok) {
         let errMsg = "Something went wrong with the AI request.";
         let errAction = "Try again. If this keeps happening, check your API key in Settings.";
