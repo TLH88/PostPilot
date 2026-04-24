@@ -351,6 +351,11 @@ export function AIProviderSettings({
     const stored = textKeys.find((k) => k.provider === p.value);
     const isTested = !!stored?.tested_at;
     const isActive = !!stored?.is_active;
+    // BP-118: a user who configured BYOK during a Pro trial and reverted to
+    // Personal has `stored` but can no longer USE the key — Personal is
+    // system-keys-only. Surface that inline so they don't wonder why their
+    // saved key doesn't do anything.
+    const storedButTierLocked = !!stored && !byokUnlocked;
 
     return (
       <div
@@ -365,14 +370,22 @@ export function AIProviderSettings({
             )}
           />
           <span className="text-sm font-medium truncate">{p.label}</span>
-          {isTested && (
+          {isTested && !storedButTierLocked && (
             <span className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase tracking-wider">
               Configured
             </span>
           )}
-          {isActive && (
+          {isActive && !storedButTierLocked && (
             <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
               Active
+            </span>
+          )}
+          {storedButTierLocked && (
+            <span
+              className="text-[10px] text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wider"
+              title="Your saved key is preserved but won't be used on your current plan. Upgrade to Pro to reactivate it."
+            >
+              Inactive — upgrade to Pro
             </span>
           )}
         </div>
@@ -456,6 +469,9 @@ export function AIProviderSettings({
     const stored = imageKeys.find((k) => k.provider === p.value);
     const isTested = !!stored?.tested_at;
     const isActive = !!stored?.is_active;
+    // BP-118: same inactive state as text keys — an image BYOK saved during
+    // a Pro trial is preserved but not used when the user reverts to Personal.
+    const storedButTierLocked = !!stored && !byokUnlocked;
 
     return (
       <div
@@ -470,14 +486,22 @@ export function AIProviderSettings({
             )}
           />
           <span className="text-sm font-medium truncate">{p.label}</span>
-          {isTested && (
+          {isTested && !storedButTierLocked && (
             <span className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase tracking-wider">
               Configured
             </span>
           )}
-          {isActive && (
+          {isActive && !storedButTierLocked && (
             <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
               Active
+            </span>
+          )}
+          {storedButTierLocked && (
+            <span
+              className="text-[10px] text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wider"
+              title="Your saved image key is preserved but won't be used on your current plan. Upgrade to Pro to reactivate it."
+            >
+              Inactive — upgrade to Pro
             </span>
           )}
         </div>
@@ -562,6 +586,14 @@ export function AIProviderSettings({
                 Anthropic API key. You&apos;ll be billed by that provider
                 directly instead of us.
               </p>
+              {/* BP-118: reassure users who configured BYOK during a Pro trial
+                   that their keys aren't lost — they just aren't being used. */}
+              {(textKeys.length > 0 || imageKeys.length > 0) && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  Your previously configured key{textKeys.length + imageKeys.length > 1 ? "s are" : " is"} saved
+                  and will reactivate automatically when you upgrade.
+                </p>
+              )}
               <Link
                 href="/pricing"
                 className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 mt-2 pointer-events-auto"
