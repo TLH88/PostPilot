@@ -303,10 +303,10 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ### BP-015: Stripe Billing Integration (v2)
 
-**Status:** Backlog — **active** (GTM blocker)
-**Priority:** P0 / Critical (un-deferred 2026-04-24 — Subscription Model v2 display shipped, Stripe is the last thing between the app and revenue)
+**Status:** Spec ready — **blocked on owner-side business formation** (LLC / EIN / business bank account / tax ID needed before a Stripe account can be provisioned). Implementation paused 2026-04-24 immediately after spec was finalized. Resume when entity formation is complete.
+**Priority:** P0 / Critical when un-blocked
 **Source:** Pricing strategy + 2026-04-24 owner design-decisions session
-**Date Added:** 2026-04-01 · **Spec rewritten:** 2026-04-24 (replaces the pre-v2 version)
+**Date Added:** 2026-04-01 · **Spec rewritten:** 2026-04-24 (replaces the pre-v2 version) · **Blocked:** 2026-04-24 (business formation)
 **EPIC:** Billing & Monetization (EPIC 2)
 **Related:** BP-117 (feature-gate refactor — quota enforcement relies on `subscription_tier`), BP-122 (payments + invoices in Settings — child), BP-130 (Team/Enterprise Coming Soon gating)
 
