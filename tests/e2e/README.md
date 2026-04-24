@@ -38,11 +38,25 @@ Seed script: `scripts/e2e/seed-test-users.ts` (idempotent). Teardown: `scripts/e
 
 PostPilot uses LinkedIn OIDC as the only interactive auth method, which is not E2E-friendly. The test helper bypasses OAuth entirely:
 
-1. Server-side: `supabase.auth.admin.generateLink({ type: 'magiclink' })` mints a one-time token.
-2. Playwright navigates to the `action_link` directly; Supabase verifies and sets session cookies.
-3. The browser is now authenticated; tests proceed normally.
+1. Server-side: `supabase.auth.admin.generateLink({ type: 'magiclink', options: { redirectTo: `${E2E_BASE_URL}/callback?next=/dashboard` } })` mints a one-time token and points the redirect back at the preview URL's `/callback` route.
+2. Playwright navigates to the `action_link`; Supabase verifies the token and 302s to the app's `/callback` route.
+3. `/callback` (`src/app/(auth)/callback/route.ts`) calls `verifyOtp` with the token_hash, which sets session cookies on the **app domain** (cookies set on `supabase.co` wouldn't transfer).
+4. The browser is now authenticated; tests proceed normally.
 
 See `tests/e2e/helpers/session.ts`.
+
+### Supabase Redirect URLs (required for preview URLs)
+
+Supabase validates `redirectTo` against an allowed-URL list. If the preview URL isn't on the list, Supabase falls back to the Site URL (prod) and test session cookies never reach the preview domain.
+
+**Supabase dashboard → Authentication → URL Configuration → Redirect URLs → Add:**
+
+```
+https://*-tlh88s-projects.vercel.app/**
+https://postpilot-*.vercel.app/**
+```
+
+The wildcards cover every per-PR preview URL Vercel generates. Without these entries, magic-link E2E sign-in will land on `/login` instead of `/dashboard` even though every other part of the pipeline is correct.
 
 ## Security model
 

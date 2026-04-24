@@ -29,6 +29,7 @@ export type Tier = "free" | "personal" | "professional" | "team";
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const APP_BASE_URL = process.env.E2E_BASE_URL!;
 
 let admin: SupabaseClient | null = null;
 
@@ -57,6 +58,21 @@ function emailFor(tier: Tier): string {
  *
  * Prereq: scripts/e2e/seed-test-users.ts has been run at least once against
  * the same project.
+ *
+ * How it works:
+ *   1. admin.generateLink mints a one-time hashed token and returns an
+ *      action_link of the form SUPABASE/auth/v1/verify?token=...&redirect_to=APP/callback.
+ *   2. Navigating to the action_link has Supabase verify the token, then
+ *      302 to APP/callback?token_hash=...&type=magiclink.
+ *   3. The app's /callback route (src/app/(auth)/callback/route.ts) calls
+ *      verifyOtp with the token_hash, which sets session cookies on the
+ *      APP domain (critical — cookies set on supabase.co don't transfer).
+ *   4. /callback redirects to /dashboard with session cookies attached.
+ *
+ * IMPORTANT: the preview URL (or a wildcard covering it) must be in
+ * Supabase's Additional Redirect URLs list, or Supabase rejects the
+ * redirectTo and falls back to the Site URL (prod). See README security
+ * model section for setup.
  */
 export async function signInAsTier(page: Page, tier: Tier): Promise<void> {
   const email = emailFor(tier);
@@ -65,6 +81,9 @@ export async function signInAsTier(page: Page, tier: Tier): Promise<void> {
   const { data, error } = await client.auth.admin.generateLink({
     type: "magiclink",
     email,
+    options: {
+      redirectTo: `${APP_BASE_URL}/callback?next=/dashboard`,
+    },
   });
   if (error) throw error;
 
@@ -74,12 +93,16 @@ export async function signInAsTier(page: Page, tier: Tier): Promise<void> {
   }
 
   // Consume the link. Supabase's verify endpoint will 302 to the app's
-  // configured redirect URL after setting the session cookie.
+  // /callback route, which sets session cookies on the app domain.
   await page.goto(actionLink);
-  // Wait until we land on an app route (not the verify endpoint).
-  await page.waitForURL((url) => !url.pathname.startsWith("/auth/v1/verify"), {
-    timeout: 15_000,
-  });
+  // Wait until we land on an app route that isn't /callback or /login.
+  // (The callback hands off to /dashboard on success, /login on failure.)
+  await page.waitForURL(
+    (url) =>
+      !url.pathname.startsWith("/auth/v1/verify") &&
+      !url.pathname.startsWith("/callback"),
+    { timeout: 15_000 }
+  );
 }
 
 /**
