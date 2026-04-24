@@ -111,6 +111,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — P2 / Medium
+- **BP-131** Account deletion (admin + user self-serve) — P1 / High
 
 ### EPIC 10 — Admin & Cost Controls
 - **BP-085** AI usage monitoring, cost analysis & budget enforcement — P1 / High
@@ -379,6 +380,90 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 - Tax — rely on Stripe Tax for v1 (one checkbox in Stripe dashboard).
 
 **Effort:** L (multi-session — ~3-5 focused sessions) · **Expected ROI:** **Critical** — unblocks all revenue.
+
+---
+
+### BP-131: Account Deletion — Admin Action + User Self-Serve
+
+**Status:** Backlog
+**Priority:** P1 / High (compliance + clean operational hygiene; blocks ToS-compliant launch)
+**Source:** Owner question 2026-04-24 — admin page only removes from workspace, no actual account delete; users have no self-serve delete option either.
+**Date Added:** 2026-04-24
+**EPIC:** Security, Authorization & Observability (EPIC 9)
+**Related:** BP-015 (Stripe cancel-on-delete forward-compat), BP-098 (Team — workspace ownership transfer)
+
+**Why now:** GDPR right-to-erasure (mandatory if any EU user signs up), CCPA equivalent for California, App Store / Google Play rules require self-serve deletion for any app with login (web-only today but the standard applies). Even outside legal compliance, "I want to delete my account" is a basic SaaS expectation — not having it erodes trust.
+
+**Two surfaces, one mechanism:**
+
+#### A. Admin delete (extends `/admin/users`)
+- New row action: "Delete user…" → confirmation dialog naming the user + summarizing what will be removed (post count, workspace memberships, etc.).
+- Calls `DELETE /api/admin/users` (new method on existing route) → service-role `supabase.auth.admin.deleteUser(userId)` after pre-flight checks (see below).
+- Audit: log to `activity_log` with `action: 'admin_user_deleted'` plus the deleting admin's id, before the cascade fires.
+
+#### B. User self-serve delete (new `/settings/account` section)
+- "Danger zone" panel at the bottom: "Delete my account" button.
+- Confirmation modal:
+  - Plain-language summary of what gets deleted.
+  - Type "DELETE" to confirm (cheap friction — prevents click-by-accident).
+  - Re-auth required — for OIDC-only auth, this means a fresh LinkedIn OAuth round-trip OR a magic-link to the user's email confirming intent. Magic-link is simpler and lower-friction; pick that.
+- Calls `DELETE /api/account` → server verifies the user is authenticated, calls `auth.admin.deleteUser(req.user.id)`, returns 200 + redirects to a "Your account has been deleted" page.
+
+**Pre-flight checks (server-side, both surfaces):**
+
+1. **Workspace ownership.** If the user owns any workspace with ≥1 other member: block deletion until they transfer ownership or remove other members. Error message tells them which workspaces and links to ownership transfer (new flow — separate scope but tracked here).
+2. **Active Stripe subscription** (forward-compat for BP-015). If `subscriptions.status IN ('active', 'trialing', 'past_due')`: cancel via Stripe API first, then proceed. Hard-fail if the cancel API errors so we never leave a paying customer in a half-deleted state.
+3. **Pending Team invitations the user has issued** (`workspace_members.invited_by` orphan-blocker bug below): null-out those references first; otherwise the FK constraint will fail.
+
+**FK cascade fixes shipped with this BP:**
+
+Two latent FK issues surfaced during the audit (confirmed via `pg_constraint` 2026-04-24). Migration in this BP fixes both:
+
+1. `workspaces.owner_id` — currently `ON DELETE CASCADE`. Change to `ON DELETE RESTRICT`. Forces explicit ownership-transfer (or workspace deletion) before user deletion. Prevents accidental nuke of an entire team's data.
+2. `workspace_members.invited_by` — currently no `ON DELETE` clause (effectively `NO ACTION` = RESTRICT). Change to `ON DELETE SET NULL`. Historical record stays; deletion isn't blocked.
+
+**Storage cleanup (the GDPR-critical bit):**
+
+`auth.users` deletion does NOT propagate to Supabase Storage. Files in `resumes` and `post-images` buckets persist forever unless explicitly removed. Add to deletion flow:
+- Before calling `auth.admin.deleteUser`, list and delete all storage objects where the path includes the user's id (current convention is `<bucket>/<user_id>/<filename>`).
+- Use service-role Storage API; iterate paginated to avoid timeouts on heavy users.
+- Failure to delete storage MUST hard-fail the whole operation — partial delete is worse than no delete (legal exposure).
+
+**Soft-delete grace period (recommended pattern):**
+
+Two-stage approach:
+1. **Day 0 — soft delete**: User is logged out, account marked `auth.users.deleted_at = now()`, login disabled (`auth.admin.updateUserById({ ban_duration: '99999h' })` or similar). All app routes treat the account as gone. No data deleted yet.
+2. **Day 30 — hard delete**: Daily cron Edge Function scans for `deleted_at < now() - 30 days` and runs the full cascade + storage cleanup.
+
+Why grace period: lets users undo accidental deletes (email "your account will be permanently deleted on Y; click here to restore"). Common SaaS pattern; satisfies GDPR's "without undue delay" (30 days is well within bounds).
+
+Owner choice: ship grace period from day 1, or ship hard-delete-only and add grace later? My recommendation = grace period from day 1 (cheap to add now, painful to retrofit when users have already been hard-deleted unexpectedly).
+
+**Security / guardrails:**
+
+- **Self-serve delete must re-authenticate.** Without it, an XSS or session-hijack attacker can wipe an account. Magic-link to the user's email is the simplest re-auth check that works with OIDC-only auth.
+- **Admin delete requires explicit role check** in `/api/admin/users` — already gated to `is_admin`, just verify the existing check covers DELETE method.
+- **Audit log entries for both paths** (`admin_user_deleted`, `self_deleted`) so we can investigate disputes. Stored in `activity_log` BEFORE the cascade fires (otherwise the audit row gets cascaded too — write to a separate `account_deletions` table or use `ON DELETE SET NULL` for the actor reference).
+- **Confirm copy includes irreversibility warning** — even with grace period, after day 30 it's gone. Don't soften the language.
+
+**Acceptance criteria:**
+
+- [ ] Admin can delete a user via `/admin/users`; confirmation dialog shows what gets removed.
+- [ ] User can delete their own account via `/settings/account`; confirmation requires re-auth + typed "DELETE".
+- [ ] FK migration applied: `workspaces.owner_id` → RESTRICT; `workspace_members.invited_by` → SET NULL.
+- [ ] Pre-flight blocks deletion if user owns a multi-member workspace (with a clear "transfer ownership first" message).
+- [ ] Storage objects under the user's id are deleted from `resumes` and `post-images` buckets.
+- [ ] Soft-delete grace period: 30 days, with daily cron purging expired records.
+- [ ] Audit row written to `activity_log` (or new `account_deletions` table) before the cascade.
+- [ ] Restore endpoint exists for users in the grace window (admin-triggered for now; user-triggered "click to restore" email link as a follow-up).
+- [ ] Stripe cancel-on-delete hook is stubbed/no-op now; documented as required when BP-015 ships.
+
+**Out of scope:**
+- Workspace ownership transfer UI (large enough to warrant its own BP — call it out as a follow-up). For v1 of this BP: pre-flight blocks deletion with a manual workaround (admin transfers via direct DB edit until that BP lands).
+- Data export ("download my data") — also a GDPR right but separable. Track as a follow-up BP.
+- Bulk admin deletion — single-user at a time for now.
+
+**Effort:** M–L (1-2 sessions for admin path + soft delete + cron; +1 session for user self-serve flow + storage cleanup) · **Expected ROI:** **High** — required for ToS compliance, user trust, and clean operations.
 
 ---
 
