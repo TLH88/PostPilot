@@ -4,6 +4,64 @@
 
 ---
 
+## 2026-04-25: Subscription Model v2 merged to main + Sprint 3 kickoff
+
+### develop → main merge (production deploy)
+- Verified no hotfix commits on `origin/main` that weren't already in `develop` — clean one-way merge.
+- Created `--no-ff` merge commit `8760396` on `main` summarizing the full v2 pivot (BP-114 through BP-128 across EPICs 1, 3, 4, 10, 12).
+- Pushed to `origin/main`; Vercel production deploy triggered automatically.
+- Subscription Model v2 is now live in production.
+
+### Pre-GTM Sprint 3 — Hardening (closed five of five items this session)
+Plan: BP-100 (image-drop Edge Function bug), BP-088 (auth audit), BP-095 (observability), BP-113 (content_library RLS), BP-097 (Playwright E2E research). Ran isolated items (BP-100, BP-113, BP-097 research) in parallel agents; tackled BP-088 + BP-095 sequentially since they overlap on API-route scope.
+
+### BP-100 — Scheduled Posts Drop Images (Done, retroactive status catch-up)
+Agent audit confirmed the fix already shipped in commit `45d36f2` (stacked under BP-101's `d4ef93e`, deployed together as Edge Function v16 on 2026-04-22). `image_url` is in the scheduled-posts SELECT, `uploadImageToLinkedIn()` is ported to Deno, `publishToLinkedIn()` accepts `imageUrn`, image-upload failure is isolated in its own try/catch with graceful text-only fallback, and BP-101's `escapeLinkedInText()` is preserved. Verified the deployed function via Supabase MCP `list_edge_functions` — v16 ACTIVE. BP-100's backlog entry was just never flipped from Backlog to Done; updated with full resolution notes. No code changes this session.
+
+### BP-113 — Server-side RLS for `content_library` built-ins (Done)
+- New migration `supabase/migrations/20260425_content_library_builtin_rls.sql` + applied live via Supabase MCP.
+- `has_library_access(uid)` SECURITY DEFINER helper returns true when `user_profiles.subscription_tier IN ('professional','team','enterprise')`. Mirrors `GATED_FEATURES.content_library` in `src/lib/constants.ts`.
+- Replaces the existing permissive SELECT policy `"Users see own + builtin library items"` (confirmed-name via `pg_policies` before dropping) with `content_library_select_tier_gated`: user-owned rows always visible (downgrade-safe); `is_builtin=true` rows only for Professional/Team/Enterprise.
+- Verified live: `pg_policies` query confirms new policy active, old one dropped.
+- INSERT / UPDATE / DELETE policies untouched. Client-side gates (BP-102/BP-109 pattern) preserved — defense in depth.
+
+### BP-097 — Playwright E2E plan (research only, spec saved for owner review)
+- Agent-produced plan saved to `docs/plans/bp-097-playwright-plan.md`. Research-only — nothing implemented.
+- Recommended execution model: Playwright in GitHub Actions targeting per-PR Vercel preview URL (resolved via Vercel Deployment API by `github.sha`).
+- Recommended auth fixture: dedicated test Supabase project + pre-seeded user + `storageState.json` generated once via `supabase.auth.admin.generateLink`. BP-126 dev-login is localhost-only by design so cannot be reused.
+- Scope slice: 3 parallel specs (`auth-onboarding`, `create-schedule`, `posted-analytics`). Target total wall-clock < 5 min per spec.
+- LinkedIn publish stays mocked/stopped-at-mark-as-posted — real publish in CI is spammy + rate-limit risk.
+- Effort: 3–5 focused days. Recommended first sub-task: provision test Supabase project + write idempotent `scripts/e2e/seed-test-user.ts`.
+- **Owner decisions needed before implementation starts:** (1) willingness to provision a second Supabase project, (2) comfort adding a Vercel CLI token as a GitHub secret, (3) whether to pursue pre-Stripe (BP-015) or defer.
+
+### BP-088 — Authorization audit on team-feature API routes (Done)
+Audit findings:
+- `DELETE /api/posts/assign`, `PATCH /api/posts/comments`, `/api/activity` GET — BP-088 fixes already present from earlier work (inline comments).
+- `/api/posts/approval` GET + POST — gaps closed this session: added post-fetch + workspace-membership check before reading approvals or submitting/deciding.
+- `/api/posts/comments` POST — gap closed this session: added workspace-membership check mirroring the PATCH pattern on the same file.
+- `/api/notifications`, `/api/workspace/members` (GET/PATCH/DELETE), `/api/workspace/invite`, `/api/posts/comments` DELETE — audited and confirmed safe (every handler scopes by `user.id` or checks workspace role explicitly).
+- Established pattern for future endpoint authors, documented in the BP-088 backlog entry. No CLAUDE.md exists at repo root; spec called for adding a defense-in-depth note there if one existed — noted for future CLAUDE.md creation.
+
+### BP-095 — Observability (Done)
+Every acceptance criterion is already met by the 2026-04-16 helper-docs pass:
+- `src/lib/activity.ts` and `src/lib/notifications.ts` both log failures to `console.error` with labeled prefixes (`[activity-log]`, `[notifications]`), with BP-095 comments already in place.
+- `src/lib/workspace.ts` has inline USE / DON'T USE documentation for `applyWorkspaceFilter()`.
+- All five user-facing LIST query files (dashboard, ideas, posts, calendar, analytics) use `applyWorkspaceFilter`.
+- `src/app/(app)/workspace/reviews/page.tsx` uses direct `.eq("workspace_id", …)` — documented exemption (Team-only review queue; the helper's null-workspace branch would return personal-mode items, which is wrong for this page).
+- ESLint rule considered + deferred — docs + code-review are sufficient.
+
+### Migrations applied to prod this session
+- `content_library_builtin_rls_tier_gated` (BP-113)
+
+### Sprint 3 end state
+- Every BP in Sprint 3 (BP-088, 095, 097, 100, 113) now Done or Spec-Done on `develop`.
+- `main` contains the full v2 rollout from earlier (Subscription Model v2); Sprint 3 code changes (BP-088 hardening + BP-113 migration) to land on `main` in the next merge.
+- Vercel production already serving v2 post-merge.
+- **Next Sprint theme is Sprint 4 — Polish & Consistency** (EPIC 3 + 4): BP-084 tutorial card redesign, BP-099 simplified guided UI. BP-114/120/121 already closed earlier in v2 work.
+- Revenue launch (Sprint 5 — EPIC 2 Stripe) remains the actual GTM blocker.
+
+---
+
 ## 2026-04-24 Part 5: v2-adjacent cleanup — BP-120 help, BP-121 tutorial dismiss, BP-127 logging, BP-128 caching
 
 Closed every remaining v2-adjacent item across EPICs 3, 4, and 10. No new BP creation — all pre-existing.

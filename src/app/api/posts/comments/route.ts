@@ -66,6 +66,21 @@ export async function POST(request: NextRequest) {
       .single();
     if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
 
+    // BP-088: app-layer membership check mirrors the PATCH handler below.
+    // Prevents comment creation from a caller who shouldn't see the post in
+    // the first place (RLS is the ultimate gate; this is defense in depth).
+    if (post.workspace_id) {
+      const { data: member } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", post.workspace_id)
+        .eq("user_id", user.id)
+        .single();
+      if (!member) return NextResponse.json({ error: "Not a workspace member" }, { status: 403 });
+    } else if (post.user_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { data: comment, error } = await supabase
       .from("post_comments")
       .insert({
