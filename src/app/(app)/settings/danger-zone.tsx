@@ -34,6 +34,7 @@ export function DangerZone() {
   const [open, setOpen] = useState(false);
   const [typedConfirm, setTypedConfirm] = useState("");
   const [reason, setReason] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
@@ -42,6 +43,7 @@ export function DangerZone() {
     if (!value) {
       setTypedConfirm("");
       setReason("");
+      setAcknowledged(false);
     }
     setOpen(value);
   }
@@ -108,21 +110,23 @@ export function DangerZone() {
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-sm">
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-              <p className="font-medium text-destructive">What happens next</p>
-              <ul className="mt-1 ml-5 list-disc text-xs text-foreground space-y-0.5">
-                <li>You&apos;ll be signed out immediately and unable to log back in.</li>
-                <li>
-                  After a <span className="font-medium">30-day grace period</span>,
-                  all of your data — posts, ideas, library items, uploaded files,
-                  scheduled posts, and analytics — is permanently removed.
-                </li>
-                <li>
-                  During the grace window, contact support if you change your mind
-                  and want your account restored.
-                </li>
-                <li>After 30 days, deletion is permanent and cannot be reversed.</li>
-              </ul>
+            <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4">
+              <p className="font-bold text-destructive text-base">
+                You have 30 days to recover your account
+              </p>
+              <p className="mt-2 text-sm text-foreground">
+                After clicking delete, your account is{" "}
+                <span className="font-medium">suspended immediately</span>. You can
+                contact support during the next{" "}
+                <span className="font-bold">30 days</span> to restore it.
+              </p>
+              <p className="mt-2 text-sm text-foreground">
+                <span className="font-bold text-destructive">
+                  After 30 days, all of your data is permanently deleted and cannot be recovered.
+                </span>{" "}
+                This includes your posts, ideas, library items, uploaded files,
+                scheduled posts, and analytics.
+              </p>
             </div>
 
             <div>
@@ -137,6 +141,22 @@ export function DangerZone() {
                 placeholder="What made you want to leave?"
               />
             </div>
+
+            <label className="flex items-start gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                I understand my account is recoverable for{" "}
+                <span className="font-medium">30 days</span>, after which all of
+                my data is{" "}
+                <span className="font-bold text-destructive">permanently deleted</span>{" "}
+                and cannot be reversed.
+              </span>
+            </label>
 
             <div>
               <Label htmlFor="self-delete-confirm" className="text-sm font-medium">
@@ -160,7 +180,7 @@ export function DangerZone() {
             <Button
               variant="destructive"
               onClick={performDelete}
-              disabled={submitting || typedConfirm !== "DELETE"}
+              disabled={submitting || typedConfirm !== "DELETE" || !acknowledged}
             >
               {submitting ? (
                 <>

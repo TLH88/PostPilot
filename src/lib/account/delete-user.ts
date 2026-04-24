@@ -20,6 +20,75 @@ import { cleanupUserStorage } from "./storage-cleanup";
 
 const GRACE_DAYS = 30;
 
+/**
+ * Hard delete only safely fires once any solo workspaces the user owns are
+ * removed. Background:
+ *   - workspaces.owner_id is ON DELETE RESTRICT (BP-131 — prevents accidental
+ *     team-wide nukes when a multi-member workspace's owner is deleted).
+ *   - But solo-owned workspaces (member_count = 1, just the owner) should
+ *     still be deletable along with the user — no other tenant is affected.
+ *   - Several public tables reference workspaces.id without ON DELETE CASCADE
+ *     (posts.workspace_id, ideas.workspace_id, content_library.workspace_id,
+ *     post_templates.workspace_id). For solo workspaces those rows belong to
+ *     the user being deleted anyway, but the workspace deletion itself would
+ *     fail until they're cleared.
+ *
+ * Order: NULL out the workspace_id on the user's content first, then delete
+ * the workspace, then auth.admin.deleteUser cascades the now-orphaned content
+ * via user_id ON DELETE CASCADE.
+ *
+ * Pre-condition: preflight has confirmed every owned workspace has
+ * member_count <= 1. We re-assert that here defensively before mutating.
+ */
+async function cleanupOwnedSoloWorkspaces(
+  admin: SupabaseClient,
+  userId: string
+): Promise<void> {
+  const { data: owned } = await admin
+    .from("workspaces")
+    .select("id, name")
+    .eq("owner_id", userId);
+
+  if (!owned || owned.length === 0) return;
+
+  const workspaceIds: string[] = [];
+  for (const ws of owned) {
+    const { count } = await admin
+      .from("workspace_members")
+      .select("*", { count: "exact", head: true })
+      .eq("workspace_id", ws.id);
+    if ((count ?? 0) > 1) {
+      throw new Error(
+        `Cannot delete: workspace "${ws.name}" has ${count} members. Preflight should have blocked this — investigate.`
+      );
+    }
+    workspaceIds.push(ws.id);
+  }
+
+  // Clear non-cascading workspace_id references on the user's content. These
+  // rows will be cascaded out when auth.users is deleted via user_id; we just
+  // need them off this workspace first so the workspace delete can proceed.
+  for (const table of ["posts", "ideas", "content_library", "post_templates"]) {
+    const { error } = await admin
+      .from(table)
+      .update({ workspace_id: null })
+      .in("workspace_id", workspaceIds);
+    if (error) {
+      throw new Error(`Failed to clear workspace_id on ${table}: ${error.message}`);
+    }
+  }
+
+  // Delete the now-empty solo workspaces. Cascading FKs handle the remaining
+  // referencing tables (workspace_members, activity_log, notifications, etc.).
+  const { error: wsErr } = await admin
+    .from("workspaces")
+    .delete()
+    .in("id", workspaceIds);
+  if (wsErr) {
+    throw new Error(`Failed to delete solo workspaces: ${wsErr.message}`);
+  }
+}
+
 export type DeletionInitiatedByRole = "self" | "admin";
 
 export interface SoftDeleteParams {
@@ -183,7 +252,18 @@ export async function hardDeleteUser(
     };
   }
 
-  // 3. Drop the auth.users row. Cascades take care of every CASCADE-
+  // 3. Solo workspace cleanup — workspaces.owner_id is RESTRICT, so we
+  //    must remove any solo-owned workspace before auth.admin.deleteUser.
+  try {
+    await cleanupOwnedSoloWorkspaces(admin, userId);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `Workspace cleanup failed; aborting hard delete: ${(err as Error).message}`,
+    };
+  }
+
+  // 4. Drop the auth.users row. Cascades take care of every CASCADE-
   //    linked public table; SET NULL handlers null out historical
   //    actor references.
   const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
@@ -223,6 +303,15 @@ export async function executeScheduledHardDelete(
     return {
       ok: false,
       reason: `Storage cleanup failed; aborting hard delete: ${(err as Error).message}`,
+    };
+  }
+
+  try {
+    await cleanupOwnedSoloWorkspaces(admin, audit.user_id);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `Workspace cleanup failed; aborting hard delete: ${(err as Error).message}`,
     };
   }
 

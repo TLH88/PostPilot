@@ -55,6 +55,52 @@ async function verifyJwtSignature(token: string, secret: string): Promise<boolea
 
 const USER_BUCKETS = ["resumes", "post-images"];
 
+/**
+ * Solo-owned workspaces must be removed before auth.admin.deleteUser
+ * because workspaces.owner_id is ON DELETE RESTRICT (BP-131). Mirrors
+ * the cleanupOwnedSoloWorkspaces helper in src/lib/account/delete-user.ts.
+ *
+ * Multi-member workspaces should NEVER reach this point — the soft-delete
+ * preflight blocks them at admin/self deletion time. We re-assert here
+ * defensively and skip the user (whole batch row fails) if violated.
+ */
+async function cleanupOwnedSoloWorkspaces(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+) {
+  const { data: owned, error: listErr } = await supabase
+    .from("workspaces")
+    .select("id, name")
+    .eq("owner_id", userId);
+  if (listErr) throw new Error(`list owned workspaces: ${listErr.message}`);
+  if (!owned || owned.length === 0) return;
+
+  const ids: string[] = [];
+  for (const ws of owned) {
+    const { count, error: countErr } = await supabase
+      .from("workspace_members")
+      .select("*", { count: "exact", head: true })
+      .eq("workspace_id", ws.id);
+    if (countErr) throw new Error(`count members for ${ws.name}: ${countErr.message}`);
+    if ((count ?? 0) > 1) {
+      throw new Error(
+        `Workspace "${ws.name}" has ${count} members; preflight should have blocked this. Skipping.`
+      );
+    }
+    ids.push(ws.id);
+  }
+
+  // Clear non-cascading workspace_id refs; rows themselves are removed
+  // when the auth.users CASCADE fires on user_id below.
+  for (const table of ["posts", "ideas", "content_library", "post_templates"]) {
+    const { error } = await supabase.from(table).update({ workspace_id: null }).in("workspace_id", ids);
+    if (error) throw new Error(`clear workspace_id on ${table}: ${error.message}`);
+  }
+
+  const { error: wsErr } = await supabase.from("workspaces").delete().in("id", ids);
+  if (wsErr) throw new Error(`delete solo workspaces: ${wsErr.message}`);
+}
+
 async function cleanupStorage(supabase: ReturnType<typeof createClient>, userId: string) {
   for (const bucket of USER_BUCKETS) {
     let offset = 0;
@@ -125,6 +171,15 @@ Deno.serve(async (req) => {
       await cleanupStorage(supabase, row.user_id);
     } catch (err) {
       const reason = `storage cleanup failed: ${(err as Error).message}`;
+      log("error", reason, { audit_id: row.id, user_id: row.user_id });
+      failures.push({ audit_id: row.id, user_id: row.user_id, reason });
+      continue;
+    }
+
+    try {
+      await cleanupOwnedSoloWorkspaces(supabase, row.user_id);
+    } catch (err) {
+      const reason = `workspace cleanup failed: ${(err as Error).message}`;
       log("error", reason, { audit_id: row.id, user_id: row.user_id });
       failures.push({ audit_id: row.id, user_id: row.user_id, reason });
       continue;
