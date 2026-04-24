@@ -61,10 +61,11 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
 
 ### EPIC 2 — Billing & Monetization (Stripe)
-Blocked on BP-015 un-deferring. Completes the revenue loop.
-- **BP-015** Stripe Billing Integration — Deferred (Revenue)
-- **BP-017** Pricing Page Checkout — Deferred (Revenue)
-- **BP-122** Payment methods + invoices in Settings — Deferred (Revenue, child of BP-015)
+**Active — GTM blocker.** BP-015 un-deferred 2026-04-24 per owner direction.
+- **BP-015** Stripe Billing Integration (v2 — Elements + cardless trial) — **P0 / Critical**
+- **BP-130** "Coming Soon" gating for Team + Enterprise tiers at GTM launch — P1 / High
+- **BP-017** Pricing Page Checkout — Deferred (subsumed into BP-015 for v2 — `/checkout` route ships there)
+- **BP-122** Payment methods + invoices in Settings — child of BP-015
 
 ### EPIC 3 — Terminology & Help Content
 - **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — P2 / Medium (raised from P3)
@@ -300,23 +301,128 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ## Future Backlog (Phase 1: Monetization + Creator Tier)
 
-### BP-015: Stripe Billing Integration
+### BP-015: Stripe Billing Integration (v2)
+
+**Status:** Backlog — **active** (GTM blocker)
+**Priority:** P0 / Critical (un-deferred 2026-04-24 — Subscription Model v2 display shipped, Stripe is the last thing between the app and revenue)
+**Source:** Pricing strategy + 2026-04-24 owner design-decisions session
+**Date Added:** 2026-04-01 · **Spec rewritten:** 2026-04-24 (replaces the pre-v2 version)
+**EPIC:** Billing & Monetization (EPIC 2)
+**Related:** BP-117 (feature-gate refactor — quota enforcement relies on `subscription_tier`), BP-122 (payments + invoices in Settings — child), BP-130 (Team/Enterprise Coming Soon gating)
+
+**Owner design decisions (2026-04-24):**
+1. **Payment surface:** Stripe **Elements** (embedded), not hosted Checkout. UX must match PostPilot's brand.
+2. **Trial mechanics:** **Cardless** 14-day Pro trial for Free + Personal users. Zero Stripe interaction during trial; on day 15, access restricts until the user subscribes via Elements.
+3. **Tier scope at v1 launch:** Free, Personal, and Professional billable. **Team and Enterprise deferred** — tracked separately as BP-130 (Coming Soon gating).
+4. **Team terms (for future BP-131 when we unflag Team):** minimum 5 seats at subscription start, maximum 149 seats before auto-upgrade prompt to Enterprise.
+
+**Scope — what ships in this BP:**
+
+*Infrastructure*
+- New Stripe products + prices for Personal ($20/mo, $204/yr) and Professional ($50/mo, $510/yr). Annual price = 15% discount, same as display on `/pricing`.
+- Stripe account provisioned under PostPilot's business details (tax settings, bank account, etc.). **Owner task before any code lands.**
+- Webhook signing secret stored as env var `STRIPE_WEBHOOK_SECRET`. API key `STRIPE_SECRET_KEY` stored similarly. Publishable key `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` exposed to the client (safe).
+
+*Data model*
+- New `subscriptions` table: `id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, tier, status, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, created_at, updated_at`. RLS: users see their own row only; service role writes via webhook.
+- New `stripe_events` table for webhook idempotency: `event_id PRIMARY KEY, type, received_at, processed boolean, payload jsonb`. Prevents double-processing when Stripe retries.
+- `user_profiles` gains `stripe_customer_id` for convenience (denormalized — a user can only ever have one Stripe customer).
+
+*Routes*
+- `POST /api/stripe/create-subscription` — creates the Stripe Customer (if not exists) + Subscription with `payment_behavior: "default_incomplete"`; returns the `client_secret` of the Subscription's latest invoice's Payment Intent for Elements to collect card.
+- `POST /api/stripe/webhook` — idempotent handler for `customer.subscription.{created, updated, deleted}`, `invoice.payment_succeeded`, `invoice.payment_failed`. Updates `subscriptions` table + `user_profiles.subscription_tier` atomically.
+- `POST /api/stripe/cancel-subscription` — sets `cancel_at_period_end: true` on Stripe; keeps access until `current_period_end`.
+- `POST /api/stripe/resume-subscription` — flips `cancel_at_period_end` back to false before period end.
+- `GET /api/stripe/customer-portal` — returns a signed Stripe Customer Portal URL for self-service billing (invoices, payment method update, etc.). Powers BP-122.
+
+*UI*
+- `/pricing` "Start free trial" → cardless trial activation (sets `trial_ends_at` on `user_profiles`, no Stripe interaction).
+- `/pricing` "Upgrade to Personal / Professional" → embedded Elements form on a new `/checkout` route (or modal). Post-success, redirect to `/dashboard` with toast.
+- `/settings/billing` (child BP-122) — current plan, next billing date, card on file, invoices list, manage/cancel buttons.
+- Trial-expiry banner on dashboard (BP-118 already ships tier-aware messaging; extends with "Convert now" CTA).
+
+*Trial logic*
+- On first signup, set `user_profiles.trial_ends_at = now() + 14 days`, `trial_tier = 'professional'`. No Stripe interaction.
+- Feature gates (BP-117) treat trial users as if on Professional until `trial_ends_at` passes.
+- Cron job (daily, new Edge Function) scans `user_profiles` for `trial_ends_at < now() AND subscription_tier IN ('free', 'personal')` and resets any trial-based feature access. Emails the user "trial ended" with a subscribe CTA.
+
+*Tier mapping in the webhook*
+| Stripe price id | tier | trial handling |
+|---|---|---|
+| `price_personal_monthly`, `price_personal_yearly` | `personal` | End trial if active |
+| `price_pro_monthly`, `price_pro_yearly` | `professional` | End trial if active |
+| (none — cancelled) | `free` | Clears `trial_ends_at` too |
+
+**Security / guardrails:**
+- **Webhook signature verification** is mandatory on every incoming event — reject anything without a valid `stripe-signature` header. One line with the Stripe SDK; non-negotiable.
+- **Idempotency via `stripe_events.event_id`** — if the event has already been processed, return 200 immediately without re-applying. Stripe retries aggressively on network failure; without idempotency we double-grant access.
+- **Never trust client-side subscription state.** All `subscription_tier` mutations flow through the webhook. The frontend can display what the latest webhook wrote, nothing else.
+- **Server-side tier gates remain the authoritative check.** Client-side billing UI is UX-only; `/api/*` routes always re-check tier on request.
+- **PCI scope:** Elements keeps PostPilot out of PCI-DSS compliance requirements by tokenizing the card in Stripe's iframe — we never see the PAN. Keep it that way; never submit card fields through our own form.
+
+**Acceptance criteria:**
+- [ ] Personal ($20/mo and $204/yr) subscription can be created end-to-end via Elements; webhook processes `customer.subscription.created` and flips `subscription_tier` to `personal`.
+- [ ] Professional (same shape, $50/$510) works identically.
+- [ ] Cardless trial activates on demand for Free/Personal users; counts down correctly; access restricts at day 15.
+- [ ] Failed payment (simulated via Stripe test card `4000 0000 0000 0341`) transitions the user's subscription to `past_due`; grace period applied (default 7 days), then downgrade to `free`.
+- [ ] Canceling from `/settings/billing` sets `cancel_at_period_end: true`; access retained until period end; tier drops to `free` on `customer.subscription.deleted`.
+- [ ] Resume before period end undoes the cancel.
+- [ ] Webhook is idempotent — replaying an event twice does not double-apply.
+- [ ] Stripe test mode keys used in Preview; live keys only in prod env; no leakage between envs.
+- [ ] E2E spec added to BP-097 covering: signup → trial → subscribe → see Pro features → cancel → period-end downgrade. Uses Stripe test mode card.
+
+**Out of scope:**
+- Team and Enterprise tier billing — see BP-130 (Coming Soon gating) and BP-131 (future Team billing with 5-seat minimum, 149-seat cap).
+- Credit-pack purchases — see BP-124 (specced, post-launch).
+- Proration on mid-cycle upgrade — use Stripe's default proration behavior for v1; custom UX deferred.
+- Multi-currency — USD only for v1.
+- Tax — rely on Stripe Tax for v1 (one checkbox in Stripe dashboard).
+
+**Effort:** L (multi-session — ~3-5 focused sessions) · **Expected ROI:** **Critical** — unblocks all revenue.
+
+---
+
+### BP-130: "Coming Soon" Gating for Team + Enterprise Tiers at GTM Launch
 
 **Status:** Backlog
-**Priority:** Deferred (Revenue) — was Critical
-**Re-prioritized:** 2026-04-16 — billing deferred until Free→Pro product viability is validated through user feedback. See [reprioritization report](reviews/2026-04-16-backlog-reprioritization.md).
-**Source:** Pricing strategy
-**Date Added:** 2026-04-01
-**Phase:** 1
+**Priority:** P1 / High (ships alongside BP-015 — must land before revenue launch)
+**Source:** 2026-04-24 owner design-decisions session
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1) + Billing & Monetization (EPIC 2)
+**Related:** BP-015 (Stripe), BP-116 (pricing page), future BP-131 (Team billing when un-flagged)
 
-**Description:**
-Integrate Stripe for subscription billing. Support Free, Creator ($19/mo), and Professional ($49/mo) tiers with monthly and annual billing (17% annual discount).
+**Problem / rationale:** Owner direction 2026-04-24 — Team ($100/mo + $6/user, 5-seat min, 149-seat max) and Enterprise tiers will NOT accept new subscriptions at GTM launch. Visible on pricing for discoverability but disabled for purchase. Prevents support/ops load before the billing machinery for seat-based pricing is built (tracked as a future BP-131).
 
-**Requirements:**
-- Stripe Checkout for subscription creation
-- Webhook handling for subscription lifecycle events (created, updated, canceled, payment failed)
-- Subscription status stored in `creator_profiles` or new `subscriptions` table
-- Customer portal link for self-service billing management
+**Scope:**
+- **Pricing page display changes** (`src/app/pricing/page.tsx`, `src/lib/constants.ts`):
+  - Team + Enterprise cards keep their feature lists but replace the price with a "Coming Soon" badge.
+  - Primary CTA changes from "Subscribe"/"Start trial" → "Join waitlist" for Team, "Contact Sales" for Enterprise.
+  - Sub-copy: "Team plans launch Q3 2026 — drop your email to be first in line" (exact copy owner-approved at ship time).
+- **Waitlist capture** (new table `tier_waitlist` or reuse an existing contact mechanism):
+  - Simple form: email + tier interested ("team" | "enterprise") + optional message.
+  - No authentication required — works for anonymous visitors.
+  - Stored in Supabase; exposed to admin via existing `/admin` routes for outreach later.
+- **Server-side guard against bypass** (critical security piece):
+  - `/api/stripe/create-subscription` rejects any attempt to subscribe to `tier IN ('team', 'enterprise')` with a 403 "Not yet available. Please join the waitlist at /pricing."
+  - `POST /api/admin/users` (admin tier-override UI) continues to allow owner to manually grant Team/Enterprise to specific accounts — no gate there, since it's already an owner-authenticated action.
+- **Trial eligibility** (BP-015 interaction):
+  - Users with `trial_tier = 'team'` are NOT a thing in v1 — the feature-gate table already flags Team as non-trialable.
+  - Nothing to change in trial logic; this is a reminder for the BP-015 implementation to honor.
+
+**Security / guardrails:**
+- Server-side rejection in `/api/stripe/create-subscription` is the authoritative block. UI-only "Coming Soon" is UX; the server gate is the real barrier. Anyone trying to sidestep the UI (e.g. crafting a direct API call) gets a 403.
+- Waitlist form must rate-limit on IP + email to prevent spam signups. Simple 5/minute cap per IP.
+- Stored waitlist emails are sensitive (they represent commercial leads). RLS: only service role reads (admin UI uses service role); no anonymous read.
+
+**Acceptance criteria:**
+- [ ] `/pricing` shows Team + Enterprise cards with "Coming Soon" badge and appropriate CTAs.
+- [ ] Waitlist form submits without auth; row lands in `tier_waitlist` table.
+- [ ] Admin can see the list at `/admin/waitlist` (new route) or existing admin user management UI.
+- [ ] `/api/stripe/create-subscription` returns 403 for any tier outside {personal, professional}.
+- [ ] Owner can still manually grant Team/Enterprise via `/admin/users` tier-override (manual provisioning for pilot customers).
+- [ ] Rate-limit on waitlist submission — flagged if hit.
+
+**Effort:** S–M (1-2 sessions) · **Expected ROI:** High (closes a revenue-ops attack surface before launch; collects warm leads for when Team actually ships)
 
 ---
 
