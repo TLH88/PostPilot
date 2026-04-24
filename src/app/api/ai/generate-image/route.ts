@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getProviderApiKey } from "@/lib/ai/get-user-ai-client";
 import { logApiError } from "@/lib/api-utils";
-import { checkQuota, incrementQuota } from "@/lib/quota";
+import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
+import type { AISource } from "@/lib/ai/get-user-ai-client";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
@@ -42,15 +43,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Quota check
-    const quota = await checkQuota(user.id, "chat_messages");
-    if (!quota.allowed) {
-      return NextResponse.json(
-        { error: `Monthly AI message limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` },
-        { status: 403 }
-      );
-    }
-
     // Fetch post content
     const { data: post } = await supabase
       .from("posts")
@@ -86,15 +78,20 @@ export async function POST(request: NextRequest) {
     // Get API key for the selected provider — look up image keys first
     // (key_type='image' in ai_provider_keys), then fall back to text keys
     // so users with only a text key configured can still generate images.
+    // `source` tells us whether the resolved key is BYOK or a system key —
+    // BYOK users bypass the system-key image quota (v2, BP-117 Phase B).
     let apiKey: string;
+    let source: AISource;
     try {
       const result = await getProviderApiKey(provider, "image");
       apiKey = result.apiKey;
+      source = result.source;
       console.log(`[Image Gen] Using image-type key for ${provider}`);
     } catch {
       try {
         const result = await getProviderApiKey(provider, "text");
         apiKey = result.apiKey;
+        source = result.source;
         console.log(`[Image Gen] Falling back to text-type key for ${provider}`);
       } catch {
         return NextResponse.json(
@@ -102,6 +99,13 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    // Quota check — only enforced when running on a system key; BYOK bypass.
+    const bypass = source === "byok";
+    const quota = await checkQuota(user.id, "image_generations", { bypass });
+    if (!quota.allowed) {
+      return buildQuotaExceededResponse(quota, "image_generations");
     }
     const hook = post.content?.slice(0, 210) ?? "";
     const selectedStyle = artStyle || ART_STYLES[0];
@@ -248,7 +252,7 @@ export async function POST(request: NextRequest) {
       logApiError("api/ai/generate-image (version insert)", versionError);
     }
 
-    await incrementQuota(user.id, "chat_messages");
+    await incrementQuota(user.id, "image_generations", { bypass });
 
     logAiUsage({
       userId: user.id,

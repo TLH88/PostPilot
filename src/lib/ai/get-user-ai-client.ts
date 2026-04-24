@@ -181,7 +181,7 @@ export async function getUserAIClient(
 export async function getProviderApiKey(
   provider: AIProvider,
   keyType: "text" | "image" = "text"
-): Promise<{ apiKey: string; profile: CreatorProfile }> {
+): Promise<{ apiKey: string; profile: CreatorProfile; source: AISource }> {
   const supabase = await createClient();
 
   const {
@@ -217,6 +217,7 @@ export async function getProviderApiKey(
         authTag: providerKey.api_key_auth_tag,
       }),
       profile: creatorProfile,
+      source: "byok",
     };
   }
 
@@ -235,6 +236,7 @@ export async function getProviderApiKey(
           authTag: creatorProfile.image_ai_api_key_auth_tag,
         }),
         profile: creatorProfile,
+        source: "byok",
       };
     }
   } else if (
@@ -250,6 +252,7 @@ export async function getProviderApiKey(
         authTag: creatorProfile.ai_api_key_auth_tag,
       }),
       profile: creatorProfile,
+      source: "byok",
     };
   }
 
@@ -257,7 +260,7 @@ export async function getProviderApiKey(
   // does not go through the gateway in Phase 1)
   const systemKey = hasManagedAccess(creatorProfile) ? getSystemKey(provider) : null;
   if (systemKey) {
-    return { apiKey: systemKey, profile: creatorProfile };
+    return { apiKey: systemKey, profile: creatorProfile, source: "system_key" };
   }
 
   throw new Error(

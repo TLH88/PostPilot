@@ -8,7 +8,7 @@ import {
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
-import { checkQuota, incrementQuota } from "@/lib/quota";
+import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 
 export async function POST(request: NextRequest) {
@@ -30,13 +30,11 @@ export async function POST(request: NextRequest) {
     const { client, profile, source, provider, model } = await getUserAIClient();
     activeProvider = provider;
 
-    // Quota check
-    const quota = await checkQuota(profile.user_id, "brainstorms");
+    // Quota check — BYOK users bypass the system-key cap.
+    const bypass = source === "byok";
+    const quota = await checkQuota(profile.user_id, "brainstorms", { bypass });
     if (!quota.allowed) {
-      return NextResponse.json(
-        { error: `Monthly brainstorm limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` },
-        { status: 403 }
-      );
+      return buildQuotaExceededResponse(quota, "brainstorms");
     }
 
     // Fetch recent posts and ideas for history context
@@ -163,8 +161,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Increment quota after successful brainstorm
-    await incrementQuota(profile.user_id, "brainstorms");
+    // Increment quota after successful brainstorm (skipped for BYOK)
+    await incrementQuota(profile.user_id, "brainstorms", { bypass });
 
     logAiUsage({
       userId: profile.user_id,
