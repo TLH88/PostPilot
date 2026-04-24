@@ -557,8 +557,7 @@ export function AIProviderSettings({
               </p>
               {!byokUnlocked && (
                 <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1 pt-1">
-                  <Lock className="size-3" /> Required on the{" "}
-                  {subscriptionTier === "free" ? "Free" : "Personal"} plan.
+                  <Lock className="size-3" /> Required on the Free and Personal plans.
                 </p>
               )}
             </div>
