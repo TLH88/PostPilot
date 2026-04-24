@@ -585,13 +585,12 @@ export function AIProviderSettings({
           {/* TODO(BP-125): revisit once image AI provider configuration
                expands and text-provider list grows. Copy should then mention
                image providers explicitly and the broader supported set. */}
-          <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
+          <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
             Upgrade to Professional, Team, or Enterprise to add your own AI
-            provider keys. You&apos;ll be billed by that provider directly
-            instead of us.
+            provider keys. You&apos;ll be billed by that provider directly instead of us.
           </p>
           {(textKeys.length > 0 || imageKeys.length > 0) && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 max-w-sm mx-auto">
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 max-w-md mx-auto">
               Your previously configured key
               {textKeys.length + imageKeys.length > 1 ? "s are" : " is"} saved
               and will reactivate automatically when you upgrade.
