@@ -398,8 +398,15 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 #### A. Admin delete (extends `/admin/users`)
 - New row action: "Delete user…" → confirmation dialog naming the user + summarizing what will be removed (post count, workspace memberships, etc.).
-- Calls `DELETE /api/admin/users` (new method on existing route) → service-role `supabase.auth.admin.deleteUser(userId)` after pre-flight checks (see below).
-- Audit: log to `activity_log` with `action: 'admin_user_deleted'` plus the deleting admin's id, before the cascade fires.
+- **Two-radio choice (owner direction 2026-04-24):**
+  - ○ **Soft delete** (30-day grace, recoverable) — default selection
+  - ○ **Hard delete** (immediate, NOT recoverable)
+- If "Hard delete" is selected, clicking "Delete user" opens a **secondary confirmation popup** before the API call fires:
+  - Bold red warning: "This action is permanent and cannot be undone. All of {user}'s data — posts, ideas, library items, uploaded files, analytics — will be deleted immediately. This cannot be reversed by support."
+  - Type "DELETE" to confirm.
+  - Final "Permanently delete account" button.
+- Calls `DELETE /api/admin/users?userId=…&type=soft|hard` → service-role flow (see below) after pre-flight checks.
+- Audit: row inserted into `account_deletions` BEFORE the cascade fires (see schema below).
 
 #### B. User self-serve delete (new `/settings/account` section)
 - "Danger zone" panel at the bottom: "Delete my account" button.
