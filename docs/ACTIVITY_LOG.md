@@ -75,6 +75,34 @@ Still to come:
 - **Phase 3:** `.github/workflows/e2e.yml` — blocked on Tony adding `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` as GitHub Actions secrets.
 - **Follow-up BP:** filter `is_test_user = true` out of admin dashboards + cost-study queries so test users don't pollute metrics. Capture as a new BP in EPIC 10 when Phase 2 lands.
 
+### BP-097 Phase 3 — CI pipeline GREEN end-to-end (later same session)
+
+Six failed runs and six distinct root causes before run #7 (24886136028) went green. All 5 smoke tests pass — landing page + magic-link sign-in for each of the four tier users — against a per-PR Vercel preview URL.
+
+**Owner-side setup that landed during the fix loop:**
+- `VERCEL_TOKEN` added (team-scoped, `tlh88s-projects`) after an earlier attempt placed the team ID in the token slot.
+- `VERCEL_AUTOMATION_BYPASS_SECRET` added (Vercel Project → Deployment Protection → Protection Bypass for Automation).
+- Supabase Redirect URL wildcards added — `https://*-tlh88s-projects.vercel.app/**` + `https://postpilot-*.vercel.app/**` — even though the final helper design doesn't strictly require them (see below); kept for other flows.
+
+**Code-side fixes that landed during the fix loop:**
+- `.github/workflows/e2e.yml` — fail-fast guard for empty secrets; JSON-shape guard that dumps raw Vercel API response when `.deployments` is missing (caught the team-ID-as-token mistake on run #2).
+- `playwright.config.ts` — conditional `extraHTTPHeaders` for `x-vercel-protection-bypass` + `x-vercel-set-bypass-cookie: samesitenone`. No-op when the env var is unset so the config stays portable.
+- `scripts/e2e/seed-test-users.ts` — column fix (`onboarded_at` was wrong; schema uses `onboarding_completed` boolean + `onboarding_current_step` smallint).
+- `tests/e2e/helpers/session.ts` — rewritten to bypass `supabase.co/auth/v1/verify` entirely: extract `hashed_token` from `admin.generateLink` response and navigate directly to `<preview>/callback?token_hash=...&type=magiclink&next=/dashboard`. The app's `/callback` calls `verifyOtp` server-side, which sets session cookies on the preview domain (the critical bit — cookies set on `supabase.co` don't transfer).
+
+**Why the SSR-friendly helper pattern matters (captured for future E2E authors):** `admin.generateLink` returns an `action_link` aimed at email clicks — navigating there has Supabase verify the token and set cookies on the `supabase.co` origin. For an SSR app tested at a different origin (our preview URL), those cookies are useless. The fix is to use the `hashed_token` property and skip the verify endpoint, hitting the app's own callback so `verifyOtp` runs server-side with cookies landing on the app origin.
+
+**Run-by-run failure ladder (diagnostic archive):**
+1. `VERCEL_TOKEN` was empty → cryptic `jq: Cannot iterate over null`. Added upfront guard.
+2. Token was team ID, not API token → Vercel returned `{"error":{"code":"forbidden","invalidToken":true}}`. Regenerated with team scope.
+3. Seed step hit `PGRST204: 'onboarded_at' column does not exist`. Switched to the real schema columns.
+4. Playwright bounced to `vercel.com/login?next=...` (Vercel SSO wall). Wired automation bypass.
+5. Cookies set wrong — tests landed on app `/login`. Passed `redirectTo` to `generateLink` (intermediate fix).
+6. Still on `/login` — `redirectTo` changes where Supabase redirects but not where cookies get set. Rewrote helper to bypass the verify endpoint entirely.
+7. **All 5 tests green.**
+
+**Phase 3 end state:** Pipeline proven end-to-end. Every push to `develop` and every PR will now exercise the full sign-in chain. Phase 2 (three real happy-path specs — auth-onboarding, create-schedule, posted-analytics) is the remaining work, blocked only on owner go-ahead.
+
 ### Sprint 3 end state
 - Every BP in Sprint 3 (BP-088, 095, 097, 100, 113) now Done or Spec-Done on `develop`.
 - `main` contains the full v2 rollout from earlier (Subscription Model v2); Sprint 3 code changes (BP-088 hardening + BP-113 migration) to land on `main` in the next merge.

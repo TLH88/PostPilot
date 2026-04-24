@@ -2765,7 +2765,7 @@ This is a Phase T4 enhancement per ROADMAP. Listed here as a tracked deferred it
 
 ### BP-097: Playwright E2E for Free→Pro Happy Path
 
-**Status:** Phase 1 Done (scaffold + seeder + smoke spec shipped 2026-04-24). Phase 2 (full specs) and Phase 3 (CI workflow) still pending. Owner approved reuse-prod + magic-link approach 2026-04-24.
+**Status:** Phases 1 + 3 Done (CI pipeline proven green end-to-end via run 24886136028 on 2026-04-24). Phase 2 (three full happy-path specs) still pending owner go-ahead. Owner approved reuse-prod + magic-link approach 2026-04-24.
 **Priority:** P1 / High
 **Re-prioritized:** 2026-04-16 — re-scoped from Team-collaboration E2E to Free→Pro happy path. The Team test waits behind BP-098.
 **Source:** [2026-04-16 Review] — Lead synthesis improvement opportunity I4 (re-scoped)
