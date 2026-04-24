@@ -111,7 +111,8 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — P2 / Medium
-- **BP-131** Account deletion (admin + user self-serve) — P1 / High
+- **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
+- **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
 
 ### EPIC 10 — Admin & Cost Controls
 - **BP-085** AI usage monitoring, cost analysis & budget enforcement — P1 / High
@@ -383,10 +384,43 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ---
 
+### BP-132: Email-Based Re-auth Confirmation for Self-Serve Account Deletion
+
+**Status:** Backlog (gated on email-infrastructure work)
+**Priority:** P2 / Medium
+**Source:** BP-131 Session 2 deferral (2026-04-24) — original spec called for magic-link reauth on self-delete; without a transactional email provider configured, that loop can't be closed cleanly. Type-DELETE + 30-day soft-delete grace ships in BP-131; this BP adds the second layer.
+**Date Added:** 2026-04-24
+**EPIC:** Security, Authorization & Observability (EPIC 9)
+**Related:** BP-131 (parent — already shipped), future "email infra" BP (Resend/Sendgrid wiring; not yet numbered)
+
+**Problem:** PostPilot has no transactional email provider today. Account deletion email confirmation, "trial expiring", "your account is scheduled for deletion on X" notifications, etc. all want one. BP-131 v1 ships without it because the 30-day grace + type-DELETE friction is adequate; this BP layers on the magic-link reauth once email exists.
+
+**Scope:**
+- Add `POST /api/account/request-deletion` — generates a one-time `account_deletion_tokens` row + emails the user a confirmation link via the configured provider.
+- Confirm-delete page (`/account/confirm-delete?token=…`) validates the token + shows the final delete dialog. Submit calls the existing `DELETE /api/account` (current implementation).
+- Settings Danger Zone changes: replace the immediate type-DELETE flow with "Send confirmation email" → check inbox.
+- Token TTL: 1 hour. Single-use. Auto-pruned by daily cron.
+
+**Security / guardrails:**
+- Token stored as a hash, not raw, to prevent DB-leak-equals-hijack.
+- Rate-limit: max 3 confirmation emails per user per day.
+- Reusing the existing `softDeleteUser` orchestrator means the audit trail and 30-day grace period stay identical.
+
+**Acceptance criteria:**
+- [ ] User clicks "Delete my account" → email sent → click link → final confirm → soft delete fires.
+- [ ] Token expires after 1 hour, can't be reused.
+- [ ] Rate limit blocks 4th email in 24h with a clear message.
+- [ ] BP-131's existing flow continues to work for users who have email infra disabled or unverified email addresses (graceful fallback).
+
+**Effort:** S (most plumbing already exists in BP-131 — this is the email + token plumbing) · **Expected ROI:** Medium (closes the residual gap; aligns with the original spec's intent)
+
+---
+
 ### BP-131: Account Deletion — Admin Action + User Self-Serve
 
-**Status:** Backlog
+**Status:** **Done — admin path + user self-serve both live on develop 2026-04-24.** Cron deployed (Edge Function v1) + scheduled hourly. Email-based re-auth confirmation deferred to a follow-up BP (gated on email-infrastructure work).
 **Priority:** P1 / High (compliance + clean operational hygiene; blocks ToS-compliant launch)
+**Completed:** 2026-04-24 (Sessions 1 + 2)
 **Source:** Owner question 2026-04-24 — admin page only removes from workspace, no actual account delete; users have no self-serve delete option either.
 **Date Added:** 2026-04-24
 **EPIC:** Security, Authorization & Observability (EPIC 9)
@@ -481,7 +515,7 @@ Owner choice: ship grace period from day 1, or ship hard-delete-only and add gra
 **Source:** 2026-04-24 owner design-decisions session
 **Date Added:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1) + Billing & Monetization (EPIC 2)
-**Related:** BP-015 (Stripe), BP-116 (pricing page), future BP-131 (Team billing when un-flagged)
+**Related:** BP-015 (Stripe), BP-116 (pricing page), future Team-billing BP (when un-flagged — not yet numbered; will need its own spec covering 5-seat-min / 149-seat-cap mechanics)
 
 **Problem / rationale:** Owner direction 2026-04-24 — Team ($100/mo + $6/user, 5-seat min, 149-seat max) and Enterprise tiers will NOT accept new subscriptions at GTM launch. Visible on pricing for discoverability but disabled for purchase. Prevents support/ops load before the billing machinery for seat-based pricing is built (tracked as a future BP-131).
 

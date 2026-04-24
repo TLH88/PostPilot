@@ -31,9 +31,17 @@ export default async function AppLayout({
   // Check onboarding status and get user name
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("onboarding_completed, full_name, subscription_tier")
+    .select("onboarding_completed, full_name, subscription_tier, deleted_at")
     .eq("user_id", user.id)
     .single();
+
+  // BP-131: defense-in-depth — if the account is soft-deleted, never render
+  // app content for them. The auth.users ban blocks new logins; this catches
+  // the in-flight session that was already authenticated when the delete
+  // fired (admin-initiated case) or any race on self-delete.
+  if (profile?.deleted_at) {
+    redirect("/goodbye");
+  }
 
   const onboardingCompleted = profile?.onboarding_completed ?? false;
   const userName = profile?.full_name || user.email?.split("@")[0] || "User";

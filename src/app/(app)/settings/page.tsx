@@ -9,6 +9,7 @@ import { LinkedInConnection } from "./linkedin-connection";
 import { WorkspaceSettings } from "./workspace-settings";
 import { ManagedAIStatus } from "./managed-ai-status";
 import { AnnouncementsSetting } from "./announcements-setting";
+import { DangerZone } from "./danger-zone";
 import type { SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 
@@ -129,6 +130,16 @@ export default async function SettingsPage() {
             Sign out of your PostPilot account.
           </p>
           <SignOutButton />
+        </CardContent>
+      </Card>
+
+      {/* 6. Danger Zone (BP-131 — account deletion) */}
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DangerZone />
         </CardContent>
       </Card>
     </div>
