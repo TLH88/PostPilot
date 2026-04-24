@@ -61,10 +61,11 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
 
 ### EPIC 2 — Billing & Monetization (Stripe)
-Blocked on BP-015 un-deferring. Completes the revenue loop.
-- **BP-015** Stripe Billing Integration — Deferred (Revenue)
-- **BP-017** Pricing Page Checkout — Deferred (Revenue)
-- **BP-122** Payment methods + invoices in Settings — Deferred (Revenue, child of BP-015)
+**Active — GTM blocker.** BP-015 un-deferred 2026-04-24 per owner direction.
+- **BP-015** Stripe Billing Integration (v2 — Elements + cardless trial) — **P0 / Critical**
+- **BP-130** "Coming Soon" gating for Team + Enterprise tiers at GTM launch — P1 / High
+- **BP-017** Pricing Page Checkout — Deferred (subsumed into BP-015 for v2 — `/checkout` route ships there)
+- **BP-122** Payment methods + invoices in Settings — child of BP-015
 
 ### EPIC 3 — Terminology & Help Content
 - **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — P2 / Medium (raised from P3)
@@ -110,6 +111,8 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — P2 / Medium
+- **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
+- **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
 
 ### EPIC 10 — Admin & Cost Controls
 - **BP-085** AI usage monitoring, cost analysis & budget enforcement — P1 / High
@@ -300,23 +303,252 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ## Future Backlog (Phase 1: Monetization + Creator Tier)
 
-### BP-015: Stripe Billing Integration
+### BP-015: Stripe Billing Integration (v2)
+
+**Status:** Spec ready — **blocked on owner-side business formation** (LLC / EIN / business bank account / tax ID needed before a Stripe account can be provisioned). Implementation paused 2026-04-24 immediately after spec was finalized. Resume when entity formation is complete.
+**Priority:** P0 / Critical when un-blocked
+**Source:** Pricing strategy + 2026-04-24 owner design-decisions session
+**Date Added:** 2026-04-01 · **Spec rewritten:** 2026-04-24 (replaces the pre-v2 version) · **Blocked:** 2026-04-24 (business formation)
+**EPIC:** Billing & Monetization (EPIC 2)
+**Related:** BP-117 (feature-gate refactor — quota enforcement relies on `subscription_tier`), BP-122 (payments + invoices in Settings — child), BP-130 (Team/Enterprise Coming Soon gating)
+
+**Owner design decisions (2026-04-24):**
+1. **Payment surface:** Stripe **Elements** (embedded), not hosted Checkout. UX must match PostPilot's brand.
+2. **Trial mechanics:** **Cardless** 14-day Pro trial for Free + Personal users. Zero Stripe interaction during trial; on day 15, access restricts until the user subscribes via Elements.
+3. **Tier scope at v1 launch:** Free, Personal, and Professional billable. **Team and Enterprise deferred** — tracked separately as BP-130 (Coming Soon gating).
+4. **Team terms (for future BP-131 when we unflag Team):** minimum 5 seats at subscription start, maximum 149 seats before auto-upgrade prompt to Enterprise.
+
+**Scope — what ships in this BP:**
+
+*Infrastructure*
+- New Stripe products + prices for Personal ($20/mo, $204/yr) and Professional ($50/mo, $510/yr). Annual price = 15% discount, same as display on `/pricing`.
+- Stripe account provisioned under PostPilot's business details (tax settings, bank account, etc.). **Owner task before any code lands.**
+- Webhook signing secret stored as env var `STRIPE_WEBHOOK_SECRET`. API key `STRIPE_SECRET_KEY` stored similarly. Publishable key `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` exposed to the client (safe).
+
+*Data model*
+- New `subscriptions` table: `id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, tier, status, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, created_at, updated_at`. RLS: users see their own row only; service role writes via webhook.
+- New `stripe_events` table for webhook idempotency: `event_id PRIMARY KEY, type, received_at, processed boolean, payload jsonb`. Prevents double-processing when Stripe retries.
+- `user_profiles` gains `stripe_customer_id` for convenience (denormalized — a user can only ever have one Stripe customer).
+
+*Routes*
+- `POST /api/stripe/create-subscription` — creates the Stripe Customer (if not exists) + Subscription with `payment_behavior: "default_incomplete"`; returns the `client_secret` of the Subscription's latest invoice's Payment Intent for Elements to collect card.
+- `POST /api/stripe/webhook` — idempotent handler for `customer.subscription.{created, updated, deleted}`, `invoice.payment_succeeded`, `invoice.payment_failed`. Updates `subscriptions` table + `user_profiles.subscription_tier` atomically.
+- `POST /api/stripe/cancel-subscription` — sets `cancel_at_period_end: true` on Stripe; keeps access until `current_period_end`.
+- `POST /api/stripe/resume-subscription` — flips `cancel_at_period_end` back to false before period end.
+- `GET /api/stripe/customer-portal` — returns a signed Stripe Customer Portal URL for self-service billing (invoices, payment method update, etc.). Powers BP-122.
+
+*UI*
+- `/pricing` "Start free trial" → cardless trial activation (sets `trial_ends_at` on `user_profiles`, no Stripe interaction).
+- `/pricing` "Upgrade to Personal / Professional" → embedded Elements form on a new `/checkout` route (or modal). Post-success, redirect to `/dashboard` with toast.
+- `/settings/billing` (child BP-122) — current plan, next billing date, card on file, invoices list, manage/cancel buttons.
+- Trial-expiry banner on dashboard (BP-118 already ships tier-aware messaging; extends with "Convert now" CTA).
+
+*Trial logic*
+- On first signup, set `user_profiles.trial_ends_at = now() + 14 days`, `trial_tier = 'professional'`. No Stripe interaction.
+- Feature gates (BP-117) treat trial users as if on Professional until `trial_ends_at` passes.
+- Cron job (daily, new Edge Function) scans `user_profiles` for `trial_ends_at < now() AND subscription_tier IN ('free', 'personal')` and resets any trial-based feature access. Emails the user "trial ended" with a subscribe CTA.
+
+*Tier mapping in the webhook*
+| Stripe price id | tier | trial handling |
+|---|---|---|
+| `price_personal_monthly`, `price_personal_yearly` | `personal` | End trial if active |
+| `price_pro_monthly`, `price_pro_yearly` | `professional` | End trial if active |
+| (none — cancelled) | `free` | Clears `trial_ends_at` too |
+
+**Security / guardrails:**
+- **Webhook signature verification** is mandatory on every incoming event — reject anything without a valid `stripe-signature` header. One line with the Stripe SDK; non-negotiable.
+- **Idempotency via `stripe_events.event_id`** — if the event has already been processed, return 200 immediately without re-applying. Stripe retries aggressively on network failure; without idempotency we double-grant access.
+- **Never trust client-side subscription state.** All `subscription_tier` mutations flow through the webhook. The frontend can display what the latest webhook wrote, nothing else.
+- **Server-side tier gates remain the authoritative check.** Client-side billing UI is UX-only; `/api/*` routes always re-check tier on request.
+- **PCI scope:** Elements keeps PostPilot out of PCI-DSS compliance requirements by tokenizing the card in Stripe's iframe — we never see the PAN. Keep it that way; never submit card fields through our own form.
+
+**Acceptance criteria:**
+- [ ] Personal ($20/mo and $204/yr) subscription can be created end-to-end via Elements; webhook processes `customer.subscription.created` and flips `subscription_tier` to `personal`.
+- [ ] Professional (same shape, $50/$510) works identically.
+- [ ] Cardless trial activates on demand for Free/Personal users; counts down correctly; access restricts at day 15.
+- [ ] Failed payment (simulated via Stripe test card `4000 0000 0000 0341`) transitions the user's subscription to `past_due`; grace period applied (default 7 days), then downgrade to `free`.
+- [ ] Canceling from `/settings/billing` sets `cancel_at_period_end: true`; access retained until period end; tier drops to `free` on `customer.subscription.deleted`.
+- [ ] Resume before period end undoes the cancel.
+- [ ] Webhook is idempotent — replaying an event twice does not double-apply.
+- [ ] Stripe test mode keys used in Preview; live keys only in prod env; no leakage between envs.
+- [ ] E2E spec added to BP-097 covering: signup → trial → subscribe → see Pro features → cancel → period-end downgrade. Uses Stripe test mode card.
+
+**Out of scope:**
+- Team and Enterprise tier billing — see BP-130 (Coming Soon gating) and BP-131 (future Team billing with 5-seat minimum, 149-seat cap).
+- Credit-pack purchases — see BP-124 (specced, post-launch).
+- Proration on mid-cycle upgrade — use Stripe's default proration behavior for v1; custom UX deferred.
+- Multi-currency — USD only for v1.
+- Tax — rely on Stripe Tax for v1 (one checkbox in Stripe dashboard).
+
+**Effort:** L (multi-session — ~3-5 focused sessions) · **Expected ROI:** **Critical** — unblocks all revenue.
+
+---
+
+### BP-132: Email-Based Re-auth Confirmation for Self-Serve Account Deletion
+
+**Status:** Backlog (gated on email-infrastructure work)
+**Priority:** P2 / Medium
+**Source:** BP-131 Session 2 deferral (2026-04-24) — original spec called for magic-link reauth on self-delete; without a transactional email provider configured, that loop can't be closed cleanly. Type-DELETE + 30-day soft-delete grace ships in BP-131; this BP adds the second layer.
+**Date Added:** 2026-04-24
+**EPIC:** Security, Authorization & Observability (EPIC 9)
+**Related:** BP-131 (parent — already shipped), future "email infra" BP (Resend/Sendgrid wiring; not yet numbered)
+
+**Problem:** PostPilot has no transactional email provider today. Account deletion email confirmation, "trial expiring", "your account is scheduled for deletion on X" notifications, etc. all want one. BP-131 v1 ships without it because the 30-day grace + type-DELETE friction is adequate; this BP layers on the magic-link reauth once email exists.
+
+**Scope:**
+- Add `POST /api/account/request-deletion` — generates a one-time `account_deletion_tokens` row + emails the user a confirmation link via the configured provider.
+- Confirm-delete page (`/account/confirm-delete?token=…`) validates the token + shows the final delete dialog. Submit calls the existing `DELETE /api/account` (current implementation).
+- Settings Danger Zone changes: replace the immediate type-DELETE flow with "Send confirmation email" → check inbox.
+- Token TTL: 1 hour. Single-use. Auto-pruned by daily cron.
+
+**Security / guardrails:**
+- Token stored as a hash, not raw, to prevent DB-leak-equals-hijack.
+- Rate-limit: max 3 confirmation emails per user per day.
+- Reusing the existing `softDeleteUser` orchestrator means the audit trail and 30-day grace period stay identical.
+
+**Acceptance criteria:**
+- [ ] User clicks "Delete my account" → email sent → click link → final confirm → soft delete fires.
+- [ ] Token expires after 1 hour, can't be reused.
+- [ ] Rate limit blocks 4th email in 24h with a clear message.
+- [ ] BP-131's existing flow continues to work for users who have email infra disabled or unverified email addresses (graceful fallback).
+
+**Effort:** S (most plumbing already exists in BP-131 — this is the email + token plumbing) · **Expected ROI:** Medium (closes the residual gap; aligns with the original spec's intent)
+
+---
+
+### BP-131: Account Deletion — Admin Action + User Self-Serve
+
+**Status:** **Done — admin path + user self-serve both live on develop 2026-04-24.** Cron deployed (Edge Function v1) + scheduled hourly. Email-based re-auth confirmation deferred to a follow-up BP (gated on email-infrastructure work).
+**Priority:** P1 / High (compliance + clean operational hygiene; blocks ToS-compliant launch)
+**Completed:** 2026-04-24 (Sessions 1 + 2)
+**Source:** Owner question 2026-04-24 — admin page only removes from workspace, no actual account delete; users have no self-serve delete option either.
+**Date Added:** 2026-04-24
+**EPIC:** Security, Authorization & Observability (EPIC 9)
+**Related:** BP-015 (Stripe cancel-on-delete forward-compat), BP-098 (Team — workspace ownership transfer)
+
+**Why now:** GDPR right-to-erasure (mandatory if any EU user signs up), CCPA equivalent for California, App Store / Google Play rules require self-serve deletion for any app with login (web-only today but the standard applies). Even outside legal compliance, "I want to delete my account" is a basic SaaS expectation — not having it erodes trust.
+
+**Two surfaces, one mechanism:**
+
+#### A. Admin delete (extends `/admin/users`)
+- New row action: "Delete user…" → confirmation dialog naming the user + summarizing what will be removed (post count, workspace memberships, etc.).
+- **Two-radio choice (owner direction 2026-04-24):**
+  - ○ **Soft delete** (30-day grace, recoverable) — default selection
+  - ○ **Hard delete** (immediate, NOT recoverable)
+- If "Hard delete" is selected, clicking "Delete user" opens a **secondary confirmation popup** before the API call fires:
+  - Bold red warning: "This action is permanent and cannot be undone. All of {user}'s data — posts, ideas, library items, uploaded files, analytics — will be deleted immediately. This cannot be reversed by support."
+  - Type "DELETE" to confirm.
+  - Final "Permanently delete account" button.
+- Calls `DELETE /api/admin/users?userId=…&type=soft|hard` → service-role flow (see below) after pre-flight checks.
+- Audit: row inserted into `account_deletions` BEFORE the cascade fires (see schema below).
+
+#### B. User self-serve delete (new `/settings/account` section)
+- "Danger zone" panel at the bottom: "Delete my account" button.
+- Confirmation modal:
+  - Plain-language summary of what gets deleted.
+  - Type "DELETE" to confirm (cheap friction — prevents click-by-accident).
+  - Re-auth required — for OIDC-only auth, this means a fresh LinkedIn OAuth round-trip OR a magic-link to the user's email confirming intent. Magic-link is simpler and lower-friction; pick that.
+- Calls `DELETE /api/account` → server verifies the user is authenticated, calls `auth.admin.deleteUser(req.user.id)`, returns 200 + redirects to a "Your account has been deleted" page.
+
+**Pre-flight checks (server-side, both surfaces):**
+
+1. **Workspace ownership.** If the user owns any workspace with ≥1 other member: block deletion until they transfer ownership or remove other members. Error message tells them which workspaces and links to ownership transfer (new flow — separate scope but tracked here).
+2. **Active Stripe subscription** (forward-compat for BP-015). If `subscriptions.status IN ('active', 'trialing', 'past_due')`: cancel via Stripe API first, then proceed. Hard-fail if the cancel API errors so we never leave a paying customer in a half-deleted state.
+3. **Pending Team invitations the user has issued** (`workspace_members.invited_by` orphan-blocker bug below): null-out those references first; otherwise the FK constraint will fail.
+
+**FK cascade fixes shipped with this BP:**
+
+Two latent FK issues surfaced during the audit (confirmed via `pg_constraint` 2026-04-24). Migration in this BP fixes both:
+
+1. `workspaces.owner_id` — currently `ON DELETE CASCADE`. Change to `ON DELETE RESTRICT`. Forces explicit ownership-transfer (or workspace deletion) before user deletion. Prevents accidental nuke of an entire team's data.
+2. `workspace_members.invited_by` — currently no `ON DELETE` clause (effectively `NO ACTION` = RESTRICT). Change to `ON DELETE SET NULL`. Historical record stays; deletion isn't blocked.
+
+**Storage cleanup (the GDPR-critical bit):**
+
+`auth.users` deletion does NOT propagate to Supabase Storage. Files in `resumes` and `post-images` buckets persist forever unless explicitly removed. Add to deletion flow:
+- Before calling `auth.admin.deleteUser`, list and delete all storage objects where the path includes the user's id (current convention is `<bucket>/<user_id>/<filename>`).
+- Use service-role Storage API; iterate paginated to avoid timeouts on heavy users.
+- Failure to delete storage MUST hard-fail the whole operation — partial delete is worse than no delete (legal exposure).
+
+**Soft-delete grace period (recommended pattern):**
+
+Two-stage approach:
+1. **Day 0 — soft delete**: User is logged out, account marked `auth.users.deleted_at = now()`, login disabled (`auth.admin.updateUserById({ ban_duration: '99999h' })` or similar). All app routes treat the account as gone. No data deleted yet.
+2. **Day 30 — hard delete**: Daily cron Edge Function scans for `deleted_at < now() - 30 days` and runs the full cascade + storage cleanup.
+
+Why grace period: lets users undo accidental deletes (email "your account will be permanently deleted on Y; click here to restore"). Common SaaS pattern; satisfies GDPR's "without undue delay" (30 days is well within bounds).
+
+Owner choice: ship grace period from day 1, or ship hard-delete-only and add grace later? My recommendation = grace period from day 1 (cheap to add now, painful to retrofit when users have already been hard-deleted unexpectedly).
+
+**Security / guardrails:**
+
+- **Self-serve delete must re-authenticate.** Without it, an XSS or session-hijack attacker can wipe an account. Magic-link to the user's email is the simplest re-auth check that works with OIDC-only auth.
+- **Admin delete requires explicit role check** in `/api/admin/users` — already gated to `is_admin`, just verify the existing check covers DELETE method.
+- **Audit log entries for both paths** (`admin_user_deleted`, `self_deleted`) so we can investigate disputes. Stored in `activity_log` BEFORE the cascade fires (otherwise the audit row gets cascaded too — write to a separate `account_deletions` table or use `ON DELETE SET NULL` for the actor reference).
+- **Confirm copy includes irreversibility warning** — even with grace period, after day 30 it's gone. Don't soften the language.
+
+**Acceptance criteria:**
+
+- [ ] Admin can delete a user via `/admin/users`; confirmation dialog shows what gets removed.
+- [ ] User can delete their own account via `/settings/account`; confirmation requires re-auth + typed "DELETE".
+- [ ] FK migration applied: `workspaces.owner_id` → RESTRICT; `workspace_members.invited_by` → SET NULL.
+- [ ] Pre-flight blocks deletion if user owns a multi-member workspace (with a clear "transfer ownership first" message).
+- [ ] Storage objects under the user's id are deleted from `resumes` and `post-images` buckets.
+- [ ] Soft-delete grace period: 30 days, with daily cron purging expired records.
+- [ ] Audit row written to `activity_log` (or new `account_deletions` table) before the cascade.
+- [ ] Restore endpoint exists for users in the grace window (admin-triggered for now; user-triggered "click to restore" email link as a follow-up).
+- [ ] Stripe cancel-on-delete hook is stubbed/no-op now; documented as required when BP-015 ships.
+
+**Out of scope:**
+- Workspace ownership transfer UI (large enough to warrant its own BP — call it out as a follow-up). For v1 of this BP: pre-flight blocks deletion with a manual workaround (admin transfers via direct DB edit until that BP lands).
+- Data export ("download my data") — also a GDPR right but separable. Track as a follow-up BP.
+- Bulk admin deletion — single-user at a time for now.
+
+**Effort:** M–L (1-2 sessions for admin path + soft delete + cron; +1 session for user self-serve flow + storage cleanup) · **Expected ROI:** **High** — required for ToS compliance, user trust, and clean operations.
+
+---
+
+### BP-130: "Coming Soon" Gating for Team + Enterprise Tiers at GTM Launch
 
 **Status:** Backlog
-**Priority:** Deferred (Revenue) — was Critical
-**Re-prioritized:** 2026-04-16 — billing deferred until Free→Pro product viability is validated through user feedback. See [reprioritization report](reviews/2026-04-16-backlog-reprioritization.md).
-**Source:** Pricing strategy
-**Date Added:** 2026-04-01
-**Phase:** 1
+**Priority:** P1 / High (ships alongside BP-015 — must land before revenue launch)
+**Source:** 2026-04-24 owner design-decisions session
+**Date Added:** 2026-04-24
+**EPIC:** Subscription Model v2 (EPIC 1) + Billing & Monetization (EPIC 2)
+**Related:** BP-015 (Stripe), BP-116 (pricing page), future Team-billing BP (when un-flagged — not yet numbered; will need its own spec covering 5-seat-min / 149-seat-cap mechanics)
 
-**Description:**
-Integrate Stripe for subscription billing. Support Free, Creator ($19/mo), and Professional ($49/mo) tiers with monthly and annual billing (17% annual discount).
+**Problem / rationale:** Owner direction 2026-04-24 — Team ($100/mo + $6/user, 5-seat min, 149-seat max) and Enterprise tiers will NOT accept new subscriptions at GTM launch. Visible on pricing for discoverability but disabled for purchase. Prevents support/ops load before the billing machinery for seat-based pricing is built (tracked as a future BP-131).
 
-**Requirements:**
-- Stripe Checkout for subscription creation
-- Webhook handling for subscription lifecycle events (created, updated, canceled, payment failed)
-- Subscription status stored in `creator_profiles` or new `subscriptions` table
-- Customer portal link for self-service billing management
+**Scope:**
+- **Pricing page display changes** (`src/app/pricing/page.tsx`, `src/lib/constants.ts`):
+  - Team + Enterprise cards keep their feature lists but replace the price with a "Coming Soon" badge.
+  - Primary CTA changes from "Subscribe"/"Start trial" → "Join waitlist" for Team, "Contact Sales" for Enterprise.
+  - Sub-copy: "Team plans launch Q3 2026 — drop your email to be first in line" (exact copy owner-approved at ship time).
+- **Waitlist capture** (new table `tier_waitlist` or reuse an existing contact mechanism):
+  - Simple form: email + tier interested ("team" | "enterprise") + optional message.
+  - No authentication required — works for anonymous visitors.
+  - Stored in Supabase; exposed to admin via existing `/admin` routes for outreach later.
+- **Server-side guard against bypass** (critical security piece):
+  - `/api/stripe/create-subscription` rejects any attempt to subscribe to `tier IN ('team', 'enterprise')` with a 403 "Not yet available. Please join the waitlist at /pricing."
+  - `POST /api/admin/users` (admin tier-override UI) continues to allow owner to manually grant Team/Enterprise to specific accounts — no gate there, since it's already an owner-authenticated action.
+- **Trial eligibility** (BP-015 interaction):
+  - Users with `trial_tier = 'team'` are NOT a thing in v1 — the feature-gate table already flags Team as non-trialable.
+  - Nothing to change in trial logic; this is a reminder for the BP-015 implementation to honor.
+
+**Security / guardrails:**
+- Server-side rejection in `/api/stripe/create-subscription` is the authoritative block. UI-only "Coming Soon" is UX; the server gate is the real barrier. Anyone trying to sidestep the UI (e.g. crafting a direct API call) gets a 403.
+- Waitlist form must rate-limit on IP + email to prevent spam signups. Simple 5/minute cap per IP.
+- Stored waitlist emails are sensitive (they represent commercial leads). RLS: only service role reads (admin UI uses service role); no anonymous read.
+
+**Acceptance criteria:**
+- [ ] `/pricing` shows Team + Enterprise cards with "Coming Soon" badge and appropriate CTAs.
+- [ ] Waitlist form submits without auth; row lands in `tier_waitlist` table.
+- [ ] Admin can see the list at `/admin/waitlist` (new route) or existing admin user management UI.
+- [ ] `/api/stripe/create-subscription` returns 403 for any tier outside {personal, professional}.
+- [ ] Owner can still manually grant Team/Enterprise via `/admin/users` tier-override (manual provisioning for pilot customers).
+- [ ] Rate-limit on waitlist submission — flagged if hit.
+
+**Effort:** S–M (1-2 sessions) · **Expected ROI:** High (closes a revenue-ops attack surface before launch; collects warm leads for when Team actually ships)
 
 ---
 

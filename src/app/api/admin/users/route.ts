@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, verifyAdmin } from "@/lib/supabase/admin";
+import {
+  softDeleteUser,
+  hardDeleteUser,
+  restoreSoftDeletedUser,
+} from "@/lib/account/delete-user";
+import { preflightAccountDeletion } from "@/lib/account/preflight";
 
 export async function GET() {
   const admin = await verifyAdmin();
@@ -204,4 +210,85 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+}
+
+/**
+ * BP-131: account deletion (admin-initiated).
+ *
+ * Query params:
+ *   userId — required, the auth.users id to delete
+ *   type   — "soft" (default, 30-day grace) or "hard" (immediate, irreversible)
+ *
+ * Body (optional, JSON):
+ *   { reason: string }
+ *
+ * Special action via body { action: "preflight" } returns a dry-run
+ * pre-flight check without mutating anything (used by the UI to decide
+ * whether to even open the confirmation dialog).
+ *
+ * Special action via body { action: "restore", auditId: string } restores
+ * a soft-deleted user during the grace window.
+ */
+export async function DELETE(request: NextRequest) {
+  const admin = await verifyAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId");
+  const type = (searchParams.get("type") ?? "soft") as "soft" | "hard";
+
+  // Optional JSON body — tolerate missing/invalid JSON for the simple case.
+  let body: { reason?: string; action?: string; auditId?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    // empty body is fine
+  }
+
+  const supabase = createAdminClient();
+
+  // Restore branch — separate from delete; uses the audit row id.
+  if (body.action === "restore") {
+    if (!body.auditId) {
+      return NextResponse.json({ error: "auditId required for restore" }, { status: 400 });
+    }
+    const result = await restoreSoftDeletedUser(supabase, body.auditId);
+    return NextResponse.json(result, { status: result.ok ? 200 : 400 });
+  }
+
+  if (!userId) {
+    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  }
+
+  if (userId === admin.id) {
+    return NextResponse.json(
+      { error: "Admins cannot delete their own account from the admin panel. Use /settings/account self-serve flow." },
+      { status: 400 }
+    );
+  }
+
+  // Pre-flight only — dry-run inspection for the UI.
+  if (body.action === "preflight") {
+    const result = await preflightAccountDeletion(supabase, userId);
+    return NextResponse.json(result);
+  }
+
+  if (type !== "soft" && type !== "hard") {
+    return NextResponse.json({ error: "type must be 'soft' or 'hard'" }, { status: 400 });
+  }
+
+  const params = {
+    admin: supabase,
+    userId,
+    initiatedBy: admin.id,
+    initiatedByRole: "admin" as const,
+    reason: body.reason,
+  };
+
+  const result =
+    type === "hard"
+      ? await hardDeleteUser({ ...params, skipGrace: true })
+      : await softDeleteUser(params);
+
+  return NextResponse.json(result, { status: result.ok ? 200 : 400 });
 }

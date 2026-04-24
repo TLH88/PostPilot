@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Check, X, Sparkles, UserCog, ChevronDown, ChevronRight, FileText, Lightbulb, MessageCircle, Calendar, MoreVertical, Building2, UserPlus, UserMinus, Key } from "lucide-react";
+import { Search, Loader2, Check, X, Sparkles, UserCog, ChevronDown, ChevronRight, FileText, Lightbulb, MessageCircle, Calendar, MoreVertical, Building2, UserPlus, UserMinus, Key, Trash2 } from "lucide-react";
+import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const router = useRouter();
 
   useEffect(() => { loadUsers(); }, []);
@@ -519,6 +521,13 @@ export default function AdminUsersPage() {
                                 <UserCog className="size-3.5 mr-2" />
                                 Impersonate User
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget({ id: user.id, email: user.email, full_name: user.full_name })}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="size-3.5 mr-2" />
+                                Delete user…
+                              </DropdownMenuItem>
                               {allWorkspaces.length > 0 && (
                                 <>
                                   <DropdownMenuSeparator />
@@ -678,6 +687,16 @@ export default function AdminUsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      <DeleteUserDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        user={deleteTarget}
+        onDeleted={() => {
+          setDeleteTarget(null);
+          loadUsers();
+        }}
+      />
     </div>
   );
 }
