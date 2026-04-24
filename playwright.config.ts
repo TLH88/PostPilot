@@ -57,9 +57,18 @@ export default defineConfig({
   },
 
   projects: [
+    // Setup project — signs in each tier test user once and writes
+    // session cookies to tests/e2e/.auth/<tier>.json. Runs before any
+    // chromium tests (declared as a dependency below). See
+    // tests/e2e/global.setup.ts for the full rationale.
+    {
+      name: "setup",
+      testMatch: /global\.setup\.ts$/,
+    },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
     },
   ],
 
