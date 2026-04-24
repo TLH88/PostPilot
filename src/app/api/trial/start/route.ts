@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { TRIAL_DURATION_DAYS, TRIAL_COOLDOWN_DAYS } from "@/lib/constants";
 import { logApiError } from "@/lib/api-utils";
-import type { CreatorProfile } from "@/types";
+import type { UserProfile } from "@/types";
 
-const TRIABLE_TIERS = ["creator", "professional"];
+const TRIABLE_TIERS = ["personal", "professional"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch current profile
     const { data: profileData, error: profileError } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("subscription_tier, account_status, trial_tier, trial_ends_at, last_trial_tiers")
       .eq("user_id", user.id)
       .single();
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const profile = profileData as Pick<CreatorProfile, "subscription_tier" | "account_status" | "trial_tier" | "trial_ends_at" | "last_trial_tiers">;
+    const profile = profileData as Pick<UserProfile, "subscription_tier" | "account_status" | "trial_tier" | "trial_ends_at" | "last_trial_tiers">;
 
     // Already on an active trial
     if (profile.account_status === "trial" && profile.trial_tier) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Already on or above the requested tier
-    const TIER_RANK: Record<string, number> = { free: 0, creator: 1, professional: 2, team: 3, enterprise: 4 };
+    const TIER_RANK: Record<string, number> = { free: 0, personal: 1, professional: 2, team: 3, enterprise: 4 };
     if (TIER_RANK[profile.subscription_tier] >= TIER_RANK[tier]) {
       return NextResponse.json(
         { error: "You are already on this tier or a higher tier." },
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     const trialEnds = new Date(now.getTime() + TRIAL_DURATION_DAYS * 86400000);
 
     const { error: updateError } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .update({
         original_tier: profile.subscription_tier,
         trial_tier: tier,

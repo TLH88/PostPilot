@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { incrementQuota } from "@/lib/quota";
 import type { QuotaType } from "@/lib/constants";
 
-const VALID_TYPES: QuotaType[] = ["posts", "brainstorms", "chat_messages", "scheduled_posts"];
+const VALID_TYPES: QuotaType[] = ["posts", "brainstorms", "chat_messages", "scheduled_posts", "image_generations"];
 
 export async function POST(request: NextRequest) {
   try {

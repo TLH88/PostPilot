@@ -154,6 +154,21 @@ export interface TutorialStorageAdapter {
     userId?: string,
     response?: "accepted" | "declined"
   ): Promise<void>;
+  /**
+   * BP-121: permanently dismiss a tutorial ("Don't show again"). Reversible
+   * via {@link reEnableTutorial} / {@link resetAllDismissals}. Distinct from
+   * {@link markCompleted} — a dismissed tutorial is not "finished", the user
+   * just doesn't want to see it.
+   */
+  dismissTutorial?(tutorialId: string, userId?: string): Promise<void>;
+  /** BP-121: check if a tutorial has been dismissed. */
+  isDismissed?(tutorialId: string, userId?: string): Promise<boolean>;
+  /** BP-121: list all tutorial IDs this user has dismissed. */
+  listDismissed?(userId?: string): Promise<string[]>;
+  /** BP-121: re-enable a previously-dismissed tutorial (surfaces it again). */
+  reEnableTutorial?(tutorialId: string, userId?: string): Promise<void>;
+  /** BP-121: clear all dismissals for the user — "Reset all tutorials". */
+  resetAllDismissals?(userId?: string): Promise<void>;
 }
 
 // ─── Theme ───────────────────────────────────────────────────────────────────

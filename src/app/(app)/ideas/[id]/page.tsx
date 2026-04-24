@@ -104,7 +104,7 @@ export default function IdeaDetailPage({
       const [ideaResult, profileResult] = await Promise.all([
         supabase.from("ideas").select("*").eq("id", id).single(),
         supabase
-          .from("creator_profiles")
+          .from("user_profiles")
           .select("content_pillars")
           .eq("user_id", user.id)
           .single(),

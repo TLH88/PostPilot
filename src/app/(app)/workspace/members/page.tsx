@@ -133,7 +133,7 @@ export default function WorkspaceMembersPage() {
     if (memberData) {
       const userIds = memberData.map((m) => m.user_id);
       const { data: profiles } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("user_id, full_name")
         .in("user_id", userIds.length > 0 ? userIds : [""]);
 

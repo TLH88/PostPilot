@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { maybeHandleQuotaExceeded } from "@/lib/errors/handle-quota-exceeded";
 import type { PostImageVersion } from "@/types";
 
 interface GenerateImageDialogProps {
@@ -252,6 +253,8 @@ export function GenerateImageDialog({
           imageModel: model,
         }),
       });
+
+      if (await maybeHandleQuotaExceeded(res)) return;
 
       const data = await res.json();
 

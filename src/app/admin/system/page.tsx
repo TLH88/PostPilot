@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Shield, Key, Server } from "lucide-react";
+import { SystemAIConfigCard } from "@/components/admin/system-ai-config-card";
 
 function maskKey(key: string | undefined): string {
   if (!key) return "Not configured";
@@ -37,6 +38,9 @@ export default function AdminSystemPage() {
         <h1 className="text-2xl font-bold tracking-tight">System Settings</h1>
         <p className="text-muted-foreground">Environment configuration and system-level AI key status.</p>
       </div>
+
+      {/* Default system AI provider + model (admin-editable, DB-backed) */}
+      <SystemAIConfigCard />
 
       {/* System AI Keys */}
       <Card>

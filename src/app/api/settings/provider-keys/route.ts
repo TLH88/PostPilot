@@ -27,7 +27,7 @@ async function getUserAndTier() {
   if (!user) return { supabase, user: null, tier: "free" as SubscriptionTier };
 
   const { data: profile } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("subscription_tier")
     .eq("user_id", user.id)
     .single();
@@ -118,10 +118,10 @@ export async function POST(request: NextRequest) {
         .eq("key_type", keyType)
         .neq("provider", provider);
 
-      // Keep creator_profiles in sync for TEXT keys only (legacy path)
+      // Keep user_profiles in sync for TEXT keys only (legacy path)
       if (keyType === "text") {
         await supabase
-          .from("creator_profiles")
+          .from("user_profiles")
           .update({
             ai_provider: provider,
             ai_api_key_encrypted: encrypted.ciphertext,
@@ -242,10 +242,10 @@ export async function PATCH(request: NextRequest) {
       .eq("provider", provider)
       .eq("key_type", keyType);
 
-    // Sync to creator_profiles for TEXT keys only (legacy path)
+    // Sync to user_profiles for TEXT keys only (legacy path)
     if (keyType === "text") {
       await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .update({
           ai_provider: provider,
           ai_api_key_encrypted: key.api_key_encrypted,

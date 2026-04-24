@@ -25,7 +25,7 @@ import { RefreshAnalyticsButton } from "@/components/posts/refresh-analytics-but
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Post, CreatorProfile } from "@/types";
+import type { Post, UserProfile } from "@/types";
 
 export default function PublishedPostPage() {
   const { id: postId } = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ export default function PublishedPostPage() {
   const supabase = createClient();
 
   const [post, setPost] = useState<Post | null>(null);
-  const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [duplicating, setDuplicating] = useState(false);
@@ -66,12 +66,12 @@ export default function PublishedPostPage() {
       setPost(p);
 
       const { data: profileData } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
-      if (profileData) setProfile(profileData as CreatorProfile);
+      if (profileData) setProfile(profileData as UserProfile);
 
       // Check LinkedIn connection
       const statusRes = await fetch("/api/linkedin/status");
@@ -227,7 +227,7 @@ export default function PublishedPostPage() {
         />
       ) : (
         <div className="rounded-lg border bg-card p-4">
-          <UpgradePrompt feature="Engagement Analytics" requiredTier="creator" variant="inline" />
+          <UpgradePrompt feature="Engagement Analytics" requiredTier="personal" variant="inline" />
         </div>
       )}
 

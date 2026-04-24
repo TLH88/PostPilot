@@ -14,6 +14,20 @@ export interface AIRequestOptions {
   systemPrompt: string;
   messages: AIMessage[];
   maxTokens: number;
+  /**
+   * BP-128 — opt-in prefix-caching hint. When provided, tells the client
+   * that the first `cacheableSystemPrefixChars` characters of `systemPrompt`
+   * are stable and the remainder is volatile. Providers that support
+   * explicit cache_control markers (Anthropic) will split on that boundary
+   * and mark the prefix as ephemeral-cached. Providers without explicit
+   * markers (OpenAI auto-caches on first ~1024 matching tokens, Google)
+   * simply ignore this hint.
+   *
+   * Callers should set this to the length of the concatenated stable
+   * sections (personality + creator context + task instructions + guardrails)
+   * BEFORE any volatile content (history, timestamps, per-call context).
+   */
+  cacheableSystemPrefixChars?: number;
 }
 
 export interface AIUsageData {
@@ -48,13 +62,13 @@ export interface AIClient {
 
 // ── Provider config ───────────────────────────────────────────────────────────
 
-interface ProviderConfig {
+export interface ProviderConfig {
   defaultModel: string;
   baseURL?: string;
   availableModels: { value: string; label: string }[];
 }
 
-const PROVIDER_CONFIG: Record<AIProvider, ProviderConfig> = {
+export const PROVIDER_CONFIG: Record<AIProvider, ProviderConfig> = {
   anthropic: {
     defaultModel: "claude-sonnet-4-6",
     availableModels: [
@@ -133,11 +147,37 @@ class AnthropicAIClient implements AIClient {
     this.model = model || PROVIDER_CONFIG.anthropic.defaultModel;
   }
 
+  /**
+   * BP-128 — build the Anthropic `system` field. When the caller has marked
+   * a stable prefix via `cacheableSystemPrefixChars`, split the prompt into
+   * two content blocks and mark the prefix as ephemeral-cached. Subsequent
+   * calls with the same prefix get a ~90% discount on those tokens.
+   * When no hint is provided, pass the prompt as a plain string (legacy
+   * behavior — Anthropic won't cache without an explicit marker).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private buildSystem(options: AIRequestOptions): any {
+    const { systemPrompt, cacheableSystemPrefixChars } = options;
+    if (
+      !cacheableSystemPrefixChars ||
+      cacheableSystemPrefixChars <= 0 ||
+      cacheableSystemPrefixChars >= systemPrompt.length
+    ) {
+      return systemPrompt;
+    }
+    const stable = systemPrompt.slice(0, cacheableSystemPrefixChars);
+    const volatile = systemPrompt.slice(cacheableSystemPrefixChars);
+    return [
+      { type: "text", text: stable, cache_control: { type: "ephemeral" } },
+      { type: "text", text: volatile },
+    ];
+  }
+
   async createMessage(options: AIRequestOptions): Promise<AITextResponse> {
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: options.maxTokens,
-      system: options.systemPrompt,
+      system: this.buildSystem(options),
       messages: options.messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -163,7 +203,7 @@ class AnthropicAIClient implements AIClient {
     const messageStream = this.client.messages.stream({
       model: this.model,
       max_tokens: options.maxTokens,
-      system: options.systemPrompt,
+      system: this.buildSystem(options),
       messages: options.messages.map((m) => ({
         role: m.role,
         content: m.content,

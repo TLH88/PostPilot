@@ -28,7 +28,7 @@ export function GenerateIdeasButton({ className, id, disabledReason }: GenerateI
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("content_pillars")
         .eq("user_id", user.id)
         .single();

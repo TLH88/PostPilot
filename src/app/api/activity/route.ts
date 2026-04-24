@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     // Fetch actor profiles
     const userIds = Array.from(new Set((entries ?? []).map((e) => e.user_id)));
     const { data: profiles } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("user_id, full_name")
       .in("user_id", userIds.length > 0 ? userIds : [""]);
 

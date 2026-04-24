@@ -351,6 +351,11 @@ export function AIProviderSettings({
     const stored = textKeys.find((k) => k.provider === p.value);
     const isTested = !!stored?.tested_at;
     const isActive = !!stored?.is_active;
+    // BP-118: a user who configured BYOK during a Pro trial and reverted to
+    // Personal has `stored` but can no longer USE the key — Personal is
+    // system-keys-only. Surface that inline so they don't wonder why their
+    // saved key doesn't do anything.
+    const storedButTierLocked = !!stored && !byokUnlocked;
 
     return (
       <div
@@ -365,14 +370,22 @@ export function AIProviderSettings({
             )}
           />
           <span className="text-sm font-medium truncate">{p.label}</span>
-          {isTested && (
+          {isTested && !storedButTierLocked && (
             <span className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase tracking-wider">
               Configured
             </span>
           )}
-          {isActive && (
+          {isActive && !storedButTierLocked && (
             <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
               Active
+            </span>
+          )}
+          {storedButTierLocked && (
+            <span
+              className="text-[10px] text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wider"
+              title="Your saved key is preserved but won't be used on your current plan. Upgrade to Pro to reactivate it."
+            >
+              Inactive — upgrade to Pro
             </span>
           )}
         </div>
@@ -456,6 +469,9 @@ export function AIProviderSettings({
     const stored = imageKeys.find((k) => k.provider === p.value);
     const isTested = !!stored?.tested_at;
     const isActive = !!stored?.is_active;
+    // BP-118: same inactive state as text keys — an image BYOK saved during
+    // a Pro trial is preserved but not used when the user reverts to Personal.
+    const storedButTierLocked = !!stored && !byokUnlocked;
 
     return (
       <div
@@ -470,14 +486,22 @@ export function AIProviderSettings({
             )}
           />
           <span className="text-sm font-medium truncate">{p.label}</span>
-          {isTested && (
+          {isTested && !storedButTierLocked && (
             <span className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase tracking-wider">
               Configured
             </span>
           )}
-          {isActive && (
+          {isActive && !storedButTierLocked && (
             <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
               Active
+            </span>
+          )}
+          {storedButTierLocked && (
+            <span
+              className="text-[10px] text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wider"
+              title="Your saved image key is preserved but won't be used on your current plan. Upgrade to Pro to reactivate it."
+            >
+              Inactive — upgrade to Pro
             </span>
           )}
         </div>
@@ -533,8 +557,7 @@ export function AIProviderSettings({
               </p>
               {!byokUnlocked && (
                 <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1 pt-1">
-                  <Lock className="size-3" /> Required on the{" "}
-                  {subscriptionTier === "free" ? "Free" : "Personal"} plan.
+                  <Lock className="size-3" /> Required on the Free and Personal plans.
                 </p>
               )}
             </div>
@@ -548,30 +571,39 @@ export function AIProviderSettings({
         </div>
       </div>
 
-      {/* Everything below the gateway toggle is BYOK config — gated */}
-      <div className="relative">
-        {!byokUnlocked && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-background/80 backdrop-blur-sm">
-            <div className="text-center space-y-2 p-6 max-w-sm">
-              <Lock className="size-6 mx-auto text-muted-foreground" />
-              <p className="text-sm font-medium">
-                Want to use your own AI account?
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Upgrade to Professional or Enterprise to add your own OpenAI or
-                Anthropic API key. You&apos;ll be billed by that provider
-                directly instead of us.
-              </p>
-              <Link
-                href="/pricing"
-                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 mt-2 pointer-events-auto"
-              >
-                Upgrade Plan
-              </Link>
-            </div>
-          </div>
-        )}
-
+      {/* Everything below the gateway toggle is BYOK config — gated.
+           BP-118 fix: when locked, render the lock card inline (sized by
+           its own content) instead of absolutely overlaying the fieldset,
+           which collapses in that state and caused the card to spill past
+           the container boundary. */}
+      {!byokUnlocked ? (
+        <div className="rounded-md border border-dashed bg-muted/20 p-6 text-center">
+          <Lock className="size-6 mx-auto text-muted-foreground" />
+          <p className="mt-2 text-sm font-medium">
+            Want to use your own AI account?
+          </p>
+          {/* TODO(BP-125): revisit once image AI provider configuration
+               expands and text-provider list grows. Copy should then mention
+               image providers explicitly and the broader supported set. */}
+          <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
+            Upgrade to Professional, Team, or Enterprise to add your own AI
+            provider keys. You&apos;ll be billed by that provider directly instead of us.
+          </p>
+          {(textKeys.length > 0 || imageKeys.length > 0) && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 max-w-md mx-auto">
+              Your previously configured key
+              {textKeys.length + imageKeys.length > 1 ? "s are" : " is"} saved
+              and will reactivate automatically when you upgrade.
+            </p>
+          )}
+          <Link
+            href="/pricing"
+            className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Upgrade Plan
+          </Link>
+        </div>
+      ) : (
         <fieldset
           disabled={!byokUnlocked}
           className={cn(
@@ -912,7 +944,7 @@ export function AIProviderSettings({
             )}
           </div>
         </fieldset>
-      </div>
+      )}
 
       <APIKeyHelpDrawer open={helpDrawerOpen} onOpenChange={setHelpDrawerOpen} />
     </div>

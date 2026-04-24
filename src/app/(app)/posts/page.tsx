@@ -184,7 +184,7 @@ export default async function PostsPage() {
   const [{ data: posts }, { data: profileData }] = await Promise.all([
     postsQuery,
     supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("subscription_tier")
       .eq("user_id", user.id)
       .single(),

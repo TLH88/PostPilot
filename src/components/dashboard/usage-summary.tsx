@@ -18,12 +18,17 @@ import {
 import { SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type QuotaType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+// Display order is the iteration order of this object.
 const QUOTA_LABELS: Record<QuotaType, string> = {
-  posts: "Posts",
-  brainstorms: "Brainstorms",
-  chat_messages: "AI Messages",
-  scheduled_posts: "Scheduled",
+  scheduled_posts: "Posts Scheduled",
+  posts: "Posts Created",
+  brainstorms: "Idea Brainstorm Sessions",
+  chat_messages: "AI Chats",
+  image_generations: "Images Generated",
 };
+
+// Rows in this set render as a running count only — no progress bar.
+const NO_BAR_ROWS = new Set<QuotaType>(["scheduled_posts"]);
 
 interface UsageData {
   used: number;
@@ -44,6 +49,7 @@ export function UsageSummary() {
           brainstorms: data.brainstorms,
           chat_messages: data.chat_messages,
           scheduled_posts: data.scheduled_posts,
+          image_generations: data.image_generations ?? { used: 0, limit: 0 },
         });
       })
       .catch(() => {});
@@ -83,27 +89,30 @@ export function UsageSummary() {
         {(Object.entries(QUOTA_LABELS) as [QuotaType, string][]).map(([key, label]) => {
           const u = usage[key];
           if (!u) return null;
+          // Hide rows for quotas the user has no access to (e.g. Free + Images).
+          if (u.limit === 0) return null;
           const isUnlimited = u.limit === -1;
           const pct = isUnlimited ? 0 : u.limit > 0 ? Math.min((u.used / u.limit) * 100, 100) : 0;
           const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-primary";
 
+          const showBar = !NO_BAR_ROWS.has(key);
           return (
             <div key={key} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">{label}</span>
                 <span className="font-medium tabular-nums">
-                  {u.used}{isUnlimited ? "" : ` / ${u.limit}`}
+                  {showBar ? `${u.used} / ${isUnlimited ? "Unlimited" : u.limit}` : u.used}
                 </span>
               </div>
-              {!isUnlimited ? (
+              {showBar && (
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn("h-full rounded-full transition-all", barColor)}
-                    style={{ width: `${Math.max(pct, 2)}%` }}
-                  />
+                  {!isUnlimited && pct > 0 && (
+                    <div
+                      className={cn("h-full rounded-full transition-all", barColor)}
+                      style={{ width: `${pct}%` }}
+                    />
+                  )}
                 </div>
-              ) : (
-                <p className="text-[10px] text-muted-foreground">Unlimited</p>
               )}
             </div>
           );

@@ -3,7 +3,7 @@ import { TEAM_FEATURES_ENABLED, isTeamFeatureKey } from "@/lib/feature-flags";
 
 const TIER_RANK: Record<SubscriptionTier, number> = {
   free: 0,
-  creator: 1,
+  personal: 1,
   professional: 2,
   team: 3,
   enterprise: 4,

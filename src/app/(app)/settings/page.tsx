@@ -25,7 +25,7 @@ export default async function SettingsPage() {
 
   // Fetch AI provider settings + subscription tier
   const { data: profile } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier, force_ai_gateway")
     .eq("user_id", user.id)
     .single();

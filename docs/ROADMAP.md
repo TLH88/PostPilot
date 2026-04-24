@@ -1,6 +1,6 @@
 # PostPilot — Product Roadmap
 
-> Created: 2026-04-01 | Based on 4-team product evaluation + owner feedback
+> Created: 2026-04-01 | Revised 2026-04-24 for Subscription Model v2 pricing pivot (see BP-115).
 
 ## Operating Costs & Break-Even
 
@@ -9,41 +9,46 @@
 | Supabase | $25 | $300 |
 | AI Coding Platform | $100 | $1,200 |
 | Domain (mypostpilot.app) | ~$5.42 | $65 |
-| **Total** | **$130.42** | **$1,565** |
+| **Fixed infra total** | **$130.42** | **$1,565** |
 | **With 15% profit** | **$150/mo** | **$1,800/yr** |
 
-BYOK model means $0 AI cost per user. Break-even at ~8 paying Creator users ($19/mo).
+**Variable AI cost (under Subscription Model v2):** We now eat AI cost for Free + Personal tiers and for Pro users who don't BYOK. See BP-123 (token cost study) for worst-case per-user math; that study gates the final Personal-tier quotas and default-model choice.
 
 ---
 
-## Revised Pricing Tiers (BYOK Default)
+## Subscription Model v2 — Pricing Tiers (pivoted 2026-04-24)
 
-Paid tiers require the user to bring their own AI API key (BYOK). Free tier users can explore the app but cannot use AI features without upgrading.
+Under v2, **BYOK is gated to Pro and Team tiers.** Free and Personal users use PostPilot's system AI keys with tier-specific quotas. Professional users can opt into BYOK for unlimited usage. Team users get BYOK included and are encouraged to use it.
 
-| Feature | Free | Creator ($19/mo) | Professional ($49/mo) | Team ($99/mo + $5.99/user) | Enterprise |
-|---------|------|-------------------|----------------------|---------------|-----------|
-| BYOK (required) | No | Yes | Yes | Yes | Yes |
-| AI Models | — | All user's models | All | All | All |
-| Posts/month | 3 | Unlimited | Unlimited | Unlimited | Unlimited |
-| Brainstorms/month | 2 (10 ideas) | 15 | Unlimited | Unlimited | Unlimited |
-| AI Chat messages/month | 20 | 200 | Unlimited | Unlimited | Unlimited |
-| Enhance/Hashtags | Yes | Yes | Yes | Yes | Yes |
-| Post scheduling | 2 scheduled | 15 | Unlimited | Unlimited | Unlimited |
-| Content calendar | View only | Full | Full | Full | Full |
-| Post versions | 1 per post | 5 per post | Unlimited | Unlimited | Unlimited |
-| Post history | 30 days | 6 months | 1 year | 1 year | Unlimited |
-| Content Library | No | Yes | Yes | Yes | Yes |
-| Hook Analysis | No | Yes | Yes | Yes | Yes |
-| Manual Analytics | No | Yes | Yes | Yes | Yes |
-| Post Templates | No | Yes | Yes | Yes | Yes |
-| Image generation | No | 5/month | Unlimited | Unlimited | Unlimited |
-| Ad-free experience | No | Yes | Yes | Yes | Yes |
-| Team Workspaces | No | No | No | Yes | Yes |
-| Team Members | — | — | — | 5–150 | 150+ |
-| Brand Onboarding | No | No | No | Yes | Yes |
-| Support | Community | Email | Priority | Priority | Dedicated |
+| Feature | Free ($0) | Personal ($20/mo) | Professional ($50/mo) | Team ($100/mo + $6/user) |
+|---------|-----------|-------------------|-----------------------|--------------------------|
+| AI keys | System only | **System only — no BYOK** | System **or** BYOK | BYOK (included, encouraged) |
+| Posts / month | 3 | Personal quota (TBD, BP-123) | 100 (system) · Unlimited (BYOK) | Unlimited |
+| Brainstorms / month | 2 (10 ideas) | Personal quota | 200 (system) · Unlimited (BYOK) | Unlimited |
+| AI Chat messages / month | 20 | Personal quota | 500 (system) · Unlimited (BYOK) | Unlimited |
+| Image generation / month | No | Personal quota | 200 (system) · Unlimited (BYOK image provider) | Unlimited |
+| Scheduled posts | 2 total | Personal quota | Unlimited | Unlimited |
+| Post versions | 1 per post | Personal quota | Unlimited | Unlimited |
+| AI Enhancement & Hashtags | Yes (within quota) | Yes (within quota) | Yes | Yes |
+| AI Hook Analysis | No | Yes | Yes | Yes |
+| Post Performance Analytics | No | Yes | Yes | Yes |
+| Content Library | No | **No** | Yes | Yes |
+| Post Templates | No | **No** | Yes | Yes |
+| Content calendar | View only | Full | Full | Full |
+| Post history | 30 days | 6 months | 1 year | 1 year |
+| Ad experience | Full (intrusive placements OK) | **Limited** (non-intrusive only) | None | None |
+| Team Workspaces | No | No | No | Yes |
+| Team Members | — | — | — | 5–150 |
+| Brand Onboarding | No | No | No | Yes |
+| Support | Community | Email | Priority | Priority |
 
-**Annual pricing:** Creator $190/yr, Professional $490/yr, Team $990/yr (all 17% off). Enterprise: custom pricing.
+**Annual pricing (15% off):** Personal $204/yr, Professional $510/yr, Team $1020/yr base + $61.20/yr per user. Enterprise: custom.
+
+**Key mechanics:**
+- **Hard stop on Pro system-key quotas.** No overage billing, no auto-queue. Upgrade-to-unlimited prompt offers "Add personal API keys" (BYOK) or "Upgrade to Team." Credit-pack alternative explored in BP-124.
+- **System keys disabled when BYOK is active** for a given user — never used as a fallback when personal keys are present.
+- **Free trial:** Free and Personal users can start a 14-day Pro trial with full access to Professional features. No card required. One-time per account (365-day cooldown). Team users are not eligible — there's no higher tier.
+- **Personal-tier quotas** are not yet final; BP-123 (token cost study) informs the numbers before BP-117 ships.
 
 ---
 
@@ -200,9 +205,11 @@ See `docs/GTM-STRATEGY.md` for full details. Key points:
 
 ## Key Decisions Made
 
-1. **BYOK is default across all tiers** — zero AI cost to us, users control their costs
+1. ~~**BYOK is default across all tiers**~~ **REVERSED 2026-04-24 (Subscription Model v2):** BYOK is gated to Pro+ tiers. Free and Personal use system keys with quotas. See BP-115.
 2. **Free tier shows full AI quality** — usage-limited, not feature-crippled on AI
 3. **Two separate OAuth flows** — Supabase OIDC for login, custom OAuth for posting (Supabase doesn't persist LinkedIn tokens)
 4. **Supabase Edge Function + pg_cron for scheduling** — zero additional cost vs Vercel Cron ($20/mo)
 5. **JWT signature verification** — HMAC-SHA256 for Edge Function auth, no shortcuts
 6. **`develop` branch for new features** — `main` stays stable for production
+7. **Pro-tier quota hard stop (2026-04-24):** No overage billing. Exhausted Pro users must BYOK or upgrade to Team. Credit packs explored as a softening mechanism (BP-124).
+8. **Terminology rename (2026-04-24):** "Creator tier" → "Personal" AND "Creator Profile" → "User Profile" (full end-to-end rename — see BP-114 extended scope).

@@ -30,7 +30,7 @@ export default async function AppLayout({
 
   // Check onboarding status and get user name
   const { data: profile } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("onboarding_completed, full_name, subscription_tier")
     .eq("user_id", user.id)
     .single();

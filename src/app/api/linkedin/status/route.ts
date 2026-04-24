@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     const { data: profile, error } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select(
         "linkedin_connected_at, linkedin_token_expires_at, linkedin_member_id, linkedin_access_token_encrypted, linkedin_access_token_iv, linkedin_access_token_auth_tag, linkedin_refresh_token_encrypted, linkedin_refresh_token_iv, linkedin_refresh_token_auth_tag"
       )
@@ -71,7 +71,7 @@ export async function GET() {
           }
 
           await supabase
-            .from("creator_profiles")
+            .from("user_profiles")
             .update(updateData)
             .eq("user_id", user.id);
 

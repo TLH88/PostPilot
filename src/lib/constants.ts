@@ -133,8 +133,12 @@ export const SCHEDULING_SUGGESTIONS = [
 
 // ── Subscription Tiers & Quota Limits ─────────────────────────────────────────
 // -1 = unlimited
-export type SubscriptionTier = "free" | "creator" | "professional" | "team" | "enterprise";
-export type QuotaType = "posts" | "brainstorms" | "chat_messages" | "scheduled_posts";
+//
+// Quotas below reflect Subscription Model v2 (BP-117 Phase A, 2026-04-24).
+// Pro tier numbers are the system-key ceiling; BYOK users bypass these via
+// `getUserAIClient()` → BP-117 Phase B handles the enforcement logic.
+export type SubscriptionTier = "free" | "personal" | "professional" | "team" | "enterprise";
+export type QuotaType = "posts" | "brainstorms" | "chat_messages" | "scheduled_posts" | "image_generations";
 
 export const SUBSCRIPTION_TIERS: Record<
   SubscriptionTier,
@@ -147,29 +151,28 @@ export const SUBSCRIPTION_TIERS: Record<
   free: {
     label: "Free",
     price: "$0/mo",
-    limits: { posts: 3, brainstorms: 2, chat_messages: 20, scheduled_posts: 2 },
+    limits: { posts: 3, brainstorms: 2, chat_messages: 20, scheduled_posts: 2, image_generations: 0 },
   },
-  creator: {
-    // Display label only — the internal tier key stays "creator" so Stripe
-    // price lookups, DB values, and feature-gate checks keep working.
+  personal: {
     label: "Personal",
-    price: "$19/mo",
-    limits: { posts: -1, brainstorms: 15, chat_messages: 200, scheduled_posts: 15 },
+    price: "$20/mo",
+    limits: { posts: 30, brainstorms: 20, chat_messages: 200, scheduled_posts: -1, image_generations: 30 },
   },
   professional: {
     label: "Professional",
-    price: "$49/mo",
-    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+    price: "$50/mo",
+    // System-key ceiling. BYOK lifts every limit to unlimited (BP-117 Phase B).
+    limits: { posts: 100, brainstorms: 200, chat_messages: 500, scheduled_posts: -1, image_generations: 200 },
   },
   team: {
     label: "Team",
-    price: "$99/mo + $5.99/user",
-    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+    price: "$100/mo + $6/user",
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1, image_generations: -1 },
   },
   enterprise: {
     label: "Enterprise",
     price: "Custom",
-    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1 },
+    limits: { posts: -1, brainstorms: -1, chat_messages: -1, scheduled_posts: -1, image_generations: -1 },
   },
 } as const;
 
@@ -179,38 +182,46 @@ export const QUOTA_COLUMN_MAP: Record<QuotaType, string> = {
   brainstorms: "brainstorms_used",
   chat_messages: "chat_messages_used",
   scheduled_posts: "scheduled_posts",
+  image_generations: "image_generations_used",
 } as const;
 
 // ── Tier Feature Matrix (used by pricing page + feature gating) ────────────────
+// Values reflect Subscription Model v2 (BP-116). Tier keys below match the
+// SubscriptionTier union exactly — after BP-114 the Personal tier key is
+// `personal` everywhere (DB, code, Stripe).
 export const TIER_FEATURES = [
-  { key: "posts", name: "Posts / month", free: "3", creator: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "brainstorms", name: "Brainstorms / month", free: "2", creator: "15", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "chat_messages", name: "AI Chat Messages / month", free: "20", creator: "200", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "scheduling", name: "Post Scheduling", free: "2", creator: "15", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "versions", name: "Post Versions", free: "1", creator: "5", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "image_generation", name: "AI Image Generation", free: false, creator: "5 / month", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  { key: "analytics", name: "Manual Analytics", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "ad_free", name: "Ad-Free Experience", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "workspaces", name: "Team Workspaces", free: false, creator: false, professional: false, team: true, enterprise: true },
-  { key: "team_members", name: "Team Members", free: false, creator: false, professional: false, team: "5–150", enterprise: "150+" },
-  { key: "brand_onboarding", name: "Brand Onboarding", free: false, creator: false, professional: false, team: true, enterprise: true },
-  { key: "content_library", name: "Content Library", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "hook_analysis", name: "Hook Analysis", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "templates", name: "Post Templates", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "calendar", name: "Content Calendar", free: "View only", creator: true, professional: true, team: true, enterprise: true },
-  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "ai_models", name: "All AI Models", free: false, creator: true, professional: true, team: true, enterprise: true },
-  { key: "enhance", name: "Enhance & Hashtags", free: true, creator: true, professional: true, team: true, enterprise: true },
-  { key: "support", name: "Support", free: "Community", creator: "Email", professional: "Priority", team: "Priority", enterprise: "Dedicated" },
+  { key: "posts", name: "Posts / mo", free: "3", personal: "30", professional: "100", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "brainstorms", name: "Brainstorms / mo", free: "2", personal: "20", professional: "200", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "chat_messages", name: "AI Chat Messages / mo", free: "20", personal: "200", professional: "500", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "scheduling", name: "Scheduled Posts / mo", free: "2", personal: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "versions", name: "Post Versions", free: "1", personal: "Unlimited", professional: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "image_generation", name: "AI Image Generation / mo", free: false, personal: "30", professional: "200", team: "Unlimited", enterprise: "Unlimited" },
+  { key: "analytics", name: "Post Performance Analytics", free: false, personal: true, professional: true, team: true, enterprise: true },
+  { key: "ad_experience", name: "Ad Experience", free: "Full", personal: "Limited", professional: "None", team: "None", enterprise: "None" },
+  { key: "workspaces", name: "Team Workspaces", free: false, personal: false, professional: false, team: true, enterprise: true },
+  { key: "team_members", name: "Team Members", free: false, personal: false, professional: false, team: "5–150", enterprise: "150+" },
+  { key: "brand_onboarding", name: "Brand Onboarding", free: false, personal: false, professional: false, team: true, enterprise: true },
+  { key: "content_library", name: "Content Library", free: false, personal: false, professional: true, team: true, enterprise: true },
+  { key: "hook_analysis", name: "AI Hook Analysis", free: false, personal: true, professional: true, team: true, enterprise: true },
+  { key: "templates", name: "Post Templates", free: false, personal: false, professional: true, team: true, enterprise: true },
+  { key: "calendar", name: "Content Calendar", free: "View only", personal: true, professional: true, team: true, enterprise: true },
+  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, personal: false, professional: true, team: true, enterprise: true },
+  { key: "ai_models", name: "AI Models", free: "System", personal: "System", professional: "All", team: "All", enterprise: "All" },
+  { key: "enhance", name: "AI Enhancement & Hashtags", free: true, personal: true, professional: true, team: true, enterprise: true },
+  { key: "support", name: "Support", free: "Community", personal: "Email", professional: "Priority", team: "Priority", enterprise: "Dedicated" },
 ] as const;
 
-// Features that require a minimum tier (used by feature gating)
+// Features that require a minimum tier (used by feature gating).
+// Updated 2026-04-24 for Subscription Model v2 (BP-117 Phase A):
+//   content_library  → professional (Personal removed per cost-study decision)
+//   templates        → professional (Personal removed per cost-study decision)
+//   hook_analysis, analytics, image_generation — stay Personal+ per the v2 matrix.
 export const GATED_FEATURES: Record<string, SubscriptionTier> = {
-  content_library: "creator",
-  hook_analysis: "creator",
-  templates: "creator",
-  image_generation: "creator",
-  analytics: "creator",
+  content_library: "professional",
+  hook_analysis: "personal",
+  templates: "professional",
+  image_generation: "personal",
+  analytics: "personal",
   byok_ai_keys: "professional",
   byok_image_keys: "professional",
   review_status: "team",
@@ -221,7 +232,7 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
 // ── Tier badge colors ─────────────────────────────────────────────────────────
 export const TIER_BADGE_COLORS: Record<string, string> = {
   free: "bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300",
-  creator: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  personal: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
   professional: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
   team: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
   enterprise: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",

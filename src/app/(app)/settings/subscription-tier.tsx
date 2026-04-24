@@ -19,7 +19,7 @@ const TIER_CONFIG: Record<
     borderColor: "border-l-gray-400",
     bgColor: "bg-gray-500/10",
   },
-  creator: {
+  personal: {
     icon: Sparkles,
     color: "text-blue-500",
     borderColor: "border-l-blue-500",
@@ -54,6 +54,7 @@ const QUOTA_LABELS: Record<QuotaType, string> = {
   brainstorms: "Brainstorms / month",
   chat_messages: "AI messages / month",
   scheduled_posts: "Scheduled posts",
+  image_generations: "AI image generations / month",
 };
 
 interface SubscriptionTierProps {
@@ -84,7 +85,7 @@ export function SubscriptionTierSetting({ currentTier }: SubscriptionTierProps) 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("account_status, trial_tier, trial_ends_at")
         .eq("user_id", user.id)
         .single()
@@ -111,7 +112,7 @@ export function SubscriptionTierSetting({ currentTier }: SubscriptionTierProps) 
     }
 
     const { error } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .update({ subscription_tier: newTier, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
 

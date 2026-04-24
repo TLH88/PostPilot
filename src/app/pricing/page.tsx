@@ -14,48 +14,49 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
-const TIER_ORDER: SubscriptionTier[] = ["free", "creator", "professional", "team"];
-const ALL_TIERS: SubscriptionTier[] = ["free", "creator", "professional", "team", "enterprise"];
-const TRIABLE_TIERS = new Set(["creator", "professional"]);
+const TIER_ORDER: SubscriptionTier[] = ["free", "personal", "professional", "team"];
+const ALL_TIERS: SubscriptionTier[] = ["free", "personal", "professional", "team", "enterprise"];
+const TRIABLE_TIERS = new Set(["personal", "professional"]);
 
 const TIER_STYLE: Record<string, { highlight: boolean; badge?: string; border: string }> = {
   free: { highlight: false, border: "border-border" },
-  creator: { highlight: true, badge: "Most Popular", border: "border-primary" },
+  personal: { highlight: true, badge: "Most Popular", border: "border-primary" },
   professional: { highlight: false, border: "border-border" },
   team: { highlight: false, border: "border-border" },
   enterprise: { highlight: false, border: "border-border" },
 };
 
+// Annual = monthly × 12 × 0.85 (15% discount)
 const ANNUAL_PRICES: Record<string, string | null> = {
   free: null,
-  creator: "$190/yr",
-  professional: "$490/yr",
-  team: "$990/yr",
+  personal: "$204/yr",
+  professional: "$510/yr",
+  team: "$1,020/yr",
   enterprise: null,
 };
 
-const TIER_RANK: Record<string, number> = { free: 0, creator: 1, professional: 2, team: 3, enterprise: 4 };
+const TIER_RANK: Record<string, number> = { free: 0, personal: 1, professional: 2, team: 3, enterprise: 4 };
 
 const FAQ = [
   {
     q: "What is BYOK (Bring Your Own Key)?",
-    a: "PostPilot uses your own AI provider API key (OpenAI, Anthropic, Google, or Perplexity) for all AI features. This means you control your costs, choose your preferred AI model, and your data stays between you and your provider. PostPilot never charges for AI usage.",
+    a: "BYOK means bringing your own AI provider API key (OpenAI, Anthropic, Google, or Perplexity). On the Professional and Team plans, connecting a key unlocks unlimited AI usage and full model choice — you control costs and your data stays between you and your provider. Free and Personal plans use PostPilot's built-in AI with tier-specific monthly quotas.",
   },
   {
     q: "Which AI providers are supported?",
-    a: "PostPilot supports Anthropic (Claude), OpenAI (GPT-4, DALL-E), Google (Gemini), and Perplexity (Sonar). You can switch providers at any time from Settings.",
+    a: "PostPilot supports Anthropic (Claude), OpenAI (GPT and image models), Google (Gemini), and Perplexity (Sonar). Professional and Team subscribers with BYOK can switch providers any time from Settings. Free and Personal tiers run on PostPilot's built-in models.",
   },
   {
     q: "Can I switch plans anytime?",
-    a: "Yes. You can upgrade or downgrade your plan at any time from Settings. Changes take effect immediately. When downgrading, you keep access to your existing content but gated features will show upgrade prompts.",
+    a: "Yes. You can upgrade or downgrade your plan at any time from Settings. Changes take effect immediately. When downgrading, you keep your existing content but gated features will show upgrade prompts.",
   },
   {
     q: "Is there a free trial?",
-    a: "Yes! Personal and Professional plans include a 14-day free trial with full access to all features. No credit card required to start your trial.",
+    a: "Yes! Free and Personal plans include a 14-day free trial with full access to all Professional tier features. No credit card required to start your trial.",
   },
   {
     q: "How does billing work?",
-    a: "Billing is handled securely via Stripe. You can choose monthly or annual billing (17% off with annual). Manage your subscription, update payment methods, and view invoices from your account settings.",
+    a: "Billing is handled securely via Stripe. You can choose monthly or annual billing (15% off with annual). Manage your subscription, update payment methods, and view invoices from your account settings.",
   },
 ];
 
@@ -93,7 +94,7 @@ export default function PricingPage() {
       }
 
       const { data: profile } = await supabase
-        .from("creator_profiles")
+        .from("user_profiles")
         .select("subscription_tier, account_status, trial_tier, last_trial_tiers")
         .eq("user_id", user.id)
         .single();
@@ -118,38 +119,40 @@ export default function PricingPage() {
     return daysSince >= TRIAL_COOLDOWN_DAYS;
   }
 
-  function getButtonConfig(tierKey: string): { label: string; action: () => void; variant: "primary" | "outline" } {
-    const style = TIER_STYLE[tierKey];
+  function getButtonConfig(tierKey: string): { label: string; action: () => void; variant: "primary" | "disabled" } {
+    // Standard theme: all action buttons are primary (blue/white). Non-clickable
+    // states ("Current Plan" etc.) use a disabled style so users can still tell
+    // the button is inactive.
 
     // Free tier
     if (tierKey === "free") {
       if (userState?.loggedIn && userState.currentTier === "free") {
-        return { label: "Current Plan", action: () => {}, variant: "outline" };
+        return { label: "Current Plan", action: () => {}, variant: "disabled" };
       }
-      return { label: "Get Started", action: () => router.push("/signup"), variant: style.highlight ? "primary" : "outline" };
+      return { label: "Get Started", action: () => router.push("/signup"), variant: "primary" };
     }
 
     // Team — admin managed
     if (tierKey === "team") {
-      return { label: "Contact Sales", action: () => router.push("mailto:sales@mypostpilot.app"), variant: "outline" };
+      return { label: "Contact Sales", action: () => router.push("mailto:sales@mypostpilot.app"), variant: "primary" };
     }
 
     // Not logged in
     if (!userState?.loggedIn) {
-      return { label: "Start Free Trial", action: () => router.push(`/signup?tier=${tierKey}`), variant: style.highlight ? "primary" : "outline" };
+      return { label: "Start Free Trial", action: () => router.push(`/signup?tier=${tierKey}`), variant: "primary" };
     }
 
     // Already on this tier (active or trialing)
     if (userState.currentTier === tierKey) {
       if (userState.accountStatus === "trial") {
-        return { label: "Currently Trialing", action: () => {}, variant: "outline" };
+        return { label: "Currently Trialing", action: () => {}, variant: "disabled" };
       }
-      return { label: "Current Plan", action: () => {}, variant: "outline" };
+      return { label: "Current Plan", action: () => {}, variant: "disabled" };
     }
 
     // On a higher tier already
     if (TIER_RANK[userState.currentTier] >= TIER_RANK[tierKey]) {
-      return { label: "Current plan is higher", action: () => {}, variant: "outline" };
+      return { label: "Current plan is higher", action: () => {}, variant: "disabled" };
     }
 
     // Can trial this tier
@@ -157,7 +160,7 @@ export default function PricingPage() {
       return {
         label: "Start Free Trial",
         action: () => startTrial(tierKey),
-        variant: style.highlight ? "primary" : "outline",
+        variant: "primary",
       };
     }
 
@@ -165,7 +168,7 @@ export default function PricingPage() {
     return {
       label: "Upgrade",
       action: () => { toast.info("Stripe billing coming soon. Contact support to upgrade."); },
-      variant: style.highlight ? "primary" : "outline",
+      variant: "primary",
     };
   }
 
@@ -202,6 +205,42 @@ export default function PricingPage() {
     if (val === true) return <Check className="size-4 text-green-600" />;
     if (val === false) return <X className="size-4 text-muted-foreground/40" />;
     return <span className="text-sm">{val}</span>;
+  }
+
+  /**
+   * Feature row inside a pricing card. Keeps a consistent 3-column grid so
+   * rows line up across tiers at a glance:
+   *   [✓/✗ icon (16px)] [feature name, flex-1] [optional value, right-aligned]
+   * Booleans render as icon-only; quantitative/string values render with
+   * a ✓ icon AND the value text on the right.
+   */
+  function renderCardRow(feature: typeof TIER_FEATURES[number], tierKey: SubscriptionTier) {
+    const val = feature[tierKey as keyof typeof feature];
+    const available = val !== false;
+    const hasValueText = typeof val === "string";
+    return (
+      <div
+        key={feature.key}
+        className={cn(
+          "flex items-center gap-2.5 text-sm",
+          !available && "text-muted-foreground/50"
+        )}
+      >
+        <div className="shrink-0 w-4">
+          {available ? (
+            <Check className="size-4 text-green-600" />
+          ) : (
+            <X className="size-4 text-muted-foreground/40" />
+          )}
+        </div>
+        <span className="flex-1 min-w-0">{feature.name}</span>
+        {hasValueText && (
+          <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+            {val}
+          </span>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -250,7 +289,7 @@ export default function PricingPage() {
               Simple, transparent pricing
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
-              Start free. Upgrade when you need more power. All plans include your choice of AI provider.
+              Start free. Upgrade when you&apos;re ready for more.
             </p>
           </div>
         </section>
@@ -290,28 +329,28 @@ export default function PricingPage() {
                           <span className="text-muted-foreground"> forever</span>
                         </>
                       )}
-                      {tierKey === "creator" && (
+                      {tierKey === "personal" && (
                         <>
-                          <span className="text-4xl font-bold">$19</span>
+                          <span className="text-4xl font-bold">$20</span>
                           <span className="text-muted-foreground">/mo</span>
                         </>
                       )}
                       {tierKey === "professional" && (
                         <>
-                          <span className="text-4xl font-bold">$49</span>
+                          <span className="text-4xl font-bold">$50</span>
                           <span className="text-muted-foreground">/mo</span>
                         </>
                       )}
                       {tierKey === "team" && (
                         <>
-                          <span className="text-4xl font-bold">$99</span>
+                          <span className="text-4xl font-bold">$100</span>
                           <span className="text-muted-foreground">/mo</span>
-                          <p className="text-sm text-muted-foreground mt-0.5">+ $5.99 per user</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">+ $6 per user</p>
                         </>
                       )}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground h-4">
-                      {annual ? `or ${annual} (save 17%)` : "\u00A0"}
+                      {annual ? `or ${annual} (save 15%)` : "\u00A0"}
                     </p>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col">
@@ -319,10 +358,9 @@ export default function PricingPage() {
                       onClick={btn.action}
                       disabled={isDisabled}
                       className={cn(
-                        "mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-medium transition-colors gap-1.5",
-                        btn.variant === "primary"
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                          : "border border-input bg-background hover:bg-muted disabled:opacity-50"
+                        "mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
+                        "bg-primary text-primary-foreground hover:bg-primary/90",
+                        "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:hover:bg-muted"
                       )}
                     >
                       {isStarting && <Loader2 className="size-3.5 animate-spin" />}
@@ -333,25 +371,16 @@ export default function PricingPage() {
 
                     {/* Feature list */}
                     <div className="flex-1 space-y-3">
-                      {TIER_FEATURES.map((feature) => {
-                        const val = feature[tierKey];
-                        const available = val !== false;
-                        return (
-                          <div
-                            key={feature.key}
-                            className={cn(
-                              "flex items-center gap-2.5 text-sm",
-                              !available && "text-muted-foreground/50"
-                            )}
-                          >
-                            <div className="shrink-0">
-                              {renderValue(val)}
-                            </div>
-                            <span>{feature.name}</span>
-                          </div>
-                        );
-                      })}
+                      {TIER_FEATURES.map((feature) => renderCardRow(feature, tierKey))}
                     </div>
+
+                    {tierKey === "professional" && (
+                      <p className="mt-5 rounded-md border border-dashed border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                        <Sparkles className="mr-1 inline-block size-3 align-text-bottom text-primary" />
+                        Bring your own AI key (BYOK) to unlock unlimited usage on every
+                        quota above.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -371,7 +400,7 @@ export default function PricingPage() {
               <CardContent>
                 <Link
                   href="mailto:sales@mypostpilot.app"
-                  className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-input bg-background text-sm font-medium transition-colors hover:bg-muted"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Contact Sales
                 </Link>
@@ -417,17 +446,18 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* BYOK Highlight */}
+        {/* AI Access Highlight */}
         <section className="py-16">
           <div className="mx-auto max-w-3xl px-6 text-center">
             <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
               <Sparkles className="size-6 text-primary" />
             </div>
-            <h2 className="text-2xl font-semibold">Your AI, your provider, your data</h2>
+            <h2 className="text-2xl font-semibold">AI that fits your plan</h2>
             <p className="mt-3 text-muted-foreground">
-              PostPilot uses your own AI API key — we never charge for AI usage. You choose
-              your provider (OpenAI, Claude, Gemini, or Perplexity), control your costs, and
-              your content stays between you and your AI provider.
+              Free and Personal plans run on PostPilot&apos;s built-in AI models — no setup,
+              no API keys, just sensible monthly quotas. Upgrade to Professional or Team to
+              bring your own AI provider key (OpenAI, Claude, Gemini, or Perplexity) and
+              unlock unlimited usage with full model choice.
             </p>
           </div>
         </section>

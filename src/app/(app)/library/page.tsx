@@ -49,7 +49,7 @@ export default function LibraryPage() {
     // library items are RLS-readable by everyone (they're templates), so
     // the only effective gate on what free users can see is this client.
     const { data: profile } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("content_pillars, subscription_tier")
       .eq("user_id", user.id)
       .single();
@@ -145,7 +145,7 @@ export default function LibraryPage() {
           Previously the items grid rendered for everyone, which let free
           users copy built-in examples. */}
       {!canUseLibrary && (
-        <UpgradePrompt feature="Content Library" requiredTier="creator" variant="banner" />
+        <UpgradePrompt feature="Content Library" requiredTier="professional" variant="banner" />
       )}
 
       {canUseLibrary && (

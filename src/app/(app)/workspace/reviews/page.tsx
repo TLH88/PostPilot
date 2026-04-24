@@ -74,7 +74,7 @@ export default function ReviewQueuePage() {
       fetchedPosts.flatMap((p) => [p.user_id, p.assigned_to].filter(Boolean) as string[])
     ));
     const { data: profiles } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("user_id, full_name")
       .in("user_id", userIds.length > 0 ? userIds : [""]);
 

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const userIds = (members ?? []).map((m) => m.user_id);
     const { data: profiles } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("user_id, full_name, headline")
       .in("user_id", userIds.length > 0 ? userIds : [""]);
 

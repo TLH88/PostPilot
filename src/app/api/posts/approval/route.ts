@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Fetch reviewer names
     const reviewerIds = Array.from(new Set((data ?? []).map((a) => a.reviewer_id)));
     const { data: profiles } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("user_id, full_name")
       .in("user_id", reviewerIds.length > 0 ? reviewerIds : [""]);
 

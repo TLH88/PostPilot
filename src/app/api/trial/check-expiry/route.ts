@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logApiError } from "@/lib/api-utils";
-import type { CreatorProfile } from "@/types";
+import type { UserProfile } from "@/types";
 
 export async function POST() {
   try {
@@ -13,7 +13,7 @@ export async function POST() {
     }
 
     const { data: profileData } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("account_status, subscription_tier, original_tier, trial_tier, trial_started_at, trial_ends_at, last_trial_tiers")
       .eq("user_id", user.id)
       .single();
@@ -22,7 +22,7 @@ export async function POST() {
       return NextResponse.json({ expired: false });
     }
 
-    const profile = profileData as Pick<CreatorProfile, "account_status" | "subscription_tier" | "original_tier" | "trial_tier" | "trial_started_at" | "trial_ends_at" | "last_trial_tiers">;
+    const profile = profileData as Pick<UserProfile, "account_status" | "subscription_tier" | "original_tier" | "trial_tier" | "trial_started_at" | "trial_ends_at" | "last_trial_tiers">;
 
     // Not on a trial — nothing to check
     if (profile.account_status !== "trial" || !profile.trial_ends_at) {
@@ -49,7 +49,7 @@ export async function POST() {
     const revertTier = profile.original_tier ?? "free";
 
     const { error: updateError } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .update({
         subscription_tier: revertTier,
         account_status: "active",

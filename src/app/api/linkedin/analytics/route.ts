@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { fetchPostEngagement, refreshLinkedInToken } from "@/lib/linkedin-api";
 import { logApiError } from "@/lib/api-utils";
-import type { CreatorProfile, Post } from "@/types";
+import type { UserProfile, Post } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch creator profile with LinkedIn tokens
+    // Fetch user profile with LinkedIn tokens
     const { data: profileData, error: profileError } = await supabase
-      .from("creator_profiles")
+      .from("user_profiles")
       .select("*")
       .eq("user_id", user.id)
       .single();
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const profile = profileData as CreatorProfile;
+    const profile = profileData as UserProfile;
 
     // Check if user has the analytics scope
     if (!profile.linkedin_scopes?.includes("r_member_postAnalytics")) {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
           }
 
           await supabase
-            .from("creator_profiles")
+            .from("user_profiles")
             .update(updateData)
             .eq("user_id", user.id);
         } catch {

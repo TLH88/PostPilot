@@ -20,7 +20,7 @@ export async function GET() {
 
   // Fetch all profiles for names/emails
   const { data: profiles } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("user_id, full_name, subscription_tier");
 
   // Fetch auth users for emails

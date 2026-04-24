@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   SUBSCRIPTION_TIERS,
@@ -20,17 +21,18 @@ export interface QuotaStatus {
   brainstorms: { used: number; limit: number };
   chat_messages: { used: number; limit: number };
   scheduled_posts: { used: number; limit: number };
+  image_generations: { used: number; limit: number };
 }
 
 /**
- * Get the user's subscription tier from creator_profiles.
+ * Get the user's subscription tier from user_profiles.
  */
 export async function getUserTier(
   userId: string
 ): Promise<SubscriptionTier> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("creator_profiles")
+    .from("user_profiles")
     .select("subscription_tier")
     .eq("user_id", userId)
     .single();
@@ -90,14 +92,32 @@ export async function getOrCreateQuota(userId: string) {
   return created;
 }
 
+export interface QuotaOptions {
+  /**
+   * BP-117 Phase B — BYOK bypass. When true, system-key quotas do not apply
+   * and no counter is incremented; the user is bringing their own AI key
+   * (`source === "byok"` from `getUserAIClient()`). Callers should pass
+   * `source === "byok"` here.
+   */
+  bypass?: boolean;
+}
+
 /**
  * Check if a user has remaining quota for a given action type.
+ * When `bypass` is true (BYOK active), returns unlimited without a DB hit.
  */
 export async function checkQuota(
   userId: string,
-  type: QuotaType
+  type: QuotaType,
+  options: QuotaOptions = {}
 ): Promise<QuotaCheckResult> {
   const tier = await getUserTier(userId);
+
+  // BYOK bypass — no enforcement when the user is on their own key.
+  if (options.bypass) {
+    return { allowed: true, used: 0, limit: -1, tier };
+  }
+
   const limits = SUBSCRIPTION_TIERS[tier].limits;
   const limit = limits[type];
 
@@ -120,11 +140,15 @@ export async function checkQuota(
 
 /**
  * Increment a quota counter after a successful action.
+ * No-op when `bypass` is true (BYOK users don't eat the system-key quota).
  */
 export async function incrementQuota(
   userId: string,
-  type: QuotaType
+  type: QuotaType,
+  options: QuotaOptions = {}
 ): Promise<void> {
+  if (options.bypass) return;
+
   const supabase = await createClient();
   const quota = await getOrCreateQuota(userId);
   const column = QUOTA_COLUMN_MAP[type];
@@ -137,6 +161,62 @@ export async function incrementQuota(
       updated_at: new Date().toISOString(),
     })
     .eq("id", quota.id);
+}
+
+/**
+ * Human-readable labels for quota types. Used by the 402 response helper so
+ * the error message matches what the user sees on their dashboard card.
+ */
+const QUOTA_TYPE_LABELS: Record<QuotaType, string> = {
+  posts: "post",
+  brainstorms: "brainstorm",
+  chat_messages: "AI chat message",
+  scheduled_posts: "scheduled post",
+  image_generations: "image generation",
+};
+
+/**
+ * BP-117 Phase B — standard 402 response body for quota exhaustion.
+ *
+ * Emits a structured body the client can translate into the right upgrade CTA:
+ *   {
+ *     error: "Monthly image generation limit reached (30/30).",
+ *     reason: "quota_exceeded",
+ *     quotaType: "image_generations",
+ *     used: 30,
+ *     limit: 30,
+ *     tier: "Personal",
+ *     upgradePath: "byok" | "higher_tier"
+ *   }
+ *
+ * `upgradePath = "byok"` for Pro users without BYOK (configuring a personal
+ * key unlocks unlimited). Otherwise `"higher_tier"` (upgrade to Pro for
+ * BYOK + higher system caps, or to Team for unlimited).
+ */
+export function buildQuotaExceededResponse(
+  quota: QuotaCheckResult,
+  quotaType: QuotaType
+) {
+  const label = QUOTA_TYPE_LABELS[quotaType];
+  const upgradePath: "byok" | "higher_tier" =
+    quota.tier === "professional" ? "byok" : "higher_tier";
+
+  // Return the user-facing tier display label (e.g. "Personal"), never the
+  // internal key (`creator`). Internal key rename is tracked by BP-114.
+  const tierLabel = SUBSCRIPTION_TIERS[quota.tier].label;
+
+  return NextResponse.json(
+    {
+      error: `Monthly ${label} limit reached (${quota.used}/${quota.limit}).`,
+      reason: "quota_exceeded",
+      quotaType,
+      used: quota.used,
+      limit: quota.limit,
+      tier: tierLabel,
+      upgradePath,
+    },
+    { status: 402 }
+  );
 }
 
 /**
@@ -159,6 +239,10 @@ export async function getQuotaStatus(userId: string): Promise<QuotaStatus> {
     scheduled_posts: {
       used: quota.scheduled_posts,
       limit: limits.scheduled_posts,
+    },
+    image_generations: {
+      used: quota.image_generations_used ?? 0,
+      limit: limits.image_generations,
     },
   };
 }

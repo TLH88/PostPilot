@@ -7,7 +7,7 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { HashtagsInputSchema, HashtagsResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
-import { checkQuota, incrementQuota } from "@/lib/quota";
+import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 
 export async function POST(request: NextRequest) {
@@ -29,13 +29,11 @@ export async function POST(request: NextRequest) {
     const { client, profile, source, provider, model } = await getUserAIClient();
     activeProvider = provider;
 
-    // Quota check
-    const quota = await checkQuota(profile.user_id, "chat_messages");
+    // Quota check — BYOK users bypass the system-key cap.
+    const bypass = source === "byok";
+    const quota = await checkQuota(profile.user_id, "chat_messages", { bypass });
     if (!quota.allowed) {
-      return NextResponse.json(
-        { error: `Monthly AI message limit reached (${quota.used}/${quota.limit}). Upgrade your plan for more.` },
-        { status: 403 }
-      );
+      return buildQuotaExceededResponse(quota, "chat_messages");
     }
 
     const systemPrompt = buildSystemPrompt(
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await incrementQuota(profile.user_id, "chat_messages");
+    await incrementQuota(profile.user_id, "chat_messages", { bypass });
 
     logAiUsage({
       userId: profile.user_id,
