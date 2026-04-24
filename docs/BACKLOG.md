@@ -109,6 +109,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
+- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — P2 / Medium
 
 ### EPIC 10 — Admin & Cost Controls
 - **BP-085** AI usage monitoring, cost analysis & budget enforcement — P1 / High
@@ -2765,7 +2766,7 @@ This is a Phase T4 enhancement per ROADMAP. Listed here as a tracked deferred it
 
 ### BP-097: Playwright E2E for Free→Pro Happy Path
 
-**Status:** Phases 1 + 3 Done (CI pipeline proven green end-to-end via run 24886136028 on 2026-04-24). Phase 2 (three full happy-path specs) still pending owner go-ahead. Owner approved reuse-prod + magic-link approach 2026-04-24.
+**Status:** Phases 1 + 3 Done (CI pipeline proven green end-to-end via run 24886136028 on 2026-04-24). Phase 2 partially shipped 2026-04-24: create-schedule + posted-analytics specs + seeder fixture + AI-route stubbing + cleanup helpers. **auth-onboarding.spec.ts deliberately deferred** — the 6-step multi-page onboarding form deserves its own focused session of selector work.
 **Priority:** P1 / High
 **Re-prioritized:** 2026-04-16 — re-scoped from Team-collaboration E2E to Free→Pro happy path. The Team test waits behind BP-098.
 **Source:** [2026-04-16 Review] — Lead synthesis improvement opportunity I4 (re-scoped)
@@ -4156,6 +4157,42 @@ Contrast: chat hits 30.8% cache (14,080 / 45,695 tokens) on gpt-4.1 because chat
 - [ ] Decision committed on whether to switch default brainstorm system model to Anthropic Haiku.
 
 **Effort:** M · **Expected ROI:** Medium (small $ savings now; establishes caching pattern reusable across other routes; validates the Haiku-vs-mini default-provider question)
+
+---
+
+### BP-129: Supabase Auth Hook — Enforce LinkedIn-OIDC-Only Signup
+
+**Status:** Backlog
+**Priority:** P2 / Medium
+**Source:** Phase 2 E2E setup 2026-04-24 — Tony flagged that the Email provider must stay enabled for `admin.generateLink` (E2E magic-link helper) to work, but Supabase exposes no per-provider signup toggle. Accepted the small residual gap today; this BP closes it properly.
+**Date Added:** 2026-04-24
+**EPIC:** Security, Authorization & Observability (EPIC 9)
+
+**Problem:** With the Email provider enabled at the Supabase project level (required for `auth.admin.generateLink` used by Playwright E2E), a determined actor could call `supabase.auth.signInWithOtp({ email, shouldCreateUser: true })` directly against the public Supabase URL + anon key and self-register a non-LinkedIn account. The app UI never exposes email signup, so incidental signups via this path are effectively zero — but the surface exists and we'd rather close it.
+
+The reverse (disabling the Email provider) breaks `admin.generateLink` and takes our E2E suite offline.
+
+**What to change:**
+- Add a Supabase Auth **Hook** — specifically the **"Before user created"** (or equivalent) hook configured via `auth.config` / dashboard → Hooks.
+- Hook is a Postgres function (or Edge Function) that receives the pending user + identity metadata. It inspects `identity.provider`:
+  - `linkedin_oidc` → allow
+  - Anything else (including `email`) → reject with an explicit error.
+- Allow-list an escape hatch for the four `is_test_user=true` E2E users so `admin.generateLink` against them continues to work — either by checking `raw_user_meta_data->>'e2e_tier'` (set by the seeder) or by allowing user creation when the request is from the service role. Supabase hooks fire for service-role-created users too, so this allow-list is mandatory.
+
+**Security / guardrails:**
+- Hook function runs with `SECURITY DEFINER` if it needs to read other tables — lock `search_path` per Supabase's SECURITY DEFINER guidance.
+- Test the hook by attempting `signInWithOtp` as a non-LinkedIn identity on a staging branch before enabling on prod.
+- Log rejected signup attempts (at minimum `raise warning` so they surface in Supabase logs) — useful for detecting abuse.
+- The allow-list for `e2e_tier` metadata is an attack path if a public signup request can set arbitrary `user_metadata` keys. Confirm that Supabase's public signup API does NOT allow clients to set `raw_user_meta_data->e2e_tier` — if it does, flip the allow-list to check the caller's role (`current_setting('role') = 'service_role'`) instead.
+
+**Acceptance criteria:**
+- [ ] Hook installed and active on the prod Supabase project.
+- [ ] Public `signInWithOtp({ email: new-email@example.com, shouldCreateUser: true })` call returns an error instead of creating a user.
+- [ ] `admin.generateLink` for existing seeded test users still works (E2E suite stays green post-install).
+- [ ] LinkedIn OIDC signup still works end-to-end (manual verification by signing up a fresh account via LinkedIn).
+- [ ] Rejected signup attempts surface in Supabase logs.
+
+**Effort:** S–M · **Expected ROI:** Low-Medium (closes a small existing gap cleanly, codifies "LinkedIn-only" at the auth layer rather than just in UI)
 
 ---
 

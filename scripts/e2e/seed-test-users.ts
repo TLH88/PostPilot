@@ -129,11 +129,47 @@ async function upsertTestUser(tier: Tier): Promise<{ id: string; email: string }
   return { id: user.id, email };
 }
 
+/**
+ * BP-097 Phase 2: Seed a "scheduled" post fixture for the professional-tier
+ * user so posted-analytics.spec.ts has something to mark-as-posted. Fully
+ * idempotent: deletes any prior `[E2E FIXTURE]`-titled posts for the user
+ * before inserting fresh.
+ */
+async function seedScheduledPostFixture(userId: string): Promise<void> {
+  const fixtureTitle = "[E2E FIXTURE] Scheduled post for posted-analytics";
+
+  const { error: deleteErr } = await admin
+    .from("posts")
+    .delete()
+    .eq("user_id", userId)
+    .ilike("title", "[E2E FIXTURE]%");
+  if (deleteErr) throw deleteErr;
+
+  const scheduledFor = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+  const { error: insertErr } = await admin.from("posts").insert({
+    user_id: userId,
+    title: fixtureTitle,
+    content:
+      "This is a seeded fixture post used by the Playwright posted-analytics spec. Safe to delete.",
+    status: "scheduled",
+    scheduled_for: scheduledFor,
+    scheduled_at: scheduledFor,
+    hashtags: ["e2efixture"],
+  });
+  if (insertErr) throw insertErr;
+
+  console.log(`[e2e-seed] Fixture scheduled post inserted for ${userId}`);
+}
+
 async function main() {
   console.log("[e2e-seed] Seeding E2E test users in project", SUPABASE_URL);
   const results = [];
   for (const tier of TIERS) {
-    results.push(await upsertTestUser(tier));
+    const seeded = await upsertTestUser(tier);
+    results.push({ ...seeded, tier });
+    if (tier === "professional") {
+      await seedScheduledPostFixture(seeded.id);
+    }
   }
 
   console.log("\n[e2e-seed] Done. Seeded users:");
