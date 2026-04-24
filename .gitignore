@@ -13,6 +13,15 @@
 # testing
 /coverage
 
+# Playwright (BP-097)
+/test-results/
+/playwright-report/
+/playwright/.cache/
+# Per-tier storageState files — contain real Supabase session cookies
+# for the E2E test users. Generated fresh by tests/e2e/global.setup.ts
+# each run. Never commit.
+tests/e2e/.auth/
+
 # next.js
 /.next/
 /out/

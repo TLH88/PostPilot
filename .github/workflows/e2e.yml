@@ -1,0 +1,151 @@
+name: E2E
+
+# BP-097 Phase 3: Playwright E2E against Vercel preview URLs.
+#
+# Strategy:
+#   1. On PRs and develop pushes, poll Vercel's deployments API (v6) for a
+#      READY deployment matching the commit SHA, then use its preview URL.
+#   2. Run the (idempotent) test-user seeder against prod Supabase.
+#   3. Execute Playwright specs against the resolved preview URL.
+#
+# Why poll rather than use the `deployment_status` trigger:
+#   - deployment_status is more elegant but only fires reliably for pushes to
+#     the default branch; PR events are inconsistent across GitHub/Vercel
+#     integrations. Polling works in both cases.
+#
+# The `e2e-tests` environment gates the sensitive secrets
+# (SUPABASE_SERVICE_ROLE_KEY + VERCEL_TOKEN) behind branch-protection rules
+# configured in GitHub Settings → Environments.
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  # Serialize runs per PR/branch so two pushes in quick succession don't race
+  # on the shared prod Supabase test fixtures.
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    environment: e2e-tests
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Resolve Vercel preview URL
+        id: vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Fail early with a clear message if any required secret is blank.
+          # Empty VERCEL_TOKEN in particular used to surface as a cryptic
+          # `jq: Cannot iterate over null` further down the pipeline.
+          for var in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID SHA; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::Required variable $var is empty. Check the e2e-tests environment secrets in GitHub → Settings → Environments."
+              exit 1
+            fi
+          done
+
+          # Poll the Vercel Deployments API for a READY deployment matching
+          # the commit SHA. Typical Vercel builds take 1-3 minutes.
+          API="https://api.vercel.com/v6/deployments"
+          QS="projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=20"
+
+          echo "Resolving preview URL for SHA $SHA"
+
+          URL=""
+          for i in $(seq 1 40); do
+            RESPONSE=$(curl -sS -H "Authorization: Bearer ${VERCEL_TOKEN}" "${API}?${QS}")
+
+            # Validate the API response shape before jq pipelines try to
+            # iterate it. If .deployments is missing, dump the response so
+            # the failure mode is obvious (auth error, bad team ID, etc.).
+            HAS_DEPLOYMENTS=$(echo "$RESPONSE" | jq -r 'has("deployments")')
+            if [ "$HAS_DEPLOYMENTS" != "true" ]; then
+              echo "::error::Vercel API response is missing the deployments array."
+              echo "Raw response (first 500 chars):"
+              echo "$RESPONSE" | head -c 500
+              echo
+              exit 1
+            fi
+
+            URL=$(echo "$RESPONSE" | jq -r \
+              --arg sha "$SHA" \
+              '[.deployments[] | select(.meta.githubCommitSha == $sha and .state == "READY")][0].url // empty')
+            if [ -n "$URL" ]; then
+              break
+            fi
+            STATE=$(echo "$RESPONSE" | jq -r \
+              --arg sha "$SHA" \
+              '[.deployments[] | select(.meta.githubCommitSha == $sha)][0].state // "not-found"')
+            echo "Attempt $i/40 — deployment state: $STATE"
+            sleep 15
+          done
+
+          if [ -z "$URL" ]; then
+            echo "::error::Never found a READY Vercel deployment for SHA $SHA after 10 minutes."
+            exit 1
+          fi
+
+          echo "Resolved preview URL: https://$URL"
+          echo "url=https://$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Seed E2E test users
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run test:e2e:seed
+
+      - name: Run Playwright
+        env:
+          E2E_BASE_URL: ${{ steps.vercel.outputs.url }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Only needed when the Vercel project has Deployment Protection
+          # enabled. Secret generated in Vercel → Project → Settings →
+          # Deployment Protection → Protection Bypass for Automation.
+          # playwright.config.ts no-ops if this is unset.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload trace / screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 14

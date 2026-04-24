@@ -4,6 +4,141 @@
 
 ---
 
+## 2026-04-25: Subscription Model v2 merged to main + Sprint 3 kickoff
+
+### develop → main merge (production deploy)
+- Verified no hotfix commits on `origin/main` that weren't already in `develop` — clean one-way merge.
+- Created `--no-ff` merge commit `8760396` on `main` summarizing the full v2 pivot (BP-114 through BP-128 across EPICs 1, 3, 4, 10, 12).
+- Pushed to `origin/main`; Vercel production deploy triggered automatically.
+- Subscription Model v2 is now live in production.
+
+### Pre-GTM Sprint 3 — Hardening (closed five of five items this session)
+Plan: BP-100 (image-drop Edge Function bug), BP-088 (auth audit), BP-095 (observability), BP-113 (content_library RLS), BP-097 (Playwright E2E research). Ran isolated items (BP-100, BP-113, BP-097 research) in parallel agents; tackled BP-088 + BP-095 sequentially since they overlap on API-route scope.
+
+### BP-100 — Scheduled Posts Drop Images (Done, retroactive status catch-up)
+Agent audit confirmed the fix already shipped in commit `45d36f2` (stacked under BP-101's `d4ef93e`, deployed together as Edge Function v16 on 2026-04-22). `image_url` is in the scheduled-posts SELECT, `uploadImageToLinkedIn()` is ported to Deno, `publishToLinkedIn()` accepts `imageUrn`, image-upload failure is isolated in its own try/catch with graceful text-only fallback, and BP-101's `escapeLinkedInText()` is preserved. Verified the deployed function via Supabase MCP `list_edge_functions` — v16 ACTIVE. BP-100's backlog entry was just never flipped from Backlog to Done; updated with full resolution notes. No code changes this session.
+
+### BP-113 — Server-side RLS for `content_library` built-ins (Done)
+- New migration `supabase/migrations/20260425_content_library_builtin_rls.sql` + applied live via Supabase MCP.
+- `has_library_access(uid)` SECURITY DEFINER helper returns true when `user_profiles.subscription_tier IN ('professional','team','enterprise')`. Mirrors `GATED_FEATURES.content_library` in `src/lib/constants.ts`.
+- Replaces the existing permissive SELECT policy `"Users see own + builtin library items"` (confirmed-name via `pg_policies` before dropping) with `content_library_select_tier_gated`: user-owned rows always visible (downgrade-safe); `is_builtin=true` rows only for Professional/Team/Enterprise.
+- Verified live: `pg_policies` query confirms new policy active, old one dropped.
+- INSERT / UPDATE / DELETE policies untouched. Client-side gates (BP-102/BP-109 pattern) preserved — defense in depth.
+
+### BP-097 — Playwright E2E plan (research only, spec saved for owner review)
+- Agent-produced plan saved to `docs/plans/bp-097-playwright-plan.md`. Research-only — nothing implemented.
+- Recommended execution model: Playwright in GitHub Actions targeting per-PR Vercel preview URL (resolved via Vercel Deployment API by `github.sha`).
+- Recommended auth fixture: dedicated test Supabase project + pre-seeded user + `storageState.json` generated once via `supabase.auth.admin.generateLink`. BP-126 dev-login is localhost-only by design so cannot be reused.
+- Scope slice: 3 parallel specs (`auth-onboarding`, `create-schedule`, `posted-analytics`). Target total wall-clock < 5 min per spec.
+- LinkedIn publish stays mocked/stopped-at-mark-as-posted — real publish in CI is spammy + rate-limit risk.
+- Effort: 3–5 focused days. Recommended first sub-task: provision test Supabase project + write idempotent `scripts/e2e/seed-test-user.ts`.
+- **Owner decisions needed before implementation starts:** (1) willingness to provision a second Supabase project, (2) comfort adding a Vercel CLI token as a GitHub secret, (3) whether to pursue pre-Stripe (BP-015) or defer.
+
+### BP-088 — Authorization audit on team-feature API routes (Done)
+Audit findings:
+- `DELETE /api/posts/assign`, `PATCH /api/posts/comments`, `/api/activity` GET — BP-088 fixes already present from earlier work (inline comments).
+- `/api/posts/approval` GET + POST — gaps closed this session: added post-fetch + workspace-membership check before reading approvals or submitting/deciding.
+- `/api/posts/comments` POST — gap closed this session: added workspace-membership check mirroring the PATCH pattern on the same file.
+- `/api/notifications`, `/api/workspace/members` (GET/PATCH/DELETE), `/api/workspace/invite`, `/api/posts/comments` DELETE — audited and confirmed safe (every handler scopes by `user.id` or checks workspace role explicitly).
+- Established pattern for future endpoint authors, documented in the BP-088 backlog entry. No CLAUDE.md exists at repo root; spec called for adding a defense-in-depth note there if one existed — noted for future CLAUDE.md creation.
+
+### BP-095 — Observability (Done)
+Every acceptance criterion is already met by the 2026-04-16 helper-docs pass:
+- `src/lib/activity.ts` and `src/lib/notifications.ts` both log failures to `console.error` with labeled prefixes (`[activity-log]`, `[notifications]`), with BP-095 comments already in place.
+- `src/lib/workspace.ts` has inline USE / DON'T USE documentation for `applyWorkspaceFilter()`.
+- All five user-facing LIST query files (dashboard, ideas, posts, calendar, analytics) use `applyWorkspaceFilter`.
+- `src/app/(app)/workspace/reviews/page.tsx` uses direct `.eq("workspace_id", …)` — documented exemption (Team-only review queue; the helper's null-workspace branch would return personal-mode items, which is wrong for this page).
+- ESLint rule considered + deferred — docs + code-review are sufficient.
+
+### Migrations applied to prod this session
+- `content_library_builtin_rls_tier_gated` (BP-113)
+
+### BP-097 Phase 1 — Playwright scaffold + seeder + smoke spec (later same session)
+Owner decisions taken 2026-04-24: reuse prod Supabase with one test user per tier; magic-link auth (Supabase admin `generateLink`) bypasses LinkedIn OIDC; proposed emails approved (`e2e+<tier>@mypostpilot.app`); proceed now rather than deferring to post-Stripe.
+
+Phase 1 shipped:
+- **Migration** `supabase/migrations/20260425_add_is_test_user.sql` — adds `is_test_user boolean NOT NULL DEFAULT false` + partial index on `user_profiles`. Applied live via Supabase MCP. Explicitly NOT a security boundary; informational flag for admin-filter + seeder upserts.
+- **Dependencies** `@playwright/test` and `tsx` added to devDependencies in [package.json](package.json). Tony will `npm install` + `npx playwright install chromium` when ready — or CI will handle both.
+- **[playwright.config.ts](playwright.config.ts)** — `baseURL` driven by `E2E_BASE_URL`; no `webServer` block (per the no-localhost rule); CI uses 2 retries + 3 parallel workers.
+- **[scripts/e2e/seed-test-users.ts](scripts/e2e/seed-test-users.ts)** — idempotent upsert of four tier-specific users. Fake-but-structurally-valid LinkedIn token columns intentionally not decryptable (AES-GCM decrypt fails loudly if a test accidentally hits publish/validate = fail-safe).
+- **[scripts/e2e/teardown-test-users.ts](scripts/e2e/teardown-test-users.ts)** — optional cleanup keyed off `is_test_user=true`.
+- **[tests/e2e/helpers/session.ts](tests/e2e/helpers/session.ts)** — `signInAsTier(page, tier)` helper. Mints a single-use magic-link server-side, drives the browser through Supabase's verify endpoint, session cookie set. Never logs the link.
+- **[tests/e2e/smoke.spec.ts](tests/e2e/smoke.spec.ts)** — one anonymous landing-page test + one magic-link test per tier. Proves end-to-end that the scaffold works.
+- **[tests/e2e/README.md](tests/e2e/README.md)** — full security model + run instructions + future CI-secret list. Owner-facing.
+- **tsconfig.json** extended with exclusion for `tests/e2e` + `playwright.config.ts` (they have their own tsconfig via `tests/e2e/tsconfig.json`). Main Next.js type-check unaffected.
+- **.gitignore** — Playwright artifacts (`test-results/`, `playwright-report/`, `playwright/.cache/`).
+
+Phase 1 is a dry scaffold — `npm run test:e2e` won't actually run until Tony runs `npm install` (+ `npx playwright install chromium` for browser binaries). Nothing in Phase 1 blocks Phase 2 or 3, and none of this runs in CI yet.
+
+Still to come:
+- **Phase 2:** three real specs — `auth-onboarding.spec.ts`, `create-schedule.spec.ts`, `posted-analytics.spec.ts` — each parallelizable to hit the sub-5-minute target.
+- **Phase 3:** `.github/workflows/e2e.yml` — blocked on Tony adding `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` as GitHub Actions secrets.
+- **Follow-up BP:** filter `is_test_user = true` out of admin dashboards + cost-study queries so test users don't pollute metrics. Capture as a new BP in EPIC 10 when Phase 2 lands.
+
+### BP-097 Phase 3 — CI pipeline GREEN end-to-end (later same session)
+
+Six failed runs and six distinct root causes before run #7 (24886136028) went green. All 5 smoke tests pass — landing page + magic-link sign-in for each of the four tier users — against a per-PR Vercel preview URL.
+
+**Owner-side setup that landed during the fix loop:**
+- `VERCEL_TOKEN` added (team-scoped, `tlh88s-projects`) after an earlier attempt placed the team ID in the token slot.
+- `VERCEL_AUTOMATION_BYPASS_SECRET` added (Vercel Project → Deployment Protection → Protection Bypass for Automation).
+- Supabase Redirect URL wildcards added — `https://*-tlh88s-projects.vercel.app/**` + `https://postpilot-*.vercel.app/**` — even though the final helper design doesn't strictly require them (see below); kept for other flows.
+
+**Code-side fixes that landed during the fix loop:**
+- `.github/workflows/e2e.yml` — fail-fast guard for empty secrets; JSON-shape guard that dumps raw Vercel API response when `.deployments` is missing (caught the team-ID-as-token mistake on run #2).
+- `playwright.config.ts` — conditional `extraHTTPHeaders` for `x-vercel-protection-bypass` + `x-vercel-set-bypass-cookie: samesitenone`. No-op when the env var is unset so the config stays portable.
+- `scripts/e2e/seed-test-users.ts` — column fix (`onboarded_at` was wrong; schema uses `onboarding_completed` boolean + `onboarding_current_step` smallint).
+- `tests/e2e/helpers/session.ts` — rewritten to bypass `supabase.co/auth/v1/verify` entirely: extract `hashed_token` from `admin.generateLink` response and navigate directly to `<preview>/callback?token_hash=...&type=magiclink&next=/dashboard`. The app's `/callback` calls `verifyOtp` server-side, which sets session cookies on the preview domain (the critical bit — cookies set on `supabase.co` don't transfer).
+
+**Why the SSR-friendly helper pattern matters (captured for future E2E authors):** `admin.generateLink` returns an `action_link` aimed at email clicks — navigating there has Supabase verify the token and set cookies on the `supabase.co` origin. For an SSR app tested at a different origin (our preview URL), those cookies are useless. The fix is to use the `hashed_token` property and skip the verify endpoint, hitting the app's own callback so `verifyOtp` runs server-side with cookies landing on the app origin.
+
+**Run-by-run failure ladder (diagnostic archive):**
+1. `VERCEL_TOKEN` was empty → cryptic `jq: Cannot iterate over null`. Added upfront guard.
+2. Token was team ID, not API token → Vercel returned `{"error":{"code":"forbidden","invalidToken":true}}`. Regenerated with team scope.
+3. Seed step hit `PGRST204: 'onboarded_at' column does not exist`. Switched to the real schema columns.
+4. Playwright bounced to `vercel.com/login?next=...` (Vercel SSO wall). Wired automation bypass.
+5. Cookies set wrong — tests landed on app `/login`. Passed `redirectTo` to `generateLink` (intermediate fix).
+6. Still on `/login` — `redirectTo` changes where Supabase redirects but not where cookies get set. Rewrote helper to bypass the verify endpoint entirely.
+7. **All 5 tests green.**
+
+**Phase 3 end state:** Pipeline proven end-to-end. Every push to `develop` and every PR will now exercise the full sign-in chain. Phase 2 (three real happy-path specs — auth-onboarding, create-schedule, posted-analytics) is the remaining work, blocked only on owner go-ahead.
+
+### BP-097 Phase 2 (partial) — GREEN end-to-end (later same session)
+Shipped create-schedule + posted-analytics specs + proper storageState auth pattern. auth-onboarding intentionally deferred (6-step onboarding form deserves its own focused session). Final run 24904091344: 13 passed, 0 failed.
+
+**Shipped:**
+- `tests/e2e/helpers/ai-stubs.ts` — every `/api/ai/*` route stubbed (brainstorm / draft / enhance / hashtags / analyze-hook / chat / generate-image / idea-generate). Zero AI spend per CI run.
+- `tests/e2e/helpers/cleanup.ts` — service-role helpers: `getTestUserId(tier)`, `cleanupTestUserPosts`, `cleanupTestUserIdeas`, `resetScheduledPostFixture`. All scoped by test user id and `[E2E FIXTURE]%`-title matching so prod data can't be touched.
+- `tests/e2e/global.setup.ts` — Playwright setup project that signs in each of the four tier users once and writes `tests/e2e/.auth/<tier>.json`. Specs depend on setup via `playwright.config.ts` project dependencies.
+- `playwright.config.ts` — added `setup` project; main `chromium` project declares `dependencies: ["setup"]`. Session cookies exist before any test runs.
+- `.gitignore` — `tests/e2e/.auth/` added (contains real Supabase session cookies).
+- `tests/e2e/create-schedule.spec.ts` — two route-reachability tests (/ideas, /posts) under pro tier storageState. Deep dialog/scheduling flow deferred to Phase 2.1 (requires seeder update for `ai_provider` so the AI-provider-guard doesn't disable buttons).
+- `tests/e2e/posted-analytics.spec.ts` — asserts the seeded `[E2E FIXTURE]` scheduled post appears on /calendar. /posts tab-click check deferred to Phase 2.1 (the page defaults to the "in_work" tab which doesn't show scheduled posts).
+- `scripts/e2e/seed-test-users.ts` — now idempotently inserts one `[E2E FIXTURE]` scheduled post per seed run for the professional tier user (2 days out). Deletes any prior fixture before inserting fresh.
+
+**Failure ladder (2 runs this phase):**
+1. First attempt (run 24898672584): 5/7 tests passed. Two Phase 2 specs failed because they both called `admin.generateLink` for the same professional test user in parallel — Supabase's single-active-token-per-user semantics invalidated one worker's token before consumption, so sign-in silently failed and tests redirected to `/login`. Also: the create-schedule "click Generate Ideas" path hung because `GenerateIdeasButton` disables itself when `ai_provider` isn't set on the user profile.
+2. Second attempt (run 24903943970): 12/13 passed after moving to storageState. One fixture-visibility check still failed on `/posts` because that page defaults to the "in_work" tab (drafts + reviews), hiding scheduled posts.
+3. Third attempt (run 24904091344): **13/13**. Dropped the `/posts` reachability check (covered more reliably by `/calendar`). Tab-click flow deferred to Phase 2.1 where it pairs naturally with mark-as-posted.
+
+**Pattern captured for future E2E authors:** for any app tested at a different origin than Supabase (which is every real deploy), use Playwright's `storageState` pattern — sign in each seeded user ONCE via a setup project, persist cookies to `tests/e2e/.auth/<tier>.json`, load into specs via `test.use({ storageState })`. `admin.generateLink` is inherently single-active-token-per-email, so concurrent sign-ins in the same session race. storageState eliminates the problem entirely and is the canonical Playwright solution.
+
+**Phase 2.1 scope (new follow-up):** deep dialog interactions — Generate Ideas dialog flow, Mark-as-Posted dialog, manual analytics entry, /posts tab clicks. Requires seeder update to set `ai_provider` on test users so AI-guard banners don't disable the affected action buttons.
+
+**Phase 2 still outstanding:** `auth-onboarding.spec.ts` — the 6-step multi-page onboarding form. Intentionally deferred as its own focused session.
+
+### Follow-up BPs opened this session
+- **BP-129** — Supabase Auth Hook to enforce LinkedIn-OIDC-only signup. Closes the residual gap from keeping the Email provider enabled (required for `admin.generateLink` in E2E). EPIC 9, P2 / Medium.
+
+### Sprint 3 end state
+- Every BP in Sprint 3 (BP-088, 095, 097, 100, 113) now Done or Spec-Done on `develop`.
+- `main` contains the full v2 rollout from earlier (Subscription Model v2); Sprint 3 code changes (BP-088 hardening + BP-113 migration) to land on `main` in the next merge.
+- Vercel production already serving v2 post-merge.
+- **Next Sprint theme is Sprint 4 — Polish & Consistency** (EPIC 3 + 4): BP-084 tutorial card redesign, BP-099 simplified guided UI. BP-114/120/121 already closed earlier in v2 work.
+- Revenue launch (Sprint 5 — EPIC 2 Stripe) remains the actual GTM blocker.
+
+---
+
 ## 2026-04-24 Part 5: v2-adjacent cleanup — BP-120 help, BP-121 tutorial dismiss, BP-127 logging, BP-128 caching
 
 Closed every remaining v2-adjacent item across EPICs 3, 4, and 10. No new BP creation — all pre-existing.

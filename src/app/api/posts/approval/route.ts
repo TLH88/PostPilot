@@ -20,6 +20,28 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // BP-088: app-layer membership check. Fetch post via RLS-gated select — a
+    // null result means the caller isn't authorized for this post. Convert to
+    // an explicit 403 so the endpoint doesn't silently return an empty list.
+    const { data: post } = await supabase
+      .from("posts")
+      .select("id, workspace_id, user_id")
+      .eq("id", postId)
+      .single();
+    if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+    if (post.workspace_id) {
+      const { data: member } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", post.workspace_id)
+        .eq("user_id", user.id)
+        .single();
+      if (!member) return NextResponse.json({ error: "Not a workspace member" }, { status: 403 });
+    } else if (post.user_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("post_approvals")
       .select("*")
@@ -67,6 +89,20 @@ export async function POST(request: NextRequest) {
       .eq("id", postId)
       .single();
     if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+    // BP-088: app-layer membership check before submit/decide. RLS would block
+    // the write anyway, but an explicit 403 beats a silent zero-row failure.
+    if (post.workspace_id) {
+      const { data: member } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", post.workspace_id)
+        .eq("user_id", user.id)
+        .single();
+      if (!member) return NextResponse.json({ error: "Not a workspace member" }, { status: 403 });
+    } else if (post.user_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     if (action === "submit") {
       // Reviewers: use per-submission reviewers if provided, else fall back to workspace first stage
