@@ -105,6 +105,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-100** Scheduled posts drop images — P1 / Critical
 - **BP-110** Cancel in-progress image generation — P2 / Medium
 - **BP-112** `Button` outline variant footgun — P3 / Low
+- **BP-133** Require title before post draft creation — P2 / Medium
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
@@ -413,6 +414,54 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 - [ ] BP-131's existing flow continues to work for users who have email infra disabled or unverified email addresses (graceful fallback).
 
 **Effort:** S (most plumbing already exists in BP-131 — this is the email + token plumbing) · **Expected ROI:** Medium (closes the residual gap; aligns with the original spec's intent)
+
+---
+
+### BP-133: Require Title Before Post Draft Creation
+
+**Status:** Backlog
+**Priority:** P2 / Medium (UX hygiene — affects every new post and surfaces orphaned "Untitled" rows in admin views)
+**Source:** Owner observation 2026-04-25 — clicking the "New Post" CTA currently inserts a draft with `title: NULL` and navigates straight to `/posts/<id>`, which then displays "Untitled". Result: a stream of unlabeled drafts in the posts list / admin views, harder to scan and easy to leave half-finished.
+**Date Added:** 2026-04-25
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+**Related:** `src/components/posts/new-post-button.tsx` (the CTA that creates the row); `src/app/(app)/posts/[id]/page.tsx` (the editor that currently renders "Untitled" when `title IS NULL`); BP-007 (improved Convert-to-Post button — same flow shape)
+
+**Problem:** Today the "New Post" button does this:
+1. Click button → INSERT into `posts` with `status='draft'`, `title=null`, `content=''`
+2. Router push to `/posts/<id>` → editor opens with placeholder "Untitled"
+3. User has to click into the title field manually to name it; many forget
+
+This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. It also means the failure case (user closes the tab on step 2) leaves a permanent untitled row.
+
+**What to change:**
+- New flow: click "New Post" → small modal opens → required `Post title` text input + brief help text — only after the user submits is the row inserted with that title set, then navigation happens.
+- Modal should pre-suggest a default title when context is available (e.g., from "Convert to Post" via an idea — pass the idea title as the default; user can keep or edit). Manual "New Post" button has no default.
+- Title should require ≥3 trimmed characters (or whatever minimum makes sense to discourage `"a"` placeholders) and ≤200 characters (matches LinkedIn post title limits).
+- Cancel button closes the modal with no DB write.
+- Submit button creates the post and redirects.
+- Loading state on submit; same 10-second slow / 60-second fail timers `new-post-button.tsx` already has.
+- Server-side: extend the post-create logic (or a new route) to require non-null title at insert time. Add a CHECK constraint or NOT NULL on `posts.title` would be invasive (existing rows have NULL); instead enforce at the API layer + add a validation in the client.
+- Backfill consideration: existing `title IS NULL` rows are user-owned drafts. Don't touch them — leave them with their current (possibly null) titles; only block NEW inserts via this flow.
+
+**Affected entry points:**
+- `src/components/posts/new-post-button.tsx` — primary "New Post" CTA on dashboard / posts page
+- `src/components/ideas/idea-process-flow.tsx` and the "Develop into Post" CTA in `/ideas/[id]/page.tsx` — already typically pass an idea title; verify the new modal pre-fills correctly
+- `/posts/[id]/page.tsx` post editor — keep "Untitled" handling for legacy rows but ensure new editor sessions never need it
+
+**Security / guardrails:**
+- Server-side validation is the authoritative check — a determined caller could still POST a NULL title. Add `if (!title?.trim()) return 400` to whatever route handles draft creation (currently the client uses Supabase client directly via `.from("posts").insert(...)` — the client validation is the only check today; this BP is the right time to gate at the API layer too).
+- Title is rendered into HTML and PDF exports; existing escaping handles XSS but worth a sanity pass once the new flow is in.
+
+**Acceptance criteria:**
+- [ ] Clicking "New Post" opens a modal that requires a title before any DB row is created.
+- [ ] Submitting an empty / whitespace-only / <3-char title shows a clear validation error.
+- [ ] Successful submit inserts the row with the provided title and redirects to the editor.
+- [ ] Cancel closes the modal with no DB write.
+- [ ] "Convert to Post" / idea-to-post flow pre-fills the modal with the idea title.
+- [ ] Existing draft posts with NULL titles continue to render their "Untitled" placeholder (no migration / backfill).
+- [ ] Server-side route rejects post-create with empty/missing title (defense in depth).
+
+**Effort:** S · **Expected ROI:** High (every new-post action gets a small UX improvement; removes the untitled-drafts noise from `/posts`, dashboard, and admin views)
 
 ---
 
