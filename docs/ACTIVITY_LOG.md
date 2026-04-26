@@ -4,6 +4,106 @@
 
 ---
 
+## 2026-04-26: BP-131 account deletion live; BP-130 + BP-129 shipped; AI-access architectural fix; landing-CTA reroute
+
+Long compound session. Three BPs shipped, one architectural fix, one new spec opened. End state: `develop` is 5 commits ahead of `main`, all green via the BP-097 CI smoke pipeline.
+
+### BP-131 Account Deletion — admin + user self-serve, live (commits d510237, 2476a80, fc53d8f, 14c45dd)
+
+Sessions 1 + 2 + hotfix all landed in this stretch.
+
+**Migrations applied (Supabase MCP):**
+- `20260425_account_deletion_fk_fixes.sql` — workspaces.owner_id CASCADE → RESTRICT (prevents accidental team-wide nukes); workspace_members.invited_by NO ACTION → SET NULL
+- `20260425_account_deletions_table.sql` — append-only audit table with email/name/tier snapshots that survive the cascade; user_profiles.deleted_at + deletion_scheduled_for inline columns
+- `20260425_account_status_add_deleted.sql` — extends account_status CHECK with 'deleted'
+
+**Library** (`src/lib/account/{preflight,storage-cleanup,delete-user}.ts`) — orchestrates pre-flight checks, storage cleanup, soft + hard delete, restoration. Audit row written FIRST so it survives even if downstream steps fail.
+
+**Admin path** — `DELETE /api/admin/users` with `?type=soft|hard`, plus `{action:'preflight'}` and `{action:'restore', auditId}` body actions. UI: two-stage dialog with radio (Soft default / Hard) + secondary type-DELETE confirmation when hard chosen. Self-protect: admin can't delete their own account from admin panel.
+
+**Self-serve path** — `DELETE /api/account` (soft-only) + Danger Zone section in `/settings`. Dialog has prominent "You have 30 days to recover" panel + required acknowledgment checkbox + type-DELETE field. After submit: client-side `signOut()` + redirect to `/goodbye` (new public page).
+
+**Layout guard** — `(app)/layout.tsx` redirects soft-deleted users (`deleted_at IS NOT NULL`) to `/goodbye`. Defense-in-depth catches the in-flight session edge case where an admin deletes a currently-online user before their cookie expires.
+
+**Cron** — `process-account-deletions` Edge Function deployed v2, pg_cron job `process-account-deletions` active on `0 * * * *` (hourly). Walks `pending_grace` rows past their `scheduled_hard_delete_at` and runs storage cleanup → solo-workspace cleanup → auth.admin.deleteUser → audit status update.
+
+**Hotfix (commit 14c45dd):** First hard-delete attempt failed with "Database error deleting user". Diagnosis: workspaces.owner_id RESTRICT also blocks deletion when the user owns a SOLO workspace (only themselves as member). Plus posts.workspace_id / ideas.workspace_id / content_library.workspace_id / post_templates.workspace_id all reference workspaces(id) without a CASCADE, so deleting the workspace itself would also fail. Fix: new `cleanupOwnedSoloWorkspaces` helper that NULLs out workspace_id on owned content (those rows get cascaded out moments later via user_id CASCADE), then deletes the workspace, then proceeds. Mirrored in the Edge Function (Deno port). Re-deployed as v2.
+
+Self-delete dialog also got owner-feedback improvements: prominent border-2 destructive panel for the 30-day grace messaging + required acknowledgment checkbox before the Submit button enables.
+
+**BACKLOG opened:** BP-132 (P2 / Medium) — email-based re-auth confirmation for self-serve delete, gated on email infrastructure work.
+
+### BP-130 Coming Soon Gating — shipped (commit e51ff39)
+
+Pricing page Team + Enterprise tiles get amber "Coming Soon" badges. Both buttons open a unified WaitlistDialog (different copy per tier — Team: "we'll let you know when available", Enterprise: "tell us about your team"). Anonymous POST `/api/waitlist` with rate limiting (5/IP/hour, 3/email/day).
+
+`/admin/waitlist` page lists every entry with mark-contacted toggle. Added "Waitlist" item to admin sidebar nav (Mail icon).
+
+Server-side stub at `/api/stripe/create-subscription` rejects team/enterprise with 403 + waitlist CTA; other tiers get 501 (BP-015 will replace). UI alone is not the only line of defense.
+
+Migration `20260425_tier_waitlist.sql` applied: tier_waitlist table with email, tier (CHECK in {team, enterprise}), message, optional user_id (SET NULL on cascade), ip_address + user_agent for triage, contacted_at + notes for admin workflow. RLS allows anon + authenticated INSERT (form has no auth requirement); no SELECT policy granted (admin reads via service-role API).
+
+### BP-129 LinkedIn-OIDC-Only Signup Hook — function shipped, awaiting owner toggle (commit 2174efc)
+
+Initial attempt: BEFORE INSERT trigger on auth.identities. Failed with "must be owner of relation identities" — Supabase locks down the auth schema.
+
+Pivot: Supabase's documented Before User Created Hook. New function `public.hook_linkedin_only_signup(event jsonb) returns jsonb` applied via MCP. Allows `linkedin_oidc` provider OR users with `e2e_tier` in user_metadata; rejects everything else with `{"error": {"http_code": 403, "message": …}}`. Permissions: `GRANT EXECUTE … TO supabase_auth_admin; REVOKE … FROM authenticated, anon, public`.
+
+**Owner action remaining:** Supabase dashboard → Authentication → Hooks → Before User Created Hook → select `public.hook_linkedin_only_signup` → save. Function exists but isn't wired until that toggle flips.
+
+### AI access architectural fix (commit 5a44693)
+
+Live test user (`sandra.c.hungate@gmail.com`) hit "No API key configured" toasts during onboarding. Diagnosis: new users default to `account_status='active'` + `managed_ai_access=false` + no BYOK + no trial. Both `hasManagedAccess` implementations (in `src/lib/ai/has-ai-access.ts` and `src/lib/ai/get-user-ai-client.ts`) only granted access via explicit trial / explicit managed flag / BYOK — leaving every new user gated out until they manually opted into a trial via /pricing.
+
+This contradicted Subscription Model v2 intent (Free + Personal users have system AI access by default; BP-117 quotas enforce per-tier limits).
+
+Fix: extend `hasManagedAccess` to grant access for `account_status='active'` as a default (alongside the existing trial path). Suspended/churned/deleted accounts remain blocked. Legacy `managed_ai_access` flag still honored (admin override path for churned accounts).
+
+**Owner clarified intent during this fix:** All users, regardless of tier, get system keys by default. BYOK is a Pro+ option for those who hit quotas or want more control of provider/model. Confirmed current code matches: Pro+ tiers get the BYOK option in Settings, system keys are the default, BP-077 `force_ai_gateway` toggle lets BYOK users flip back to system keys without removing their key.
+
+### Landing CTAs route through /pricing (commit 9a63a0d)
+
+Owner observation: users could click "Get Started" / "Sign Up" from the landing page and create accounts without ever seeing tier options. Fix: all three landing-page CTAs (top-nav, hero, bottom) now route to `/pricing` instead of `/signup`. Bottom CTA copy updated from "Create your free account" to "Choose your plan" to match the new destination.
+
+The /pricing page already has tier-specific buttons that route onward to `/signup?tier=…` (BP-130 work). Returning users still hit /login directly via the top-nav "Sign In" link.
+
+**Follow-up worth tracking:** /signup currently ignores the `?tier=` query param the pricing page passes. Honoring it (e.g., to seed a preferred tier on profile creation, or to auto-start the trial for the chosen tier on first login) is a small UX win for a future BP.
+
+### BP-133 spec — require title before post draft creation (commit aa657db)
+
+Owner-flagged UX issue: clicking "New Post" inserts a `posts` row with `title=null` and navigates straight to the editor showing "Untitled". Result: a stream of unlabeled drafts in `/posts` and admin views; abandoned tabs leave permanent untitled rows.
+
+Spec: modal opens on click → required title field (3-200 chars) → only after submit does the row get inserted with that title and navigation fires. "Convert to Post" / idea-to-post flow pre-fills the modal with the idea title. Server-side validation gate added at the API layer (defense in depth — current client uses Supabase client direct insert, which makes the client validation the only check). Existing NULL-title rows left alone.
+
+**EPIC:** Reliability & Bug Fixes (8). **Priority:** P2 / Medium. **Effort:** S.
+
+### Branch state at end of session
+
+- `main`: at `33c292a` (BP-131 + BP-130/132 specs)
+- `develop`: at `aa657db`, 5 commits ahead of main:
+  - `e51ff39` BP-130 Coming Soon
+  - `2174efc` BP-129 Auth Hook
+  - `5a44693` AI access fix
+  - `9a63a0d` Landing CTAs → /pricing
+  - `aa657db` BP-133 spec
+- Owner has NOT merged develop → main yet (waiting on live Vercel verification of the AI access fix + new pricing-first flow before merging).
+
+### Owner actions outstanding
+
+1. **Vercel deploy verification** — once the develop preview deploys, run a fresh signup and confirm onboarding's AI features work without the "no API key" toast. Also verify landing → /pricing → tier select → /signup flow.
+2. **Supabase dashboard** — flip the Before User Created Hook to `public.hook_linkedin_only_signup` (BP-129 final wiring).
+3. **Merge develop → main** when ready.
+
+### Carryover BPs
+
+- **BP-097 Phase 2.1 + auth-onboarding** — deferred (multi-turn scope; deserves its own focused session)
+- **BP-133** — implementation pending; spec ready
+- **BP-132** — gated on email infrastructure (Resend / Sendgrid)
+- **BP-015 Stripe** — blocked on owner business formation
+- **BP-129 dashboard toggle** — owner action
+
+---
+
 ## 2026-04-25: Subscription Model v2 merged to main + Sprint 3 kickoff
 
 ### develop → main merge (production deploy)
