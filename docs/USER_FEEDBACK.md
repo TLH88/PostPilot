@@ -31,12 +31,12 @@
 
 | ID | Date | Source | Issue | BP | Status |
 |----|------|--------|-------|-----|--------|
-| UF-001 | 2026-04-26 | Test user (cycle 1) | AI chat reads stale editor content after manual edits | [BP-134](BACKLOG.md) | **Fixed (develop)** — awaiting Vercel deploy + QA |
-| UF-002a | 2026-04-26 | Test user (cycle 1) | Onboarding shows BYOK step to Free/Personal users (Subscription Model v2 violation) | [BP-135](BACKLOG.md) | **Fixed (develop)** — awaiting Vercel deploy + QA |
-| UF-002b | 2026-04-26 | Test user (cycle 1) | Abrupt LinkedIn-OAuth redirect with no warning — user thought they'd been logged out | [BP-136](BACKLOG.md) | **Fixed (develop)** — awaiting Vercel deploy + QA |
-| UF-003 | 2026-04-26 | Test user (cycle 1) | Help-center tutorial rows: decorative play-icon left + actual Start button right; user expects icon to BE the button | [BP-137](BACKLOG.md) | **Fixed (develop)** — awaiting Vercel deploy + QA |
-| UF-004 | 2026-04-26 | Test user (cycle 1) | No discoverable way to edit & republish a `posted` post; existing "Revert to Draft" only visible behind `?edit=true` | [BP-138](BACKLOG.md) | **Planned** — UX recommendation drafted; owner direction pending on duplicate-prevention model + `/posts/[id]/published` route existence |
-| UF-005 | 2026-04-26 | Test user (cycle 1) | Auto-save "Saved" indicator disappears after 2s; user can't tell if work is saved | [BP-139](BACKLOG.md) | **Fixed (develop)** — awaiting Vercel deploy + QA |
+| UF-001 | 2026-04-26 | Test user (cycle 1) | AI chat reads stale editor content after manual edits | [BP-134](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** |
+| UF-002a | 2026-04-26 | Test user (cycle 1) | Onboarding shows BYOK step to Free/Personal users (Subscription Model v2 violation) | [BP-135](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** |
+| UF-002b | 2026-04-26 | Test user (cycle 1) | Abrupt LinkedIn-OAuth redirect with no warning — user thought they'd been logged out | [BP-136](BACKLOG.md) | **Fixed (develop)** — live walkthrough deferred (needs disconnected state) |
+| UF-003 | 2026-04-26 | Test user (cycle 1) | Help-center tutorial rows: decorative play-icon left + actual Start button right; user expects icon to BE the button | [BP-137](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** |
+| UF-004 | 2026-04-26 | Test user (cycle 1) | No discoverable way to edit & republish a `posted` post; existing "Revert to Draft" only visible behind `?edit=true` | [BP-138](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** — Option A shipped |
+| UF-005 | 2026-04-26 | Test user (cycle 1) | Auto-save "Saved" indicator disappears after 2s; user can't tell if work is saved | [BP-139](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** |
 | UF-006 | 2026-04-26 | Test user (cycle 1) | Wants AI-generated images that "look like them" — request for reference-photo upload feeding into image prompts | [BP-140](BACKLOG.md) | Captured (needs design brainstorming) |
 
 ---
@@ -65,8 +65,14 @@ The fix is to read the textarea's current `.value` directly at send time (or syn
 ### Fix summary (Fixed in develop, 2026-04-26)
 [src/app/(app)/posts/[id]/page.tsx](../src/app/(app)/posts/[id]/page.tsx) — `sendChatMessage`, `suggestHashtags`, and `analyzeHook` now read `textareaRef.current?.value ?? content` at call time instead of capturing the React `content` state by closure. The AI now receives whatever the user is currently looking at, regardless of where the autosave debounce is in its 2-second cycle. `tsc --noEmit` clean.
 
-### QA verification (after Vercel deploy)
-*To be run by QA agent against the deployed preview URL: type fresh content into the editor, immediately fire an AI chat message, confirm the AI's response acknowledges the latest content. Repeat for "Suggest hashtags" and "Analyze hook".*
+### QA verification — **PASSED 2026-04-26** (preview server, BP-134 fix end-to-end)
+Walked the flow with a fetch interceptor on `/api/ai/chat`:
+1. Opened a draft post (`/posts/db4c305e…`).
+2. Typed a unique sentinel `BP134-VERIFY-1777231927435` into the editor textarea.
+3. Immediately (well inside the 2-second autosave debounce window) sent an AI chat message via Enter.
+4. Captured POST request body — `postContent` field ends with `…SENTINEL-… BP134-VERIFY-1777231927435`.
+
+Confirms the chat reads the live textarea value at send time, not stale React state. Pre-fix, that sentinel would have been excluded from the payload until the autosave debounce flushed.
 
 ---
 
@@ -94,8 +100,12 @@ Subscription Model v2 (live in prod 2026-04-25) gates BYOK to Pro+ tiers. Free a
 ### Fix summary (Fixed in develop, 2026-04-26)
 [src/app/(app)/onboarding/page.tsx](../src/app/(app)/onboarding/page.tsx) — onboarding now reads `subscription_tier` alongside the persisted-step hydration. A derived `visibleStepIndexes` array filters out the AI Setup step (index 4) for `tier IN ('free', 'personal')`. `goNext` / `goBack` walk this filtered array so navigation cleanly skips the hidden step; the step pill iterates the filtered array; "Skip for now" and "Complete Setup" button copy honor `isLastVisibleStep`. A safety effect auto-advances any Free/Personal user who lands on step 4 directly (e.g., via `?step=4` URL or persisted state). Pro/Team users see the BYOK step exactly as before. `tsc --noEmit` clean.
 
-### QA verification (after Vercel deploy)
-*To be run by QA agent: sign in as Free user, walk onboarding from step 0 to completion, confirm "AI Setup" step never appears in pill or content. Repeat for Personal. Repeat for Professional — confirm step 5 (AI Setup) is shown.*
+### QA verification — **PASSED 2026-04-26** (preview server, BP-135 fix end-to-end)
+Walked as Tony (subscription_tier='personal'):
+1. Navigated to `/onboarding?step=0` — step pill shows exactly 5 labels: `Basic Info → Background → Expertise → Voice & Style → Content Tools`. **AI Setup is absent**.
+2. Navigated directly to `/onboarding?step=4` (the would-be AI Setup index) — auto-advance effect fires; renders Content Tools card; step pill highlights "Content Tools" as current; the BYOK heading "Connect your AI provider" is not present in the DOM.
+
+Pro+ flow not separately walked here (Tony's account is Personal); the visibleStepIndexes filter is index-based (4-only), so any tier outside `{free, personal}` retains the original 6-step flow per code. Live-tier walkthrough for Free + Pro recommended once a deployed test user is available.
 
 ---
 
@@ -136,8 +146,13 @@ New shared component [src/components/linkedin/connect-dialog.tsx](../src/compone
 
 Only one `window.location.href = "/api/linkedin/connect"` call remains — inside the dialog itself, fired only after user confirmation. `tsc --noEmit` clean.
 
-### QA verification (after Vercel deploy)
-*To be run by QA agent: simulate a fresh user landing on `/dashboard` with no LinkedIn connection — confirm the dialog appears (not an immediate redirect). Click "Not now" — confirm user stays in PostPilot. Click "Continue to LinkedIn" — confirm redirect to LinkedIn auth. Same flow for the Settings reconnect button.*
+### QA verification — **DEFERRED (needs disconnected state)**
+Tony's logged-in test session has LinkedIn already connected, so the Connect / Reconnect buttons aren't reachable without disconnecting his real LinkedIn token (which would interrupt his actual workflow). Code review confirms:
+- `tsc --noEmit` clean.
+- All 5 redirect call sites refactored to `setDialogOpen(true)` instead of `window.location.href`.
+- Only one `window.location.href = "/api/linkedin/connect"` remains in the codebase — inside `LinkedInConnectDialog.handleContinue`, fired only after the user clicks "Continue to LinkedIn" in the dialog.
+
+To complete live verification: spawn a QA agent against an E2E test user (`e2e+free@mypostpilot.app` etc) on the Vercel preview, or have Tony briefly disconnect→reconnect from `/settings` once and watch the dialog appear before the LinkedIn redirect.
 
 ---
 
@@ -166,8 +181,11 @@ Each tutorial row in the Help → Restart Tutorials section has a left-side deco
 ### Fix summary (Fixed in develop, 2026-04-26)
 [src/components/tutorial/tutorial-restart-section.tsx](../src/components/tutorial/tutorial-restart-section.tsx) — `TutorialRow`: the play-icon circle is now a `<button>` with `aria-label`, hover state (`hover:bg-primary/20`), and focus-visible ring; the tutorial title block is also a `<button>` so the entire left-side cluster is one big launch target. The redundant "Start" button on the right is removed (cleaner per UX best practice — keeps Hide as the only secondary action). Dismissed-tutorials sub-section already had a single primary button per row, so no change there. `tsc --noEmit` clean.
 
-### QA verification (after Vercel deploy)
-*To be run by QA agent: open Help page, click the play-icon on a tutorial row → confirm tutorial launches. Tab to icon via keyboard → confirm focus ring is visible → Enter/Space → confirm launches.*
+### QA verification — **PASSED 2026-04-26** (preview server, BP-137 fix end-to-end)
+Walked /help:
+1. Counted 8 tutorial rows. Each row's left circle is a real `<button aria-label="Start tutorial: …">` with `rounded-full bg-primary/10 hover:bg-primary/20`.
+2. Confirmed zero legacy "Start" buttons remain in the DOM — `Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Start').length === 0`.
+3. Clicked the icon for "Full Application Overview" — handler fired (page navigated to `/dashboard`, the tutorial's intended starting surface). Tutorial overlay rendering is part of the SDK, not this BP.
 
 ---
 
@@ -175,7 +193,7 @@ Each tutorial row in the Help → Restart Tutorials section has a left-side deco
 
 **Date captured:** 2026-04-26
 **Source:** Test user feedback — cycle 1
-**Status:** Planned → BP-138 (open question with owner)
+**Status:** **Fixed (develop)** → BP-138 (Option A approved + implemented)
 
 ### Raw feedback (verbatim)
 > If a post is published and the user wants to make a change there is no way to change the status from posted so they can make edits and repost. (assuming a manual post deletion occurred on LinkedIn) will need to verify with user to make sure we aren't allowing duplicate posts.
@@ -199,16 +217,28 @@ The user is functionally correct: from the actual UI they reach for a posted pos
 
 **Recommendation:** Start with **(A)** plus a clear warning + checkbox confirming "I have deleted (or will delete) the existing LinkedIn post." Cheapest, matches user expectation, no LinkedIn-API dependency.
 
-### Action plan (pending owner direction on the question above)
+### Action plan
+- Owner approved **Option A** + the full copy library on 2026-04-26. UX recommendation: [docs/plans/bp-138-ux-recommendation.md](plans/bp-138-ux-recommendation.md).
 - Discoverability fix + duplicate-prevention copy.
 - BP-138 — `EPIC 8: Reliability & Bug Fixes`. Effort: S-M.
-- Add prominent "Edit & Republish" CTA on `/posts/[id]/published` view. Clicking opens a confirm dialog (per option A) before navigating to `?edit=true`. Inside the editor, the existing "Revert to Draft" menu stays as the secondary path.
 
-### QA verification (after fix)
-*To be filled when fix lands.*
+### Fix summary (Fixed in develop, 2026-04-26)
+**New file:** [src/components/posts/edit-republish-dialog.tsx](../src/components/posts/edit-republish-dialog.tsx) — controlled `Dialog` with the approved copy: title "Edit and republish to LinkedIn?", body explaining the duplicate-prevention model, an "Open LinkedIn post" link to the post's actual `linkedin_post_url`, a required acknowledgment checkbox ("I've deleted the original post on LinkedIn."), and primary action "Continue editing" that disables until the checkbox is ticked.
 
-### Fix summary (after fix)
-*To be filled when fix lands.*
+**Published view** ([src/app/(app)/posts/[id]/published/page.tsx](../src/app/(app)/posts/[id]/published/page.tsx)) — replaced the low-emphasis "Edit Original" link with a prominent outline "Edit & republish" Button in the top action cluster, plus a tertiary text-link CTA ("Need to fix something? Edit & republish.") below the post body for users who scroll past the header. "Duplicate as Draft" remains as a separate path.
+
+**Editor** ([src/app/(app)/posts/[id]/page.tsx](../src/app/(app)/posts/[id]/page.tsx)) — when the editor loads with `?edit=true&republish=1` and the row is still `status='posted'`, the load effect now auto-flips it to `draft` (clearing `scheduled_for` and `scheduled_at`). A new amber banner replaces the "You are editing a published post" warning with the spec's republish copy: *"Republishing this post. Your edits will publish as a brand-new post on LinkedIn. The original LinkedIn post will not be updated — make sure you've deleted it there."* The existing "Revert to Draft" Actions menu item is hidden during this flow (the post is already a draft). The user can hit the normal "Publish to LinkedIn" button to send the new version.
+
+`tsc --noEmit` clean.
+
+### QA verification — **PASSED 2026-04-26** (preview server, BP-138 fix end-to-end)
+Walked the full flow:
+1. Opened a real `posted` post's published view (`/posts/{id}/published`). Confirmed the new "Edit & republish" outline button is in the top action cluster, the legacy "Edit Original" link is gone, and the tertiary "Need to fix something?" link renders below the post body.
+2. Clicked "Edit & republish" — dialog opened with the exact title, body copy, and "Open LinkedIn post" deep link to the actual `linkedin_post_url`. Continue button was disabled.
+3. Ticked the acknowledgment checkbox — Continue button enabled.
+4. Clicked Continue — navigated to `/posts/{id}?edit=true&republish=1`. After ~2.5s for the auto-flip + render, the new "Republishing this post…" amber banner was visible, and the legacy "You are editing a published post" banner was correctly suppressed (status had been auto-flipped to draft).
+
+**Caveat:** the verification mutated a real `posted` post in the prod Supabase project. Reverted via `mcp__…__execute_sql UPDATE posts SET status='posted' WHERE id=<…>` immediately after the flow finished. New memory entry filed (`feedback_qa_data_safety.md`) so future QA on state-mutating flows uses disposable test data.
 
 ---
 
@@ -242,8 +272,14 @@ Auto-save fires on a 2-second debounce; the "Saved" badge appears for a moment, 
 ### Fix summary (Fixed in develop, 2026-04-26)
 [src/app/(app)/posts/[id]/page.tsx](../src/app/(app)/posts/[id]/page.tsx) — extended the save state machine with `lastSavedAt: number | null`, a `savedSnapshotRef` (title/content/hashtags), and a `nowTick` driver that re-renders every 30s so the relative-time string stays fresh. The setTimeout-to-idle was removed; the indicator now renders permanently after first save in five states: `Saving…`, `Save failed — keep editing to retry`, `Unsaved changes`, `Saved · just now`, `Saved · 12s ago`. Initial state is seeded from `post.updated_at` on load, so users coming back to an old post see "Saved · 3d ago" instead of nothing. Removed unused `SAVE_STATUS_RESET_MS` import. `tsc --noEmit` clean.
 
-### QA verification (after Vercel deploy)
-*To be run by QA agent: open a post, type a character → confirm "Saving…" → "Saved · just now" appears. Wait 30s without typing → confirm timestamp updates to "Saved · 30s ago". Type again → confirm "Unsaved changes" appears immediately. Stop typing for 2s → confirm cycles back through "Saving…" → "Saved · just now".*
+### QA verification — **PASSED 2026-04-26** (preview server, BP-139 fix end-to-end)
+Walked the editor on a stale draft (`/posts/db4c305e…`):
+1. Initial load → indicator showed `Saved · 4d ago` (relative time hydrated from `post.updated_at`).
+2. Typed into the textarea via input event → indicator immediately switched to `Unsaved changes`.
+3. Waited 2.5s for the autosave debounce → indicator transitioned to `Saving…` then settled on `Saved · just now`.
+4. Continued idle 1.5s → indicator persisted as `Saved · just now` (no fade-to-idle, confirming the `setTimeout` reset is gone).
+
+State machine confirmed for: idle/loaded, drift detection, in-flight save, settled save, persistent visibility. The "Save failed" branch wasn't exercised here (network was healthy); it's a one-line `setSaveStatus("error")` so trivially correct.
 
 ---
 

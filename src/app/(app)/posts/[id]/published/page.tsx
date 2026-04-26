@@ -7,7 +7,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Copy,
-  Pencil,
+  RefreshCw,
   Calendar,
   Clock,
   Hash,
@@ -22,6 +22,7 @@ import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { PostProgressBar } from "@/components/posts/post-progress-bar";
 import { EngagementAnalyticsCard } from "@/components/posts/engagement-analytics-card";
 import { RefreshAnalyticsButton } from "@/components/posts/refresh-analytics-button";
+import { EditRepublishDialog } from "@/components/posts/edit-republish-dialog";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ export default function PublishedPostPage() {
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [duplicating, setDuplicating] = useState(false);
+  const [republishDialogOpen, setRepublishDialogOpen] = useState(false);
 
   const userTier: SubscriptionTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
   const hasAnalyticsScope = profile?.linkedin_scopes?.includes("r_member_postAnalytics") ?? false;
@@ -180,6 +182,15 @@ export default function PublishedPostPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setRepublishDialogOpen(true)}
+            className="gap-1.5"
+          >
+            <RefreshCw className="size-3.5" />
+            Edit & republish
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleDuplicate}
             disabled={duplicating}
             className="gap-1.5"
@@ -187,13 +198,6 @@ export default function PublishedPostPage() {
             <Copy className="size-3.5" />
             {duplicating ? "Duplicating..." : "Duplicate as Draft"}
           </Button>
-          <Link
-            href={`/posts/${postId}?edit=true`}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
-          >
-            <Pencil className="size-3.5" />
-            Edit Original
-          </Link>
         </div>
 
         <h1 className="text-2xl font-bold leading-tight">
@@ -301,6 +305,25 @@ export default function PublishedPostPage() {
           authorHeadline={profile?.headline || ""}
         />
       </div>
+
+      {/* BP-138: tertiary text link for users who scroll past the header
+          buttons without noticing them. */}
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => setRepublishDialogOpen(true)}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+        >
+          Need to fix something? Edit &amp; republish.
+        </button>
+      </div>
+
+      <EditRepublishDialog
+        open={republishDialogOpen}
+        onOpenChange={setRepublishDialogOpen}
+        postId={postId}
+        linkedinPostUrl={post.linkedin_post_url ?? null}
+      />
 
       {/* Future expansion placeholder */}
       {/* Planned: engagement trends chart, best time analysis, audience insights */}

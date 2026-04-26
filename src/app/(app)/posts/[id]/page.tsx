@@ -339,6 +339,28 @@ export default function PostWorkspacePage() {
       setContentPillarsState(p.content_pillars ?? []);
       setImageUrl(p.image_url ?? null);
 
+      // BP-138 / UF-004: when arriving via the Edit & Republish flow
+      // (?edit=true&republish=1), the post is still 'posted'. Auto-flip it
+      // to draft so the editor has a usable status and the user can hit
+      // "Publish to LinkedIn" to send the new version when ready.
+      if (
+        p.status === "posted" &&
+        searchParams.get("edit") === "true" &&
+        searchParams.get("republish") === "1"
+      ) {
+        const { error: revertError } = await supabase
+          .from("posts")
+          .update({
+            status: "draft",
+            scheduled_for: null,
+            scheduled_at: null,
+          })
+          .eq("id", p.id);
+        if (!revertError) {
+          setStatus("draft");
+        }
+      }
+
       // BP-139: seed the persistent save indicator from the loaded record.
       savedSnapshotRef.current = {
         title: p.title ?? "",
@@ -1560,6 +1582,21 @@ export default function PostWorkspacePage() {
         </div>
       )}
 
+      {/* BP-138 / UF-004: republish banner — shown after the auto-flip from
+          posted → draft via ?republish=1. The user came here via the Edit &
+          Republish dialog; remind them what's about to happen. */}
+      {searchParams.get("republish") === "1" && status === "draft" && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+          <span className="flex-1">
+            <span className="font-medium">Republishing this post.</span>{" "}
+            Your edits will publish as a brand-new post on LinkedIn. The
+            original LinkedIn post will not be updated — make sure you&apos;ve
+            deleted it there.
+          </span>
+        </div>
+      )}
+
       {/* Engagement Analytics — posted posts only, below progress bar */}
       {["posted", "archived"].includes(status) && hasFeature(userTier, "analytics") && (
         <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -2027,8 +2064,11 @@ export default function PostWorkspacePage() {
 
                   <DropdownMenuSeparator />
 
-                  {/* Revert to Draft — shown for non-draft statuses */}
-                  {status !== "draft" && status !== "archived" && (
+                  {/* Revert to Draft — shown for non-draft statuses.
+                      BP-138: hidden when in republish flow (?republish=1)
+                      because the post was just auto-flipped to draft on
+                      entry; this menu item would be a no-op. */}
+                  {status !== "draft" && status !== "archived" && searchParams.get("republish") !== "1" && (
                     <DropdownMenuItem onClick={() => updateStatus("draft")}>
                       <FileEdit className="size-3.5 mr-2" />
                       Revert to Draft

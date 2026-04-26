@@ -604,7 +604,7 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 
 ### BP-138: Edit & Republish Posted Posts — Discoverable CTA + Duplicate-Prevention Copy
 
-**Status:** Backlog — **UX design landed 2026-04-26** at [docs/plans/bp-138-ux-recommendation.md](plans/bp-138-ux-recommendation.md). Awaiting owner sign-off on duplicate-prevention model (recommendation: Option A) + copy approval before implementation.
+**Status:** **Fixed (develop) 2026-04-26** — Option A shipped per the approved UX recommendation at [docs/plans/bp-138-ux-recommendation.md](plans/bp-138-ux-recommendation.md). Verified end-to-end via preview-server walkthrough; entry visible on published view, dialog enforces checkbox, editor auto-flips status + shows the new republish banner. Awaiting Vercel deploy + production rollout.
 **Priority:** P2 / Medium (UX gap on a real workflow; user already worked around it manually)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-004--edit--repost-a-posted-post) (UF-004)
 **Date Added:** 2026-04-26
