@@ -215,16 +215,29 @@ function TutorialRow({
   onHide?: (id: string) => void;
   canHide?: boolean;
 }) {
+  // BP-137 / UF-003: the play-icon circle on the left now IS the launch
+  // control. Previously the icon was decorative and a separate "Start"
+  // button on the right did the work — the test user reached for the icon
+  // (which looked like a play button) and nothing happened.
   return (
     <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-hover-highlight transition-colors">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
+        <button
+          type="button"
+          onClick={() => onRestart(tutorial.id)}
+          aria-label={`Start tutorial: ${tutorial.name}`}
+          className="flex size-8 items-center justify-center rounded-full bg-primary/10 shrink-0 transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <Play className="size-3.5 text-primary" />
-        </div>
-        <div className="min-w-0">
+        </button>
+        <button
+          type="button"
+          onClick={() => onRestart(tutorial.id)}
+          className="min-w-0 text-left focus-visible:outline-none focus-visible:underline"
+        >
           <p className="text-sm font-medium truncate">{tutorial.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">{tutorial.description}</p>
-        </div>
+        </button>
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {onHide && (
@@ -240,15 +253,6 @@ function TutorialRow({
             Hide
           </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => onRestart(tutorial.id)}
-        >
-          <RotateCcw className="size-3" />
-          Start
-        </Button>
       </div>
     </div>
   );

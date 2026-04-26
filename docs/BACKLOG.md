@@ -58,6 +58,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-123** Token cost study (pre-GTM action) — P1 / High
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
 - **BP-125** Pro-tier image-generation BYOK — P1 / High
+- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — P1 / High [UF-002a]
 - *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
 
 ### EPIC 2 — Billing & Monetization (Stripe)
@@ -75,6 +76,8 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-084** Tutorial card visual redesign — P2 / Medium
 - **BP-099** Simplified Guided UI mode — P1 / High
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
+- **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
+- **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
 - *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)
@@ -100,12 +103,16 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-028** Guided enhancement workflows — P2 / Medium
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
+- **BP-140** Personal reference photos for AI image generation — Captured (design brainstorming) [UF-006]
 
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-100** Scheduled posts drop images — P1 / Critical
 - **BP-110** Cancel in-progress image generation — P2 / Medium
 - **BP-112** `Button` outline variant footgun — P3 / Low
 - **BP-133** Require title before post draft creation — P2 / Medium
+- **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
+- **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
+- **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
@@ -462,6 +469,256 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 - [ ] Server-side route rejects post-create with empty/missing title (defense in depth).
 
 **Effort:** S · **Expected ROI:** High (every new-post action gets a small UX improvement; removes the untitled-drafts noise from `/posts`, dashboard, and admin views)
+
+---
+
+### BP-134: AI Chat Reads Stale Editor Content After Manual Edits
+
+**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Priority:** P2 / Medium (UX-affecting bug; degrades the AI assistant's perceived quality)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-001--ai-assistant-not-reading-editor-on-manual-edits) (UF-001)
+**Date Added:** 2026-04-26
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+**Related:** UF-001
+
+**Problem:** User manually edits the post content in the editor, then asks the AI a question (e.g. "what do you think of my edit?"). The AI responds based on stale content. Auto-save uses a 2-second debounce, so the latest keystrokes may not yet be in the React state captured by `sendChatMessage` when the user fires a follow-up prompt.
+
+**Root cause:** `src/app/(app)/posts/[id]/page.tsx:1119-1134` — `sendChatMessage` sends `postContent: content` where `content` is React state. Closure / async-state-read race means the value can lag behind the textarea's actual `.value`.
+
+**What to change:**
+- Read the latest content directly from the textarea ref (`textareaRef.current?.value ?? content`) at chat-send time, OR sync `content` to a `useRef` on every keystroke and read the ref at send time.
+- Verify the same gap doesn't exist in any other AI route call from the editor (enhance, hashtags, hook-analysis) — they likely have the same pattern.
+
+**Security / guardrails:** Server still validates ownership/session; no new attack surface.
+
+**Acceptance criteria:**
+- [ ] User types fresh content, immediately fires an AI chat message, AI's reply reflects the current textarea content (verified manually + via QA agent walkthrough).
+- [ ] No regression in idle / saved-state behavior.
+- [ ] Same fix applied to `/api/ai/enhance` and `/api/ai/analyze-hook` if they share the pattern.
+
+**Effort:** S · **Expected ROI:** High (small change, removes a confusing AI experience).
+
+---
+
+### BP-135: Onboarding Tier-Gate for AI Setup Step (Skip BYOK for Free/Personal)
+
+**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Priority:** P1 / High (Subscription Model v2 violation — onboarding asks Free/Personal users to set up something they cannot use)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-002a--onboarding-shows-byok-step-to-freepersonal-users) (UF-002a)
+**Date Added:** 2026-04-26
+**EPIC:** Subscription Model v2 (EPIC 1)
+**Related:** UF-002a, BP-117 (feature-gate refactor), BP-114 (Personal rename)
+
+**Problem:** Subscription Model v2 (live since 2026-04-25) gates BYOK to Pro+ tiers. Free and Personal use system AI keys. But the onboarding wizard at `src/app/(app)/onboarding/page.tsx:982-1118` walks every user through Step 5 (AI Setup — provider + API key entry) regardless of `subscription_tier`. `subscription_tier` is never read in the onboarding flow today.
+
+**What to change:**
+- In the profile-fetch `useEffect` (~line 135), read `subscription_tier`.
+- For `tier IN ('free', 'personal')`: skip Step 5 entirely (adjust `goNext()`/`goPrev()` step navigation at lines 390-406 so the wizard ends at Step 4 for these users), OR replace Step 5 content with an informational card: *"PostPilot provides AI access on this plan — no setup needed. You can add your own API keys later from Settings if you upgrade to Pro."*
+- Honor any `?tier=` query param landing into onboarding (note from 2026-04-26 follow-up about pricing-page tier passthrough).
+- For `tier IN ('professional', 'team')`: keep current Step 5 as the optional BYOK setup; copy reflects "optional" since system keys are now the default for Pro too (per BP-115 + 2026-04-26 AI-access architectural fix).
+
+**Security / guardrails:** No new server-side surface; this is a client-side flow change. Server still validates AI key ownership / tier on every API call.
+
+**Acceptance criteria:**
+- [ ] A new user with `subscription_tier='free'` completes onboarding without ever seeing an "Enter your API key" prompt.
+- [ ] Same for `subscription_tier='personal'`.
+- [ ] A new Pro/Team user still sees the BYOK step (now framed as optional).
+- [ ] No regression in Step 1-4 of onboarding for any tier.
+- [ ] QA agent runs the flow end-to-end for each tier and confirms the expected step count + content.
+
+**Effort:** S · **Expected ROI:** High (removes confusion at the highest-friction point of the funnel for the cheapest tier).
+
+---
+
+### BP-136: LinkedIn-OAuth Pre-Redirect Interstitial Dialog
+
+**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Priority:** P1 / High (real user reported thinking they'd been logged out — that's a session-trust failure mode)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-002b--abrupt-linkedin-oauth-redirect-with-no-warning) (UF-002b)
+**Date Added:** 2026-04-26
+**EPIC:** Onboarding & Guidance (EPIC 4)
+**Related:** UF-002b, BP-111 (proactive token validation that surfaced this experience)
+
+**Problem:** Multiple call sites do an immediate `window.location.href = "/api/linkedin/connect"` when LinkedIn posting authorization is needed (token revoked, expired, never connected). User sees no explanation — they land on LinkedIn's OAuth screen with no context and assume they were logged out.
+
+**Affected redirect sites:**
+- `src/components/linkedin/token-validator.tsx:51` (token revocation)
+- `src/components/past-due-checker.tsx:298` (reschedule flow)
+- `src/components/layout/linkedin-status-banner.tsx:66, :90` (global banner)
+- `src/app/(app)/settings/linkedin-connection.tsx:53` (settings reconnect)
+- *Future:* same pattern will be needed during onboarding if/when LinkedIn-connect is moved into the wizard.
+
+**What to change:**
+- New `<LinkedInConnectDialog>` shared component. Two-paragraph body:
+  > "We're going to send you to LinkedIn so you can authorize PostPilot to publish posts on your behalf. This is a separate authorization from your account login — your PostPilot session stays active and you'll be returned here when complete."
+- Primary action: "Continue to LinkedIn" → does the redirect.
+- Secondary action: "Not now" → closes; banner / inline warning still visible.
+- All four call sites refactor to open the dialog instead of redirecting directly.
+- For `token-validator.tsx` (which fires on session start when a revocation is *detected*), the dialog should appear once per session — don't nag.
+
+**Security / guardrails:**
+- Dialog is purely informational client UI; no auth surface change.
+- The redirect URL is still server-generated by `/api/linkedin/connect`; the dialog only confirms the user's intent before navigation.
+
+**Acceptance criteria:**
+- [ ] All four current redirect sites open the dialog before any navigation.
+- [ ] User clicking "Continue to LinkedIn" lands on LinkedIn auth, returns successfully, and the connection is restored.
+- [ ] User clicking "Not now" stays in PostPilot; banner copy still visible.
+- [ ] No double-prompt loop (one dialog per session for the auto-detection path).
+- [ ] QA agent walkthrough: simulate token revocation, confirm dialog appears, confirm user understands it.
+
+**Effort:** S · **Expected ROI:** High (eliminates a "I think I just lost my account" moment).
+
+---
+
+### BP-137: Tutorial Row Icon = Launch Button (Merge Left Icon with Start CTA)
+
+**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Priority:** P3 / Low (polish; reduces redundant UI)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-003--tutorial-row-icon-should-be-the-launch-button) (UF-003)
+**Date Added:** 2026-04-26
+**EPIC:** Onboarding & Guidance (EPIC 4)
+**Related:** UF-003, BP-121 (tutorial dismiss), BP-084 (tutorial visual redesign — separate scope)
+
+**Problem:** Each tutorial row in the Help → Restart Tutorials section has a left-side decorative `Play` icon in a circle (looks clickable) AND a right-side `Start` button (the actual launcher). Users naturally click the icon and nothing happens.
+
+**Affected file:** `src/components/tutorial/tutorial-restart-section.tsx:207-255` — `TutorialRow` component.
+
+**What to change:**
+- Make the left-side Play-icon circle the actual launch control: add `onClick={() => onRestart(tutorial.id)}`, `role="button"`, `tabIndex={0}`, focus-visible styles, `cursor-pointer`, hover state (e.g., `hover:bg-primary/20`).
+- Owner pick: either remove the redundant right-side "Start" button entirely, or relabel + restyle it as a clearly-secondary action (less visually heavy than today). Recommendation: remove it for cleanliness.
+- Keep the "Hide" button on the right.
+- Repeat the same pattern in the dismissed-tutorials sub-section (where "Re-enable" is the primary action).
+
+**Security / guardrails:** UI-only.
+
+**Acceptance criteria:**
+- [ ] Clicking the left icon launches the tutorial.
+- [ ] Keyboard accessibility preserved (tab to icon, Enter/Space activates).
+- [ ] No regression in dismissed-tutorial sub-section (clicking icon there should re-enable, since that's the primary action for that variant).
+- [ ] QA agent walkthrough: tab through the help page, verify focus order + activation works.
+
+**Effort:** XS · **Expected ROI:** Low-Medium (small ergonomic win).
+
+---
+
+### BP-138: Edit & Republish Posted Posts — Discoverable CTA + Duplicate-Prevention Copy
+
+**Status:** Backlog — **UX design landed 2026-04-26** at [docs/plans/bp-138-ux-recommendation.md](plans/bp-138-ux-recommendation.md). Awaiting owner sign-off on duplicate-prevention model (recommendation: Option A) + copy approval before implementation.
+**Priority:** P2 / Medium (UX gap on a real workflow; user already worked around it manually)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-004--edit--repost-a-posted-post) (UF-004)
+**Date Added:** 2026-04-26
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+**Related:** UF-004
+
+**Problem:** Users who notice a typo or want to revise after publishing have no obvious way back into the editor. By default, posted posts redirect to `/posts/[id]/published` (read-only view). The "Revert to Draft" menu item does exist but only renders inside the editor, which the user only reaches via the undocumented `?edit=true` query param. From the published view, the action is invisible.
+
+**Subtle nuance:** the status transition `posted → draft` is **not** prevented in code (`updateStatus` at `src/app/(app)/posts/[id]/page.tsx:736-759` even clears `scheduled_for`). Feature exists; discoverability does not.
+
+**Open question for owner (must answer before implementation — duplicate-prevention strategy):**
+
+When the user republishes after editing, what's the expected behavior?
+
+- **(A) Treat as edit of original record.** Old LinkedIn URN is forgotten; new publish creates a new LinkedIn post + new URN. UI warns "Republishing will not delete the existing LinkedIn post — please delete it manually first to avoid duplicates" with a confirmation checkbox.
+- **(B) Block republish unless the original LinkedIn post is gone.** Validate via LinkedIn API that the URN is no longer reachable. Higher friction; LinkedIn API may or may not give us this signal.
+- **(C) Republish creates a new post record (new ID), keeping the original posted record as historical.** Cleaner audit trail but loses the version-history link to the original.
+
+**Recommendation:** Option (A) — cheapest, matches user expectation, no LinkedIn-API dependency. The user already manually deletes; we just need to confirm they did and not duplicate.
+
+**What to change (pending owner direction):**
+- Add prominent "Edit & Republish" CTA on `/posts/[id]/published`.
+- Clicking opens a confirmation dialog with the duplicate-prevention copy + a checkbox: "I understand the existing LinkedIn post is not automatically removed. I will delete it manually if I don't want both versions live."
+- On confirm: navigate to the editor at `?edit=true&republish=1`; "Revert to Draft" runs immediately (so the editor is in a usable state).
+- Inside the editor, the existing "Revert to Draft" menu item stays as a secondary path.
+- Track `republished_from_post_id` if Option C is chosen.
+
+**Security / guardrails:**
+- Status transitions must remain RLS-scoped per existing post-edit policy.
+- The confirmation dialog must be the last gate — don't allow query-string-only access to skip it.
+
+**Acceptance criteria (assuming Option A):**
+- [ ] Posted-view page shows an "Edit & Republish" button.
+- [ ] Click opens dialog with duplicate-warning copy + required checkbox.
+- [ ] Confirm flips status to draft and navigates to editor.
+- [ ] Re-publish flow runs the standard publish path; LinkedIn URN updates to the new post.
+- [ ] Original LinkedIn post is **not** auto-deleted (user responsibility); copy is unambiguous about this.
+- [ ] QA agent walkthrough: take a posted post → edit → republish → confirm new LinkedIn URN is recorded.
+
+**Effort:** S-M · **Expected ROI:** Medium (real workflow gap; affects every post that has a typo or needs an update).
+
+---
+
+### BP-139: Persistent Save Indicator With Relative Timestamp
+
+**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Priority:** P2 / Medium (every editor session is affected; this is a daily-friction issue for any active user)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-005--persistent-save-indicator) (UF-005)
+**Date Added:** 2026-04-26
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+**Related:** UF-005
+
+**Problem:** Auto-save fires on a 2-second debounce; the "Saved" badge appears for a moment, then a `SAVE_STATUS_RESET_MS` timeout resets `saveStatus` to `idle` and the badge disappears. Users who didn't catch the brief flash assume nothing's saving, ask "how do I save my work," or worse, manually copy-paste their content out of fear of losing it.
+
+**Affected file:** `src/app/(app)/posts/[id]/page.tsx`
+- Lines 468-515 (auto-save logic; line 486 is the timeout reset)
+- Lines 1329-1340 (indicator JSX — only renders for `saveStatus === "saving" | "saved"`)
+
+**What to change:**
+- Track `lastSavedAt: Date | null` state.
+- Replace the timeout-based `idle` reset. Indicator becomes always-visible after the first successful save:
+  - `Saving…` (spinner, during in-flight save)
+  - `Saved · just now` (within first 5s)
+  - `Saved · 12s ago` / `Saved · 2m ago` (relative timestamp; updates every 30s via `setInterval` or on next render trigger)
+  - `Unsaved changes` (when local content differs from last-saved snapshot — compare on every keystroke)
+  - `Save failed — retry` (error state with retry click)
+- Position: keep current top-bar location, add subtle muted-foreground styling so the persistent indicator isn't visually heavy.
+- Reuse the same pattern in any other auto-saving editor surface (idea editor? settings forms? — audit during implementation).
+
+**Security / guardrails:** Display-only.
+
+**Acceptance criteria:**
+- [ ] Indicator visible at all times once the editor loads (initially "Saved · just now" if loaded from DB, or "Unsaved changes" if user typed before first save).
+- [ ] Relative timestamp updates without requiring a re-render trigger from typing.
+- [ ] "Unsaved changes" appears the moment local content drifts from the saved snapshot.
+- [ ] Save failure state surfaces clearly + offers retry.
+- [ ] QA agent walkthrough: open editor, leave it idle 30s, confirm indicator still visible with updated timestamp.
+
+**Effort:** S · **Expected ROI:** High (every post-editing session benefits).
+
+---
+
+### BP-140: Personal Reference Photos for AI Image Generation
+
+**Status:** Captured (design brainstorming required before any implementation)
+**Priority:** Backlog (not yet prioritized — depends on design outcome)
+**Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-006--personal-reference-photos-for-ai-image-generation) (UF-006)
+**Date Added:** 2026-04-26
+**EPIC:** AI Enhancements (EPIC 7)
+**Related:** UF-006, BP-125 (Pro-tier image-generation BYOK), BP-131 (account deletion cascade — must include reference photos)
+
+**Problem:** AI-generated images for posts are generic. The user wants generated visuals that include or resemble their own likeness so their LinkedIn posts feel personal — they suggested an upload mechanism that feeds into image prompts.
+
+**Why this needs design before code:**
+
+1. **Provider capability.** DALL·E 3 doesn't accept image inputs. gpt-image-1, Gemini 2.5 Image, and certain Stable Diffusion endpoints do (img2img, IP-Adapter, "subject reference"). Choice of provider drives the entire feature.
+2. **Privacy.** Storing user faces is a meaningful commitment. Where? (`post-images` bucket vs new `user-references` bucket?) Retention? Deletion-on-account-delete cascade (must extend BP-131's storage cleanup)?
+3. **Likeness rights.** Owner needs to confirm ToS / signup messaging covers user-generated images of themselves. May need a separate consent step before first reference upload.
+4. **UX.** Where does the upload live — Settings (one-time) or per-post? Multi-photo support? Auto-prompt-injection vs explicit "use my reference photo" toggle per generation?
+5. **Cost & quotas.** Reference-image generation is typically more expensive than text-only. Affects BP-117 quotas + BP-123 cost study assumptions.
+
+**First step (design phase):**
+- Provider research — capability comparison + cost matrix for at least: gpt-image-1, Gemini 2.5 Image, plus one open-weights option for BYOK Pro users.
+- Short design doc covering the five questions above.
+- Owner review before any engineering.
+
+**Acceptance criteria (design phase only):**
+- [ ] Design doc landed at `docs/plans/bp-140-personal-image-references.md`.
+- [ ] Provider recommendation made.
+- [ ] Privacy + storage approach decided.
+- [ ] ToS/consent gap identified and either resolved or filed as a separate BP.
+- [ ] Engineering scope estimated (effort + which BPs this depends on).
+
+**Effort:** Design = M · Implementation = TBD (likely M-L) · **Expected ROI:** High once shipped (huge differentiator vs generic AI image tools; supports the "your voice, your brand" UVP at the visual layer).
 
 ---
 

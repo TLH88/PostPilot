@@ -36,7 +36,9 @@ import {
   MoreHorizontal,
   ExternalLink,
   AlertTriangle,
+  AlertCircle,
   CalendarClock,
+  CircleDot,
   FileEdit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,7 +81,7 @@ import { ImageVersionPicker } from "@/components/posts/image-version-picker";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
-import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, SAVE_STATUS_RESET_MS, type SubscriptionTier } from "@/lib/constants";
+import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
@@ -131,7 +133,12 @@ export default function PostWorkspacePage() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [status, setStatus] = useState<Post["status"]>("draft");
   const [loading, setLoading] = useState(true);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // BP-139 / UF-005: persistent save indicator. lastSavedAt drives the
+  // "Saved · 12s ago" relative timestamp; nowTick is bumped on an interval
+  // so the relative string updates without requiring the user to type.
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [, setNowTick] = useState(0);
   const [sourceIdea, setSourceIdea] = useState<{ id: string; title: string } | null>(null);
 
   // ── Version state ─────────────────────────────────────────────────────────
@@ -248,6 +255,13 @@ export default function PostWorkspacePage() {
   // ── Textarea ref for auto-resize and formatting helpers ───────────────────
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // BP-139: snapshot of the last successfully saved content so we can detect
+  // "Unsaved changes" without round-tripping to the DB.
+  const savedSnapshotRef = useRef<{
+    title: string;
+    content: string;
+    hashtags: string[];
+  } | null>(null);
 
   // ── Blank post detection ────────────────────────────────────────────────
   const isBlankPost =
@@ -324,6 +338,16 @@ export default function PostWorkspacePage() {
       setStatus(p.status);
       setContentPillarsState(p.content_pillars ?? []);
       setImageUrl(p.image_url ?? null);
+
+      // BP-139: seed the persistent save indicator from the loaded record.
+      savedSnapshotRef.current = {
+        title: p.title ?? "",
+        content: p.content ?? "",
+        hashtags: p.hashtags ?? [],
+      };
+      const updatedAtMs = p.updated_at ? new Date(p.updated_at).getTime() : null;
+      setLastSavedAt(updatedAtMs && !Number.isNaN(updatedAtMs) ? updatedAtMs : null);
+      setSaveStatus(updatedAtMs ? "saved" : "idle");
 
       // Fetch the source idea title if this post was developed from one.
       // RLS on `ideas` keeps this scoped to the current user — safe.
@@ -482,8 +506,16 @@ export default function PostWorkspacePage() {
         .eq("id", post.id);
 
       if (!error) {
+        // BP-139: keep the indicator visible permanently. Snapshot the saved
+        // values so the editor can detect future drift as "Unsaved changes",
+        // and stamp lastSavedAt for the relative-time string.
+        savedSnapshotRef.current = {
+          title: newTitle,
+          content: newContent,
+          hashtags: newHashtags,
+        };
+        setLastSavedAt(Date.now());
         setSaveStatus("saved");
-        setTimeout(() => setSaveStatus("idle"), SAVE_STATUS_RESET_MS);
 
         // Auto-classify content pillar if not already set
         if (contentPillars.length === 0 && newContent.length >= 100 && profile?.content_pillars?.length) {
@@ -508,11 +540,44 @@ export default function PostWorkspacePage() {
           }
         }
       } else {
-        setSaveStatus("idle");
+        // BP-139: surface save failures explicitly instead of silently
+        // returning to idle — the persistent indicator now shows "Save failed".
+        setSaveStatus("error");
       }
     },
     [post, supabase, contentPillars, profile]
   );
+
+  // BP-139: tick the relative-time string every 30s so "Saved · Xs ago"
+  // updates without requiring the user to interact.
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const id = setInterval(() => setNowTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, [lastSavedAt]);
+
+  // BP-139: derive whether local edits have drifted from the last saved
+  // snapshot. Used to render the "Unsaved changes" indicator state.
+  const hasUnsavedChanges = (() => {
+    const snap = savedSnapshotRef.current;
+    if (!snap) return false;
+    if (snap.title !== title) return true;
+    if (snap.content !== content) return true;
+    if (snap.hashtags.length !== hashtags.length) return true;
+    for (let i = 0; i < hashtags.length; i++) {
+      if (snap.hashtags[i] !== hashtags[i]) return true;
+    }
+    return false;
+  })();
+
+  function formatRelativeSaved(ms: number): string {
+    const diff = Math.max(0, Date.now() - ms);
+    if (diff < 5_000) return "just now";
+    if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+    if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 24 * 60 * 60_000) return `${Math.floor(diff / (60 * 60_000))}h ago`;
+    return `${Math.floor(diff / (24 * 60 * 60_000))}d ago`;
+  }
 
   function scheduleAutoSave(
     newTitle: string,
@@ -685,14 +750,17 @@ export default function PostWorkspacePage() {
   }
 
   async function suggestHashtags() {
-    if (!content.trim()) return;
+    // BP-134: read the textarea directly so we hashtag against the user's
+    // latest edits, not stale React state from before the autosave debounce.
+    const liveContent = textareaRef.current?.value ?? content;
+    if (!liveContent.trim()) return;
     setSuggestingHashtags(true);
 
     try {
       const response = await fetch("/api/ai/hashtags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, count: 5 }),
+        body: JSON.stringify({ content: liveContent, count: 5 }),
       });
 
       if (await maybeHandleQuotaExceeded(response)) return;
@@ -854,7 +922,10 @@ export default function PostWorkspacePage() {
 
   // ── Share on LinkedIn helper ──────────────────────────────────────────────
   async function analyzeHook() {
-    if (!content.trim() || content.length < 20) {
+    // BP-134: analyze the user's current in-editor text, not the last saved
+    // value (the autosave debounce can leave the React state behind).
+    const liveContent = textareaRef.current?.value ?? content;
+    if (!liveContent.trim() || liveContent.length < 20) {
       toast.info("Write at least a few sentences before analyzing the hook.");
       return;
     }
@@ -864,7 +935,7 @@ export default function PostWorkspacePage() {
       const res = await fetch("/api/ai/analyze-hook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: liveContent }),
       });
       if (await maybeHandleQuotaExceeded(res)) {
         setAnalyzingHook(false);
@@ -1116,6 +1187,13 @@ export default function PostWorkspacePage() {
     setChatMessages([...updatedMessages, aiMessage]);
 
     try {
+      // BP-134 / UF-001: read the textarea value directly so the AI always
+      // sees the user's latest in-editor edits, not the React state captured
+      // by closure at the time autosave last fired (which can lag the
+      // 2-second debounce). Falls back to component state if the ref isn't
+      // mounted (the AI chat panel can be open before the editor renders).
+      const liveContent = textareaRef.current?.value ?? content;
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1124,7 +1202,7 @@ export default function PostWorkspacePage() {
             role: m.role,
             content: m.content,
           })),
-          postContent: content,
+          postContent: liveContent,
           postTitle: title,
           postStatus: status,
           contentPillar: contentPillars?.[0] || undefined,
@@ -1325,19 +1403,35 @@ export default function PostWorkspacePage() {
               <span className="truncate">From: {sourceIdea.title}</span>
             </Link>
           )}
+          {/* BP-139 / UF-005: persistent save indicator. Always visible
+              once a post has loaded; updates via lastSavedAt + a 30s tick
+              so the relative-time string stays fresh without typing. */}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {saveStatus === "saving" && (
+            {saveStatus === "saving" ? (
               <>
                 <Loader2 className="size-3 animate-spin" />
-                <span>Saving...</span>
+                <span>Saving…</span>
               </>
-            )}
-            {saveStatus === "saved" && (
+            ) : saveStatus === "error" ? (
+              <>
+                <AlertCircle className="size-3 text-red-600 dark:text-red-400" />
+                <span className="text-red-600 dark:text-red-400">
+                  Save failed — keep editing to retry
+                </span>
+              </>
+            ) : hasUnsavedChanges ? (
+              <>
+                <CircleDot className="size-3 text-amber-600 dark:text-amber-400" />
+                <span className="text-amber-700 dark:text-amber-300">
+                  Unsaved changes
+                </span>
+              </>
+            ) : lastSavedAt ? (
               <>
                 <Cloud className="size-3" />
-                <span>Saved</span>
+                <span>Saved · {formatRelativeSaved(lastSavedAt)}</span>
               </>
-            )}
+            ) : null}
           </div>
 
           {/* Content pillar badges — editable only for posted posts */}
