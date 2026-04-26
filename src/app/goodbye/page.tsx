@@ -1,9 +1,17 @@
+"use client";
+
 /**
  * BP-131 Session 2: Post-deletion confirmation page.
  *
  * Public route — the user just deleted their account, so they're
  * signed out by the time they land here. Explains the grace period
  * and offers a path to restore via support.
+ *
+ * Marked "use client" because it imports buttonVariants from
+ * components/ui/button.tsx, which is itself a client module. A server
+ * component that imports a client-only export trips Next.js 16's
+ * static prerender check and fails the entire build (this broke
+ * develop + main from 2026-04-24 to 2026-04-26 — see ACTIVITY_LOG).
  */
 import Link from "next/link";
 import { CheckCircle2, Mail } from "lucide-react";
