@@ -108,7 +108,7 @@ All Team items deferred until Free→Pro viability is validated.
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-100** Scheduled posts drop images — P1 / Critical
 - **BP-110** Cancel in-progress image generation — P2 / Medium
-- **BP-112** `Button` outline variant footgun — P3 / Low
+- **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
 - **BP-133** Require title before post draft creation — P2 / Medium
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
@@ -3967,7 +3967,7 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-112: Fix `Button` Outline Variant Footgun
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-26 — replaced `outline` variant with `border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground`; audited all 113 `variant="outline"` call sites; zero sites switched to `variant="default"` (none relied on the blue gradient).
 **Priority:** P3 / Low
 **Source:** Owner feedback 2026-04-23 (surfaced while fixing the LinkedIn banner reconnect button)
 **Date Added:** 2026-04-23
