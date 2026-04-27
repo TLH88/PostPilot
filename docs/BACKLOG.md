@@ -119,7 +119,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
-- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — Function shipped 2026-04-24 (awaiting owner toggle in dashboard)
+- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — **Done 2026-04-26** (dashboard toggle activated; verified end-to-end via live signup attempt — 403 returned with the expected rejection message)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
 
