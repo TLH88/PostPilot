@@ -6,9 +6,8 @@ import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId } from "@/lib/workspace";
-import { logActivity } from "@/lib/activity";
 import { toast } from "sonner";
-import { toUserMessage } from "@/lib/errors/to-user-message";
+import { NewPostTitleDialog } from "@/components/posts/new-post-title-dialog";
 
 const SLOW_THRESHOLD_MS = 10_000; // 10 seconds — show "taking longer" message
 const FAIL_THRESHOLD_MS = 60_000; // 60 seconds — show error + log
@@ -16,6 +15,7 @@ const FAIL_THRESHOLD_MS = 60_000; // 60 seconds — show error + log
 export function NewPostButton({ className, label, id }: { className?: string; label?: string; id?: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const targetPostId = useRef<string | null>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -47,7 +47,6 @@ export function NewPostButton({ className, label, id }: { className?: string; la
         "Creating your new post is taking longer than expected. Please be patient.",
         { duration: 8000 }
       );
-      // Run background health check
       runHealthCheck(postId);
     }, SLOW_THRESHOLD_MS);
 
@@ -104,21 +103,11 @@ export function NewPostButton({ className, label, id }: { className?: string; la
     }));
   }
 
-  async function handleCreatePost() {
+  /** Called by the dialog after the user supplies a valid title. */
+  const handleCreatePost = useCallback(async (title: string) => {
     setIsCreating(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setIsCreating(false);
-        router.push("/login");
-        return;
-      }
-
-      // Quota check
+      // Quota check (same as before)
       const quotaRes = await fetch("/api/quota");
       if (quotaRes.ok) {
         const quota = await quotaRes.json();
@@ -129,72 +118,68 @@ export function NewPostButton({ className, label, id }: { className?: string; la
         }
       }
 
-      // Workspace mode: auto-assign creator to their own post
       const activeWorkspaceId = getActiveWorkspaceId();
-      const insertPayload: Record<string, unknown> = {
-        user_id: user.id,
-        title: null,
-        content: "",
-        status: "draft",
-        hashtags: [],
-        character_count: 0,
-      };
-      if (activeWorkspaceId) {
-        insertPayload.workspace_id = activeWorkspaceId;
-        insertPayload.assigned_to = user.id;
-        insertPayload.assigned_by = user.id;
-        insertPayload.assigned_at = new Date().toISOString();
-      }
 
-      const { data, error } = await supabase
-        .from("posts")
-        .insert(insertPayload)
-        .select("id")
-        .single();
+      const res = await fetch("/api/posts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          workspaceId: activeWorkspaceId ?? null,
+        }),
+      });
 
-      if (error) {
-        toast.error(toUserMessage(error, "Failed to create post. Please try again."));
-        logCreationFailure("unknown", `DB insert error: ${error.message}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? "Failed to create post. Please try again.");
+        logCreationFailure("unknown", `API error ${res.status}: ${data.error ?? "unknown"}`);
         setIsCreating(false);
         return;
       }
 
-      if (data) {
-        // Increment post quota
-        fetch("/api/quota/increment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "posts" }),
-        }).catch(() => {}); // fire-and-forget
+      const { id: postId } = await res.json();
 
-        // Log post_created activity
-        logActivity(supabase, {
-          user_id: user.id,
-          workspace_id: activeWorkspaceId,
-          post_id: data.id,
-          action: "post_created",
-        });
+      // Increment post quota (fire-and-forget)
+      fetch("/api/quota/increment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "posts" }),
+      }).catch(() => {});
 
-        targetPostId.current = data.id;
-        startTimers(data.id);
-        router.push(`/posts/${data.id}`);
-      }
+      setDialogOpen(false);
+      targetPostId.current = postId;
+      startTimers(postId);
+      router.push(`/posts/${postId}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error(toUserMessage(err, "Failed to create post. Please try again."));
+      toast.error("Failed to create post. Please try again.");
       logCreationFailure("unknown", `Exception: ${msg}`);
       setIsCreating(false);
     }
-  }
+  }, [router, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Button id={id} onClick={handleCreatePost} disabled={isCreating} className={className ?? "gap-2"}>
-      {isCreating ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <Plus className="size-4" />
-      )}
-      {isCreating ? "Creating..." : (label ?? "New Post")}
-    </Button>
+    <>
+      <Button
+        id={id}
+        onClick={() => setDialogOpen(true)}
+        disabled={isCreating}
+        className={className ?? "gap-2"}
+      >
+        {isCreating ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <Plus className="size-4" />
+        )}
+        {isCreating ? "Creating..." : (label ?? "New Post")}
+      </Button>
+
+      <NewPostTitleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleCreatePost}
+        submitting={isCreating}
+      />
+    </>
   );
 }
