@@ -234,6 +234,8 @@ export interface PostVersion {
   content: string;
   version_number: number;
   label: string | null;
+  /** BP-141: 'manual' = user-initiated; 'auto' = autosave snapshot */
+  kind: "manual" | "auto";
   created_at: string;
 }
 
