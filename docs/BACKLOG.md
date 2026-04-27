@@ -3571,7 +3571,7 @@ Applied to both user-provided `title` and `content` before they're combined into
 
 ### BP-099: Simplified Guided UI Mode (Conversational Assistant)
 
-**Status:** Backlog
+**Status:** Design landed 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — awaiting owner review
 **Priority:** P1 / High
 **Source:** Owner — captured 2026-04-16. Idea originated in a prior session and was not previously written into the backlog.
 **Date Added:** 2026-04-16
