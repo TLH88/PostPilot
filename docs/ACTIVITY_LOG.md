@@ -4,6 +4,138 @@
 
 ---
 
+## 2026-04-27: feedback cycle 1 verified + merged; ten BPs landed via parallel agent teams; comprehensive QA caught + fixed a Base-UI menu crash mid-flight
+
+Single long compound session that spanned four production-quality batches plus a serious infra recovery. End state: `main` is current with feedback cycle 1; `develop` is 12 commits ahead with two more agent-team batches (BP-141/133/112/140 + BP-110/028/026/099 + memory/process improvements) awaiting owner-approved merge.
+
+### Recovery: production was silently broken for 2 days
+
+`list_deployments` via Vercel MCP exposed that **every** Vercel build on `develop` AND `main` since 2026-04-24 had been failing. The previous good prod deploy (`6ed578c`, Sprint 3 + BP-097) was still serving `mypostpilot.app` while git main kept advancing through unbuildable commits — owner-visible UI looked fine, but BP-131 self-serve delete + BP-130 Coming Soon + BP-129 Auth Hook + AI-access default-on + landing-CTA reroute + BP-133 spec were all stranded behind the broken build chain.
+
+**Root cause:** `src/app/goodbye/page.tsx` (BP-131 Session 2, `fc53d8f`) was a server component that imported `buttonVariants` from `src/components/ui/button.tsx`, which is `"use client"`. Next.js 16's static prerender step can't call a client function from server-rendered code:
+
+> Error: Attempted to call buttonVariants() from the server but buttonVariants is on the client. … Export encountered an error on /goodbye/page: /goodbye, exiting the build.
+
+`tsc --noEmit` doesn't catch this — only `next build` does. Tony hadn't been pushing develop because dev felt fine; nobody noticed prod was frozen.
+
+**Fix (commit `70b82e1`):** add `"use client"` at the top of `/goodbye/page.tsx`. The page is purely presentational so making it client costs nothing. Doc-comment captures the load-bearing reason. Memory entry [`feedback_server_client_imports.md`](../../.claude/projects/C--Users-Tony-OneDrive-Desktop-VibeCode-Projects-LinkedIn-Post-generator-App/memory/feedback_server_client_imports.md) ensures future sessions check Vercel deploy state after every server-page change.
+
+### Test-user feedback cycle 1 — UF-001..006 captured + 5 fixes shipped (commits `5166e84`, `b4488c9`)
+
+Test user reported six items. Set up `docs/USER_FEEDBACK.md` as the canonical intake log with full lifecycle tracking (Captured → Investigating → Planned → Fixed → Verified → Resolved). Each UF entry cross-links to a matching BP in BACKLOG.md.
+
+**Five fixes in one batch:**
+
+- **BP-134 / UF-001** — `sendChatMessage`, `suggestHashtags`, `analyzeHook` now read `textareaRef.current.value` at call time. Before: closure-captured stale React `content` state during the autosave debounce window. The chat / hashtag / hook routes were getting whatever was last committed to React state, not what the user was looking at.
+- **BP-135 / UF-002a** — Onboarding wizard reads `subscription_tier` and skips the AI Setup (BYOK) step entirely for `tier IN ('free', 'personal')`. Step pill, navigation, "Skip for now"/"Complete Setup" copy all walk a derived `visibleStepIndexes` array. `?step=4` direct access auto-advances Free/Personal users to step 5.
+- **BP-136 / UF-002b** — New shared `<LinkedInConnectDialog>` interstitial. Five direct-redirect call sites refactored (`token-validator`, `linkedin-status-banner` × 2 paths, `settings/linkedin-connection`, `past-due-checker`, `posts/refresh-analytics-button`) to open the dialog before navigation. Reason-aware copy: `first-time` / `revoked` / `expired` / `reconnect`. The first-visit auto-redirect from `/dashboard` (the worst offender — user did NOT click anything before being thrown to LinkedIn) is gone, replaced with auto-prompt of the same dialog.
+- **BP-137 / UF-003** — Help-page `TutorialRow` play-icon circle is now a real `<button>` with `aria-label`, hover state, focus ring. Title block is also clickable for a bigger hit area. The redundant right-side "Start" button is removed.
+- **BP-139 / UF-005** — Persistent save indicator with relative timestamp. Five states: `Saving…`, `Save failed — keep editing to retry`, `Unsaved changes`, `Saved · just now`, `Saved · Xs ago`. `lastSavedAt` seeded from `post.updated_at` on load + `nowTick` driver re-renders every 30s. Removed the `setTimeout` that fades to idle.
+
+**BP-138 / UF-004 (separate commit `b4488c9`):** UX agent produced an Option-A recommendation in `docs/plans/bp-138-ux-recommendation.md` (owner approved). Shipped: new `<EditRepublishDialog>` with the approved copy library, prominent "Edit & republish" outline button on `/posts/[id]/published` + a tertiary text-link CTA below the post body, editor detects `?edit=true&republish=1` and auto-flips status posted → draft on entry, new amber "Republishing this post" banner replaces the legacy "you are editing a published post" warning, "Revert to Draft" Actions menu item hidden in this flow.
+
+**BP-140 / UF-006:** Design doc only at [docs/plans/bp-140-personal-image-references.md](plans/bp-140-personal-image-references.md). Recommends gpt-image-1 (primary) + Fal.ai Flux + IP-Adapter (BYOK fallback). New `user-references` Storage bucket. ToS clause + consent modal copy. Sub-quota of 50/month for Pro tier. Five owner-decision questions. QA-reviewed with 4 follow-up edits applied (gpt-image-1 cost caveat, Gemini name footnote, toggle-persistence pick, sub-quota hardening).
+
+**Two QA-data-safety incidents** during cycle 1 verification — both on Tony's real account before the hard rule was put in place:
+
+1. BP-138 verification flipped a real `posted` post to `draft` via the auto-flip path. Reverted via Supabase MCP within minutes. Recoverable.
+2. BP-134 verification used `setter.call(textarea, textarea.value.slice(0, 100))` and the autosave persisted the truncation: a 1518-char draft was reduced to 181 chars. Recovered via Supabase PITR.
+
+Owner-directed hard rule at end of cycle: **"For future QA testing or validation use a test account. Never use my personal account to do testing or validation."** Captured in memory `feedback_qa_data_safety.md`. All future QA agents are instructed via prompt to confirm `e2e+...@mypostpilot.app` session before any DOM interaction.
+
+Develop → main merge of cycle 1: commit `efd60d1` (Vercel built clean in 28 seconds; production now serves all 9 stranded commits + the 5 cycle 1 fixes).
+
+### BP-129 Auth Hook verified live (commit `b48a9c0`)
+
+Owner toggled the Before User Created Hook in the Supabase dashboard. Verified end-to-end against the live prod auth endpoint:
+
+```
+POST https://rgzqhyniuzhqfxqrgsdd.supabase.co/auth/v1/signup
+body: {"email":"e2e+bp129-hooktest-…@mypostpilot.app","password":"…"}
+
+→ HTTP 403
+   {"code":403,"error_code":"unknown",
+    "msg":"Signups are restricted to LinkedIn OAuth.
+           Provider \"email\" is not permitted."}
+```
+
+Function-logic test (read-only) also passed all four cases: `linkedin_oidc` allowed, `email` rejected, `google` rejected, `e2e_tier`-tagged metadata allowed. EXECUTE perms correctly scoped to `postgres`/`service_role`/`supabase_auth_admin`. BP-129 closed.
+
+### Parallel agent batch #1 — BP-141 / BP-133 / BP-112 / BP-140 design (4 agents)
+
+All four ran in `isolation: "worktree"`. Per-task QA agents followed each merge.
+
+- **BP-141** Auto-version snapshots on autosave. New migration `20260426_add_post_version_kind.sql` (applied to prod): `kind text NOT NULL DEFAULT 'manual' CHECK (kind IN ('manual','auto'))` + index on `(post_id, kind, version_number DESC)` + `trg_prune_auto_post_versions` trigger that caps `kind='auto'` rows at 20 per post. New helper `src/lib/autosave-snapshot.ts` with 5-minute window + content-changed dedupe. Editor `posts/[id]/page.tsx` autosave now calls `maybeWriteAutoSnapshot`. Version dropdown hides `auto` rows by default + `Show autosaves` toggle reveals them. QA-verified live: prune trigger 22→20, dropdown toggle behavior, first-eligible autosave fires on fresh post.
+- **BP-133** Require title before draft. New `<NewPostTitleDialog>` modal — required input, 3-200 chars, char counter, Enter-key submit, autofocus, optional `defaultTitle` for idea pre-fill. New API route `/api/posts/create` with auth + Zod validation + RLS-friendly insert. `new-post-button.tsx` opens the dialog instead of direct insert; `ideas/[id]/page.tsx` "Develop into Post" pre-fills with the idea title. Existing NULL-title rows untouched. QA-verified live across 8 test cases on a test account.
+- **BP-112** Real outlined Button variant. `outline` variant now uses `border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground` instead of the same blue gradient as `default`. 113 existing call sites audited; 0 needed switching to `default` (every site either expected the outline look or had its own `bg-*`/`text-*` overrides that are now actually applied).
+- **BP-140** Personal reference photos design doc — see "Test-user feedback cycle 1" section above for the doc itself. Reviewer flagged 4 items, all applied in commit `b875964`.
+
+### Parallel agent batch #2 — BP-110 / BP-028 / BP-026 / BP-099 design (4 agents)
+
+Second wave. Same pattern: 4 worktree-isolated agents in parallel, then **one comprehensive QA agent** (per owner direction) covering security, correctness, functionality, and regression across all four.
+
+- **BP-110** Cancel in-progress image generation. `AbortController` plumbed end-to-end through `generate-image-dialog.tsx` and `/api/ai/generate-image/route.ts`. `signal.aborted` checks placed before every irreversible side-effect (storage upload, DB insert, quota increment). On abort: `incrementQuota` skipped, uploaded files deleted via service-role API, no `post_image_versions` row written. OpenAI SDK accepts `{ signal }` cleanly so the `AbortError` path is the safety net for non-cancelable providers. Two cancel affordances (inline beside spinner + dialog footer button).
+- **BP-028** Guided enhancement workflows. 5 templates landed — `add_hook`, `story_driven`, `add_social_proof`, `improve_cta`, `tighten`. New file `src/lib/ai/enhancement-templates.ts` holds the prompt copy. `EnhanceInputSchema` adds `template: z.enum(...)` (strict). `metadata.template` written to `ai_usage_events` for future cost-per-template analysis. Backwards-compat preserved: legacy requests without `template` still work.
+- **BP-026** Trending topics for brainstorming (AI-only path). Brainstorm prompt now ends with: *"Where appropriate, draw on your awareness of recent industry conversations, news, debates, frameworks, or developments relevant to {industries} and these expertise areas: {expertise_areas}. Don't force a 'trending' angle if the topic is more naturally evergreen, but lean into recency when it sharpens an idea."* Server-side only — never shipped to the client. New `Lean into trending topics` toggle in `<GenerateIdeasDialog>` defaults ON, persists per-device via localStorage (`postpilot_brainstorm_trending`). `metadata.trending` logged to `ai_usage_events` for cost comparison. RSS integration deferred per the 2026-04-16 re-prioritization decision.
+- **BP-099** Simplified Guided UI Mode design doc — 5,160-word architectural design at [docs/plans/bp-099-guided-ui-mode.md](plans/bp-099-guided-ui-mode.md). All 13 required sections PASS in QA review. Recommends persistent right-side panel (320px), JSON workflow definitions, Tutorial-SDK action-detector reuse + 2 new detector types (`postStatusChange`, `streamComplete`). Four phases with day estimates. Seven owner-decision questions.
+
+**Migration coordination:** BP-026 and BP-028 both wrote separate migrations adding the same `metadata jsonb` column to `ai_usage_events`. Resolved during merge by keeping the BP-026 filename (`20260427_add_metadata_to_ai_usage_events.sql`) as canonical and deleting BP-028's duplicate. Migration applied to prod via Supabase MCP.
+
+### Comprehensive QA caught a Base-UI Menu crash on the BP-028 dropdown (commit `7c2ead0`)
+
+QA agent walked the live preview as `e2e+professional@mypostpilot.app` and clicked the new Enhance dropdown. Result: full client-side application crash.
+
+> Base UI: MenuGroupRootContext is missing. Menu group parts must be used within `<Menu.Group>`.
+
+**Root cause:** This codebase uses Base UI's `Menu` primitive (not Radix UI). Base UI's `Menu.GroupLabel` requires being inside a `Menu.Group` via `MenuGroupRootContext`. Radix UI permits standalone `MenuLabel` + `MenuSeparator` — the implementation agent followed the Radix pattern, which compiled cleanly under TypeScript and rendered without errors at SSR time, then crashed the moment the dropdown opened in the browser.
+
+**Fix:** Wrap `DropdownMenuLabel` + `DropdownMenuSeparator` + the items inside `<DropdownMenuGroup>` in `posts/[id]/page.tsx`. Captured to memory `feedback_base_ui_menu_group.md` so future agents working with the dropdown menu primitive know the constraint.
+
+Other QA findings (non-blocking):
+- `/api/ai/generate-image/route.ts:343` hardcodes `source: "byok"` in the success-path log call regardless of the resolved source. Pre-existing inaccuracy; should be a separate cleanup ticket.
+- Pre-existing Base-UI hydration ID drift on `ThemeToggle` + Tooltip triggers. Not new; tracked separately.
+
+### Memory + process improvements
+
+Five memory entries created/tightened this session:
+
+- `feedback_server_client_imports.md` — never let a server component import non-component values from a `"use client"` module; check Vercel deploy state after every server-page change.
+- `feedback_qa_data_safety.md` — **HARD RULE** (owner direction): all QA testing/validation uses a test account; the owner's personal account is off-limits for any verification work, read-only or mutating.
+- `feedback_no_preview_server.md` — temporarily lifted: Claude runs preview verification proactively until the owner says "go back to me testing."
+- `reference_user_feedback.md` — explains the new `docs/USER_FEEDBACK.md` intake system + the lifecycle.
+- `feedback_base_ui_menu_group.md` (new this session) — Base UI's `Menu` primitive requires `Menu.Group` wrapping when using `MenuLabel`/`MenuSeparator`; not the same as Radix UI; tsc won't catch.
+
+### Branch state at end of session
+
+- `main`: at `efd60d1` (cycle 1 fixes live in production).
+- `develop`: at `7c2ead0`, **12 commits ahead of main** spanning batch #1 (BP-141/133/112/140 + BP-129 closer) + batch #2 (BP-110/028/026/099 + Base-UI dropdown fix).
+- Owner has NOT merged batch #1 + batch #2 to main yet — pending owner review of the comprehensive QA report.
+
+### Owner actions outstanding
+
+1. Review the comprehensive QA report (BP-141/133/112/140 + BP-110/028/026/099 verified; one Base-UI dropdown crash caught + fixed inline).
+2. Merge `develop` → `main` when ready (12 commits queued).
+3. Decide on the 5 BP-140 owner-decision questions before any image-references implementation begins.
+4. Decide on the 7 BP-099 owner-decision questions before any Guided UI Mode implementation begins.
+5. Optional cleanup tickets:
+   - `/api/ai/generate-image/route.ts:343` hardcoded `source: "byok"` in logs.
+   - Codebase audit for Base-UI `Menu.Group` usage; optional ESLint rule.
+   - Pre-existing Base-UI hydration ID drift on Tooltip + ThemeToggle.
+
+### Carryover BPs (not started this session)
+
+- **BP-097 Phase 2.1** auth-onboarding spec (multi-turn focused work)
+- **Subscription Model v2 follow-ups:** BP-115 (parent), BP-117 (feature gate refactor), BP-119 (ads), BP-122 (payment methods), BP-123 (cost study), BP-124 (credit packs)
+- **BP-021** Manual analytics (P1, EPIC 6)
+- **BP-027** Voice consistency validation (P3)
+- **BP-031** Bulk operations (P3)
+- **BP-032** A/B testing for hooks (P3, depends on BP-021)
+- **BP-085** AI usage monitoring (P1)
+- **BP-132** Email-based re-auth — gated on email infra
+- **BP-015** Stripe — blocked on owner business formation
+
+---
+
 ## 2026-04-26: BP-131 account deletion live; BP-130 + BP-129 shipped; AI-access architectural fix; landing-CTA reroute
 
 Long compound session. Three BPs shipped, one architectural fix, one new spec opened. End state: `develop` is 5 commits ahead of `main`, all green via the BP-097 CI smoke pipeline.
