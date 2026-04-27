@@ -109,7 +109,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-100** Scheduled posts drop images — P1 / Critical
 - **BP-110** Cancel in-progress image generation — P2 / Medium
 - **BP-112** `Button` outline variant footgun — P3 / Low
-- **BP-133** Require title before post draft creation — P2 / Medium
+- **BP-133** Require title before post draft creation — P2 / Medium ✓ Fixed (develop) 2026-04-26
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
@@ -427,7 +427,7 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ### BP-133: Require Title Before Post Draft Creation
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-26 — New modal gates all post creation behind a required title (≥3 / ≤200 chars). Server-side `/api/posts/create` route enforces the same rule with Zod. Idea-to-post flow pre-fills the modal with the idea title. Legacy NULL-title drafts untouched.
 **Priority:** P2 / Medium (UX hygiene — affects every new post and surfaces orphaned "Untitled" rows in admin views)
 **Source:** Owner observation 2026-04-25 — clicking the "New Post" CTA currently inserts a draft with `title: NULL` and navigates straight to `/posts/<id>`, which then displays "Untitled". Result: a stream of unlabeled drafts in the posts list / admin views, harder to scan and easy to leave half-finished.
 **Date Added:** 2026-04-25

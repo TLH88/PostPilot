@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId } from "@/lib/workspace";
-import { logActivity } from "@/lib/activity";
 import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority } from "@/lib/constants";
 import type { Idea } from "@/types";
 import { TagInput } from "@/components/ui/tag-input";
+import { NewPostTitleDialog } from "@/components/posts/new-post-title-dialog";
 import {
   Card,
   CardContent,
@@ -77,6 +77,7 @@ export default function IdeaDetailPage({
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [developDialogOpen, setDevelopDialogOpen] = useState(false);
   const [developing, setDeveloping] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -166,63 +167,42 @@ export default function IdeaDetailPage({
     }
   }
 
-  // Develop into post
-  async function handleDevelop() {
+  // Develop into post — called by the title dialog after the user confirms the title
+  async function handleDevelop(postTitle: string) {
     setDeveloping(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Workspace mode: auto-assign creator, attach workspace
       const activeWorkspaceId = getActiveWorkspaceId();
-      const insertPayload: Record<string, unknown> = {
-        user_id: user.id,
-        idea_id: id,
-        title: title.trim(),
-        content: "",
-        status: "draft",
-        hashtags: [],
-        character_count: 0,
-      };
-      if (activeWorkspaceId) {
-        insertPayload.workspace_id = activeWorkspaceId;
-        insertPayload.assigned_to = user.id;
-        insertPayload.assigned_by = user.id;
-        insertPayload.assigned_at = new Date().toISOString();
-      }
 
-      // Create a new post linked to this idea
-      const { data: post, error: postError } = await supabase
-        .from("posts")
-        .insert(insertPayload)
-        .select("id")
-        .single();
-
-      if (postError) throw postError;
-
-      // Log activity
-      logActivity(supabase, {
-        user_id: user.id,
-        workspace_id: activeWorkspaceId,
-        post_id: post.id,
-        action: "post_created",
-        details: { source: "idea", idea_id: id },
+      const res = await fetch("/api/posts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: postTitle,
+          workspaceId: activeWorkspaceId ?? null,
+          ideaId: id,
+        }),
       });
 
-      // Update idea status to converted
-      await supabase
-        .from("ideas")
-        .update({
-          status: "converted",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? "Failed to create post from idea.");
+        setDeveloping(false);
+        return;
+      }
 
+      const { id: postId } = await res.json();
+
+      // Update idea status to converted (best-effort, don't block navigation)
+      supabase
+        .from("ideas")
+        .update({ status: "converted", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .then(() => {});
+
+      setDevelopDialogOpen(false);
       toast.success("Post created! Redirecting to editor...");
-      router.push(`/posts/${post.id}?fromIdea=true&ideaDescription=${encodeURIComponent(description || "")}`);
+      router.push(`/posts/${postId}?fromIdea=true&ideaDescription=${encodeURIComponent(description || "")}`);
     } catch (error) {
       console.error("Develop idea error:", error);
       toast.error("Failed to create post from idea.");
@@ -297,7 +277,7 @@ export default function IdeaDetailPage({
         </div>
         <div className="flex gap-2 shrink-0">
           <Button
-            onClick={handleDevelop}
+            onClick={() => setDevelopDialogOpen(true)}
             disabled={developing || status === "converted"}
           >
             {developing ? (
@@ -449,6 +429,15 @@ export default function IdeaDetailPage({
           )}
         </Button>
       </div>
+
+      {/* Title Dialog — opened when user clicks "Develop into Post" */}
+      <NewPostTitleDialog
+        open={developDialogOpen}
+        onOpenChange={setDevelopDialogOpen}
+        defaultTitle={title.trim()}
+        onSubmit={handleDevelop}
+        submitting={developing}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
