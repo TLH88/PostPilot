@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Sparkles, Loader2, Plus, Check } from "lucide-react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { Sparkles, Loader2, Plus, Check, Info } from "lucide-react";
 import { toast } from "sonner";
 import { maybeHandleQuotaExceeded } from "@/lib/errors/handle-quota-exceeded";
 
@@ -79,6 +85,8 @@ export function GenerateIdeasDialog({
   onIdeasSaved?: (newIdeas: Idea[]) => void;
   onPillarsUpdated?: (pillars: string[]) => void;
 }) {
+  const TRENDING_KEY = "postpilot_brainstorm_trending";
+
   const supabase = createClient();
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [selectedPillar, setSelectedPillar] = useState("");
@@ -89,11 +97,21 @@ export function GenerateIdeasDialog({
   const [pillars, setPillars] = useState<string[]>(initialPillars);
   const [newPillar, setNewPillar] = useState("");
   const [showAddPillar, setShowAddPillar] = useState(false);
+  const [trending, setTrending] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem(TRENDING_KEY);
+    return saved === null ? true : saved === "true";
+  });
 
   // Sync pillars when prop changes
   useEffect(() => {
     setPillars(initialPillars);
   }, [initialPillars]);
+
+  function handleTrendingChange(value: boolean) {
+    setTrending(value);
+    localStorage.setItem(TRENDING_KEY, String(value));
+  }
 
   // Update topic when initialTopic changes (e.g. from context menu selection)
   useEffect(() => {
@@ -156,6 +174,7 @@ export function GenerateIdeasDialog({
           topic: topic.trim() || undefined,
           contentPillar: selectedPillar || undefined,
           count: 5,
+          trending,
         }),
       });
 
@@ -333,6 +352,29 @@ export function GenerateIdeasDialog({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Trending-aware toggle */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="gen-trending" className="text-sm font-medium cursor-pointer">
+                Lean into trending topics
+              </Label>
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex items-center" />}>
+                  <Info className="size-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-64">
+                  When on, the AI factors in recent industry conversations and news. Turn off for evergreen-only ideas.
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Switch
+              id="gen-trending"
+              checked={trending}
+              onCheckedChange={handleTrendingChange}
+              aria-label="Lean into trending topics"
+            />
           </div>
 
           {/* Generate button */}

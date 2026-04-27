@@ -32,6 +32,7 @@ export const BrainstormInputSchema = z.object({
   topic: z.string().optional(),
   contentPillar: z.string().optional(),
   count: z.number().int().min(1).max(20).optional().default(5),
+  trending: z.boolean().optional().default(true),
 });
 
 export const EnhanceInputSchema = z.object({
