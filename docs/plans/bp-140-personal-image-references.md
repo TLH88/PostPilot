@@ -18,7 +18,7 @@ DALL·E 3 — the provider currently powering PostPilot image generation — doe
 
 ### Comparison matrix
 
-| Dimension | **OpenAI gpt-image-1** | **Google Gemini 2.0 Flash (Image gen)** | **Fal.ai — Flux + IP-Adapter (open-weights)** |
+| Dimension | **OpenAI gpt-image-1** | **Google Gemini 2.0 Flash Image** [^gemini-naming] | **Fal.ai — Flux + IP-Adapter (open-weights)** |
 |---|---|---|---|
 | **Image input (reference)** | Yes — `input_image` parameter (multipart upload) | Yes — `inline_data` in the parts array | Yes — `image_url` IP-Adapter conditioning input |
 | **Output quality for human likeness** | High. Preserves face structure well at 1024×1024; tends toward polished/editorial look | Medium-high. Good stylistic range; likeness fidelity slightly softer than gpt-image-1 | Variable. Flux Schnell + IP-Adapter is fast and cheap; Flux Dev or Flux Pro + IP-Adapter is near-comparable to gpt-image-1. Quality depends on LoRA/adapter weights used |
@@ -39,6 +39,8 @@ gpt-image-1 is the highest-fidelity option for human likeness and is already in 
 For Pro+ users who bring their own key, Fal.ai is the cleanest option: lower cost per image (~$0.07–0.10), Apache/commercial-licensed weights, no faces-specific restrictions, and Fal's managed hosting means no GPU provisioning. BYOK users who want cheap, high-volume reference generation can supply a Fal.ai API key alongside their existing OpenAI key. This aligns with BP-125's "image-gen BYOK" work already planned.
 
 **Do not use Gemini 2.0 Flash Image as the primary.** It is still experimental, its rate limits are unpredictable, and adding a Google Cloud credential type creates a third BYOK provider to manage — complexity without enough quality uplift to justify it. Revisit Gemini when the API reaches stable GA.
+
+[^gemini-naming]: The original BP-140 entry referenced "Gemini 2.5 Image" as a candidate. As of Q1 2026, Gemini 2.5 Image was not yet exposed via a public, stable API for image *generation* with `inline_data` reference inputs — Google's available endpoint at this writing is the Gemini 2.0 Flash multimodal-output preview. This doc evaluates what is actually callable today; revisit when 2.5 Image GA's.
 
 ---
 
@@ -267,7 +269,7 @@ If the user has no reference photos uploaded, the toggle row is replaced with:
 │  [Upload a reference photo →]  (links to Settings)             │
 ```
 
-**Toggle state persistence:** remember the last-used state per user (localStorage or a `user_profiles` column). Default: Off for new users, preserving prior behavior.
+**Toggle state persistence:** store last-used state in a new `user_profiles.use_reference_image_default boolean` column. Cross-device consistency matters for a settings-level preference; localStorage would silently reset whenever the user switches browser, device, or clears site data. Default: `false` for new users (preserves current behavior + matches the consent-required model).
 
 **Copy library for this feature:**
 
@@ -308,7 +310,7 @@ Using gpt-image-1 (the recommended primary provider):
 | Scenario | Cost per image | Notes |
 |---|---|---|
 | Standard generation (no reference), 1024×1024 | ~$0.08 | Current DALL·E 3 equivalent; gpt-image-1 standard quality |
-| Reference-augmented generation, 1024×1024 | ~$0.17 | gpt-image-1 high quality (reference inputs require the higher quality tier) |
+| Reference-augmented generation, 1024×1024 | ~$0.17 | gpt-image-1 high quality. **Caveat:** this assumes reference (`input_image`) calls require the higher quality tier; this assumption needs verification against current OpenAI gpt-image-1 docs before BP-123 closes. If standard quality accepts `input_image`, the cost drops to ~$0.08 and the margin math relaxes — re-evaluate the 50/month cap upward in that case. |
 | Premium/HD without reference | ~$0.12 | Mid-tier option |
 
 **Uplift factor: approximately 2×** for reference-augmented vs standard generation.
@@ -436,5 +438,5 @@ Recommendation: primary-only in Phase 2 to keep the UI simple. Multi-photo selec
 1. **Confirm Pro-only gating** (or specify a Personal-tier allowance).
 2. **Legal review** of the ToS language — yes or no?
 3. **Toggle default** — Off (recommended) or On for users with an uploaded photo?
-4. **Reference quota cap** — 50/month (recommended) or start lower at 20?
+4. **Reference quota cap** — confirm 50/month, or override lower (e.g., 20) if you want a tighter Phase 1 ceiling. Recommendation stands at 50.
 5. **Phase 2 scope** — primary-photo-only (recommended) or include multi-photo selection?
