@@ -103,7 +103,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-028** Guided enhancement workflows — P2 / Medium
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
-- **BP-140** Personal reference photos for AI image generation — Captured (design brainstorming) [UF-006]
+- **BP-140** Personal reference photos for AI image generation — Design landed 2026-04-26 at docs/plans/bp-140-personal-image-references.md — awaiting owner review [UF-006]
 
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-100** Scheduled posts drop images — P1 / Critical
@@ -725,7 +725,7 @@ When the user republishes after editing, what's the expected behavior?
 
 ### BP-140: Personal Reference Photos for AI Image Generation
 
-**Status:** Captured (design brainstorming required before any implementation)
+**Status:** Design landed 2026-04-26 at [docs/plans/bp-140-personal-image-references.md](plans/bp-140-personal-image-references.md) — awaiting owner review
 **Priority:** Backlog (not yet prioritized — depends on design outcome)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-006--personal-reference-photos-for-ai-image-generation) (UF-006)
 **Date Added:** 2026-04-26
