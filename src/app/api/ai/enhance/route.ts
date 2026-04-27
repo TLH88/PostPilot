@@ -9,6 +9,7 @@ import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder
 import { EnhanceInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
+import { ENHANCEMENT_TEMPLATES } from "@/lib/ai/enhancement-templates";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
@@ -24,7 +25,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { content, instruction } = parsed.data;
+    const { content, instruction, template } = parsed.data;
+
+    // BP-028: if a template key is provided, use its pre-built prompt.
+    // Otherwise fall back to the caller-supplied instruction (backwards-compat).
+    const effectiveInstruction = template
+      ? ENHANCEMENT_TEMPLATES[template].prompt
+      : instruction;
 
     const { client, profile, source, provider, model } = await getUserAIClient();
     activeProvider = provider;
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
       GUARDRAILS
     );
 
-    const userMessage = `Post to improve:\n${content}\n\nInstruction: ${instruction}`;
+    const userMessage = `Post to improve:\n${content}\n\nInstruction: ${effectiveInstruction}`;
 
     const readable = await client.createStream({
       systemPrompt,
@@ -62,6 +69,8 @@ export async function POST(request: NextRequest) {
           generationId: result.generationId,
           success: true,
           latencyMs: Date.now() - startTime,
+          // BP-028: log which template was used (undefined when generic fallback)
+          metadata: template ? { template } : undefined,
         });
       },
     });

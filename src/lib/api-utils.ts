@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ENHANCEMENT_TEMPLATE_KEYS } from "@/lib/ai/enhancement-templates";
 
 // ─── Shared Zod schemas for API input validation ─────────────────────────────
 
@@ -38,6 +39,9 @@ export const BrainstormInputSchema = z.object({
 export const EnhanceInputSchema = z.object({
   content: z.string().min(1, "Post content is required"),
   instruction: z.string().min(1, "Enhancement instruction is required"),
+  // BP-028: optional template key. When present, the route uses the pre-built
+  // prompt for that template. When absent, falls back to the generic instruction.
+  template: z.enum(ENHANCEMENT_TEMPLATE_KEYS).optional(),
 });
 
 export const HashtagsInputSchema = z.object({

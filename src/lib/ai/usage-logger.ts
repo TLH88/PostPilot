@@ -38,7 +38,7 @@ export interface UsageEventInput {
   generationId?: string;
   latencyMs?: number;
   imageCount?: number; // for generate-image route
-  metadata?: Record<string, unknown>; // route-specific flags (e.g. trending for brainstorm)
+  metadata?: Record<string, unknown>; // arbitrary per-route context (e.g. trending for brainstorm, template key for enhance)
 }
 
 // ── Consecutive failure tracking ───────────────────────────────────────────
