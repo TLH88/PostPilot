@@ -34,6 +34,7 @@ import {
   X,
   Menu,
   MoreHorizontal,
+  Wand2,
   ExternalLink,
   AlertTriangle,
   AlertCircle,
@@ -99,6 +100,10 @@ import { ActivityFeed } from "@/components/activity/activity-feed";
 import { ApprovalControls } from "@/components/posts/approval-controls";
 import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 import { logActivity } from "@/lib/activity";
+import {
+  ENHANCEMENT_TEMPLATE_LIST,
+  type EnhancementTemplateKey,
+} from "@/lib/ai/enhancement-templates";
 // Tutorial target IDs on elements are used by the tutorial overlay
 import type { Post, PostVersion, AIMessage, AIConversation, UserProfile } from "@/types";
 
@@ -222,6 +227,10 @@ export default function PostWorkspacePage() {
     suggestion?: string;
   } | null>(null);
   const [analyzingHook, setAnalyzingHook] = useState(false);
+
+  // ── Guided enhancement state (BP-028) ────────────────────────────────────
+  const [enhancing, setEnhancing] = useState(false);
+  const [enhancingTemplate, setEnhancingTemplate] = useState<EnhancementTemplateKey | null>(null);
 
   // ── Brainstorm state ─────────────────────────────────────────────────────
   const [brainstormOpen, setBrainstormOpen] = useState(false);
@@ -981,6 +990,106 @@ export default function PostWorkspacePage() {
       });
     } finally {
       setAnalyzingHook(false);
+    }
+  }
+
+  // ── Guided enhancement (BP-028) ──────────────────────────────────────────
+  async function runEnhancement(templateKey: EnhancementTemplateKey) {
+    // BP-134 pattern: read live textarea value so we operate on the user's
+    // latest edits, not the React state that may lag the autosave debounce.
+    const liveContent = textareaRef.current?.value ?? content;
+    if (!liveContent.trim()) {
+      toast.info("Write some content before enhancing.");
+      return;
+    }
+
+    setEnhancing(true);
+    setEnhancingTemplate(templateKey);
+
+    try {
+      const response = await fetch("/api/ai/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: liveContent,
+          // instruction is required by the schema; template takes precedence
+          // on the server, but we still send a placeholder to satisfy Zod.
+          instruction: templateKey,
+          template: templateKey,
+        }),
+      });
+
+      if (await maybeHandleQuotaExceeded(response)) return;
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.error || "Enhancement failed", {
+          description: errData.action,
+          duration: 8000,
+        });
+        return;
+      }
+
+      if (!response.body) throw new Error("No response body");
+
+      // Stream the result and accumulate
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) accumulated += parsed.text;
+          } catch {
+            // skip malformed SSE chunks
+          }
+        }
+      }
+
+      if (!accumulated.trim()) {
+        toast.error("Enhancement returned empty content — try again.");
+        return;
+      }
+
+      // Parse JSON response (same shape as chat: { content, changesSummary })
+      let enhanced = accumulated;
+      try {
+        const parsed = JSON.parse(accumulated);
+        if (parsed.content) {
+          enhanced = parsed.content;
+        }
+      } catch {
+        // If not JSON, use raw text directly
+      }
+
+      enhanced = enhanced.trim();
+      if (!enhanced) {
+        toast.error("Enhancement returned empty content — try again.");
+        return;
+      }
+
+      setContent(enhanced);
+      scheduleAutoSave(title, enhanced, hashtags);
+
+      const template = ENHANCEMENT_TEMPLATE_LIST.find((t) => t.key === templateKey);
+      toast.success(`"${template?.label ?? templateKey}" applied`);
+    } catch (err) {
+      console.error("Enhancement error:", err);
+      toast.error("Enhancement failed", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
+    } finally {
+      setEnhancing(false);
+      setEnhancingTemplate(null);
     }
   }
 
@@ -1886,6 +1995,52 @@ export default function PostWorkspacePage() {
               <TooltipWrapper tooltip={EDITOR_TOOLTIPS.insertFromLibrary}>
                 <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
               </TooltipWrapper>
+
+              {/* BP-028: Guided Enhancement dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="gap-1"
+                      disabled={enhancing || !content.trim()}
+                    />
+                  }
+                >
+                  {enhancing ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Wand2 className="size-3" />
+                  )}
+                  Enhance
+                  <ChevronDown className="size-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72 whitespace-normal">
+                  <DropdownMenuLabel>Guided Enhancements</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {ENHANCEMENT_TEMPLATE_LIST.map((tmpl) => (
+                    <DropdownMenuItem
+                      key={tmpl.key}
+                      onClick={() => runEnhancement(tmpl.key)}
+                      disabled={enhancing}
+                    >
+                      <Wand2
+                        className={cn(
+                          "size-3.5 mr-2 mt-0.5 shrink-0",
+                          enhancingTemplate === tmpl.key && "animate-spin"
+                        )}
+                      />
+                      <div className="flex flex-col">
+                        <span>{tmpl.label}</span>
+                        <span className="text-[10px] text-muted-foreground leading-tight">
+                          {tmpl.subtext}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <Separator />

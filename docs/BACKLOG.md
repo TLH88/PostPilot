@@ -100,7 +100,7 @@ All Team items deferred until Free→Pro viability is validated.
 ### EPIC 7 — AI Enhancements
 - **BP-026** Trending topics for brainstorming — P2 / Medium
 - **BP-027** Voice consistency validation — P3 / Low
-- **BP-028** Guided enhancement workflows — P2 / Medium
+- **BP-028** Guided enhancement workflows — Fixed (develop) 2026-04-27
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
 - **BP-140** Personal reference photos for AI image generation — Captured (design brainstorming) [UF-006]
@@ -1102,12 +1102,14 @@ After each draft, compare generated text against voice samples. Show tone score 
 
 ### BP-028: Guided Enhancement Workflows
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-27
 **Priority:** P2 / Medium — was Low
 **Re-prioritized:** 2026-04-16 — promoted. High-leverage AI feature that differentiates PostPilot from "another AI wrapper." Real Free→Pro value.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
+
+**Fix summary:** Replaced generic "Enhance" (which had no UI) with a 5-template DropdownMenu in the post editor formatting toolbar. Templates: Add Hook, Make it Story-Driven, Add Social Proof, Improve CTA, and Tighten It (bonus 5th template — see report). `/api/ai/enhance` accepts an optional `template` param (Zod-validated); template prompt overrides caller-supplied instruction when present; backwards-compat fallback preserved. Template key logged to `ai_usage_events.metadata`. New module: `src/lib/ai/enhancement-templates.ts`. DB migration adds `metadata jsonb` column to `ai_usage_events`.
 
 **Description:**
 Replace generic "Enhance" with specific templates: "Add hook", "Make it story-driven", "Add social proof", "Improve CTA", each with a pre-built prompt.

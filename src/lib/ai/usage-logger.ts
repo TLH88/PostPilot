@@ -38,6 +38,7 @@ export interface UsageEventInput {
   generationId?: string;
   latencyMs?: number;
   imageCount?: number; // for generate-image route
+  metadata?: Record<string, unknown>; // arbitrary per-route context (e.g. template key for enhance)
 }
 
 // ── Consecutive failure tracking ───────────────────────────────────────────
@@ -115,6 +116,7 @@ async function _logAiUsageAsync(input: UsageEventInput): Promise<void> {
       error_code: input.errorCode ?? null,
       generation_id: input.generationId ?? null,
       latency_ms: input.latencyMs ?? null,
+      metadata: input.metadata ?? null,
     });
 
     if (error) {
