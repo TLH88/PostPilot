@@ -18,6 +18,17 @@ export interface UserProfile {
   onboarding_completed: boolean;
   /** Zero-indexed step the user last reached in onboarding. Null = not persisted yet. */
   onboarding_current_step?: number | null;
+  /**
+   * BP-099: Home-screen mode for desktop sessions.
+   * - 'focus': simplified launcher with four primary action cards
+   * - 'standard': existing full dashboard
+   *
+   * New accounts default to 'focus' (column DEFAULT) and the onboarding
+   * step overwrites it with the user's explicit choice. Existing accounts
+   * at rollout were backfilled to 'standard'. Mobile users get a fixed
+   * mobile UI regardless of this value.
+   */
+  ui_mode: "focus" | "standard";
   ai_provider: "anthropic" | "openai" | "google" | "perplexity";
   ai_model: string | null;
   ai_api_key_encrypted: string | null;
