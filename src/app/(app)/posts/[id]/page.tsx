@@ -2057,28 +2057,30 @@ export default function PostWorkspacePage() {
                   <ChevronDown className="size-3" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-72 whitespace-normal">
-                  <DropdownMenuLabel>Guided Enhancements</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {ENHANCEMENT_TEMPLATE_LIST.map((tmpl) => (
-                    <DropdownMenuItem
-                      key={tmpl.key}
-                      onClick={() => runEnhancement(tmpl.key)}
-                      disabled={enhancing}
-                    >
-                      <Wand2
-                        className={cn(
-                          "size-3.5 mr-2 mt-0.5 shrink-0",
-                          enhancingTemplate === tmpl.key && "animate-spin"
-                        )}
-                      />
-                      <div className="flex flex-col">
-                        <span>{tmpl.label}</span>
-                        <span className="text-[10px] text-muted-foreground leading-tight">
-                          {tmpl.subtext}
-                        </span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Guided Enhancements</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {ENHANCEMENT_TEMPLATE_LIST.map((tmpl) => (
+                      <DropdownMenuItem
+                        key={tmpl.key}
+                        onClick={() => runEnhancement(tmpl.key)}
+                        disabled={enhancing}
+                      >
+                        <Wand2
+                          className={cn(
+                            "size-3.5 mr-2 mt-0.5 shrink-0",
+                            enhancingTemplate === tmpl.key && "animate-spin"
+                          )}
+                        />
+                        <div className="flex flex-col">
+                          <span>{tmpl.label}</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight">
+                            {tmpl.subtext}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
