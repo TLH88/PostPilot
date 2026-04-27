@@ -98,7 +98,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-033** Content pillar ROI dashboard — P3 / Low
 
 ### EPIC 7 — AI Enhancements
-- **BP-026** Trending topics for brainstorming — P2 / Medium
+- **BP-026** Trending topics for brainstorming — Fixed (develop) 2026-04-27
 - **BP-027** Voice consistency validation — P3 / Low
 - **BP-028** Guided enhancement workflows — P2 / Medium
 - **BP-031** Bulk operations — P3 / Low
@@ -1074,12 +1074,13 @@ Read post engagement data from LinkedIn API. Requires `r_member_postAnalytics` s
 
 ### BP-026: Trending Topics for Brainstorming
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-27
 **Priority:** P2 / Medium
 **Re-prioritized:** 2026-04-16 — Free→Pro brainstorm value-add. Ship the AI-only path first; defer RSS option.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
+**Fix summary:** AI-only path shipped. Brainstorm prompt augmented with trending-awareness sentence scoped to user's industries and expertise areas. Brainstorm dialog gets a "Lean into trending topics" toggle (default ON, persisted to localStorage key `postpilot_brainstorm_trending`). Route accepts `trending: boolean` via Zod (defaults `true`). Usage logged to `ai_usage_events.metadata`. RSS option deferred.
 
 **Description:**
 Inject trending industry news into brainstorm context via RSS feeds from industry blogs. Free option: rely on AI model's knowledge of current trends.
