@@ -54,3 +54,16 @@ src/app/api/dev/**/*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code — local-only state
+.claude/settings.local.json
+.claude/launch.json
+.claude/worktrees/
+.claude/commands/
+
+# supabase temp / scratch
+supabase/.temp/
+
+# docs scratch / personal assets not intended for the repo
+docs/images/ScreenShots_Before/
+public/NPOS Favicon.png
