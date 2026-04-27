@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
   let imgProvider: string | undefined;
   let imgModel: string | undefined;
   let userId: string | undefined;
+  // Track any storage path that was uploaded so we can clean it up on abort
+  let uploadedStoragePath: string | undefined;
+  const signal = request.signal;
+
   try {
     const { postId, prompt: customPrompt, artStyle, imageFormat, includeText, imageText, imageProvider: requestProvider, imageModel: requestModel } = await request.json();
 
@@ -168,7 +172,14 @@ export async function POST(request: NextRequest) {
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await openai.images.generate(generateParams as any);
+      const response = await openai.images.generate(generateParams as any, { signal });
+
+      // If the client aborted while waiting for the provider response, bail out
+      // before touching storage or DB. OpenAI aborts before billing when the
+      // signal fires before it returns a response.
+      if (signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
 
       const imageData = (response as { data: Array<{ url?: string; b64_json?: string }> }).data[0];
       if (imageData?.url) {
@@ -176,6 +187,11 @@ export async function POST(request: NextRequest) {
         const imageRes = await fetch(imageData.url);
         if (!imageRes.ok) throw new Error("Failed to download image from OpenAI");
         const buffer = await imageRes.arrayBuffer();
+
+        if (signal.aborted) {
+          return new Response(null, { status: 499 });
+        }
+
         const contentType = imageRes.headers.get("content-type") || "image/png";
         const ext = contentType.includes("png") ? "png" : "jpg";
         storagePath = `${user.id}/${postId}/generated-${genId}.${ext}`;
@@ -183,17 +199,36 @@ export async function POST(request: NextRequest) {
         await supabase.storage
           .from("post-images")
           .upload(storagePath, buffer, { contentType, upsert: true });
+        uploadedStoragePath = storagePath;
+
+        if (signal.aborted) {
+          // File was already uploaded — clean it up
+          await supabase.storage.from("post-images").remove([storagePath]);
+          return new Response(null, { status: 499 });
+        }
 
         const { data: urlData } = supabase.storage
           .from("post-images")
           .getPublicUrl(storagePath);
         imageUrl = urlData.publicUrl;
       } else if (imageData?.b64_json) {
+        if (signal.aborted) {
+          return new Response(null, { status: 499 });
+        }
+
         const buffer = Buffer.from(imageData.b64_json, "base64");
         storagePath = `${user.id}/${postId}/generated-${genId}.png`;
         await supabase.storage
           .from("post-images")
           .upload(storagePath, buffer, { contentType: "image/png", upsert: true });
+        uploadedStoragePath = storagePath;
+
+        if (signal.aborted) {
+          // File was already uploaded — clean it up
+          await supabase.storage.from("post-images").remove([storagePath]);
+          return new Response(null, { status: 499 });
+        }
+
         const { data: urlData } = supabase.storage
           .from("post-images")
           .getPublicUrl(storagePath);
@@ -213,8 +248,13 @@ export async function POST(request: NextRequest) {
             contents: [{ parts: [{ text: imagePrompt }] }],
             generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
           }),
+          signal,
         }
       );
+
+      if (signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
 
       if (!geminiRes.ok) {
         const errText = await geminiRes.text();
@@ -222,6 +262,11 @@ export async function POST(request: NextRequest) {
       }
 
       const geminiData = await geminiRes.json();
+
+      if (signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
+
       const parts = geminiData.candidates?.[0]?.content?.parts ?? [];
       const imagePart = parts.find(
         (p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData?.mimeType?.startsWith("image/")
@@ -239,6 +284,13 @@ export async function POST(request: NextRequest) {
       await supabase.storage
         .from("post-images")
         .upload(storagePath, buffer, { contentType: mimeType, upsert: true });
+      uploadedStoragePath = storagePath;
+
+      if (signal.aborted) {
+        // File was already uploaded — clean it up
+        await supabase.storage.from("post-images").remove([storagePath]);
+        return new Response(null, { status: 499 });
+      }
 
       const { data: urlData } = supabase.storage
         .from("post-images")
@@ -249,6 +301,16 @@ export async function POST(request: NextRequest) {
         { error: `Image generation is not available for ${provider}. Supported providers: OpenAI and Google.` },
         { status: 400 }
       );
+    }
+
+    // Final abort check before writing to DB and incrementing quota.
+    // If the client disconnected after the provider returned but before we
+    // committed, clean up the uploaded file and return without debiting quota.
+    if (signal.aborted) {
+      if (uploadedStoragePath) {
+        await supabase.storage.from("post-images").remove([uploadedStoragePath]);
+      }
+      return new Response(null, { status: 499 });
     }
 
     // Insert version row (do NOT update the post — that happens when user clicks "Use This Image")
@@ -289,6 +351,21 @@ export async function POST(request: NextRequest) {
       prompt: imagePrompt,
     });
   } catch (error) {
+    // AbortError means the client cancelled. Don't log as an error, don't
+    // debit quota. Any partially-uploaded file is tracked in uploadedStoragePath
+    // and cleaned up here so nothing lingers in storage.
+    if (error instanceof Error && error.name === "AbortError") {
+      if (uploadedStoragePath) {
+        try {
+          const supabase = await createClient();
+          await supabase.storage.from("post-images").remove([uploadedStoragePath]);
+        } catch {
+          // Best-effort cleanup — don't surface storage errors to the client
+        }
+      }
+      return new Response(null, { status: 499 });
+    }
+
     logApiError("api/ai/generate-image", error);
 
     logAiUsage({

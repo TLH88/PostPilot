@@ -107,7 +107,7 @@ All Team items deferred until Free→Pro viability is validated.
 
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-100** Scheduled posts drop images — P1 / Critical
-- **BP-110** Cancel in-progress image generation — P2 / Medium
+- **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
 - **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
 - **BP-133** Require title before post draft creation — P2 / Medium — **Fixed (develop) 2026-04-26**
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
@@ -4021,7 +4021,7 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-110: Cancel In-Progress Image Generation
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-27 — AbortController on fetch + signal passed to OpenAI SDK and Google fetch; server guards DB insert, quota increment, and storage uploads with abort checks; orphaned files deleted on abort; quota never debited for cancelled generations.
 **Priority:** P2 / Medium
 **Source:** Owner feedback 2026-04-23
 **Date Added:** 2026-04-23
