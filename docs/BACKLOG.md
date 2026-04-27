@@ -3785,6 +3785,11 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 - Cross-references: BP-090 (`window.location.reload()` in post editor — Team-flagged but worth checking for mobile relevance), the existing AI Assistant component on `src/app/(app)/posts/[id]/page.tsx`.
 - **Effort estimate:** M–L (5–8 days, including design + implementation + browser testing).
 
+#### Branch State
+
+- **Branch `bp-143-mobile-editor` already exists** (created 2026-04-27, off `develop` at the same commit as `bp-099-focus-view`). It is currently empty (no commits beyond develop). It will drift behind `develop` as BP-099 work progresses on `bp-099-focus-view`.
+- **Before starting BP-143 implementation:** rebase `bp-143-mobile-editor` onto current `develop` (or onto merged BP-099, depending on sequencing) so you start from a fresh base. Do not work off the stale 2026-04-27 starting point without rebasing first.
+
 ---
 
 ### BP-102: [UX-IMPROVE-2026-04-22] AI-Provider Guard on Dashboard & Editor
