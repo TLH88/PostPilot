@@ -17,9 +17,22 @@ type ProfileSubset = Pick<
 >;
 
 function hasManagedAccess(profile: ProfileSubset): AIAccessStatus["reason"] | null {
+  // Active trial → managed system access for the trial duration.
   if (profile.account_status === "trial" && profile.trial_ends_at) {
     if (new Date(profile.trial_ends_at) > new Date()) return "managed_trial";
   }
+
+  // Subscription Model v2: every active user gets system AI access by
+  // default within their tier's quotas. BP-117 enforces per-tier limits
+  // server-side. This replaces the BP-054-era assumption that managed
+  // access required an explicit admin grant — the default-on policy
+  // matches the v2 pricing matrix where Free + Personal users use
+  // system keys without any opt-in step.
+  if (profile.account_status === "active") {
+    return "managed_admin";
+  }
+
+  // Legacy explicit admin grant (still honored if set with future expiry).
   if (profile.managed_ai_access) {
     if (!profile.managed_ai_expires_at) return "managed_admin";
     if (new Date(profile.managed_ai_expires_at) > new Date()) return "managed_admin";

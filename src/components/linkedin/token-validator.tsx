@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { LinkedInConnectDialog } from "./connect-dialog";
 
 const SESSION_FLAG = "pp_li_validated_once";
 
@@ -17,10 +18,12 @@ const SESSION_FLAG = "pp_li_validated_once";
  * On a hard "revoked" or "refresh_failed" result, the endpoint has already
  * cleared the user's LinkedIn connection columns, so a router refresh makes
  * the existing LinkedInConnectionBanner surface the disconnect immediately.
- * We also show a toast with a direct reconnect action.
+ * We also show a toast whose Reconnect action opens the BP-136 interstitial
+ * dialog rather than redirecting straight to LinkedIn.
  */
 export function LinkedInTokenValidator() {
   const router = useRouter();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -47,9 +50,7 @@ export function LinkedInTokenValidator() {
                 duration: 10_000,
                 action: {
                   label: "Reconnect",
-                  onClick: () => {
-                    window.location.href = "/api/linkedin/connect";
-                  },
+                  onClick: () => setDialogOpen(true),
                 },
               }
             );
@@ -66,5 +67,11 @@ export function LinkedInTokenValidator() {
     };
   }, [router]);
 
-  return null;
+  return (
+    <LinkedInConnectDialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+      reason="revoked"
+    />
+  );
 }

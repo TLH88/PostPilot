@@ -21,19 +21,28 @@ const SYSTEM_AI_KEYS: Partial<Record<AIProvider, string | undefined>> = {
 };
 
 /**
- * Check if a user has valid managed AI access (trial or admin-granted).
+ * Check if a user has valid managed AI access (system-key path).
  * Access is granted if:
- * 1. managed_ai_access is true AND not expired, OR
- * 2. User is on an active trial (account_status='trial' and trial_ends_at is in the future)
+ * 1. account_status = 'active' (Subscription Model v2 default — every
+ *    active user gets system AI access within their tier's quotas), OR
+ * 2. account_status = 'trial' with trial_ends_at in the future, OR
+ * 3. legacy managed_ai_access flag is set and not expired (admin override).
+ *
+ * Suspended / churned / deleted accounts do NOT get system AI access.
  */
 function hasManagedAccess(profile: UserProfile): boolean {
-  // Active trial grants managed access
+  // Active subscription → system AI access (subject to BP-117 quotas).
+  if (profile.account_status === "active") return true;
+
+  // Active trial.
   if (profile.account_status === "trial" && profile.trial_ends_at) {
     if (new Date(profile.trial_ends_at) > new Date()) return true;
   }
-  // Legacy / admin-granted managed access
+
+  // Legacy admin-granted access (for accounts not in active/trial state,
+  // e.g. an admin extending access to a churned user).
   if (!profile.managed_ai_access) return false;
-  if (!profile.managed_ai_expires_at) return true; // no expiry = permanent (admin override)
+  if (!profile.managed_ai_expires_at) return true;
   return new Date(profile.managed_ai_expires_at) > new Date();
 }
 

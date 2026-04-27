@@ -73,7 +73,7 @@ export default function Home() {
               Sign In
             </Link>
             <Link
-              href="/signup"
+              href="/pricing"
               className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
             >
               Get Started
@@ -101,7 +101,7 @@ export default function Home() {
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
-                href="/signup"
+                href="/pricing"
                 className="inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 sm:w-auto"
               >
                 Get Started
@@ -161,10 +161,10 @@ export default function Home() {
             </p>
             <div className="mt-8">
               <Link
-                href="/signup"
+                href="/pricing"
                 className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
               >
-                Create your free account
+                Choose your plan
               </Link>
             </div>
           </div>

@@ -14,6 +14,7 @@ import { AlertTriangle, CalendarClock, Info, Link2Off } from "lucide-react";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
 import { ScheduleDialog } from "@/components/schedule-dialog";
+import { LinkedInConnectDialog } from "@/components/linkedin/connect-dialog";
 import { openLinkedInShare } from "@/lib/linkedin";
 import { createClient } from "@/lib/supabase/client";
 
@@ -80,6 +81,7 @@ export function PastDueChecker() {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [authorName, setAuthorName] = useState("Your Name");
   const [authorHeadline, setAuthorHeadline] = useState("Your headline");
+  const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
 
   const supabase = createClient();
 
@@ -294,9 +296,7 @@ export function PastDueChecker() {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => {
-                          window.location.href = "/api/linkedin/connect";
-                        }}
+                        onClick={() => setReconnectDialogOpen(true)}
                         className="gap-1.5 bg-red-600 text-white hover:bg-red-700"
                       >
                         <LinkedInIcon className="size-3.5" />
@@ -376,6 +376,13 @@ export function PastDueChecker() {
         open={rescheduleOpen}
         onOpenChange={setRescheduleOpen}
         onSchedule={handleReschedule}
+      />
+
+      {/* BP-136: pre-redirect interstitial when reconnecting LinkedIn */}
+      <LinkedInConnectDialog
+        open={reconnectDialogOpen}
+        onOpenChange={setReconnectDialogOpen}
+        reason="revoked"
       />
     </>
   );

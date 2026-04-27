@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Activity,
   Wrench,
+  Mail,
 } from "lucide-react";
 import { verifyAdmin } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +21,7 @@ const ADMIN_NAV = [
   { href: "/admin/usage", label: "AI Usage", icon: Activity },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/workspaces", label: "Workspaces", icon: Building2 },
+  { href: "/admin/waitlist", label: "Waitlist", icon: Mail },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/system", label: "System", icon: Settings },
   { href: "/admin/dev-tools", label: "Dev Tools", icon: Wrench },

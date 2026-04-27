@@ -57,6 +57,13 @@ const STEPS = [
   { label: "Content Tools", icon: FlaskConical },
 ] as const;
 
+const AI_SETUP_STEP_INDEX = 4;
+
+// BP-135 / UF-002a: Free + Personal tiers use system AI keys (Subscription
+// Model v2). BYOK setup is gated to Pro+, so the "AI Setup" step in the
+// wizard is irrelevant for those tiers and shouldn't appear.
+const TIERS_WITHOUT_BYOK = new Set(["free", "personal"]);
+
 const AI_PROVIDERS = [
   { value: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
   { value: "openai", label: "OpenAI (GPT / o-series)", placeholder: "sk-..." },
@@ -98,6 +105,18 @@ export default function OnboardingPage() {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
+
+  // BP-135 / UF-002a: derive which steps are visible for this user's tier.
+  // Free/Personal tiers skip the AI Setup (BYOK) step.
+  const skipAiSetup =
+    subscriptionTier !== null && TIERS_WITHOUT_BYOK.has(subscriptionTier);
+  const visibleStepIndexes = STEPS.map((_, i) => i).filter(
+    (i) => !(skipAiSetup && i === AI_SETUP_STEP_INDEX)
+  );
+  const lastVisibleStepIndex = visibleStepIndexes[visibleStepIndexes.length - 1];
+  const isLastVisibleStep = currentStep === lastVisibleStepIndex;
+  const visibleCurrentIdx = Math.max(0, visibleStepIndexes.indexOf(currentStep));
 
   // Step 1: Basic Info
   const [fullName, setFullName] = useState("");
@@ -140,33 +159,48 @@ export default function OnboardingPage() {
       if (!user) return;
       setUserId(user.id);
 
-      // Hydrate persisted step only if the URL didn't ask for a specific one.
-      // Wrapped in try/catch so that environments without the new column
-      // don't break onboarding.
-      if (requestedStep === null) {
-        try {
-          const { data } = await supabase
-            .from("user_profiles")
-            .select("onboarding_current_step, onboarding_completed")
-            .eq("user_id", user.id)
-            .single();
-          const persisted = (
-            data as { onboarding_current_step?: number | null } | null
-          )?.onboarding_current_step;
-          if (!data?.onboarding_completed && typeof persisted === "number") {
-            setCurrentStep(
-              Math.max(0, Math.min(STEPS.length - 1, persisted))
-            );
-          }
-        } catch {
-          // Column may not exist yet; fall back to default step 0.
+      // BP-135: also fetch subscription_tier so we can hide the BYOK step
+      // for Free/Personal users.
+      try {
+        const { data } = await supabase
+          .from("user_profiles")
+          .select(
+            "onboarding_current_step, onboarding_completed, subscription_tier"
+          )
+          .eq("user_id", user.id)
+          .single();
+        const profile = data as {
+          onboarding_current_step?: number | null;
+          onboarding_completed?: boolean | null;
+          subscription_tier?: string | null;
+        } | null;
+
+        if (profile?.subscription_tier) {
+          setSubscriptionTier(profile.subscription_tier);
         }
+
+        if (requestedStep === null) {
+          const persisted = profile?.onboarding_current_step;
+          if (!profile?.onboarding_completed && typeof persisted === "number") {
+            setCurrentStep(Math.max(0, Math.min(STEPS.length - 1, persisted)));
+          }
+        }
+      } catch {
+        // Column may not exist yet; fall back to defaults.
       }
     }
     getUser();
     // requestedStep is computed from URL and stable per render
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase.auth]);
+
+  // BP-135: if a Free/Personal user lands directly on the AI Setup step
+  // (via persisted state or ?step=4 URL param), advance them past it.
+  useEffect(() => {
+    if (skipAiSetup && currentStep === AI_SETUP_STEP_INDEX) {
+      setCurrentStep(AI_SETUP_STEP_INDEX + 1);
+    }
+  }, [skipAiSetup, currentStep]);
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -388,8 +422,12 @@ export default function OnboardingPage() {
   };
 
   const goNext = () => {
-    if (currentStep < STEPS.length - 1) {
-      const next = currentStep + 1;
+    // BP-135: navigation walks visibleStepIndexes so hidden steps (AI Setup
+    // for Free/Personal) are skipped without breaking the original step
+    // numbering used by the per-step rendering switches.
+    const visIdx = visibleStepIndexes.indexOf(currentStep);
+    if (visIdx >= 0 && visIdx < visibleStepIndexes.length - 1) {
+      const next = visibleStepIndexes[visIdx + 1];
       setCurrentStep(next);
       // Fire-and-forget persistence — RLS ensures this only touches the
       // current user's row. Failures shouldn't block the UI.
@@ -406,8 +444,9 @@ export default function OnboardingPage() {
   };
 
   const goBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
+    const visIdx = visibleStepIndexes.indexOf(currentStep);
+    if (visIdx > 0) {
+      setCurrentStep(visibleStepIndexes[visIdx - 1]);
     }
   };
 
@@ -428,10 +467,11 @@ export default function OnboardingPage() {
         {/* Step Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            {STEPS.map((step, index) => {
+            {visibleStepIndexes.map((stepIdx, displayIdx) => {
+              const step = STEPS[stepIdx];
               const StepIcon = step.icon;
-              const isCompleted = index < currentStep;
-              const isCurrent = index === currentStep;
+              const isCompleted = displayIdx < visibleCurrentIdx;
+              const isCurrent = stepIdx === currentStep;
 
               return (
                 <div key={step.label} className="flex flex-1 items-center">
@@ -463,10 +503,10 @@ export default function OnboardingPage() {
                       {step.label}
                     </span>
                   </div>
-                  {index < STEPS.length - 1 && (
+                  {displayIdx < visibleStepIndexes.length - 1 && (
                     <div
                       className={`mx-2 mb-5 h-0.5 flex-1 transition-colors ${
-                        index < currentStep
+                        displayIdx < visibleCurrentIdx
                           ? "bg-primary"
                           : "bg-muted-foreground/20"
                       }`}
@@ -1205,10 +1245,10 @@ export default function OnboardingPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {currentStep < STEPS.length - 1 && (
+            {!isLastVisibleStep && (
               <Button
                 variant="ghost"
-                onClick={() => setCurrentStep((prev) => prev + 1)}
+                onClick={goNext}
               >
                 Skip for now
               </Button>
@@ -1219,7 +1259,7 @@ export default function OnboardingPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Saving...
                 </>
-              ) : currentStep === STEPS.length - 1 ? (
+              ) : isLastVisibleStep ? (
                 <>
                   Complete Setup
                   <Check className="h-4 w-4" />

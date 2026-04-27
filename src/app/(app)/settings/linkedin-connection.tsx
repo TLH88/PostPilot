@@ -7,6 +7,10 @@ import { Loader2, Link2, Link2Off, AlertTriangle } from "lucide-react";
 import { LinkedInIcon } from "@/components/icons/linkedin";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
+import {
+  LinkedInConnectDialog,
+  type LinkedInConnectReason,
+} from "@/components/linkedin/connect-dialog";
 
 interface LinkedInStatus {
   connected: boolean;
@@ -19,6 +23,8 @@ export function LinkedInConnection() {
   const [status, setStatus] = useState<LinkedInStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogReason, setDialogReason] = useState<LinkedInConnectReason>("first-time");
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -48,9 +54,11 @@ export function LinkedInConnection() {
     }
   }
 
-  function handleConnect() {
-    // Navigate to the connect route which redirects to LinkedIn OAuth
-    window.location.href = "/api/linkedin/connect";
+  function handleConnect(reason: LinkedInConnectReason) {
+    // BP-136: open the interstitial dialog instead of redirecting directly,
+    // so the user understands they're being sent to LinkedIn on purpose.
+    setDialogReason(reason);
+    setDialogOpen(true);
   }
 
   async function handleDisconnect() {
@@ -88,113 +96,130 @@ export function LinkedInConnection() {
 
   const expiryWarning = daysUntilExpiry !== null && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
 
+  const dialog = (
+    <LinkedInConnectDialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+      reason={dialogReason}
+    />
+  );
+
   if (status?.connected && !status.expired) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Badge className="gap-1 bg-green-100 text-green-800">
-            <Link2 className="size-3" />
-            Connected
-          </Badge>
-          {expiryWarning && (
-            <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800">
-              <AlertTriangle className="size-3" />
-              Expires in {daysUntilExpiry} day{daysUntilExpiry !== 1 ? "s" : ""}
+      <>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Badge className="gap-1 bg-green-100 text-green-800">
+              <Link2 className="size-3" />
+              Connected
             </Badge>
-          )}
-        </div>
-        {status.expiresAt && !expiryWarning && (
-          <p className="text-xs text-muted-foreground">
-            Token valid until {new Date(status.expiresAt).toLocaleDateString()}
-          </p>
-        )}
-        <div className="flex gap-2">
-          {expiryWarning && (
-            <Button
-              size="sm"
-              className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
-              onClick={handleConnect}
-            >
-              <LinkedInIcon className="size-3.5" />
-              Reconnect
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-          >
-            {disconnecting ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Link2Off className="size-3.5" />
+            {expiryWarning && (
+              <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-800">
+                <AlertTriangle className="size-3" />
+                Expires in {daysUntilExpiry} day{daysUntilExpiry !== 1 ? "s" : ""}
+              </Badge>
             )}
-            Disconnect
-          </Button>
+          </div>
+          {status.expiresAt && !expiryWarning && (
+            <p className="text-xs text-muted-foreground">
+              Token valid until {new Date(status.expiresAt).toLocaleDateString()}
+            </p>
+          )}
+          <div className="flex gap-2">
+            {expiryWarning && (
+              <Button
+                size="sm"
+                className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
+                onClick={() => handleConnect("reconnect")}
+              >
+                <LinkedInIcon className="size-3.5" />
+                Reconnect
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+            >
+              {disconnecting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Link2Off className="size-3.5" />
+              )}
+              Disconnect
+            </Button>
+          </div>
         </div>
-      </div>
+        {dialog}
+      </>
     );
   }
 
   if (status?.expired) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1 bg-red-100 text-red-800">
-            <AlertTriangle className="size-3" />
-            Connection Expired
-          </Badge>
+      <>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="gap-1 bg-red-100 text-red-800">
+              <AlertTriangle className="size-3" />
+              Connection Expired
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Your LinkedIn connection has expired. Reconnect to continue posting directly.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
+              onClick={() => handleConnect("expired")}
+            >
+              <LinkedInIcon className="size-3.5" />
+              Reconnect LinkedIn
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+            >
+              {disconnecting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Link2Off className="size-3.5" />
+              )}
+              Remove
+            </Button>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Your LinkedIn connection has expired. Reconnect to continue posting directly.
-        </p>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
-            onClick={handleConnect}
-          >
-            <LinkedInIcon className="size-3.5" />
-            Reconnect LinkedIn
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-          >
-            {disconnecting ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Link2Off className="size-3.5" />
-            )}
-            Remove
-          </Button>
-        </div>
-      </div>
+        {dialog}
+      </>
     );
   }
 
   // Not connected
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="gap-1">
-          <Link2Off className="size-3" />
-          Not Connected
-        </Badge>
+    <>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="gap-1">
+            <Link2Off className="size-3" />
+            Not Connected
+          </Badge>
+        </div>
+        <Button
+          size="sm"
+          className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
+          onClick={() => handleConnect("first-time")}
+        >
+          <LinkedInIcon className="size-3.5" />
+          Connect LinkedIn for Posting
+        </Button>
       </div>
-      <Button
-        size="sm"
-        className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
-        onClick={handleConnect}
-      >
-        <LinkedInIcon className="size-3.5" />
-        Connect LinkedIn for Posting
-      </Button>
-    </div>
+      {dialog}
+    </>
   );
 }
