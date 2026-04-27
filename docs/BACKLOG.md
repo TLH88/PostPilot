@@ -113,7 +113,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
-- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium [surfaced 2026-04-26 via QA incident; manual "Save Version" only path today]
+- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium **[Fixed (develop) 2026-04-26]**
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
@@ -475,7 +475,7 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 
 ### BP-141: Auto-Version Snapshot on Autosave (Accidental-Wipe Resilience)
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-26 — `kind` column added to `post_versions` (migration `20260426_add_post_version_kind.sql`); autosave writes an `auto` row at most once per 5 min per post when content has changed; version dropdown hides autosaves by default with a "Show autosaves" toggle; DB trigger prunes auto rows beyond 20 per post; manual Save Version unchanged; auto rows excluded from quota context.
 **Priority:** P2 / Medium
 **Source:** Surfaced 2026-04-26 by a QA-agent data incident — a misuse of `textarea.value = …` overwrote a real draft (`db4c305e…`, "3 Non-Negotiables for Follow the Sun Support Success") from 1518 chars to 181 chars; autosave persisted the truncation. No `post_versions` rows existed because version snapshots are only created when the user explicitly clicks "Save Version" — autosave does not snapshot.
 **Date Added:** 2026-04-26

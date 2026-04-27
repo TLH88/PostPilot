@@ -99,6 +99,7 @@ import { ActivityFeed } from "@/components/activity/activity-feed";
 import { ApprovalControls } from "@/components/posts/approval-controls";
 import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 import { logActivity } from "@/lib/activity";
+import { maybeWriteAutoSnapshot } from "@/lib/autosave-snapshot";
 // Tutorial target IDs on elements are used by the tutorial overlay
 import type { Post, PostVersion, AIMessage, AIConversation, UserProfile } from "@/types";
 
@@ -150,6 +151,8 @@ export default function PostWorkspacePage() {
   const [showConvertConfirm, setShowConvertConfirm] = useState(false);
   const [convertedPostId, setConvertedPostId] = useState<string | null>(null);
   const [deletingVersion, setDeletingVersion] = useState(false);
+  // BP-141: show/hide auto-kind snapshots in the version dropdown
+  const [showAutoVersions, setShowAutoVersions] = useState(false);
 
   // ── Profile state ─────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -262,6 +265,12 @@ export default function PostWorkspacePage() {
     content: string;
     hashtags: string[];
   } | null>(null);
+
+  // BP-141: track when the last auto-snapshot was written and what content it
+  // captured. Both start at values that ensure the first eligible autosave
+  // (≥5 min after page load) will snapshot — 0 ms = epoch, empty content.
+  const lastAutoSnapshotAtRef = useRef<number>(0);
+  const lastAutoSnapshotContentRef = useRef<string>("");
 
   // ── Blank post detection ────────────────────────────────────────────────
   const isBlankPost =
@@ -561,13 +570,43 @@ export default function PostWorkspacePage() {
             });
           }
         }
+
+        // BP-141: opportunistically write an auto-kind snapshot if the
+        // time-window gate passes. Failures are logged as warnings inside
+        // maybeWriteAutoSnapshot and never surfaced to the user.
+        const { data: { user: snapshotUser } } = await supabase.auth.getUser();
+        if (snapshotUser && newContent.trim()) {
+          // Compute the next version number from ALL current versions
+          // (manual + auto alike) so numbers stay monotonically increasing.
+          const nextNum = versions.length > 0 ? versions[0].version_number + 1 : 1;
+          const snapshotWritten = await maybeWriteAutoSnapshot({
+            supabase,
+            postId: post.id,
+            userId: snapshotUser.id,
+            title: newTitle,
+            content: newContent,
+            nextVersionNumber: nextNum,
+            lastAutoSnapshotAtRef,
+            lastAutoSnapshotContentRef,
+          });
+          // Re-fetch versions silently only when a snapshot was just written
+          if (snapshotWritten) {
+            const { data: freshVersions } = await supabase
+              .from("post_versions")
+              .select("*")
+              .eq("post_id", post.id)
+              .order("version_number", { ascending: false });
+            if (freshVersions) setVersions(freshVersions as PostVersion[]);
+          }
+        }
       } else {
         // BP-139: surface save failures explicitly instead of silently
         // returning to idle — the persistent indicator now shows "Save failed".
         setSaveStatus("error");
       }
     },
-    [post, supabase, contentPillars, profile]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [post, supabase, contentPillars, profile, versions]
   );
 
   // BP-139: tick the relative-time string every 30s so "Saved · Xs ago"
@@ -1044,6 +1083,7 @@ export default function PostWorkspacePage() {
         content,
         version_number: nextNumber,
         label: `Version ${nextNumber}`,
+        kind: "manual",
       })
       .select("*")
       .single();
@@ -2157,31 +2197,51 @@ export default function PostWorkspacePage() {
                   {versions.length > 0 && (
                     <>
                       <DropdownMenuSeparator />
-                      <span className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Version History</span>
-                      {versions.map((v) => (
-                        <DropdownMenuItem
-                          key={v.id}
-                          onClick={() => requestLoadVersion(v)}
-                          className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
-                        >
-                          <div className="flex w-full flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">
-                                {v.label ?? `Version ${v.version_number}`}
+                      <div className="flex items-center justify-between px-1.5 py-1">
+                        <span className="text-xs font-medium text-muted-foreground">Version History</span>
+                        {/* BP-141: toggle visibility of auto-kind snapshots */}
+                        {versions.some((v) => v.kind === "auto") && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowAutoVersions((prev) => !prev);
+                            }}
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showAutoVersions ? "Hide autosaves" : "Show autosaves"}
+                          </button>
+                        )}
+                      </div>
+                      {versions
+                        .filter((v) => showAutoVersions || v.kind !== "auto")
+                        .map((v) => (
+                          <DropdownMenuItem
+                            key={v.id}
+                            onClick={() => requestLoadVersion(v)}
+                            className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
+                          >
+                            <div className="flex w-full flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  {v.kind === "auto"
+                                    ? `Autosave · ${new Date(v.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                                    : (v.label ?? `Version ${v.version_number}`)}
+                                </span>
+                                {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(v.created_at).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
                               </span>
-                              {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(v.created_at).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
+                          </DropdownMenuItem>
+                        ))}
                     </>
                   )}
                 </DropdownMenuContent>
