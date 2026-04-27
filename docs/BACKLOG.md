@@ -113,6 +113,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
+- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium [surfaced 2026-04-26 via QA incident; manual "Save Version" only path today]
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
@@ -469,6 +470,41 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 - [ ] Server-side route rejects post-create with empty/missing title (defense in depth).
 
 **Effort:** S · **Expected ROI:** High (every new-post action gets a small UX improvement; removes the untitled-drafts noise from `/posts`, dashboard, and admin views)
+
+---
+
+### BP-141: Auto-Version Snapshot on Autosave (Accidental-Wipe Resilience)
+
+**Status:** Backlog
+**Priority:** P2 / Medium
+**Source:** Surfaced 2026-04-26 by a QA-agent data incident — a misuse of `textarea.value = …` overwrote a real draft (`db4c305e…`, "3 Non-Negotiables for Follow the Sun Support Success") from 1518 chars to 181 chars; autosave persisted the truncation. No `post_versions` rows existed because version snapshots are only created when the user explicitly clicks "Save Version" — autosave does not snapshot.
+**Date Added:** 2026-04-26
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+
+**Problem:** PostPilot's autosave writes the editor's content into `posts.content` every 2 seconds. The `post_versions` table exists for explicit user-saved versions but is never populated by autosave. So if a draft is accidentally clobbered (whether by a bug, a misclick, an extension, or — as in this incident — a misbehaving QA tool), there is **no in-app recovery path**. Users have to fall back to Supabase point-in-time recovery (paid plan, manual support ticket).
+
+**What to change:**
+- On autosave success, also write a row to `post_versions` IF the new content differs materially from the latest snapshot (don't snapshot every keystroke — debounce + dedupe).
+- Strategy options to evaluate:
+  - **Time-window snapshot:** at most one autosave snapshot per 5 minutes per post.
+  - **Diff-magnitude snapshot:** snapshot when ≥ N% of content changes vs the last snapshot.
+  - **Hybrid:** time-window OR threshold, whichever fires first.
+- Tag autosave snapshots distinctly (`label: "auto"` or new `kind: "auto" | "manual"` column) so the version dropdown can hide them by default and show under "Show autosaves" toggle.
+- Retention: cap autosave snapshots at e.g. last 20 per post; prune older to control storage growth.
+- Honor RLS: rows are user-scoped already.
+
+**Security / guardrails:**
+- No new user input; just an additional INSERT on the existing autosave path. Subject to existing RLS.
+- Watch quota — Personal-tier users get a single version per post today (`Posts versions: 1 per post`). Autosave snapshots should NOT count against the BP-117 versions quota since they're a recovery affordance, not a user-facing feature.
+
+**Acceptance criteria:**
+- [ ] Autosave produces an `auto`-kind row in `post_versions` according to the chosen strategy.
+- [ ] Manual "Save Version" path unchanged.
+- [ ] Version dropdown hides autosave entries by default; toggle reveals them.
+- [ ] Storage growth is bounded (cap + prune).
+- [ ] After an accidental wipe, the user can revert to a recent autosave snapshot via the existing version-restore flow.
+
+**Effort:** S-M · **Expected ROI:** High (recovery from any future content-loss incident; safety net during the migration to richer editor features).
 
 ---
 
