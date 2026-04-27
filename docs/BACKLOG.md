@@ -13,13 +13,15 @@
 >
 > **2026-04-16 STRATEGIC PIVOT:** Billing deferred until Free→Pro viability is validated. All Team+ features feature-flagged behind BP-098. See [docs/reviews/2026-04-16-backlog-reprioritization.md](reviews/2026-04-16-backlog-reprioritization.md) for the new priority tiers (P0–P3 + Deferred) and sprint plan.
 >
-> **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2.
+> **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2. *(Concept later reframed 2026-04-27 — see entry below. BP-099 is now Focus View, a launcher-hub home page; the original "conversational assistant / coach panel" framing has been replaced.)*
 >
 > **2026-04-16 (production bug report):** Added BP-100 (P1 Critical, confirmed) — scheduled posts published via the Edge Function silently drop the user's selected image. Root cause identified: Edge Function never updated after image support shipped. Added BP-101 (P2 Watching) — possible historical text-truncation bug in scheduled posts; not currently reproducible, monitoring for recurrence.
 >
 > **2026-04-22 (BP-101 reproduced + fixed):** BP-101 promoted to P1 Critical and shipped as Done (Edge Function v16 + src/lib/linkedin-api.ts). Root cause: LinkedIn's REST Posts API `commentary` field uses "Little Text Format" with 15 reserved characters that must be backslash-escaped (`|{}@[]()<>#\\*_~`). When unescaped, LinkedIn silently truncates the post at the first reserved character. New `escapeLinkedInText()` helper in both Deno (Edge Function) and Node runtimes handles this.
 >
 > **2026-04-22 (UX Improvement Run):** Added BP-102 through BP-109 from a functional review of the application. All eight items are tagged **[UX-IMPROVE-2026-04-22]** for traceability. See the review and scope docs for the full rationale. Recommended order: Sprint 1 = BP-102, BP-104, BP-105 (low-effort, high-ROI); Sprint 2 = BP-103, BP-107 (schema migrations); Sprint 3 = BP-106, BP-108, BP-109 (polish + error hardening).
+>
+> **2026-04-27 (BP-099 redesign + sibling BPs):** Reframed BP-099 from "Guided Mode / Conversational Assistant" (persistent right-side coach panel + workflow engine) to **Focus View** (simplified launcher-hub home page with 4 cards: Create / Drafts / Scheduled / Generate Ideas). User picks Focus or Standard during onboarding. Mobile gets its own UI architecture (bottom tab bar + FAB), no Focus/Standard choice. Effort estimate halved (15–21 days → 9–13 days) by dropping the workflow engine. Spun off **BP-142** (Onboarding integrity gate — enforces required fields including new `ui_mode`) and **BP-143** (Mobile editor layout — post editor + AI assistant on small screens). All three under EPIC 4 — Onboarding & Guidance.
 
 ## Priority Legend (post-2026-04-16 pivot)
 
@@ -74,10 +76,12 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 
 ### EPIC 4 — Onboarding & Guidance
 - **BP-084** Tutorial card visual redesign — P2 / Medium
-- **BP-099** Simplified Guided UI mode — P1 / High
+- **BP-099** Focus View (Simplified UI Mode) — Design revised 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — P1 / High
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
+- **BP-142** Onboarding integrity gate (login + post-wizard required-field validation) — P1 / High (sibling of BP-099)
+- **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
 - *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)
@@ -3572,170 +3576,214 @@ Applied to both user-provided `title` and `content` before they're combined into
 
 ---
 
-### BP-099: Simplified Guided UI Mode (Conversational Assistant)
+### BP-099: Focus View (Simplified UI Mode)
 
-**Status:** Design landed 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — awaiting owner review
+**Status:** Design revised 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — direction agreed with owner; awaiting final sign-off before implementation
 **Priority:** P1 / High
-**Source:** Owner — captured 2026-04-16. Idea originated in a prior session and was not previously written into the backlog.
+**Source:** Owner — captured 2026-04-16; concept refined with mockups + brainstorm 2026-04-27.
 **Date Added:** 2026-04-16
+**Renamed:** "Guided Mode / Conversational Assistant" → "Focus View" (2026-04-27)
+**Spin-off BPs:** BP-142 (Onboarding integrity gate), BP-143 (Mobile editor layout)
 
 #### Vision
 
-A toggleable "Guided Mode" that turns PostPilot's UI into a full-time conversational assistant for less technical users. Instead of presenting the full, dense product surface and expecting the user to know what to do, the system proactively asks the user what they want to accomplish, walks them through the workflow step by step, and — after each completed task — asks "what would you like to do next?" with a curated, context-aware set of options.
+A simplified, opinionated home page that surfaces the four actions a user takes most often as large, self-explanatory cards. Replaces the standard dashboard for users who choose Focus View during onboarding. Not a coaching panel layered over the existing UI — it is a different home page with different navigation. Users can switch between Focus View and Standard Dashboard at any time via a clearly-labeled toggle.
 
-The simplified mode does **not** replace the existing UI. It overlays/augments it: real components (Idea Generator modal, Post Editor, AI Assistant panel, Schedule modal, etc.) are still used. The Guided Mode adds an always-present assistant that narrates, prompts, and confirms. Power users can keep the standard UI; less technical users get a coached experience.
+The original concept (a persistent right-side coach panel narrating each step of every workflow) was replaced after owner mockups and brainstorm on 2026-04-27. The launcher-hub model is simpler to build, easier to maintain, and better matches what less technical users actually need: a clear answer to "what do I do?" — not a step-by-step narrator.
 
-This addresses a clear gap: PostPilot has many features, and a brand-new, non-technical user can be overwhelmed before they ever publish their first post. Guided Mode is the difference between "I tried it and gave up" and "It walked me through it and I posted in 5 minutes."
+This addresses a clear gap: PostPilot has many features, and a brand-new, non-technical user can be overwhelmed before they ever publish their first post. Focus View is the difference between "I tried it and gave up" and "I knew exactly what to click."
 
 #### Problem
 
-PostPilot has accumulated significant surface area: voice profile setup, BYOK or managed AI, content pillars, Idea Bank, post editor with AI chat / hook analyzer / version management / hashtag tools / image generation, calendar, analytics, and now (when re-enabled) team workspaces. For a less technical user, knowing **where to start** and **what to do next** is the primary obstacle. Documentation, tooltips, and one-shot tutorials help but aren't enough — the user needs an assistant that stays with them throughout the session, not just on first login.
+PostPilot has accumulated significant surface area: voice profile setup, BYOK or managed AI, content pillars, Idea Bank, post editor with AI chat / hook analyzer / version management / hashtag tools / image generation, calendar, analytics, and now (when re-enabled) team workspaces. For a less technical user, knowing **where to start** is the primary obstacle. Reducing the home page to four obvious choices is a bigger UX win than narrating each step.
 
-#### Canonical Walkthrough (Owner's Reference Example)
+#### The Four Cards
 
-> **System on login:** "What would you like to do?" Options: *Create a new AI-assisted post · Brainstorm new ideas · Schedule a post · View my analytics · Manage my settings*
->
-> **User selects:** "Create a new AI-assisted post"
->
-> **System:** Opens the AI Idea Generator modal. "First, tell me what you'd like to brainstorm about. Enter a topic and pick a content pillar, then click Generate." (User-facing prompts highlight the topic field and the pillar selector.)
->
-> **User:** Enters topic, picks pillar, clicks Generate.
->
-> **System:** AI generates ideas. "Great — here are some ideas. Pick at least one you'd like to develop later and add it to your Idea Bank."
->
-> **User:** Selects ideas, saves to Idea Bank. The Idea Generator closes.
->
-> **System:** Navigates the user to the Idea Bank. "Which of these ideas would you like to develop into a LinkedIn post? Click the Develop button on the one you want to start with."
->
-> **User:** Clicks Develop on an idea. The post editor opens with the idea pre-populated. The AI Assistant starts writing the initial draft automatically.
->
-> **System:** "I'm drafting your post in the AI Assistant panel on the right. When it's done, you can review it. If you want changes, just ask the AI assistant — or click 'Apply to Editor' to take over and edit it yourself."
->
-> **User:** Reviews draft, applies it to editor, makes any edits.
->
-> **System:** "Looking good! Want to add an image? You can generate one with AI or upload your own from the Post Image section. If you'd rather skip the image, you can move on."
->
-> **User:** Generates/uploads an image, OR skips.
->
-> **System:** "Ready to share? You can publish to LinkedIn right now, or schedule it for a later date and time."
->
->   - **If user chooses "Publish now":** System publishes via LinkedIn integration. "🎉 Your post is live on LinkedIn! Want to start another one?"
->   - **If user chooses "Schedule":** Schedule modal opens. User picks date/time. "🎉 Scheduled for [date/time]. Want to start another one?"
+Focus View's home is four primary cards, in this order:
 
-This canonical example becomes the reference implementation for the V1 "Create a new AI-assisted post" workflow. Other workflows follow the same pattern.
+| # | Card | What it does | Routes to |
+|---|---|---|---|
+| 1 | **Create a Post** | Start a fresh post from scratch | `/posts/new` |
+| 2 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
+| 3 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
+| 4 | **Generate New Ideas** | Open AI brainstorming | Idea Generator on `/ideas` |
+
+The cards are framed as *user actions*, not data states. The grid is intentionally fixed — context-aware menus add cognitive load for the audience this view targets. "Edit a Post" and "Review a Post" are deliberately excluded: drafts cover unfinished work, and review-before-publish lives inside the editor.
 
 #### Requirements
 
-##### 1. Guided Mode Toggle
-- Settings → New section "Guided Mode" with a master toggle (default: **on for new accounts**, **off for existing accounts** at rollout)
-- A subtle but persistent indicator in the UI when Guided Mode is active (e.g., a small assistant chip in the top bar)
-- Easy way to dismiss/disable from inside any guided step ("Skip guidance · I'll explore on my own") that turns Guided Mode off and remembers the preference
-- Easy way to re-enable from Settings or from a Help menu item
+##### 1. Two UI modes (desktop only)
+- `user_profiles.ui_mode` enum: `'focus'` or `'standard'`
+- Chosen during onboarding via a dedicated card with side-by-side previews
+- Existing accounts at rollout backfilled to `'standard'` (their experience does not change without consent)
+- New accounts default to `'focus'` if onboarding choice is somehow missing (BP-142 will enforce non-null)
 
-##### 2. Conversational Assistant Panel
-- A persistent assistant surface (slide-out panel, bottom drawer, or floating chip — design choice during implementation)
-- Renders as a chat-like conversation: system messages, suggested action buttons, and confirmation messages
-- When the user takes a suggested action (clicks a real UI element), the assistant detects it and advances the conversation
-- When the user goes off-script (clicks something outside the suggested flow), the assistant gracefully acknowledges and offers to either continue with the original goal or pivot
+##### 2. Mobile is its own architecture (not Focus/Standard)
+- Mobile users do not see a Focus/Standard choice
+- Single mobile-native UI: bottom tab bar (Home · Posts · [+] · Calendar · Settings) with center FAB
+- Four-card Focus layout adapts on mobile by stacking vertically
+- The mobile post-editor layout is **handed to BP-143** — out of scope for BP-099
 
-##### 3. Workflow Engine
-A state machine that drives guided sessions. Each workflow is a sequence of steps with:
-- A user-facing prompt
-- An expected user action (click, navigate, form-input, "task complete" signal)
-- A success message + a "what next?" branch with context-aware options
-- A "skip this step" affordance
-- A timeout/help fallback ("Need help finding it?")
+##### 3. View toggle
+- In Focus View: top-right of the top bar, after Theme toggle, labeled "Full View" with explicit-consequence dialog before switching
+- In Standard view: top-right menu, next to Theme toggle, labeled "Focus View" with same dialog
+- No Esc-key shortcut — toggle button is the only path
+- Mid-task switch auto-saves the active draft and shows "Your draft has been saved at X. You can return to it from [Y]."
 
-Reuse the action-detection patterns already built for the Tutorial SDK (`packages/tutorial-sdk/src/core/action-detector.ts`) — click, navigate, formInput, elementExists detectors are already battle-tested.
+##### 4. Routing & login behavior
+- Default landing on login depends on `ui_mode`
+- Deep links (e.g., `/posts/123` from email) **always** route to the URL — Focus View is the default landing, not a forced cage
+- "← Back to Home" affordance returns user to Focus View home from any reached page
 
-##### 4. Workflow Catalog (V1 Scope)
-Ship V1 with these workflows. Each is one full guided journey from "what do you want to do?" through "congratulations, you did it":
+##### 5. Post-task "What next?" prompts
+Inline (not modal) on the page where the task ended. Options curated by what the user just completed (full table in design doc §7).
 
-| Workflow | Trigger | End state |
-|---|---|---|
-| **Create a new AI-assisted post** (canonical example above) | Login menu, post-completion menu, dashboard CTA | Post published or scheduled |
-| **Brainstorm new ideas without developing** | Login menu, idea bank empty state | Ideas saved to Idea Bank |
-| **Develop an existing idea** | Login menu (when ideas exist), Idea Bank | Post published or scheduled |
-| **Schedule an existing draft** | Login menu (when drafts exist), Posts page | Post scheduled |
-| **Set up my profile / voice** | First-login flow, settings prompt | Voice profile complete |
-| **Connect LinkedIn** | First-login flow, settings prompt | LinkedIn OAuth complete |
+##### 6. Onboarding card (BP-099 portion)
+- New step "Choose your home screen" with two side-by-side previews
+- Selection persists to `user_profiles.ui_mode`
+- BP-099 declares `ui_mode` as a required onboarding field; **BP-142** enforces non-null on every login
 
-Each workflow ends by asking "What would you like to do next?" with options filtered by user state (e.g., don't suggest "Develop an existing idea" when the Idea Bank is empty).
+##### 7. Settings surface
+- Settings → Appearance section: Home Screen dropdown (Focus / Standard) + existing Theme control
+- Short explainer copy under the Home Screen control
 
-##### 5. Workflow Catalog (Post-V1, Documented but Deferred)
-- **Edit / improve a previous post** (use Hook Analyzer, ask AI for variations)
-- **Review my analytics and pick a winning topic to repeat**
-- **Manage my settings** (AI provider, theme, notifications)
-- **Reschedule or unschedule a post**
-- **Manually mark a post as posted**
-- **Past-due post recovery** (pairs with BP-034)
+##### 8. Tier availability
+**Available to all tiers** (Free, Personal, Professional). This is onboarding/usability infrastructure, not a paid feature. Do **not** gate it.
 
-##### 6. Login → Welcome Prompt
-- When Guided Mode is on, every login lands at a welcome prompt: "Welcome back, [name]. What would you like to do today?"
-- Options curated by user state:
-  - Always shown: "Create a new AI-assisted post"
-  - Conditional: "Develop an existing idea" (only if Idea Bank has unprocessed ideas)
-  - Conditional: "Schedule an existing draft" (only if there are unpublished drafts)
-  - Conditional: "Connect LinkedIn" (only if not yet connected)
-  - Conditional: "Set up your voice profile" (only if voice profile incomplete)
-  - Always shown: "Just let me explore" (one-time bypass for the session)
+#### Architecture (high-level)
 
-##### 7. Context-Aware "What Next?"
-After each completed workflow, the assistant asks "What would you like to do next?" with the same conditional logic as the welcome prompt — but informed by the workflow that was just completed. Examples:
-- After publishing a post → suggest "Schedule another post," "Generate more ideas," "Mark a different post as posted"
-- After saving brainstormed ideas → suggest "Develop one of these ideas now," "Generate more ideas," "Take a break"
-- After scheduling → suggest "Create another post," "View your calendar," "Done for now"
+The original Guided Mode design proposed a `GuidedModeEngine` state machine, action detectors, workflow definition files, and a `useUserState()` hook. **All dropped.** Focus View is direct navigation: cards route to existing pages. The implementation surface is roughly 1/3 the original scope.
 
-##### 8. Off-Script Handling
-- If the user clicks something outside the suggested flow, the assistant:
-  - Acknowledges: "Looks like you opened the [thing]. Want help with that, or should I keep helping you with [original goal]?"
-  - Offers to switch the active workflow OR pause the current one
-  - Never blocks or disables the rest of the UI — Guided Mode is additive, not restrictive
-
-##### 9. Persistence
-- Guided Mode preference: per-user, stored in `creator_profiles.guided_mode_enabled`
-- Active workflow state: in-memory only (no need to resume across sessions for V1)
-- "Don't show me this workflow's intro again" preference: per-workflow flag stored in `creator_profiles.guided_workflows_dismissed` (jsonb)
-
-##### 10. Tier Availability
-**Available to all tiers** including Free. This is onboarding quality, not a paid feature. Do **not** gate it.
-
-#### Technical Notes (Architecture Suggestions)
-
-- **Reuse the Tutorial SDK** (`packages/tutorial-sdk/`) for action detection, spotlight overlay, and timeout handling. Guided Mode is essentially "long-running, branching, multi-workflow tutorials" — the engine primitives are the same.
-- **New package or module** for workflow definitions (`src/lib/guided-mode/workflows/`). Each workflow is a typed array of steps.
-- **AI Assistant integration:** the existing AI Assistant panel may be the right host for the conversational layer. Consider extending it rather than building a new panel.
-- **Avoid hard-coupling** workflow steps to specific component selectors when avoidable. Use stable `data-tour-id` (already in use for tutorials) attributes.
-- **Action verification:** when the user clicks a suggested action, the workflow engine verifies the resulting state (e.g., "the modal opened," "the post status changed to scheduled") before advancing. Don't just assume the click did what we expected.
+What remains:
+- One new column on `user_profiles` (`ui_mode`)
+- A new Focus View home page component
+- Top-bar view toggle with confirm dialog (in both Focus and Standard top bars)
+- A new onboarding step for the UI choice
+- "What next?" inline sections on post-task pages
+- Mobile bottom-nav shell (the editor is BP-143)
 
 #### Out of Scope for V1
-- Cross-session workflow resume ("you started creating a post yesterday — want to continue?") — capture as future BP if requested
-- Voice/audio guidance — text only for V1
-- Multi-language support — English only
-- Analytics on workflow completion rates — capture as future BP
-- A/B testing different prompt copy — future
-- LLM-generated dynamic prompts — V1 uses static, hand-authored prompts for control and predictability
+- Per-card customization (user reordering or replacing cards)
+- Workflow analytics / completion metrics
+- Tablet-specific breakpoint work
+- The mobile post-editor layout (BP-143)
+- Onboarding integrity validation logic (BP-142)
+- Native app / PWA-specific code
 
 #### Acceptance Criteria
 
-- [ ] Guided Mode toggle in Settings, default ON for new accounts, OFF for existing accounts
-- [ ] Persistent assistant surface visible in the UI when Guided Mode is on
-- [ ] Login welcome prompt with state-aware options
-- [ ] All 6 V1 workflows ship and are tested end-to-end
-- [ ] After each workflow ends, "what next?" prompt appears with context-aware options
-- [ ] Off-script clicks are handled gracefully (acknowledge + offer to switch or pause)
-- [ ] User can disable Guided Mode mid-flow with one click
-- [ ] Re-enabling Guided Mode is discoverable in Settings and Help
-- [ ] No regressions in standard (non-guided) UI for existing users
-- [ ] Available to all tiers (Free, Creator, Pro); not gated
+- [ ] `user_profiles.ui_mode` column exists; default `'focus'` for new accounts; existing accounts backfilled to `'standard'`
+- [ ] Onboarding includes a "Choose your home screen" step that writes `ui_mode`
+- [ ] Root route renders Focus View when `ui_mode = 'focus'`, existing dashboard when `'standard'`
+- [ ] Four cards (Create / Drafts / Scheduled / Ideas) render and route correctly
+- [ ] Top-bar utilities present: Help, Account dropdown, Theme toggle, View toggle
+- [ ] View toggle (both directions) shows confirm dialog with explicit consequence text
+- [ ] Mid-task switch auto-saves drafts and shows "your draft has been saved at X" confirmation
+- [ ] Deep links bypass Focus View (direct URLs always work)
+- [ ] "What next?" prompts appear after Create / Schedule / Save Idea tasks with the correct contextual options
+- [ ] Mobile devices route to bottom-nav shell regardless of `ui_mode`
+- [ ] Mobile users do not see the Focus/Standard toggle anywhere
+- [ ] Settings → Appearance → Home Screen control reads/writes `ui_mode`
+- [ ] No regression in standard UI for users with `ui_mode = 'standard'`
+- [ ] Available to all tiers (Free, Personal, Professional); not gated
 
 #### Notes
 
-- **Strategic alignment:** This is a **viability multiplier** for the Free→Pro segment. Less technical users are exactly the alpha-testing audience the new direction targets. Without Guided Mode, the product's surface area is a barrier to first-time success.
-- **Relationship to BP-035 (Tutorial cleanup):** complementary, not competing. Tutorials are one-shot education; Guided Mode is persistent assistance. Land BP-035 first (so the Tutorial SDK foundation is solid), then build Guided Mode on top of the same engine.
-- **Relationship to BP-084 (Tutorial card visual redesign):** the new card design from BP-084 may be reused as the visual language for Guided Mode prompts. Design consistency.
-- **Effort estimate:** **L–XL** (1.5–2 weeks of focused work for V1 with 6 workflows). Possible to phase: V1a = Create Post workflow only (3-5 days), V1b = remaining 5 workflows (1-1.5 weeks).
-- **Suggested sprint placement:** After Sprint 2 (P1 viability bug fixes land first). Could be its own dedicated Sprint 2.5 or split across Sprints 3 and 4 of the [reprioritization plan](reviews/2026-04-16-backlog-reprioritization.md). Recommend the phased approach so the canonical Create Post workflow ships fast and gets user feedback before investing in the other 5.
+- **Strategic alignment:** Viability multiplier for the Free→Pro segment. Less technical users are exactly the alpha-testing audience the new direction targets.
+- **Relationship to BP-035 / BP-084 (Tutorial SDK):** Tutorial SDK still runs feature-specific one-shots inside Focus View pages without conflict. The original "Guided Mode reuses Tutorial SDK action detectors" plan no longer applies — Focus View has no step detection.
+- **Sibling BPs:**
+  - **BP-142** — Onboarding integrity gate (enforces `ui_mode` non-null + all other required onboarding fields on every login)
+  - **BP-143** — Mobile editor layout (mobile post editor with draft + AI assistant + tools on small screens)
+- **Effort estimate:** **M** (9–13 days for V1 — Phases 1–4 in the design doc). Down from the original L–XL estimate (15–21 days) because the workflow engine is dropped.
+- **Suggested sprint placement:** Sprint 4 (Polish & consistency) per the reprioritization plan, possibly slipping into a dedicated Sprint 4.5 if BP-142 and BP-143 are sequenced before launch.
+
+---
+
+### BP-142: Onboarding Integrity Gate (Required-Field Validation on Login)
+
+**Status:** Stub — spec to be written
+**Priority:** P1 / High
+**Source:** Owner — captured 2026-04-27 during BP-099 brainstorm
+**Date Added:** 2026-04-27
+**Sibling of:** BP-099 (Focus View)
+
+#### Problem
+
+Required onboarding fields (voice profile, LinkedIn connection, tier choice, and now `ui_mode` per BP-099) can end up null if a user closes the onboarding wizard mid-flow, if a future schema change adds a new required field that older accounts haven't filled, or if a backfill misses someone. Today there is no central enforcement: the user lands in the app and may hit confusing errors deep in a flow rather than being prompted to finish setup.
+
+#### Solution Sketch
+
+A central `validateOnboardingComplete()` helper plus a layout-level gate that runs:
+
+1. **On every login** — checks all required `user_profiles` fields are populated. If any are missing, redirects to a focused completion flow that prompts only for the missing fields. Access to the rest of the app is blocked until all are populated.
+2. **Immediately after the onboarding wizard closes** — same check; catches the case where a user dismissed the wizard early.
+
+The list of required fields is a single declared source of truth (e.g., `src/lib/onboarding/required-fields.ts`) so adding a new required field in a future BP only requires editing that list.
+
+#### Required Fields (initial set)
+
+- `voice_profile` — non-null and non-empty
+- `linkedin_connection` — exists for the user
+- `tier` — non-null
+- `ai_provider_choice` (or equivalent BYOK/managed flag) — non-null where required by tier
+- `ui_mode` — non-null (declared by BP-099)
+
+#### Acceptance Criteria
+
+- [ ] Single declared source of truth for required onboarding fields
+- [ ] Login flow runs validation; missing fields trigger a focused completion prompt
+- [ ] Post-wizard close hook runs the same validation
+- [ ] User cannot access app pages while any required field is missing
+- [ ] Adding a new required field is a one-line change to the field list
+- [ ] No regression for users who have completed onboarding (validation is fast and silent on the happy path)
+
+#### Notes
+
+- BP-099 declares `ui_mode` as required and depends on this BP for enforcement — but BP-099 ships independently with a soft default (`'focus'` for missing values) so the app works even if BP-142 is delayed.
+- Consider grouping with BP-103 (Contextual Onboarding CTA) since both touch the dashboard onboarding region.
+- **Effort estimate:** S–M (2–4 days).
+
+---
+
+### BP-143: Mobile Editor Layout (Post Editor + AI Assistant on Small Screens)
+
+**Status:** Stub — spec to be written
+**Priority:** P1 / High
+**Source:** Owner — captured 2026-04-27 during BP-099 brainstorm
+**Date Added:** 2026-04-27
+**Sibling of:** BP-099 (Focus View)
+
+#### Problem
+
+PostPilot's post editor on desktop puts the draft on the left and the AI Assistant on the right. This side-by-side layout doesn't translate to a phone screen: cramming both panels onto a 390px-wide display makes neither usable. Mobile users currently get a poor experience that is not just "the desktop UI made smaller" — it's actively unworkable.
+
+BP-099 ships the mobile shell (bottom tab bar, four-card home, Posts/Calendar/Settings tabs) but **does not** redesign the post editor itself. That redesign needs its own planning round.
+
+#### Solution Direction (Pending Design)
+
+Three patterns under consideration; final pick is part of this BP's spec phase:
+
+1. **Bottom-sheet pattern** — draft full-screen; AI assistant pulls up from bottom as a draggable sheet with snap points (peek / half / full). User controls how much screen the AI takes; can drag down to see how revisions affect the draft. *iOS Maps, Notion mobile, Linear mobile use this.* Strongest contender.
+2. **Tabbed pattern** — top segmented control: "Draft" | "AI" | "Settings". Whichever tab is active gets full width. Simple but loses the "see your draft while AI talks" benefit.
+3. **Drawer pattern** — draft full-screen; AI slides in from right when triggered. Familiar but feels desktop-y on a small screen.
+
+Other tools that need a mobile UX (image picker / generator, schedule picker, hook analyzer, version history, hashtag tools) are likely better suited to bottom sheets or modal screens — to be decided per tool during spec.
+
+#### Acceptance Criteria (placeholder)
+
+- [ ] Mobile post editor layout decision documented (one of bottom-sheet / tabbed / drawer, with rationale)
+- [ ] Draft area is always reachable; AI assistant is reachable in ≤1 tap from anywhere in the editor
+- [ ] All editor tools (image, schedule, hook, version, hashtag) have a working mobile path
+- [ ] Save / autosave behavior is identical to desktop
+- [ ] Publish + Schedule actions are reachable from a persistent bottom action bar
+- [ ] No reliance on hover-only affordances
+- [ ] Tested on iOS Safari and Android Chrome via Vercel preview
+
+#### Notes
+
+- BP-099 routes mobile users to a separate code path; this BP fills out the editor portion of that path.
+- Cross-references: BP-090 (`window.location.reload()` in post editor — Team-flagged but worth checking for mobile relevance), the existing AI Assistant component on `src/app/(app)/posts/[id]/page.tsx`.
+- **Effort estimate:** M–L (5–8 days, including design + implementation + browser testing).
 
 ---
 
