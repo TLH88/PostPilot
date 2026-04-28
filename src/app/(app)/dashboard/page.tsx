@@ -35,6 +35,7 @@ import { ContentPillarBalance } from "@/components/dashboard/content-pillar-bala
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
+import { FocusViewHome } from "@/components/focus-view/focus-view-home";
 
 // ─── Shared post-cards section ────────────────────────────────────────────────
 // Same layout the dashboard uses for Recent Drafts. Extracted so Scheduled
@@ -198,13 +199,22 @@ export default async function DashboardPage() {
   }
 
   // Fetch profile for greeting + AI access resolution
+  // BP-099: also pulls ui_mode so we can branch into Focus View early
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "full_name, onboarding_completed, ai_provider, ai_model, ai_api_key_encrypted, force_ai_gateway, managed_ai_access, managed_ai_expires_at, account_status, trial_ends_at"
+      "full_name, onboarding_completed, ai_provider, ai_model, ai_api_key_encrypted, force_ai_gateway, managed_ai_access, managed_ai_expires_at, account_status, trial_ends_at, ui_mode"
     )
     .eq("user_id", user.id)
     .single();
+
+  // BP-099: Focus View — when the user has chosen the simplified launcher,
+  // skip the full dashboard render and show the four-card home instead.
+  // Standard view (the existing dashboard below) is unchanged.
+  if (profile?.ui_mode === "focus") {
+    const focusName = profile.full_name || user.email?.split("@")[0] || "there";
+    return <FocusViewHome userName={focusName} />;
+  }
 
   // Best-effort onboarding step fetch — separate query so this degrades
   // gracefully if the column hasn't been migrated yet.
