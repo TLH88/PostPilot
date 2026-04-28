@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/encryption";
 import {
@@ -16,6 +16,11 @@ import { logApiError } from "@/lib/api-utils";
  * Throttled to at most one real API call per user per hour via
  * user_profiles.linkedin_token_validated_at.
  *
+ * BP-145: when called with `?force=1`, the 1-hour cache is bypassed (used by
+ * the recovery page right after an OAuth round-trip to verify the new token
+ * before unlocking action buttons). Force calls still respect a 60-second
+ * rate limit so a buggy client can't thundering-herd LinkedIn's userinfo API.
+ *
  * Response shape:
  *   { valid: true,  cached: boolean }
  *   { valid: false, reason: "not_connected" | "no_token" | "revoked" | "refresh_failed" }
@@ -24,9 +29,11 @@ import { logApiError } from "@/lib/api-utils";
  * back verbatim.
  */
 const THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+const FORCE_RATE_LIMIT_MS = 60 * 1000; // 1 minute
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const force = request.nextUrl.searchParams.get("force") === "1";
     const supabase = await createClient();
     const {
       data: { user },
@@ -58,13 +65,14 @@ export async function POST() {
       );
     }
 
-    // Throttle: if we validated recently, skip the LinkedIn call.
+    // Throttle: force=1 uses a 60-second rate limit; non-force uses 1 hour.
     const lastValidated =
       (profile as { linkedin_token_validated_at?: string | null })
         .linkedin_token_validated_at;
     if (lastValidated) {
       const age = Date.now() - new Date(lastValidated).getTime();
-      if (age >= 0 && age < THROTTLE_MS) {
+      const window = force ? FORCE_RATE_LIMIT_MS : THROTTLE_MS;
+      if (age >= 0 && age < window) {
         return NextResponse.json({ valid: true, cached: true });
       }
     }
