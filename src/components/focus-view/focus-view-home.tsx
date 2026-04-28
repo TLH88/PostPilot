@@ -54,7 +54,30 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
       </header>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {/* 1 — Create a Post */}
+        {/* Card order follows the editorial flow: ideate → create →
+            finish drafts → check schedule. This matches how a session
+            naturally progresses for a content creator. */}
+
+        {/* 1 — Generate New Ideas */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10">
+              <Lightbulb className="size-5 text-primary" />
+            </div>
+            <CardTitle>Generate New Ideas</CardTitle>
+            <CardDescription>Brainstorm topics with AI.</CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Link
+              href="/ideas"
+              className={cn(buttonVariants({ size: "lg" }), "w-full")}
+            >
+              Open
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* 2 — Create a Post */}
         <Card className="flex flex-col">
           <CardHeader>
             <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10">
@@ -70,7 +93,7 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
           </CardContent>
         </Card>
 
-        {/* 2 — View Draft Posts */}
+        {/* 3 — View Draft Posts */}
         <Card className="flex flex-col">
           <CardHeader>
             <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10">
@@ -89,7 +112,7 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
           </CardContent>
         </Card>
 
-        {/* 3 — View Scheduled Posts */}
+        {/* 4 — View Scheduled Posts */}
         <Card className="flex flex-col">
           <CardHeader>
             <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10">
@@ -104,25 +127,6 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
               className={cn(buttonVariants({ size: "lg" }), "w-full")}
             >
               View
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* 4 — Generate New Ideas */}
-        <Card className="flex flex-col">
-          <CardHeader>
-            <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10">
-              <Lightbulb className="size-5 text-primary" />
-            </div>
-            <CardTitle>Generate New Ideas</CardTitle>
-            <CardDescription>Brainstorm topics with AI.</CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Link
-              href="/ideas"
-              className={cn(buttonVariants({ size: "lg" }), "w-full")}
-            >
-              Open
             </Link>
           </CardContent>
         </Card>

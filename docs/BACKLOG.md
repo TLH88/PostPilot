@@ -3603,12 +3603,12 @@ Focus View's home is four primary cards, in this order:
 
 | # | Card | What it does | Routes to |
 |---|---|---|---|
-| 1 | **Create a Post** | Start a fresh post from scratch | `/posts/new` |
-| 2 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
-| 3 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
-| 4 | **Generate New Ideas** | Open AI brainstorming | Idea Generator on `/ideas` |
+| 1 | **Generate New Ideas** | Open AI brainstorming | Idea Generator on `/ideas` |
+| 2 | **Create a Post** | Start a fresh post from scratch | `/posts/new` |
+| 3 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
+| 4 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
 
-The cards are framed as *user actions*, not data states. The grid is intentionally fixed — context-aware menus add cognitive load for the audience this view targets. "Edit a Post" and "Review a Post" are deliberately excluded: drafts cover unfinished work, and review-before-publish lives inside the editor.
+The order follows the editorial flow: *ideate → create → finish drafts → check schedule*. The grid is intentionally fixed — context-aware menus add cognitive load for the audience this view targets. "Edit a Post" and "Review a Post" are deliberately excluded: drafts cover unfinished work, and review-before-publish lives inside the editor.
 
 #### Requirements
 

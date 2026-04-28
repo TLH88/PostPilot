@@ -31,13 +31,13 @@ Focus View's home is four primary cards, in this order:
 
 | # | Card | What it does | Routes to |
 |---|---|---|---|
-| 1 | **Create a Post** | Start a fresh post from scratch | `/posts/new` (existing editor) |
-| 2 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
-| 3 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
-| 4 | **Generate New Ideas** | Open AI brainstorming | Idea Generator modal on `/ideas` |
+| 1 | **Generate New Ideas** | Open AI brainstorming | Idea Generator modal on `/ideas` |
+| 2 | **Create a Post** | Start a fresh post from scratch | `/posts/new` (existing editor) |
+| 3 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
+| 4 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
 
-**Why these four:**
-- They map to the regular session rhythm: *new content → unfinished work → upcoming pipeline → idea fuel*.
+**Why these four, in this order:**
+- The order follows the editorial flow a content creator naturally moves through: *ideate → create → finish drafts → check schedule*. Generate Ideas is the entry point for a session that starts with a blank page; Create skips ahead for someone who already knows what they want to write; Drafts and Scheduled are the rear-view actions for unfinished and upcoming work.
 - Cards are framed as *user actions*, not data states. A fixed grid is intentional — context-aware menus add cognitive load for the audience this view targets.
 - "Edit a Post" and "Review a Post" (early mockup variants) are deliberately excluded: drafts cover unfinished work, and review-before-publish lives inside the editor.
 
