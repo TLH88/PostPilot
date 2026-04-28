@@ -29,12 +29,21 @@ The desktop launcher overlay, an alternate dark variant, and the mobile-shell co
 
 Focus View's home is four primary cards, in this order:
 
-| # | Card | What it does | Routes to |
-|---|---|---|---|
-| 1 | **Generate New Ideas** | Open AI brainstorming | Idea Generator modal on `/ideas` |
-| 2 | **Create a Post** | Start a fresh post from scratch | `/posts/new` (existing editor) |
-| 3 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
-| 4 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
+| # | Card | Description | Button | Routes to |
+|---|---|---|---|---|
+| 1 | **Generate New Ideas** | Spark new content ideas for the week ahead. | Brainstorm | Idea Generator modal on `/ideas` |
+| 2 | **Create a Post** | Craft a new post in your voice. | Start writing | `/posts/new` (existing editor) |
+| 3 | **View Draft Posts** | Pick up where you left off. | Continue | `/posts?status=draft` |
+| 4 | **View Scheduled Posts** | Review your upcoming content calendar. | View calendar | `/calendar` |
+
+**Voice and tone (revised 2026-04-28):** The page speaks as an AI assistant offering help. Header structure:
+
+> *Good evening, **[Name]**.*
+> *What can I help you focus on today?*
+
+The first line is a time-aware personal greeting (*Good morning / Good afternoon / Good evening* + first name); the second is the assistant's question, larger and bolder. The user's first name gets a subtle blue→cyan gradient treatment for warmth without being decorative.
+
+Card descriptions tie to the user's broader content goals (the week ahead, their voice, their content calendar) rather than describing what the card does mechanically. PostPilot is a professional tool; the copy treats the user as a competent professional with goals, not a beginner needing instructions.
 
 **Why these four, in this order:**
 - The order follows the editorial flow a content creator naturally moves through: *ideate → create → finish drafts → check schedule*. Generate Ideas is the entry point for a session that starts with a blank page; Create skips ahead for someone who already knows what they want to write; Drafts and Scheduled are the rear-view actions for unfinished and upcoming work.

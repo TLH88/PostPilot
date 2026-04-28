@@ -10,13 +10,13 @@
  * passes in after fetching the profile.
  */
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   PenLine,
   FileText,
   CalendarDays,
   Lightbulb,
-  Sparkles,
 } from "lucide-react";
 import {
   Card,
@@ -49,8 +49,37 @@ interface FocusViewHomeProps {
  * All CSS-only; no images, no extra dependencies. Theme-aware via the
  * existing CSS variables and dark: variants.
  */
+/**
+ * Time-of-day greeting used in the welcome pill. Buckets:
+ *   05:00–11:59 — "Good morning"
+ *   12:00–16:59 — "Good afternoon"
+ *   17:00–04:59 — "Good evening"
+ *
+ * Computed in useEffect so it always reflects the user's local
+ * timezone without risking a hydration mismatch (the server has no
+ * way to know the user's clock).
+ */
+function computeTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function FocusViewHome({ userName }: FocusViewHomeProps) {
   const firstName = userName.trim().split(/\s+/)[0] || "there";
+
+  // "Welcome" is a stable fallback that renders during initial hydration;
+  // computeTimeGreeting() runs on mount and replaces it. Slight text swap
+  // is acceptable — no layout shift since the pill keeps the same shape.
+  // The setState-in-useEffect lint warning here matches the same pattern
+  // in theme-setting.tsx — both need a post-mount render to avoid SSR
+  // mismatches on client-only data (theme preference there, local time
+  // here). Accepted convention in this codebase; lint exits 0.
+  const [greeting, setGreeting] = useState<string>("Welcome");
+  useEffect(() => {
+    setGreeting(computeTimeGreeting());
+  }, []);
 
   return (
     <div className="relative isolate -mx-4 -my-4 flex min-h-[calc(100vh-3.5rem)] flex-col overflow-hidden lg:-mx-6 lg:-my-6">
@@ -99,23 +128,22 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
           whitespace is balanced top/bottom rather than dumped at the bottom. */}
       <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-12 lg:px-8">
         <header className="mb-12 text-center">
-          {/* Sparkle accent above the heading */}
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary backdrop-blur-sm">
-            <Sparkles className="size-3.5" />
-            <span>Welcome back</span>
-          </div>
-
-          <h1 className="bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-5xl">
-            What would you like to do today,
-            <br className="hidden sm:block" />{" "}
-            <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent dark:from-blue-400 dark:to-cyan-400">
+          {/* Personal greeting reads first: time-aware salutation + name.
+              Lighter weight than the question below so the visual hierarchy
+              still emphasizes the action prompt. */}
+          <p className="mb-2 text-xl font-medium text-muted-foreground md:text-2xl">
+            {greeting},{" "}
+            <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text font-semibold text-transparent dark:from-blue-400 dark:to-cyan-400">
               {firstName}
             </span>
-            ?
-          </h1>
-          <p className="mx-auto mt-4 max-w-md text-base text-muted-foreground">
-            Pick an action below to get started.
+            .
           </p>
+
+          {/* Main heading — the assistant's question. Larger and bolder so
+              it carries the visual weight of the page. */}
+          <h1 className="bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-5xl">
+            What can I help you focus on today?
+          </h1>
         </header>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -130,14 +158,16 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
                 <Lightbulb className="size-5 text-amber-600 dark:text-amber-400" />
               </div>
               <CardTitle>Generate New Ideas</CardTitle>
-              <CardDescription>Brainstorm topics with AI.</CardDescription>
+              <CardDescription>
+                Spark new content ideas for the week ahead.
+              </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
               <Link
                 href="/ideas"
                 className={cn(buttonVariants({ size: "lg" }), "w-full")}
               >
-                Open
+                Brainstorm
               </Link>
             </CardContent>
           </Card>
@@ -150,11 +180,11 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
               </div>
               <CardTitle>Create a Post</CardTitle>
               <CardDescription>
-                Start a fresh draft from scratch.
+                Craft a new post in your voice.
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
-              <NewPostButton className="w-full gap-2" label="Start" />
+              <NewPostButton className="w-full gap-2" label="Start writing" />
             </CardContent>
           </Card>
 
@@ -172,7 +202,7 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
                 href="/posts"
                 className={cn(buttonVariants({ size: "lg" }), "w-full")}
               >
-                Open
+                Continue
               </Link>
             </CardContent>
           </Card>
@@ -184,14 +214,16 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
                 <CalendarDays className="size-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <CardTitle>View Scheduled Posts</CardTitle>
-              <CardDescription>See your upcoming pipeline.</CardDescription>
+              <CardDescription>
+                Review your upcoming content calendar.
+              </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
               <Link
                 href="/calendar"
                 className={cn(buttonVariants({ size: "lg" }), "w-full")}
               >
-                View
+                View calendar
               </Link>
             </CardContent>
           </Card>
