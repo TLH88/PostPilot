@@ -3625,8 +3625,9 @@ The order follows the editorial flow: *ideate → create → finish drafts → c
 - The mobile post-editor layout is **handed to BP-143** — out of scope for BP-099
 
 ##### 3. View toggle
-- In Focus View: top-right of the top bar, after Theme toggle, labeled "Full View" with explicit-consequence dialog before switching
-- In Standard view: top-right menu, next to Theme toggle, labeled "Focus View" with same dialog
+- Leftmost utility in the top-bar utility group (revised 2026-04-27 per owner direction — was previously rightmost). Order: View toggle · Help · Account · Theme
+- In Focus View: labeled "Full View" with explicit-consequence dialog before switching
+- In Standard view: labeled "Focus View" with same dialog
 - No Esc-key shortcut — toggle button is the only path
 - Mid-task switch auto-saves the active draft and shows "Your draft has been saved at X. You can return to it from [Y]."
 
@@ -3676,7 +3677,7 @@ What remains:
 - [ ] Onboarding includes a "Choose your home screen" step that writes `ui_mode`
 - [ ] Root route renders Focus View when `ui_mode = 'focus'`, existing dashboard when `'standard'`
 - [ ] Four cards (Create / Drafts / Scheduled / Ideas) render and route correctly
-- [ ] Top-bar utilities present: Help, Account dropdown, Theme toggle, View toggle
+- [ ] Top-bar utilities present: View toggle (leftmost), Help, Account dropdown, Theme toggle
 - [ ] View toggle (both directions) shows confirm dialog with explicit consequence text
 - [ ] Mid-task switch auto-saves drafts and shows "your draft has been saved at X" confirmation
 - [ ] Deep links bypass Focus View (direct URLs always work)

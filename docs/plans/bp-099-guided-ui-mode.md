@@ -49,7 +49,7 @@ Each card has: an icon, a 2–4 word title, a one-sentence description, and a pr
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  PostPilot logo                       [?] [👤▼] [🌗] [⇄ Full View] │  ← top bar
+│  PostPilot logo                       [⇄ Full View] [?] [👤▼] [🌗] │  ← top bar
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │             What would you like to do today?                       │
@@ -72,12 +72,14 @@ Each card has: an icon, a 2–4 word title, a one-sentence description, and a pr
 
 ### Top Bar Utilities (right side, in this order)
 
-1. **Help** (`?` icon) — opens help center / docs
-2. **Account dropdown** (avatar) — Settings, Sign out
-3. **Theme toggle** — Light / Dark
-4. **View toggle** — switches to Standard (full) view
+*Order revised 2026-04-27 per owner direction — view toggle moved from rightmost to leftmost so it's the most prominent utility for users still deciding which mode they prefer.*
 
-The view toggle is the rightmost element so it's the most discoverable. Copy is explicit: **"Switch to Full View — shows all menus, tools, and advanced features. You can switch back anytime."** A confirm dialog appears on click; one click in the dialog applies the change immediately and persists it to `user_profiles`.
+1. **View toggle** — switches to Standard (full) view *(leftmost, most prominent)*
+2. **Help** (`?` icon) — opens help center / docs
+3. **Account dropdown** (avatar) — Settings, Sign out
+4. **Theme toggle** — Light / Dark
+
+Copy on the view toggle is explicit: **"Switch to Full View — shows all menus, tools, and advanced features. You can switch back anytime."** A confirm dialog appears on click; one click in the dialog applies the change immediately and persists it to `user_profiles`.
 
 ### No Esc-key exit
 
@@ -243,7 +245,7 @@ Acceptance criteria:
 - [ ] `user_profiles.ui_mode` column exists; default `'focus'` for new accounts; existing accounts backfilled to `'standard'`
 - [ ] Root route (`/`) renders Focus View when `ui_mode = 'focus'`, existing dashboard when `'standard'`
 - [ ] Four cards (Create / Drafts / Scheduled / Ideas) render with icons, copy, and primary buttons; each routes to the correct destination
-- [ ] Top-bar utilities present: Help, Account dropdown, Theme toggle, View toggle (in that order)
+- [ ] Top-bar utilities present: View toggle, Help, Account dropdown, Theme toggle (in that order — view toggle leftmost per 2026-04-27 revision)
 - [ ] View toggle (Focus View top bar AND Standard view top-right menu) shows the explicit-consequence dialog before switching
 - [ ] Mid-task switch auto-saves drafts and shows the "your draft has been saved at X" confirmation
 - [ ] Deep links bypass Focus View (e.g., direct `/posts/123` works regardless of `ui_mode`)

@@ -79,17 +79,19 @@ export function TopBar({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Top-bar utilities — order per BP-099 §3:
-            Notifications · Theme · View toggle · Sign out
-            (Help icon + Account dropdown come later in Phase 1) */}
+        {/* Top-bar utilities — order per BP-099 §3 (revised 2026-04-27):
+            View toggle · Notifications · Theme · Sign out
+            View toggle is leftmost so it's the most discoverable utility;
+            owner directive 2026-04-27. (Help icon + Account dropdown
+            come later in Phase 1.) */}
         <div id="tour-top-controls" className="flex items-center gap-1">
-          {showNotificationsBell && <NotificationsBell />}
-          <ThemeToggle />
           {/* BP-099: hidden on mobile — mobile users get a fixed mobile UI
               and do not see the focus/standard toggle (per design doc §4) */}
           <div className="hidden lg:block">
             <ViewToggle currentMode={uiMode} />
           </div>
+          {showNotificationsBell && <NotificationsBell />}
+          <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"
