@@ -118,6 +118,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
 - **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium **[Fixed (develop) 2026-04-26]**
+- **BP-145** Publish-failure recovery flow (LinkedIn auth-revoked round-trip + walkthrough surface) — P1 / High — **In Progress 2026-04-28**
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
@@ -509,6 +510,84 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 - [ ] After an accidental wipe, the user can revert to a recent autosave snapshot via the existing version-restore flow.
 
 **Effort:** S-M · **Expected ROI:** High (recovery from any future content-loss incident; safety net during the migration to richer editor features).
+
+---
+
+### BP-145: Publish-Failure Recovery Flow (LinkedIn Auth-Revoked Round-Trip)
+
+**Status:** In Progress 2026-04-28 (develop branch)
+**Priority:** P1 / High (real owner incident; affects every revoked-token recovery; degrades trust when scheduled posts fail)
+**Source:** Owner incident 2026-04-28 — scheduled post failed because LinkedIn revoked PostPilot's posting permission. Owner saw the past-due-checker modal, clicked "Reconnect LinkedIn", completed OAuth, was returned to the app, **and saw the same failure modal with the same Reconnect CTA**. The system never re-checked connection state after the OAuth round-trip and never offered the failed post for one-click recovery. Owner had to close the modal, manually verify the connection elsewhere, and navigate to the post to publish it directly.
+**Date Added:** 2026-04-28
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+
+**Problem (root causes):**
+
+1. **Stale connection state after reauth.** `PastDueChecker` (src/components/past-due-checker.tsx) reads `linkedinConnected` once on mount via `/api/linkedin/status` and never refetches. The OAuth flow is a full-page redirect (`window.location.href = "/api/linkedin/connect"`), so the component does remount on return, but a) it lands on `/settings?linkedin=connected` regardless of where the user came from, and b) the status fetch is async — first paint can render the stale "Reconnect LinkedIn" CTA instead of the action buttons.
+2. **No memory of what failed.** OAuth callback (src/app/api/linkedin/callback/route.ts) hard-redirects to `/settings`, dropping the context of *which post* triggered the reconnect. The user has no path from the notification back to the failed post.
+3. **No verified state hand-off.** Even if the modal does re-render correctly, `linkedinConnected` is read from the throttled `/api/linkedin/status` cache. There's no forced live re-validation after an OAuth round-trip — the system can't *prove* to the user "you're reconnected, here's what to do with the post that failed."
+4. **No walkthrough.** A revoked token can take down multiple scheduled posts. There's no end-to-end "walk through each failed post → confirm fix → return to a known surface with a summary" flow.
+
+**Design — the principles this BP enforces (now in `feedback_failure_handling.md`):**
+
+Every system failure shown to the user must have:
+(a) a category and plain-English root-cause statement (no raw error strings),
+(b) a guided remediation with a clear primary action,
+(c) explicit system-side verification that the fix worked,
+(d) explicit confirmation to the user — success with specifics, or failure with the new root cause and next step.
+Failures are walked through one at a time and the user is returned to a known surface (Calendar) with a summary.
+
+**Phase 1 (this BP) — chassis + the LinkedIn-auth-revoked handler:**
+
+1. **Recovery surface — new `/posts/recovery` page.** Lists every post in a "needs attention" state; walks the user through them one by one; ends by redirecting to `/calendar?recovered=N` with a success-summary banner.
+2. **OAuth state round-trip.** Before redirecting to LinkedIn, stash `{return_to, recover_post_id}` in a short-lived signed cookie (alongside the existing `linkedin_oauth_state`). Callback reads it, redirects to `/posts/recovery?reconnected=1&post=<id>` if present, otherwise the existing `/settings?linkedin=connected`.
+3. **Forced live token revalidation.** New `?force=1` query param on `POST /api/linkedin/validate` bypasses the 1-hour throttle. Recovery page calls it the moment it sees `?reconnected=1`, shows an explicit "Reconnected ✓" banner before unlocking action buttons. Verifies the fix worked rather than trusting the OAuth round-trip blindly.
+4. **Failure classification.** New `failure_category` enum column on `posts` (`linkedin_auth_revoked` / `linkedin_auth_expired` / `linkedin_rate_limited` / `linkedin_content_rejected` / `linkedin_content_too_long` / `linkedin_duplicate` / `network_transient` / `unknown`). Edge Function (`supabase/functions/publish-scheduled-posts/index.ts`) classifies the error before writing `past_due` and stores the category alongside the existing `publish_error` text. Removes the fragile string-matching heuristic in `PastDueChecker` over time.
+5. **Retire the global modal.** `PastDueChecker` becomes a thin banner ("X posts need your attention — Open Recovery") that links to `/posts/recovery`. All walkthrough UX moves into the page.
+6. **Pre-emptive validation enhancement.** `LinkedInTokenValidator` already fires once per browser session; add a `visibilitychange` listener so a tab that's been idle for hours re-validates on focus (cheap — server still 1-hour-throttles).
+7. **Calendar success summary.** When `?recovered=N` is on the URL, show a one-time toast/banner ("3 posts recovered") then strip the param.
+
+**Out of scope for this BP (separate BPs to file as work lands):**
+
+- **BP-146 (planned)** — Per-category remediation handlers for non-auth failures (`rate_limited`, `content_rejected`, `content_too_long`, `duplicate`, `network_transient`). Phase 1 ships the chassis; these are additional handlers plugged into it.
+- **BP-147 (planned)** — Aggressive pre-emptive validation. Phase 1 only adds focus-revalidation. Periodic interval polling, push-style server invalidation, and email/push notifications when revocation is detected mid-day are deferred.
+- **BP-148 (planned)** — Generalize the recovery shell to non-publish failures (AI generation timeouts, calendar sync errors, scheduler drift, billing failures, etc.). Same chassis, new categories.
+
+**Affected files:**
+- `supabase/migrations/20260428_add_post_failure_category.sql` — new
+- `supabase/functions/publish-scheduled-posts/index.ts` — classify before writing `past_due`
+- `src/app/api/linkedin/connect/route.ts` — accept + persist `return_to` + `recover_post_id`
+- `src/app/api/linkedin/callback/route.ts` — read recovery cookie, redirect to `/posts/recovery` when present
+- `src/app/api/linkedin/validate/route.ts` — accept `?force=1` to bypass throttle
+- `src/components/linkedin/connect-dialog.tsx` — pass `returnTo` + `recoverPostId` props through to `/api/linkedin/connect`
+- `src/components/linkedin/token-validator.tsx` — visibilitychange revalidation
+- `src/components/past-due-checker.tsx` — replace modal with banner; redirect to `/posts/recovery`
+- `src/app/(app)/posts/recovery/page.tsx` — new
+- `src/app/(app)/calendar/page.tsx` — read `?recovered=N`; show one-time toast
+- `src/types/index.ts` (or wherever `Post` is defined) — `failure_category` field on `Post`
+
+**Security / guardrails:**
+- Recovery cookie (`linkedin_recovery_context`) is httpOnly, sameSite=lax, scoped to `/`, max-age 600s — mirrors the existing `linkedin_oauth_state` cookie. Contains only `{return_to, recover_post_id}` — no auth, no PII.
+- `return_to` is validated server-side: must be a relative path that begins with `/` and matches an allowlist prefix (`/posts`, `/calendar`, `/dashboard`). No open redirects.
+- `recover_post_id` is validated by RLS on first read — if it doesn't belong to the user, the recovery page treats it as "not found" and falls back to the next failed post.
+- `?force=1` on `/api/linkedin/validate` is rate-limited per user (1 force-call per minute) on top of the existing 1-hour throttle for non-force calls.
+- No raw `publish_error` text is exposed to the user. The recovery page reads the structured `failure_category` first; legacy posts without a category fall back to the existing `humanizePublishError` parser.
+
+**Acceptance criteria:**
+
+- [ ] DB migration adds `failure_category` enum + column to `posts`; older `past_due` rows tolerate `NULL` (handled by client fallback).
+- [ ] Edge Function publishes the same as before on success; on failure, writes both `publish_error` (existing) and `failure_category` (new).
+- [ ] Clicking "Reconnect LinkedIn" from `PastDueChecker` (now a banner) sets the recovery cookie before the OAuth round-trip.
+- [ ] After OAuth completes, user lands on `/posts/recovery?reconnected=1&post=<id>` with a forced live `validate` call already issued.
+- [ ] If validation succeeds: explicit "✓ Reconnected to LinkedIn as [name]" banner, action buttons (Approve & Post / Reschedule / I posted manually) unlocked, current post = the one that triggered the recovery.
+- [ ] If validation fails again: explicit failure message + new root cause + next-step CTA. No silent retry.
+- [ ] After each post's action, the system verifies success (publish API success response, scheduled_for written, status=posted) and shows a specific confirmation toast ("Published to LinkedIn at 2:34 PM" / "Rescheduled to Tue 9:00 AM" / "Marked as manually posted"). Then auto-advances to the next failed post.
+- [ ] When the queue empties: redirect to `/calendar?recovered=N`. Calendar shows a one-time "N posts recovered" success banner, then strips the param.
+- [ ] `LinkedInTokenValidator` re-fires on visibilitychange (gated by the existing 1-hour server throttle).
+- [ ] QA walkthrough on test account `e2e+free@mypostpilot.app`: simulate revoked token (admin SQL), schedule a post in the past, observe banner → click reconnect → reauth → recovery page → action → calendar summary.
+- [ ] No regressions to manual publish, the regular Posts list, or the existing `?linkedin=connected` settings flow.
+
+**Effort:** M-L (new page, OAuth state, DB migration, Edge Function update, refactor of past-due-checker, calendar summary, validate route param, visibility revalidation). · **Expected ROI:** High — closes a trust-eroding gap that affects every revoked-token recovery; ships the chassis that BP-146/147/148 will plug into.
 
 ---
 

@@ -61,6 +61,85 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
 
 const MAX_PUBLISH_ATTEMPTS = 3;
 
+// ─── Failure Classification (BP-145) ────────────────────────────────────────
+// Maps a raw error string into a structured `failure_category` so the recovery
+// surface can render the right plain-English root cause + remediation without
+// fragile substring matching on the client. Categories must match the CHECK
+// constraint in 20260428_add_post_failure_category.sql AND
+// PostFailureCategory in src/types/index.ts.
+
+type PostFailureCategory =
+  | "linkedin_auth_revoked"
+  | "linkedin_auth_expired"
+  | "linkedin_rate_limited"
+  | "linkedin_content_rejected"
+  | "linkedin_content_too_long"
+  | "linkedin_duplicate"
+  | "network_transient"
+  | "profile_missing"
+  | "token_decrypt_failed"
+  | "unknown";
+
+function classifyPublishError(raw: string): PostFailureCategory {
+  if (!raw) return "unknown";
+  const m = raw.toLowerCase();
+
+  // Auth — revoked beats expired beats generic 401/403.
+  if (
+    m.includes("revoked_access_token") ||
+    m.includes("token has been revoked") ||
+    m.includes("access_denied") ||
+    m.includes("403") ||
+    m.includes("forbidden")
+  ) {
+    return "linkedin_auth_revoked";
+  }
+  if (
+    m.includes("expired_access_token") ||
+    m.includes("jwt expired") ||
+    m.includes("token expired") ||
+    m.includes("refresh failed")
+  ) {
+    return "linkedin_auth_expired";
+  }
+  if (m.includes("401") || m.includes("unauthorized")) {
+    // Default 401s to revoked — that's the more common cause for our app
+    // and the UI message asks the user to reconnect either way.
+    return "linkedin_auth_revoked";
+  }
+
+  // Rate-limit
+  if (m.includes("429") || m.includes("throttle") || m.includes("rate limit")) {
+    return "linkedin_rate_limited";
+  }
+
+  // Content rejection
+  if (m.includes("content_too_long") || m.includes("too long")) {
+    return "linkedin_content_too_long";
+  }
+  if (m.includes("duplicate")) {
+    return "linkedin_duplicate";
+  }
+  if (m.includes("422") || m.includes("unprocessable")) {
+    return "linkedin_content_rejected";
+  }
+
+  // Network / transient
+  if (
+    m.includes("econnreset") ||
+    m.includes("etimedout") ||
+    m.includes("fetch failed") ||
+    m.includes("network") ||
+    m.includes("502") ||
+    m.includes("503") ||
+    m.includes("504")
+  ) {
+    return "network_transient";
+  }
+
+  return "unknown";
+}
+
 // ─── AES-256-GCM Decryption (Deno Web Crypto API) ──────────────────────────
 
 async function decrypt(ciphertext: string, iv: string, authTag: string): Promise<string> {
@@ -427,6 +506,7 @@ Deno.serve(async (req: Request) => {
           await safeUpdatePost(supabase, post.id, {
             status: "past_due",
             publish_error: `Failed to fetch profile: ${profileError.message}`,
+            failure_category: "profile_missing",
             publish_attempts: (post.publish_attempts || 0) + 1,
           });
           results.push({ postId: post.id, status: "failed", error: `Profile fetch error: ${profileError.message}` });
@@ -447,6 +527,7 @@ Deno.serve(async (req: Request) => {
           await safeUpdatePost(supabase, post.id, {
             status: "past_due",
             publish_error: "LinkedIn not connected. Please connect in Settings and reschedule.",
+            failure_category: "linkedin_auth_revoked",
             publish_attempts: (post.publish_attempts || 0) + 1,
           });
           results.push({ postId: post.id, status: "skipped", error: "LinkedIn not connected" });
@@ -467,6 +548,7 @@ Deno.serve(async (req: Request) => {
           await safeUpdatePost(supabase, post.id, {
             status: "past_due",
             publish_error: `Token decryption failed: ${msg}`,
+            failure_category: "token_decrypt_failed",
             publish_attempts: MAX_PUBLISH_ATTEMPTS,
           });
           results.push({ postId: post.id, status: "failed", error: `Decrypt error: ${msg}` });
@@ -501,6 +583,7 @@ Deno.serve(async (req: Request) => {
               await safeUpdatePost(supabase, post.id, {
                 status: "past_due",
                 publish_error: `LinkedIn connection expired. Refresh failed: ${msg}`,
+                failure_category: "linkedin_auth_expired",
                 publish_attempts: MAX_PUBLISH_ATTEMPTS,
               });
               results.push({ postId: post.id, status: "failed", error: `Token refresh failed: ${msg}` });
@@ -511,6 +594,7 @@ Deno.serve(async (req: Request) => {
             await safeUpdatePost(supabase, post.id, {
               status: "past_due",
               publish_error: "LinkedIn connection expired. Please reconnect in Settings.",
+              failure_category: "linkedin_auth_expired",
               publish_attempts: MAX_PUBLISH_ATTEMPTS,
             });
             results.push({ postId: post.id, status: "failed", error: "Token expired, no refresh token" });
@@ -571,6 +655,7 @@ Deno.serve(async (req: Request) => {
           linkedin_post_id: result.postId,
           linkedin_post_url: result.postUrl,
           publish_error: imageError ? `Image upload failed: ${imageError}` : null,
+          failure_category: null,
           updated_at: new Date().toISOString(),
         });
 
@@ -586,19 +671,32 @@ Deno.serve(async (req: Request) => {
         const errorMsg = error instanceof Error ? error.message : "Unknown error";
         const newAttempts = (post.publish_attempts || 0) + 1;
         const isAuthError = errorMsg.includes("401") || errorMsg.includes("403");
+        const isPastDue = newAttempts >= MAX_PUBLISH_ATTEMPTS || isAuthError;
+
+        // BP-145: classify the error so the recovery surface can render the
+        // right remediation. We only persist the category when the post is
+        // moving to past_due — for in-flight retry rows we keep the previous
+        // value (or null) so a transient blip doesn't get frozen as the
+        // category for a post that succeeds on the next attempt.
+        const category = isPastDue ? classifyPublishError(errorMsg) : undefined;
 
         postLog("error", "Publish failed", {
           error: errorMsg,
           attempt: newAttempts,
           isAuthError,
           willRetry: !isAuthError && newAttempts < MAX_PUBLISH_ATTEMPTS,
+          category,
         });
 
-        await safeUpdatePost(supabase, post.id, {
-          status: newAttempts >= MAX_PUBLISH_ATTEMPTS || isAuthError ? "past_due" : "scheduled",
+        const updates: Record<string, unknown> = {
+          status: isPastDue ? "past_due" : "scheduled",
           publish_error: errorMsg,
           publish_attempts: isAuthError ? MAX_PUBLISH_ATTEMPTS : newAttempts,
-        });
+        };
+        if (category !== undefined) {
+          updates.failure_category = category;
+        }
+        await safeUpdatePost(supabase, post.id, updates);
 
         results.push({ postId: post.id, status: "failed", error: errorMsg });
       }

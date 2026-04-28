@@ -4,6 +4,52 @@
 
 ---
 
+## 2026-04-28: BP-145 publish-failure recovery flow shipped to develop
+
+Owner reported a real incident this morning. A scheduled LinkedIn post failed because LinkedIn had revoked PostPilot's posting permission. The system surfaced the right notification ("reconnect"), the owner reauthorized with LinkedIn, was returned to the app — and the **same failure modal was still showing the same Reconnect CTA**. The system never re-checked connection state after the OAuth round-trip, never offered the failed post for one-click recovery, and the owner had to navigate elsewhere to verify the connection and manually publish the post. Surface-level fix would be one bug; the real problem was that the entire publish-failure → reauth → recovery loop had no choreography.
+
+### Design conversation → BP-145 + general failure-handling principle
+
+Talked through current behavior, mapped the four root causes (stale connection state, no memory of which post failed, no verified state hand-off, no walkthrough), and converged on a single design: a dedicated `/posts/recovery` surface backed by an OAuth state round-trip, a forced live token revalidation when the user returns, and a structured failure classification so the page knows what remediation to surface. Owner decisions captured: dedicated page (not a tab), Calendar success summary, walk through every failed post, and the same chassis should support all failure types — not just revoked tokens. Wrote a memory entry codifying the **failure-handling principle**: every user-facing failure must have category + plain-English root cause + guided remediation + system verification + explicit confirmation, walked through one at a time, returning to a known surface with a summary. Saved at `feedback_failure_handling.md`.
+
+### Phase 1 implementation (this BP)
+
+**Database** — `supabase/migrations/20260428_add_post_failure_category.sql` adds `failure_category` (CHECK-constrained text) to `posts` plus a partial index for `WHERE status='past_due'`. Ten categories: `linkedin_auth_revoked`, `linkedin_auth_expired`, `linkedin_rate_limited`, `linkedin_content_rejected`, `linkedin_content_too_long`, `linkedin_duplicate`, `network_transient`, `profile_missing`, `token_decrypt_failed`, `unknown`. Migration applied to prod.
+
+**Edge Function** — `supabase/functions/publish-scheduled-posts/index.ts` v17 deployed. New `classifyPublishError()` helper maps raw error strings to categories. Every site that writes `status='past_due'` now also writes `failure_category`. Successful publishes clear it to `null`. Per-post catch path classifies only when actually moving to past_due (in-flight retries don't freeze a transient blip as the category).
+
+**OAuth state round-trip** — `src/app/api/linkedin/connect/route.ts` accepts `?return_to=` and `?recover=` query params, validates `return_to` against an allowlist (`/posts/recovery`, `/posts`, `/calendar`, `/dashboard`, `/settings`; rejects protocol-relative `//evil.com` and absolute URLs), and stashes both in a `linkedin_recovery_context` cookie alongside the existing `linkedin_oauth_state` cookie (httpOnly, sameSite=lax, 10-min TTL). Callback (`src/app/api/linkedin/callback/route.ts`) reads the cookie, re-validates the allowlist defensively, and redirects to `${return_to}?reconnected=1&post=<id>` instead of the existing `/settings?linkedin=connected` default. Both cookies are cleared on every callback exit path (success or error).
+
+**Forced live revalidation** — `src/app/api/linkedin/validate/route.ts` accepts `?force=1` to bypass the 1-hour cache. Force calls have their own 60-second rate limit (against the existing `linkedin_token_validated_at` column — no new column needed). Lets the recovery page prove "you're reconnected" the moment the user lands, instead of trusting a 1-hour-stale cache.
+
+**Recovery surface** — new `src/app/(app)/posts/recovery/page.tsx`. Loads all `past_due` posts for the user (RLS-scoped). Reads `?reconnected=1&post=<id>` from the URL: when present, fires a `force=1` validation and shows an explicit "✓ Reconnected to LinkedIn as [name]" / "✗ Reconnect didn't verify" banner. Brings the named post to the front of the queue. Walks through each post one at a time with the post preview, root cause (from `failure_category` with a fallback heuristic for legacy NULL rows), and four actions: Approve & post (uses the existing `<PublishPreviewDialog>`), Reschedule, Open in editor, I posted it manually. After each action the system verifies success and shows a specific confirmation toast ("Published to LinkedIn", "Rescheduled to Tue 9:00 AM", "Marked as manually posted"), then auto-advances. When the queue empties: `router.push('/calendar?recovered=N')`.
+
+**Banner replaces modal** — `src/components/past-due-checker.tsx` was previously a full action modal with stale state bugs. It's now a slim corner banner ("X posts failed to publish — Open Recovery") that links to the recovery page. Suppressed on `/posts/recovery` itself and inside the editor (`/posts/[id]`). Refreshes count on tab focus and on every route change.
+
+**Calendar success summary** — `src/app/(app)/calendar/page.tsx` reads `?recovered=N`; shows a one-time `toast.success("N posts recovered. You're back on schedule.")` and strips the param via `history.replaceState` so a refresh doesn't re-fire it.
+
+**Pre-emptive validation** — `src/components/linkedin/token-validator.tsx` already fired once per browser session. Added a `visibilitychange` listener with a client-side 5-minute floor (server still 1-hour-throttles real LinkedIn calls) so a tab that's been idle for hours re-validates the moment the user comes back. Closes the gap where the token gets revoked mid-day and the next scheduled post is the first to find out.
+
+**Type system** — `src/types/index.ts` exports `PostFailureCategory` (kept in sync with the migration's CHECK and the Edge Function's `classifyPublishError`); `Post.failure_category` is the new optional field.
+
+### Verification
+
+`tsc --noEmit` clean. `npm run build` clean — `/posts/recovery` listed in the route manifest. Lint shows the same 460+ pre-existing errors throughout the repo and 5 new `react-hooks/set-state-in-effect` advisories on patterns the rest of the codebase also uses (build-non-blocking).
+
+QA agent run on the test account `e2e+free@mypostpilot.app` via the magic-link `/callback` flow — owner account never touched. All 12 acceptance criteria PASS. Empty state, banner appearance and suppression rules, walkthrough renders the right root cause for `linkedin_auth_revoked` and `linkedin_rate_limited`, fallback classifier handles legacy NULL `failure_category` rows that have `"401 unauthorized"` in `publish_error`, Reschedule + "I posted it manually" both update the right DB columns and advance the queue, Calendar success-toast effect runs and strips the param, OAuth `connect` cookie shape is correct and the allowlist correctly rejects `https://evil.com/x` and `//evil.com`, force-validate `cached:true` short-circuit fires within the 60s window. Two well-documented test-environment caveats: AC #11 force-validate live path returns 500 in the seeded environment because the test profile's encrypted token was minted with a different `ENCRYPTION_KEY` (not a BP-145 regression), and AC #9 visual toast capture failed because Sonner unmounts within the eval/navigation tick (verified indirectly via URL-strip behavior).
+
+### Out of scope (future BPs)
+
+- **BP-146 (planned)** — Per-category remediation handlers for non-auth failures (`rate_limited` countdown + retry, `content_rejected` editor-link UX, `content_too_long` character-count helper, `network_transient` one-click retry).
+- **BP-147 (planned)** — Aggressive pre-emptive validation (interval polling beyond focus, push-style server invalidation, email/push notifications when revocation is detected mid-day).
+- **BP-148 (planned)** — Generalize the recovery shell to non-publish failures (AI generation timeouts, calendar sync errors, billing failures).
+
+### State
+
+`bp-145-publish-failure-recovery` branched off `develop` at the start of the session. Files: 1 new migration, 1 new page, 7 modified routes/components, 1 deployed Edge Function v17, 2 doc updates (BACKLOG + this entry). Memory: `feedback_failure_handling.md` added to index. Branch ready to merge into develop.
+
+---
+
 ## 2026-04-27: feedback cycle 1 verified + merged; ten BPs landed via parallel agent teams; comprehensive QA caught + fixed a Base-UI menu crash mid-flight
 
 Single long compound session that spanned four production-quality batches plus a serious infra recovery. End state: `main` is current with feedback cycle 1; `develop` is 12 commits ahead with two more agent-team batches (BP-141/133/112/140 + BP-110/028/026/099 + memory/process improvements) awaiting owner-approved merge.

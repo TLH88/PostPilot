@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logApiError } from "@/lib/api-utils";
 
+// BP-145: Allowlist of return_to prefixes for the OAuth round-trip. Anything
+// not on this list is rejected to prevent open-redirect via the
+// linkedin_recovery_context cookie.
+const RETURN_TO_ALLOWLIST = ["/posts/recovery", "/posts", "/calendar", "/dashboard", "/settings"];
+
+function isSafeReturnTo(value: string | null): value is string {
+  if (!value) return false;
+  if (!value.startsWith("/")) return false;
+  // Reject protocol-relative URLs (//evil.com)
+  if (value.startsWith("//")) return false;
+  return RETURN_TO_ALLOWLIST.some(
+    (prefix) => value === prefix || value.startsWith(`${prefix}?`) || value.startsWith(`${prefix}/`)
+  );
+}
+
+const POST_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -49,6 +66,26 @@ export async function GET(request: NextRequest) {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
+
+    // BP-145: optional recovery context — when the user is reconnecting in
+    // response to a failed scheduled post, stash where to send them after
+    // the callback completes (defaults to /settings if absent). The cookie is
+    // cleared in the callback, so it can never leak across OAuth flows.
+    const returnTo = request.nextUrl.searchParams.get("return_to");
+    const recoverPostId = request.nextUrl.searchParams.get("recover");
+
+    if (isSafeReturnTo(returnTo)) {
+      const safePostId =
+        recoverPostId && POST_ID_PATTERN.test(recoverPostId) ? recoverPostId : "";
+      const ctx = JSON.stringify({ return_to: returnTo, recover_post_id: safePostId });
+      response.cookies.set("linkedin_recovery_context", ctx, {
+        maxAge: 600,
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
 
     return response;
   } catch (error) {
