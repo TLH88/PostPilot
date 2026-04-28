@@ -1,3 +1,15 @@
+"use client";
+
+/**
+ * Client component on purpose — `buttonVariants` is exported from a
+ * "use client" module and cannot be invoked at server-render time
+ * (Next.js refuses to call it across the boundary). Marking this file
+ * "use client" lets us style the card-action <Link>s with the shared
+ * button styling without forking it. No server-only data is needed
+ * here; the only prop is the user's name, which the dashboard route
+ * passes in after fetching the profile.
+ */
+
 import Link from "next/link";
 import { PenLine, FileText, CalendarDays, Lightbulb } from "lucide-react";
 import {
