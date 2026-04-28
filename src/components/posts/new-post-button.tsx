@@ -149,7 +149,10 @@ export function NewPostButton({ className, label, id }: { className?: string; la
       setDialogOpen(false);
       targetPostId.current = postId;
       startTimers(postId);
-      router.push(`/posts/${postId}`);
+      // BP-099: pass ?fromTitle=true so the post editor auto-drafts an
+      // initial post using the title as the seed prompt. Same pattern as
+      // the develop-an-idea flow (?fromIdea=true) — see editor useEffect.
+      router.push(`/posts/${postId}?fromTitle=true`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to create post. Please try again.");

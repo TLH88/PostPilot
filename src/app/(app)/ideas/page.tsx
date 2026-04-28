@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId, applyWorkspaceFilter } from "@/lib/workspace";
 import { logActivity } from "@/lib/activity";
@@ -305,6 +305,23 @@ export default function IdeasPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [developingId, setDevelopingId] = useState<string | null>(null);
+
+  // BP-099: auto-open the AI Idea Generator when arriving from the
+  // Focus View Brainstorm card (?open=generate). Runs once per mount;
+  // the URL param is then stripped so a refresh doesn't keep the dialog
+  // popping back open.
+  const searchParams = useSearchParams();
+  const autoOpenHandled = useRef(false);
+  useEffect(() => {
+    if (autoOpenHandled.current) return;
+    if (searchParams?.get("open") === "generate") {
+      autoOpenHandled.current = true;
+      setGenerateOpen(true);
+      // Strip the param so the dialog doesn't reopen on subsequent
+      // re-renders or browser back/forward.
+      window.history.replaceState({}, "", "/ideas");
+    }
+  }, [searchParams]);
 
   // Load ideas and profile on mount
   useEffect(() => {

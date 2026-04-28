@@ -163,8 +163,13 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
+              {/* The ?open=generate query param signals the Ideas page to
+                  auto-open the AI Idea Generator dialog on mount. This
+                  lands the user directly in brainstorming with no extra
+                  click. After they save ideas, the dialog closes and the
+                  page is already on /ideas so they see their new ideas. */}
               <Link
-                href="/ideas"
+                href="/ideas?open=generate"
                 className={cn(buttonVariants({ size: "lg" }), "w-full")}
               >
                 Brainstorm

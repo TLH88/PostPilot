@@ -479,30 +479,55 @@ export default function PostWorkspacePage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  // ── Auto-draft from Idea Bank / Welcome toast for new posts ──────────────
+  // ── Auto-draft from Idea Bank / Title dialog / Welcome for new posts ────
   const ideaAutoTriggered = useRef(false);
   useEffect(() => {
     if (!post?.id || loading || ideaAutoTriggered.current) return;
 
     const fromIdea = searchParams.get("fromIdea");
+    const fromTitle = searchParams.get("fromTitle"); // BP-099: from NewPostButton title dialog
     const ideaDescription = searchParams.get("ideaDescription");
 
-    if (fromIdea === "true" && title && !content) {
+    // Auto-draft when the user came from either:
+    //   - Idea Bank → "Develop into Post" (fromIdea=true, may include ideaDescription)
+    //   - New Post title dialog (fromTitle=true; just uses the title as seed)
+    // In both cases we open the AI panel and stream a starter draft so the
+    // user lands directly on a usable first version of their post.
+    if ((fromIdea === "true" || fromTitle === "true") && title && !content) {
       ideaAutoTriggered.current = true;
-      // Auto-open chat and trigger draft generation
       setPanelView("ai");
-      const prompt = ideaDescription
-        ? `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${decodeURIComponent(ideaDescription)}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`
-        : `I am writing a LinkedIn post on the topic of "${title}". Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
+
+      let prompt: string;
+      if (fromIdea === "true" && ideaDescription) {
+        prompt = `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${decodeURIComponent(ideaDescription)}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
+      } else {
+        // Either fromIdea without description, or fromTitle — both seed
+        // from the title alone. Same starter-draft prompt either way.
+        prompt = `I am writing a LinkedIn post on the topic of "${title}". Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
+      }
 
       sendChatMessage(prompt, `Draft a post about "${title}"`);
-      // Clean URL params
+      // Clean URL params so a refresh doesn't re-trigger the auto-draft.
       window.history.replaceState({}, "", `/posts/${postId}`);
-    } else if (!fromIdea && !content && chatMessages.length === 0) {
+    } else if (
+      !fromIdea &&
+      !fromTitle &&
+      !content &&
+      chatMessages.length === 0
+    ) {
+      // Empty draft the user opened directly (e.g., revisited an old draft
+      // they never wrote anything in). Auto-open the AI panel AND show a
+      // longer, brighter toast so the assistant's availability is hard to
+      // miss — owner feedback 2026-04-28: previous toast was too subtle.
       ideaAutoTriggered.current = true;
-      toast("Your AI Assistant is ready to help. Ask it to draft, brainstorm, or refine your post anytime.", {
-        duration: 6000,
-      });
+      setPanelView("ai");
+      toast(
+        "Your AI Assistant is ready to help. Ask it to draft, brainstorm, or refine your post anytime.",
+        {
+          duration: 12000,
+          className: "border-primary/30 bg-primary/5 text-foreground",
+        }
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post?.id, loading]);

@@ -108,7 +108,7 @@ export function NewPostTitleDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileEdit className="size-4 text-primary" />
-            Name your post
+            Enter a title for your post
           </DialogTitle>
           <DialogDescription>
             Give your post a title so you can find it easily later. You can
