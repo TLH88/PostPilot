@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { ViewToggle } from "@/components/focus-view/view-toggle";
 import { NAV_ITEMS, type SubscriptionTier } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { hasFeature } from "@/lib/feature-gate";
@@ -29,9 +30,17 @@ function getPageTitle(pathname: string): string {
 interface TopBarProps {
   userName: string;
   userTier?: SubscriptionTier;
+  /** BP-099: current UI mode preference. Drives the view toggle button's
+   * label and target. Defaults to 'standard' if not provided so older
+   * call sites don't break. */
+  uiMode?: "focus" | "standard";
 }
 
-export function TopBar({ userName, userTier = "free" }: TopBarProps) {
+export function TopBar({
+  userName,
+  userTier = "free",
+  uiMode = "standard",
+}: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -70,10 +79,17 @@ export function TopBar({ userName, userTier = "free" }: TopBarProps) {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Theme toggle + Sign out */}
+        {/* Top-bar utilities — order per BP-099 §3:
+            Notifications · Theme · View toggle · Sign out
+            (Help icon + Account dropdown come later in Phase 1) */}
         <div id="tour-top-controls" className="flex items-center gap-1">
           {showNotificationsBell && <NotificationsBell />}
           <ThemeToggle />
+          {/* BP-099: hidden on mobile — mobile users get a fixed mobile UI
+              and do not see the focus/standard toggle (per design doc §4) */}
+          <div className="hidden lg:block">
+            <ViewToggle currentMode={uiMode} />
+          </div>
           <Button
             variant="ghost"
             size="icon"

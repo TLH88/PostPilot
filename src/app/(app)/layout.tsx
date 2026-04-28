@@ -29,9 +29,13 @@ export default async function AppLayout({
   }
 
   // Check onboarding status and get user name
+  // BP-099: also fetch ui_mode so the TopBar's view toggle reflects the
+  // user's current preference (focus vs standard).
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("onboarding_completed, full_name, subscription_tier, deleted_at")
+    .select(
+      "onboarding_completed, full_name, subscription_tier, deleted_at, ui_mode"
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -46,6 +50,11 @@ export default async function AppLayout({
   const onboardingCompleted = profile?.onboarding_completed ?? false;
   const userName = profile?.full_name || user.email?.split("@")[0] || "User";
   const userTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
+  // BP-099: fall back to 'standard' if the column somehow returns null (it's
+  // NOT NULL in the DB, but staying defensive keeps the toggle from rendering
+  // an undefined state if a future schema change loosens the constraint).
+  const uiMode: "focus" | "standard" =
+    profile?.ui_mode === "focus" ? "focus" : "standard";
 
   return (
     <HelpSidebarProvider>
@@ -62,7 +71,7 @@ export default async function AppLayout({
 
         {/* Main content area */}
         <div className="lg:pl-64">
-          <TopBar userName={userName} userTier={userTier} />
+          <TopBar userName={userName} userTier={userTier} uiMode={uiMode} />
           <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
             <LinkedInStatusBanner />
             {children}
