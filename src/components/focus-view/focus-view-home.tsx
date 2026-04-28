@@ -53,35 +53,51 @@ export function FocusViewHome({ userName }: FocusViewHomeProps) {
   const firstName = userName.trim().split(/\s+/)[0] || "there";
 
   return (
-    <div className="relative isolate -mx-4 -my-4 overflow-hidden lg:-mx-6 lg:-my-6">
-      {/* Decorative background — sits behind everything via z-index. */}
-      {/* Top-right gradient blob */}
+    <div className="relative isolate -mx-4 -my-4 flex min-h-[calc(100vh-3.5rem)] flex-col overflow-hidden lg:-mx-6 lg:-my-6">
+      {/* Decorative background — sits behind everything via z-index.
+          Three blobs (top-right, mid-right, bottom-left) plus a full-bleed
+          dot pattern keep the whole page visually engaged at any height. */}
+
+      {/* Top-right gradient blob — strong brand blue */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-32 -top-40 -z-10 size-[36rem] rounded-full bg-gradient-to-br from-blue-500/30 via-cyan-400/20 to-transparent blur-3xl dark:from-blue-600/30 dark:via-blue-500/20"
+        className="pointer-events-none absolute -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-500/40 via-cyan-400/30 to-transparent blur-3xl dark:from-blue-600/35 dark:via-blue-500/25"
       />
-      {/* Bottom-left gradient blob */}
+      {/* Mid-right secondary blob — fills the right side as the page gets taller */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 -left-32 -z-10 size-[32rem] rounded-full bg-gradient-to-tr from-indigo-500/25 via-purple-400/15 to-transparent blur-3xl dark:from-indigo-600/30 dark:via-purple-500/20"
+        className="pointer-events-none absolute -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-400/30 via-cyan-300/20 to-transparent blur-3xl dark:from-sky-500/25 dark:via-cyan-500/15"
       />
-      {/* Subtle dot-grid pattern */}
+      {/* Bottom-left gradient blob — anchors the lower half */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18] dark:opacity-[0.10]"
+        className="pointer-events-none absolute -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-500/35 via-purple-400/25 to-transparent blur-3xl dark:from-indigo-600/35 dark:via-purple-500/20"
+      />
+      {/* Bottom-center accent — soft glow to lift the empty area */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-400/20 to-transparent blur-3xl dark:from-violet-500/20"
+      />
+
+      {/* Full-bleed dot-grid pattern with a soft vignette so it never feels harsh */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.25] dark:opacity-[0.12]"
         style={{
           backgroundImage:
             "radial-gradient(circle, currentColor 1px, transparent 1px)",
           backgroundSize: "24px 24px",
           color: "var(--color-muted-foreground, #94a3b8)",
           maskImage:
-            "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+            "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+            "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-10 sm:pt-14 lg:px-8">
+      {/* Content — vertically centered in the full-height container so the
+          whitespace is balanced top/bottom rather than dumped at the bottom. */}
+      <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-12 lg:px-8">
         <header className="mb-12 text-center">
           {/* Sparkle accent above the heading */}
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary backdrop-blur-sm">
