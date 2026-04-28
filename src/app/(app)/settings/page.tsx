@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignOutButton } from "./sign-out-button";
 import { ThemeSetting } from "./theme-setting";
+import { HomeScreenSetting } from "./home-screen-setting";
 import { AIProviderSettings } from "./ai-provider-settings";
 import { LinkedInConnection } from "./linkedin-connection";
 import { WorkspaceSettings } from "./workspace-settings";
@@ -25,13 +26,19 @@ export default async function SettingsPage() {
   }
 
   // Fetch AI provider settings + subscription tier
+  // BP-099: also fetch ui_mode so the Appearance section picker
+  // reflects the current preference.
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier, force_ai_gateway")
+    .select(
+      "ai_provider, ai_model, ai_api_key_encrypted, subscription_tier, force_ai_gateway, ui_mode"
+    )
     .eq("user_id", user.id)
     .single();
 
   const subscriptionTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
+  const uiMode: "focus" | "standard" =
+    profile?.ui_mode === "focus" ? "focus" : "standard";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -74,11 +81,29 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Choose your preferred theme for the interface.
-          </p>
-          <ThemeSetting />
+        <CardContent className="space-y-6">
+          {/* BP-099: home-screen mode picker (desktop only — mobile users
+              get a fixed mobile UI regardless of this setting). */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">Home Screen</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose what you see when you sign in. You can switch any
+                time from the top right of any page.
+              </p>
+            </div>
+            <HomeScreenSetting initialMode={uiMode} />
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">Theme</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose your preferred theme for the interface.
+              </p>
+            </div>
+            <ThemeSetting />
+          </div>
         </CardContent>
       </Card>
 
