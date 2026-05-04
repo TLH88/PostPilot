@@ -101,6 +101,7 @@ import { ApprovalControls } from "@/components/posts/approval-controls";
 import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 import { logActivity } from "@/lib/activity";
 import { maybeWriteAutoSnapshot } from "@/lib/autosave-snapshot";
+import { diffEdits } from "@/lib/ai/diff-edits";
 import {
   ENHANCEMENT_TEMPLATE_LIST,
   type EnhancementTemplateKey,
@@ -193,6 +194,11 @@ export default function PostWorkspacePage() {
   const [chatStreaming, setChatStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Content snapshot at the moment of the last chat send. The next message
+  // diffs against this so the AI sees what the user edited between turns.
+  // Seeded on post load and re-set after each send.
+  const lastAiSnapshotRef = useRef<string>("");
 
   // ── Hashtag state ─────────────────────────────────────────────────────────
   const [suggestingHashtags, setSuggestingHashtags] = useState(false);
@@ -352,6 +358,7 @@ export default function PostWorkspacePage() {
       setPost(p);
       setTitle(p.title ?? "");
       setContent(p.content ?? "");
+      lastAiSnapshotRef.current = p.content ?? "";
       setHashtags(p.hashtags ?? []);
       setStatus(p.status);
       setContentPillarsState(p.content_pillars ?? []);
@@ -1365,6 +1372,12 @@ export default function PostWorkspacePage() {
       // mounted (the AI chat panel can be open before the editor renders).
       const liveContent = textareaRef.current?.value ?? content;
 
+      // Diff vs the snapshot taken at the previous send so the AI knows what
+      // the user edited between turns. Empty on the very first message and
+      // whenever the user sends without editing.
+      const recentEdits = diffEdits(lastAiSnapshotRef.current, liveContent);
+      lastAiSnapshotRef.current = liveContent;
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1379,6 +1392,7 @@ export default function PostWorkspacePage() {
           contentPillar: contentPillars?.[0] || undefined,
           hashtags: hashtags,
           characterCount: content.length,
+          recentEdits: recentEdits || undefined,
         }),
       });
 

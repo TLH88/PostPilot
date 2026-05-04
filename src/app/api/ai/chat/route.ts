@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount } = parsed.data;
+    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount, recentEdits } = parsed.data;
 
     const { client, profile, source, provider, model } = await getUserAIClient();
     activeProvider = provider;
@@ -59,6 +59,11 @@ export async function POST(request: NextRequest) {
       if (hashtags?.length) parts.push(`Hashtags: ${hashtags.join(", ")}`);
       if (characterCount) parts.push(`Character count: ${characterCount}/3000`);
       if (postContent) parts.push(`Current draft:\n---\n${postContent}\n---`);
+      if (recentEdits) {
+        parts.push(
+          `Edits the user made since your previous reply (unified diff, "-" removed / "+" added). Use this for context only — do not summarize the changes back to the user unless they ask:\n---\n${recentEdits}\n---`,
+        );
+      }
       additionalContext = `The creator is working on a LinkedIn post. Here's the current state:\n${parts.join("\n")}`;
     }
 

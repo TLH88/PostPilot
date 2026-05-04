@@ -27,6 +27,7 @@ export const ChatInputSchema = z.object({
   hashtags: z.array(z.string()).optional(),
   wordCount: z.number().optional(),
   characterCount: z.number().optional(),
+  recentEdits: z.string().optional(),
 });
 
 export const BrainstormInputSchema = z.object({
