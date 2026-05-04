@@ -7,7 +7,10 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // BP-099: post-login default destination is Launch Pad — the simplified
+  // launcher home. Callers may override via ?next= (used by the magic-link
+  // flow, OAuth recovery round-trip, etc.).
+  const next = searchParams.get("next") ?? "/launch-pad";
 
   const cookieStore = await cookies();
 

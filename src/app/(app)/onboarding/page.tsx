@@ -543,8 +543,10 @@ export default function OnboardingPage() {
         }
       }
 
+      // BP-099: post-onboarding lands on Launch Pad — the simplified
+      // launcher home where every user starts.
       // Full reload so the server layout re-fetches the updated profile.
-      window.location.href = "/dashboard";
+      window.location.href = "/launch-pad";
     } catch (error) {
       console.error("Error completing onboarding:", error);
       toast.error("Something went wrong. Please try again.");
