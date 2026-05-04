@@ -5,6 +5,7 @@ import { logApiError } from "@/lib/api-utils";
 import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import type { AISource } from "@/lib/ai/get-user-ai-client";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
+import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
 
@@ -127,6 +128,12 @@ export async function POST(request: NextRequest) {
     const quota = await checkQuota(user.id, "image_generations", { bypass });
     if (!quota.allowed) {
       return buildQuotaExceededResponse(quota, "image_generations");
+    }
+
+    // BP-085 Phase 3: per-user $ budget gate.
+    const budget = await checkBudget(user.id);
+    if (!budget.ok) {
+      return NextResponse.json(buildBudgetExceededBody(budget), { status: 402 });
     }
     const hook = post.content?.slice(0, 210) ?? "";
     const selectedStyle = artStyle || ART_STYLES[0];
