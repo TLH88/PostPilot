@@ -13,25 +13,27 @@
  * by Tailwind responsive classes on the parent (`md:hidden` on the
  * mobile shell wrapper).
  *
- * The "Create" tab routes to `/posts/new` rather than firing the new-post
- * API directly — the floating action button (`MobileFab`) is the
- * dialog-driven shortcut that mirrors Phase 1's `NewPostButton` flow.
- * Splitting them keeps the tab bar a pure navigation surface (predictable
- * back/forward behavior) and keeps the dialog for the more visible FAB.
+ * The "Create" tab is action-typed (Create = Create per owner direction
+ * 2026-05-04): tapping it fires the same NewPostTitleDialog → /api/posts/create
+ * flow as the desktop "Create a Post" card and the FAB. We render Phase 1's
+ * `<NewPostButton>` here with override className so the create flow stays a
+ * single source of truth (quota check, slow/fail health timers, telemetry).
+ * Active-state highlighting doesn't apply — clicking opens a dialog rather
+ * than navigating, so there is no "current page" semantics to mark.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Lightbulb,
-  PenLine,
   FileText,
   CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NewPostButton } from "@/components/posts/new-post-button";
 
-interface TabDef {
+interface NavTabDef {
   href: string;
   label: string;
   icon: LucideIcon;
@@ -44,36 +46,55 @@ interface TabDef {
   activeWhen: (pathname: string) => boolean;
 }
 
-const TABS: TabDef[] = [
-  {
-    href: "/ideas?open=generate",
-    label: "Ideas",
-    icon: Lightbulb,
-    activeWhen: (p) => p === "/ideas" || p.startsWith("/ideas/"),
-  },
-  {
-    href: "/posts/new",
-    label: "Create",
-    icon: PenLine,
-    // Editor routes (`/posts/[id]`) do not highlight Create — only the
-    // explicit `/posts/new` shortcut. Keeps the active state honest.
-    activeWhen: (p) => p === "/posts/new",
-  },
-  {
-    href: "/posts",
-    label: "Drafts",
-    icon: FileText,
-    // `/posts` index page only — sub-routes (the editor) shouldn't pin
-    // Drafts as active. Matches Phase 1 desktop card destination.
-    activeWhen: (p) => p === "/posts",
-  },
-  {
-    href: "/calendar",
-    label: "Scheduled",
-    icon: CalendarDays,
-    activeWhen: (p) => p === "/calendar" || p.startsWith("/calendar/"),
-  },
-];
+const TAB_BUTTON_BASE =
+  "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors";
+
+const IDEAS_TAB: NavTabDef = {
+  href: "/ideas?open=generate",
+  label: "Ideas",
+  icon: Lightbulb,
+  activeWhen: (p) => p === "/ideas" || p.startsWith("/ideas/"),
+};
+const DRAFTS_TAB: NavTabDef = {
+  href: "/posts",
+  label: "Drafts",
+  icon: FileText,
+  // `/posts` index page only — sub-routes (the editor) shouldn't pin
+  // Drafts as active. Matches Phase 1 desktop card destination.
+  activeWhen: (p) => p === "/posts",
+};
+const SCHEDULED_TAB: NavTabDef = {
+  href: "/calendar",
+  label: "Scheduled",
+  icon: CalendarDays,
+  activeWhen: (p) => p === "/calendar" || p.startsWith("/calendar/"),
+};
+
+function NavTab({ tab, pathname }: { tab: NavTabDef; pathname: string }) {
+  const Icon = tab.icon;
+  const isActive = tab.activeWhen(pathname);
+  return (
+    <Link
+      href={tab.href}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        TAB_BUTTON_BASE,
+        isActive
+          ? "text-primary"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon
+        className={cn(
+          "size-5 shrink-0 transition-transform",
+          isActive && "scale-110"
+        )}
+        aria-hidden="true"
+      />
+      <span>{tab.label}</span>
+    </Link>
+  );
+}
 
 export function MobileTabBar() {
   const pathname = usePathname();
@@ -89,32 +110,28 @@ export function MobileTabBar() {
         "pb-[env(safe-area-inset-bottom)]"
       )}
     >
-      {TABS.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = tab.activeWhen(pathname);
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
-              isActive
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Icon
-              className={cn(
-                "size-5 shrink-0 transition-transform",
-                isActive && "scale-110"
-              )}
-              aria-hidden="true"
-            />
-            <span>{tab.label}</span>
-          </Link>
-        );
-      })}
+      <NavTab tab={IDEAS_TAB} pathname={pathname} />
+      {/*
+        Create tab: same dialog flow as Phase 1's "Create a Post" card and the
+        MobileFab. Override the shadcn Button defaults (background, padding,
+        rounded corners, fixed height) so it visually fits the tab bar row.
+      */}
+      <NewPostButton
+        label="Create"
+        className={cn(
+          TAB_BUTTON_BASE,
+          // Neutralize Button default-variant chrome
+          "!h-auto !min-h-0 !rounded-none !bg-transparent !p-0 !shadow-none",
+          "hover:!bg-transparent",
+          // Match unactive nav-tab text colors (Create has no "active" route)
+          "!text-muted-foreground hover:!text-foreground",
+          "disabled:opacity-60",
+          // Match icon size with the other tabs (NewPostButton's Plus is size-4)
+          "[&>svg]:!size-5 [&>svg]:shrink-0"
+        )}
+      />
+      <NavTab tab={DRAFTS_TAB} pathname={pathname} />
+      <NavTab tab={SCHEDULED_TAB} pathname={pathname} />
     </nav>
   );
 }
