@@ -60,8 +60,8 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-123** Token cost study (pre-GTM action) — P1 / High
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
 - **BP-125** Pro-tier image-generation BYOK — P1 / High
-- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — P1 / High [UF-002a] — *root cause is BP-142 architectural fix; QA confirmed broken live 2026-05-04*
-- **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — P1 / High [UF-015]
+- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — *Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)*
+- **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — **Done (develop) 2026-05-04** [UF-015]
 - *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
 
 ### EPIC 2 — Billing & Monetization (Stripe)
@@ -81,10 +81,10 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
-- **BP-142** Onboarding integrity gate + server-authoritative wizard (scope expanded 2026-05-04 per live QA) — P1 / High (sibling of BP-099) [UF-007]
+- **BP-142** Onboarding integrity gate + server-authoritative wizard — **Done (develop) 2026-05-04** [UF-007]
 - **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
-- **BP-149** Tutorial SDK reliability fixes (post-QA: upsert conflict, cross-route, mobile anchor) — P1 / High (Sprint 1 of QA-remediation) [UF-008..UF-011]
-- **BP-150** Onboarding first-visit UX polish (modal stacking, greeting, /onboarding/type) — P2 / Medium [UF-012..UF-014]
+- **BP-149** Tutorial SDK reliability fixes — **Done (develop) 2026-05-04** [UF-008..UF-011]
+- **BP-150** Onboarding first-visit UX polish — **Done (develop) 2026-05-04** [UF-012..UF-014]
 - *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)
@@ -597,7 +597,7 @@ Failures are walked through one at a time and the user is returned to a known su
 
 ### BP-149: Tutorial SDK Reliability Fixes (Post-QA)
 
-**Status:** In Progress 2026-05-04 (Sprint 1 of QA-remediation sprint)
+**Status:** **Done (develop) 2026-05-04** — Sprint 1 of QA-remediation. All 5 fixes verified PASS by Sprint 1 QA agent (commit `604f4c2` on `develop`).
 **Priority:** P1 / High (entire BP-035 tutorial system silently fails its primary contract)
 **Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-007, UF-008, UF-009, UF-010, UF-011
 **Date Added:** 2026-05-04
@@ -653,7 +653,7 @@ A live QA walkthrough of the entire tutorial registry on production exposed five
 
 ### BP-150: Onboarding First-Visit UX Polish (Modal Stacking, Greeting, /onboarding/type)
 
-**Status:** Backlog (Sprint 3 of QA-remediation sprint)
+**Status:** **Done (develop) 2026-05-04** — Sprint 3 of QA-remediation. All 4 acceptance criteria verified PASS by Sprint 3 QA agent (commit `4bad561` on `develop`).
 **Priority:** P2 / Medium
 **Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-012, UF-013, UF-014
 **Date Added:** 2026-05-04
@@ -700,7 +700,7 @@ A live QA walkthrough of the new-user onboarding flow on production surfaced fiv
 
 ### BP-151: Reconcile `managed_ai_access` Default with "Powered by Claude" Badge
 
-**Status:** Backlog (Sprint 3 of QA-remediation sprint)
+**Status:** **Done (develop) 2026-05-04** — Sprint 3 of QA-remediation. Migration `20260504_managed_ai_access_default_true.sql` applied to prod via Supabase MCP; 6 free/personal active+trial rows backfilled. Dashboard badge now gated on `aiAccess.hasAccess`. Verified PASS by Sprint 3 QA agent.
 **Priority:** P1 / High (claim/reality mismatch — affects free-user trust)
 **Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-015
 **Date Added:** 2026-05-04
@@ -3965,7 +3965,7 @@ What remains:
 
 ### BP-142: Onboarding Integrity Gate (Required-Field Validation + Server-Authoritative Wizard)
 
-**Status:** Spec ready — Sprint 2 of QA-remediation sprint (2026-05-04)
+**Status:** **Done (develop) 2026-05-04** — Sprint 2 of QA-remediation. All 5 acceptance criteria verified PASS by Sprint 2 QA agent (`a8785dd` on `develop`). Note: Layer 1 (Auth Hook bootstrap) was DROPPED in favor of API-route-level bootstrap in `/api/onboarding/step` after Supabase docs confirmed there is no "After User Created" Auth Hook type. See `docs/USER_FEEDBACK.md` UF-007 for full traceability.
 **Priority:** P1 / High (raised in priority 2026-05-04 after live QA confirmed multiple architectural defects)
 **Source:** Owner — captured 2026-04-27 during BP-099 brainstorm; **scope expanded 2026-05-04** with live QA findings (UF-007a/b/c/d/e)
 **Date Added:** 2026-04-27 (spec expanded 2026-05-04)

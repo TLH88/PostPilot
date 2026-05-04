@@ -4,6 +4,116 @@
 
 ---
 
+## 2026-05-04: QA-remediation 4-sprint plan shipped to develop — BP-149 + BP-142 + BP-150 + BP-151 + BP-152
+
+Owner asked for a fresh QA pass on the new-user onboarding + tutorial experiences against production. Two parallel agents on prod (`mypostpilot.app`) walked end-to-end as fresh `e2e+...` users; combined they exposed **10 distinct defects** across two surfaces. Owner approved a 4-sprint remediation plan covering all of them. End state: develop is now `e8b09d7`, **9 commits ahead of main** (Sprints 1+2+3 + the docs commit), all green.
+
+### Round 1: Production QA walkthrough — 10 defects surfaced (UF-007..UF-016)
+
+Two agents in parallel against prod (Chrome MCP). Test accounts: `e2e+onboarding-*` and `e2e+tutorial-*`, all provisioned via Supabase admin SQL, all cleaned up at end. Tony's account never touched.
+
+**Onboarding wizard (5 architectural defects):**
+- **UF-007a** — Brand-new free users see AI Setup (BYOK) step contrary to BP-135. Root cause: no DB trigger / Auth Hook creates a `user_profiles` row at signup, so `subscription_tier` is `null` and the BP-135 skip-predicate fails. The seed script `scripts/e2e/seed-test-users.ts` masked this for canonical test accounts.
+- **UF-007b** — Mid-wizard hard refresh restarts at step 0 because `goNext` does `.update` not `.upsert`; with no row to update it's silently a no-op.
+- **UF-007c** — Skip-everything completes onboarding with empty profile (`full_name=null`, `expertise_areas=[]`, etc.). No per-step required-field validation.
+- **UF-007d** — Deep-link `/onboarding?step=4` renders AI Setup with steps 1-4 falsely checkmarked. Client trusts URL query param verbatim.
+- **UF-007e (NEW-O4 architectural)** — Wizard mutations bypass Next.js API routes entirely. Network capture: 4× direct `PATCH .../user_profiles` to Supabase REST, zero `/api/onboarding/*` calls. Server-side rules cannot run.
+
+**Tutorial SDK (5 reliability defects):**
+- **UF-008** — Tutorial completion never persists. `tutorial_progress.completed` stays `false` after Finish. Root cause: `.upsert(...)` called without `onConflict: "user_id,tutorial_id"`; Supabase defaults conflict target to PK and the unique-violation is silently swallowed.
+- **UF-009** — Cross-route restart from `/help` auto-closes within 600ms. `lastTutorialPathRef` initialized to `/help`; engine-triggered nav fires the navigate-away guard.
+- **UF-010** — Tutorial gate background renders translucent in dark mode, visually entangled with What's New modal.
+- **UF-011** — `howto-idea-generation` step 3 click on Generate doesn't advance (click-handler race against React re-render); `overview-app` step 1 anchors to mobile-hidden sidebar (`hidden lg:flex`).
+
+**Polish + investigation (4 minor defects):**
+- **UF-012** — Two stacked modals (release-notes + tutorial gate) over the wizard on first onboarding visit.
+- **UF-013** — `/onboarding/type` is a 1-2s blank flash before client-side redirect.
+- **UF-014** — Dashboard greeting fallback "Welcome back, there!" reads as broken for empty profiles.
+- **UF-015** — "Powered by Claude" badge claims AI access while DB has `managed_ai_access=false` for new free users.
+- **UF-016** — 8 of ~10 sidebar RSC prefetch GETs return 503 on first dashboard load (not user-visible due to fallback).
+
+### Sprint plan + sequencing
+
+Owner approved a 4-sprint plan: Sprint 1 (tutorial SDK rescue) → QA gate → Sprint 2 (onboarding integrity gate) → QA gate → Sprint 3 (polish + investigation) → QA gate → Sprint 4 (docs + memory). Each sprint shipped on its own branch, owner-merged in order.
+
+**Owner-decided design choices:**
+- BP-142 Auth Hook bootstrap: dropped after the Supabase docs confirmed no "After User Created" Auth Hook type exists. Replaced with API-route-level bootstrap in `/api/onboarding/step` (defense-in-depth via Database Webhook deferred — BP-129 already restricts every signup to LinkedIn OIDC → wizard, so no path bypasses the wizard today).
+- BP-151 direction: keep the `managed_ai_access` column, default it to `true` for free users, gate badge on `aiAccess.hasAccess`.
+- BP-152 scope: investigate-only.
+
+### Sprint 1 — BP-149 Tutorial SDK Reliability Fixes (commit `604f4c2`, merged `5eed941`)
+
+Single BP, six fixes, ~141 LOC changed across `packages/tutorial-sdk/`:
+- `supabase.ts` — added `{ onConflict: "user_id,tutorial_id" }` to `markCompleted` + `saveProgress`; `{ onConflict: "user_id" }` to `markFirstLoginPromptShown`. Surfaces upsert errors via `console.error` instead of swallowing.
+- `TutorialProvider.tsx` — new `navigationIntentRef` so the navigate-away guard distinguishes engine-triggered navs from user-driven ones. Wrapped `onNavigate` to set the intent before forwarding.
+- `TutorialGate.tsx` — opaque background fallback chain (`var(--tutorial-bg, var(--card, #ffffff))`) + explicit `opacity: 1` + new `minViewportWidth` early-exit so tutorials with desktop-only anchors don't auto-fire on mobile.
+- `action-detector.ts` — listens on BOTH `mousedown` and `click` (capture phase); `completed` guard prevents double-firing. Closes the React-re-render race for click-action steps.
+- `core/types.ts` — added `minViewportWidth` to `TutorialDefinition`; clarified `showTutorialListOnFinish` JSDoc.
+- `src/lib/tutorials/definitions.ts` — `overview-app` tagged `minViewportWidth: 1024` (3 of 4 steps anchor to the desktop sidebar).
+
+Sprint 1 QA agent re-ran the entire registry against `localhost:3000`. **All 5 fixes PASS**: completion persists (`completed=true, completed_at` non-null), cross-route restart works, gate is opaque, step-3 advances within 1s of click, mobile suppression confirmed (no gate at 375px, gate at 1440px). Zero `[tutorial-sdk]` console errors across all runs.
+
+### Sprint 2 — BP-142 Onboarding Integrity Gate + Server-Authoritative Wizard (commit `a8785dd`, merged `6746571`)
+
+The big architectural sprint. Three layers:
+
+**Layer 1 — Bootstrap.** New `/api/onboarding/step` route inserts a default `user_profiles` row on first call if missing (`subscription_tier='free'`, `account_status='active'`, `managed_ai_access=true`, `onboarding_completed=false`). Closes UF-007a — the BP-135 skip predicate now has a non-null tier value to evaluate.
+
+**Layer 2 — Server-authoritative wizard.** `/api/onboarding/{step,complete}` routes own all wizard mutations. The wizard's `goNext` and `handleSubmit` POST to them instead of talking to Supabase REST directly. Server validates step number, server-clamps forward jumps against persisted progress, runs per-step required-field validation, returns the canonical next step. Network panel proves zero direct `PATCH /rest/v1/user_profiles` — refutes the architectural NEW-O4.
+
+**Layer 3 — Required-field validation.** New `src/lib/onboarding/required-fields.ts` is the single source of truth. Used by `/api/onboarding/step` (per-step server enforcement), `/api/onboarding/complete` (final commit gate, returns `missing[]` on 400), wizard UI (`canAdvance()` predicate disables Next + hides Skip on required-field steps), and `(app)/layout.tsx` (`validateOnboardingComplete()` runs server-side; redirects completed users back to `/onboarding` if a future schema change adds a required field they haven't filled).
+
+Sprint 2 QA agent verified all 5 fixes + 2 API contract checks (POST `/step` with forward-jump → 400 with `canonicalStep`; POST `/complete` with missing field → 400 with `missing[]`) + the network panel refutation of NEW-O4 (5× `POST /api/onboarding/step → 200`, 1× `POST /api/onboarding/complete → 200`, **zero** direct PATCHes). Phantom AI POST eliminated when AI Setup is skipped without a key.
+
+### Sprint 3 — BP-150 + BP-151 + BP-152 (commit `4bad561`, merged `e8b09d7`)
+
+Three small BPs in one commit:
+
+**BP-150 (UX polish):** `/onboarding/type` converted to server component with `redirect()` (no client flash); `release-notes-modal.tsx` + `tutorial-bridge.tsx` read `pathname` and suppress shell-modal auto-open when `pathname.startsWith('/onboarding')`; dashboard greeting switches between `Welcome back, {firstName}!` and `Welcome to PostPilot` based on `full_name` presence.
+
+**BP-151 (`managed_ai_access` reconciliation):** Migration `20260504_managed_ai_access_default_true.sql` applied to prod via Supabase MCP. Changed column default to `true`, backfilled all `free`/`personal` rows where `account_status IN ('active','trial')` AND column was previously `false` — 6 rows updated, Pro/Team untouched. Dashboard "Powered by" badge re-gated on `aiAccess.hasAccess` (which factors BYOK + gateway availability + the new managed-default policy) instead of just on `profile?.ai_provider` truthy (which it always was, since the column defaults to `'anthropic'`).
+
+**BP-152 (RSC 503 investigation):** Pulled Vercel runtime logs for the 7-day window covering the QA agent's observation. **Zero 503s found.** Middleware (`src/middleware.ts`) doesn't match the failing routes. Findings written to `docs/plans/bp-152-rsc-503-investigation.md`. Recommendation: file BP-153 (layout-level Supabase observability) only if the issue recurs. UF-016 marked **Wontfix this cycle** with link to investigation doc.
+
+Sprint 3 QA agent verified all 5 fixes PASS + the BP-151 migration backfill. One useful caveat surfaced: `PROVIDER_DISPLAY_NAMES.anthropic → "Claude"` (not "Anthropic"); `force_ai_gateway` defaults `true` on new profiles, so test scenarios for "no AI access" must explicitly set it to `false`.
+
+### Sprint 4 — Docs + memory + closure (this commit)
+
+- `docs/USER_FEEDBACK.md`: UF-007..015 → **Verified (QA, dev preview) 2026-05-04**; UF-016 → **Wontfix this cycle**.
+- `docs/BACKLOG.md`: BP-149, BP-150, BP-151, BP-142 → **Done (develop) 2026-05-04**; BP-152 → **Investigated (no action this sprint)**; BP-135 footnoted as "verified working live after BP-142 architectural fix landed".
+- `docs/ACTIVITY_LOG.md`: this entry.
+- Memory entry `feedback_wizard_through_api_routes.md`: codifies the new pattern — wizard mutations go through Next.js API routes, never direct Supabase REST.
+
+### Branch state
+
+- `main`: at `efd60d1` (cycle 1 fixes from 2026-04-27).
+- `develop`: at `e8b09d7`, **9 commits ahead of main**:
+  - `5988366` docs(QA-remediation): file BP-149/150/151/152 + UF-007..016
+  - `604f4c2` feat(BP-149): tutorial SDK reliability fixes
+  - `5eed941` Merge BP-149
+  - `a8785dd` feat(BP-142): server-authoritative onboarding wizard + integrity gate
+  - `6746571` Merge BP-142
+  - `4bad561` feat(BP-150 + BP-151 + BP-152): Sprint 3
+  - `e8b09d7` Merge Sprint 3
+  - (+ Sprint 4 closure commit, this one)
+
+### Owner actions outstanding
+
+1. Optional: spot-check the Sprint 1/2/3 PRs on GitHub before merging develop → main:
+   - [bp-149-tutorial-sdk-fixes](https://github.com/TLH88/PostPilot/pull/new/bp-149-tutorial-sdk-fixes)
+   - [bp-142-onboarding-integrity-gate](https://github.com/TLH88/PostPilot/pull/new/bp-142-onboarding-integrity-gate)
+   - [bp-150-151-152-sprint-3](https://github.com/TLH88/PostPilot/pull/new/bp-150-151-152-sprint-3)
+2. Merge `develop` → `main` when ready.
+3. Decide whether BP-145 (publish-failure recovery, also on develop) ships in the same main merge.
+
+### Out of scope (carryover)
+
+- BP-143 mobile editor layout — sibling of BP-099, branch already exists, not started this session.
+- BP-144 visual design system — three v3 finalists committed earlier on `bp-144-visual-design-system` branch, awaiting owner pick.
+- BP-153 (placeholder) — only file if the RSC prefetch 503 issue recurs in QA.
+
+---
+
 ## 2026-04-28: BP-145 publish-failure recovery flow shipped to develop
 
 Owner reported a real incident this morning. A scheduled LinkedIn post failed because LinkedIn had revoked PostPilot's posting permission. The system surfaced the right notification ("reconnect"), the owner reauthorized with LinkedIn, was returned to the app — and the **same failure modal was still showing the same Reconnect CTA**. The system never re-checked connection state after the OAuth round-trip, never offered the failed post for one-click recovery, and the owner had to navigate elsewhere to verify the connection and manually publish the post. Surface-level fix would be one bug; the real problem was that the entire publish-failure → reauth → recovery loop had no choreography.
