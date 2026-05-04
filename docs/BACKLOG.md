@@ -54,15 +54,15 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 **Parent:** BP-115. Rollout order: cost study → copy → gates → trial fix → ads.
 - **BP-115** Subscription Model v2 parent spec — P0 / Critical
 - **BP-116** Pricing page copy + feature table rewrite — P0 / Critical
-- **BP-117** Feature-gate refactor for new matrix (supersedes scope of BP-018) — P0 / Critical
-- **BP-118** Free-tier trial-expired messaging fix — P1 / High
-- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — P2 / Medium
-- **BP-123** Token cost study (pre-GTM action) — P1 / High
+- **BP-117** Feature-gate refactor for new matrix (supersedes scope of BP-018) — **Done 2026-04-24** (Phases A–D shipped via `9f5ff24`/`b89f8cd`/`ff4f07f`, merged `8760396`)
+- **BP-118** Free-tier trial-expired messaging fix — **Done 2026-04-24**
+- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — Phase 1 Done 2026-04-24; Phase 2 (integration) Backlog — P2 / Medium
+- **BP-123** Token cost study (pre-GTM action) — **Done 2026-04-24** (deliverable + owner-approved recommendations)
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
 - **BP-125** Pro-tier image-generation BYOK — P1 / High
 - **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — *Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)*
 - **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — **Done (develop) 2026-05-04** [UF-015]
-- *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
+- *Superseded/absorbed:* BP-018 (folded into BP-117). *Note: BP-045 ad integration is a separate live Backlog item — see EPIC 1 below; it is NOT absorbed into BP-119 (Phase 2 of which still also Backlog).*
 
 ### EPIC 2 — Billing & Monetization (Stripe)
 **Active — GTM blocker.** BP-015 un-deferred 2026-04-24 per owner direction.
@@ -72,12 +72,12 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-122** Payment methods + invoices in Settings — child of BP-015
 
 ### EPIC 3 — Terminology & Help Content
-- **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — P2 / Medium (raised from P3)
+- **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — **Done 2026-04-24** (commit `40a18bd`)
 - **BP-120** Help content refresh (Personal rename, paid-feature badges, API key section) — P1 / High
 
 ### EPIC 4 — Onboarding & Guidance
-- **BP-084** Tutorial card visual redesign — P2 / Medium
-- **BP-099** Launch Pad (formerly Focus View) — **Phase 1 in progress 2026-05-04** on `bp-099-launch-pad` branch. Owner pivoted 2026-05-04: Launch Pad ships as a single new page (`/launch-pad`) for every user, dropping the per-user `ui_mode` toggle / Settings picker / dual-render plumbing from the v1 spec. Phase 2 (mobile shell + "what next?" prompts + polish) remains future work — P1 / High. See [docs/plans/bp-099-guided-ui-mode.md](plans/bp-099-guided-ui-mode.md)
+- **BP-084** Tutorial card visual redesign — **Done 2026-05-04 (covered by BP-149)**
+- **BP-099** Launch Pad (formerly Focus View) — **Phase 1 Done 2026-05-04 (shipped to main)** via commits `8d4f553` + `0fa4604` + `8cab6b7`. Phase 2 (mobile shell + "what next?" prompts + polish) — Backlog — P1 / High. See [docs/plans/bp-099-guided-ui-mode.md](plans/bp-099-guided-ui-mode.md)
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
@@ -90,7 +90,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)
 All Team items deferred until Free→Pro viability is validated.
-- **BP-098** Team features master flag — P0 / Critical
+- **BP-098** Team features master flag — **Done 2026-04-16** (commit `a894bb0`; folded in BP-018 + BP-094)
 - **BP-024** Multi-user workspaces — Deferred (Team)
 - **BP-052** Brand consistency scoring — Deferred (Team)
 - **BP-053** Content briefs — Deferred (Team)
@@ -101,7 +101,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-096** Approval deadlines + reviewer reminders — Deferred (Team, Phase T4)
 
 ### EPIC 6 — Analytics & Insights
-- **BP-021** Manual analytics — P1 / High
+- **BP-021** Manual analytics — **Done (commit `88b2e0c`); production-confirmed by owner 2026-05-04**
 - **BP-025** LinkedIn API analytics — Blocked (LinkedIn approval)
 - **BP-033** Content pillar ROI dashboard — P3 / Low
 
@@ -115,7 +115,7 @@ All Team items deferred until Free→Pro viability is validated.
 
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-152** Investigate RSC prefetch 503s on first dashboard load — P2 / Medium (Sprint 3 of QA-remediation, investigate-only) [UF-016]
-- **BP-100** Scheduled posts drop images — P1 / Critical
+- **BP-100** Scheduled posts drop images — **Done 2026-04-22 (Edge Function v16, commit `45d36f2`); production-verified by owner 2026-05-04**
 - **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
 - **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
 - **BP-133** Require title before post draft creation — P2 / Medium — **Fixed (develop) 2026-04-26**
@@ -123,20 +123,20 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
 - **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium **[Fixed (develop) 2026-04-26]**
-- **BP-145** Publish-failure recovery flow (LinkedIn auth-revoked round-trip + walkthrough surface) — P1 / High — **In Progress 2026-04-28**
+- **BP-145** Publish-failure recovery flow (LinkedIn auth-revoked round-trip + walkthrough surface) — P1 / High — **Done (main) 2026-04-28** (commits `ec04c46` + merge `f17e5c6`, on main via `7f194cc`)
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
-- **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
+- **BP-113** Server-side RLS gating for `content_library` built-in items — **Done 2026-04-25** (`has_library_access` helper + `content_library_builtin_rls_tier_gated` policy applied)
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — **Done 2026-04-26** (dashboard toggle activated; verified end-to-end via live signup attempt — 403 returned with the expected rejection message)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
 
 ### EPIC 10 — Admin & Cost Controls
-- **BP-085** AI usage monitoring, cost analysis & budget enforcement — P1 / High
-- **BP-127** Complete AI route logging coverage (close the BP-085 gap) — P1 / High
-- **BP-128** Brainstorm prompt caching refactor — P2 / Medium
+- **BP-085** AI usage monitoring, cost analysis & budget enforcement — Phases 1+2 Done; **Phase 3 (budget enforcement) Backlog** — P1 / High
+- **BP-127** Complete AI route logging coverage (close the BP-085 gap) — **Done 2026-04-24**
+- **BP-128** Brainstorm prompt caching refactor — **Done 2026-04-24** (Anthropic `cache_control` wired)
 
 ### EPIC 11 — Quality & Testing
 - **BP-097** Playwright E2E for Free→Pro happy path — P1 / High
@@ -324,7 +324,7 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ### BP-015: Stripe Billing Integration (v2)
 
-**Status:** Spec ready — **blocked on owner-side business formation** (LLC / EIN / business bank account / tax ID needed before a Stripe account can be provisioned). Implementation paused 2026-04-24 immediately after spec was finalized. Resume when entity formation is complete.
+**Status:** Spec ready — **partially unblocked 2026-05-04**: LLC formed + business license acquired. Still awaiting EIN (and downstream: business bank account, tax ID, Stripe account provisioning). Implementation remains paused; resume when EIN lands and Stripe account can be created.
 **Priority:** P0 / Critical when un-blocked
 **Source:** Pricing strategy + 2026-04-24 owner design-decisions session
 **Date Added:** 2026-04-01 · **Spec rewritten:** 2026-04-24 (replaces the pre-v2 version) · **Blocked:** 2026-04-24 (business formation)
@@ -520,7 +520,7 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 
 ### BP-145: Publish-Failure Recovery Flow (LinkedIn Auth-Revoked Round-Trip)
 
-**Status:** In Progress 2026-04-28 (develop branch)
+**Status:** Done (2026-04-28 — shipped on develop in commit `ec04c46`, merged develop → main via `f17e5c6`, then bundled into the QA-remediation arc merge `7f194cc`. Now live on main.)
 **Priority:** P1 / High (real owner incident; affects every revoked-token recovery; degrades trust when scheduled posts fail)
 **Source:** Owner incident 2026-04-28 — scheduled post failed because LinkedIn revoked PostPilot's posting permission. Owner saw the past-due-checker modal, clicked "Reconnect LinkedIn", completed OAuth, was returned to the app, **and saw the same failure modal with the same Reconnect CTA**. The system never re-checked connection state after the OAuth round-trip and never offered the failed post for one-click recovery. Owner had to close the modal, manually verify the connection elsewhere, and navigate to the post to publish it directly.
 **Date Added:** 2026-04-28
@@ -1203,7 +1203,7 @@ Public pricing page with tier comparison table, feature breakdown, FAQ, and Stri
 
 ### BP-018: Feature Gating Logic
 
-**Status:** Backlog
+**Status:** Superseded by BP-117 (2026-04-24 — full v2 gate matrix shipped via commits `9f5ff24` + `b89f8cd` + `ff4f07f`, merged to main via `8760396`). The `hasFeature()` short-circuit for the Team master flag landed alongside BP-098 in commit `a894bb0`.
 **Priority:** P0 / Critical — was High
 **Re-prioritized:** 2026-04-16 — promoted to P0 foundation. The gating utility (`hasFeature(tier, feature)`) becomes the single source of truth for both tier checks AND the new master Team-features flag (see BP-098). Must short-circuit Team feature requests to false when `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=false`.
 **Source:** Pricing strategy
@@ -1252,7 +1252,7 @@ Pre-built post structures: story arc, hot take, how-to guide, listicle, question
 
 ### BP-021: Manual Analytics
 
-**Status:** Backlog
+**Status:** Done — shipped in commit `88b2e0c` (manual analytics + content_pillars array + editor consolidation + dashboard fixes). Live on main: `src/app/(app)/analytics/page.tsx`, `src/components/posts/engagement-analytics-card.tsx`, `src/components/analytics/engagement-trends-chart.tsx`, `src/app/api/analytics/import/route.ts`. Owner-confirmed functional in production 2026-05-04.
 **Priority:** P1 / High — was Medium
 **Re-prioritized:** 2026-04-16 — biggest gap in the Creator-tier value proposition. Without engagement tracking, "track your performance" is hollow. Critical for Free→Pro viability.
 **Source:** Product evaluation (Creator tier value)
@@ -1642,25 +1642,41 @@ Users need the ability to manually change a post's status, particularly to mark 
 
 ---
 
-### BP-045: Third-Party Ad Integration (Free Tier)
+### BP-045: Third-Party Ad Integration (Free + Personal Tiers)
 
 **Status:** Backlog
-**Priority:** Deferred (Revenue) — was Medium
-**Re-prioritized:** 2026-04-16 — revenue-side feature. Defer until Free-tier monetization strategy is decided after viability validation.
-**Source:** Owner request
-**Date Added:** 2026-04-04
-**Phase:** 1
+**Priority:** P2 / Medium
+**Re-prioritized:** 2026-05-04 — owner expanded scope to cover both Free **and** Personal tiers (was Free-only); Launch Pad designated as the primary ad surface alongside the original sidebar/dashboard/between-content placements. Un-deferred from Revenue-tier and re-tied to the Subscription Model v2 ad strategy (BP-119).
+**Source:** Owner request (originally 2026-04-04); scope expanded 2026-05-04
+**Date Added:** 2026-04-04 · **Scope expanded:** 2026-05-04
+**EPIC:** Subscription Model v2 (EPIC 1) — paired with BP-119 Phase 2
 
 **Description:**
-Integrate a third-party ad network (e.g., Google AdSense) to display ads to free tier users. Paid tiers (Creator, Professional) are ad-free. Ad revenue supplements subscription revenue and helps offset infrastructure costs for free users.
+Integrate a third-party ad network (e.g., Google AdSense) to display ads to **Free and Personal** tier users. Pro and Team tiers are ad-free. Ad revenue supplements subscription revenue and helps offset infrastructure costs for the AI-cost-bearing tiers (Free + Personal both use system AI keys under v2).
+
+**Tier-specific ad strategy (per BP-119 Phase 1 memo + 2026-05-04 owner direction):**
+- **Free tier:** Full ad experience — intrusive placements OK (sidebar, dashboard, between content sections, **Launch Pad primary surface**)
+- **Personal tier:** Limited, non-intrusive placements only — Launch Pad remains a primary surface but with lower-density treatment; no between-content interruptions
+- **Pro / Team:** No ads (existing `hasFeature` gating)
+
+**Surfaces (priority order):**
+1. **Launch Pad (`/launch-pad`)** — primary surface for both Free + Personal. Designated by owner 2026-05-04 as the highest-traffic logged-in surface and most natural ad real estate.
+2. **Dashboard** (`/dashboard`) — secondary surface
+3. **Sidebar** — tertiary surface
+4. **Between content sections** — Free tier only (intrusive placements acceptable on Free)
 
 **Requirements:**
-- Ad slots in sidebar, dashboard, and between content sections for free tier users
-- Ads hidden for Creator and Professional tier users (use existing `hasFeature` gating)
-- Google AdSense or equivalent integration
-- Responsive ad units that work on desktop and mobile
-- Ad placements should not disrupt the core UX — no interstitials, no pop-ups
-- Track ad impressions/revenue via the ad network dashboard
+- Reusable `<AdSlot>` component that renders or hides based on `subscription_tier` + slot density tier (`full` for Free, `non_intrusive` for Personal, `none` for Pro/Team)
+- Tier-density gating uses existing `hasFeature` / tier capability matrix (extend `TIER_FEATURES.adExperience` from BP-117 — already declared `"limited"` for Personal vs `"full"` for Free)
+- Google AdSense or equivalent integration; responsive ad units (desktop + mobile)
+- Launch Pad gets the largest single placement; sidebar/dashboard/between-content get smaller responsive units
+- No interstitials, no pop-ups — even on Free
+- Track ad impressions/revenue via ad network dashboard
+
+**Coordination with BP-119 Phase 2:**
+- BP-045 ships the `<AdSlot>` component + AdSense integration
+- BP-119 Phase 2 wires the Personal-tier "limited density" placements specifically (uses the same `<AdSlot>` with the non-intrusive variant)
+- Recommended order: ship BP-045 first; BP-119 Phase 2 follows as a thin wiring layer
 
 ---
 
@@ -2532,7 +2548,7 @@ All of this should be available on **all tiers**. Tagging and prioritization are
 
 ### BP-084: Tutorial Card Visual Redesign
 
-**Status:** Backlog (verify scope vs Tutorial SDK Phase 1 shipped 2026-04-15)
+**Status:** Done — scope covered by BP-149 Tutorial SDK reliability fixes (2026-05-04). Owner confirmed during 2026-05-04 backlog audit that BP-149 satisfies the visual-redesign intent of BP-084.
 **Priority:** P2 / Medium — was High
 **Re-prioritized:** 2026-04-16 — Tutorial SDK Phase 1 shipped a new card system (`OverviewCard`, `SimpleCard` with border-beam). Verify whether the spec in this BP is already addressed before doing more work. If gaps remain, fold the visual work into BP-035 (functional cleanup).
 **Source:** Owner UX direction with reference mockups
@@ -2713,8 +2729,8 @@ interface TutorialStep {
 
 ### BP-085: AI Usage Monitoring, Cost Analysis & Budget Enforcement (Admin Portal)
 
-**Status:** Backlog
-**Priority:** P1 / High
+**Status:** Phases 1+2 Done — `ai_usage_events` data capture + admin KPI page live (per BP-127 audit 2026-04-24, all 7 AI routes call `logAiUsage()`). Phase 3 (budget enforcement + auto-pause + Team system-key burn alert at $30/mo) remains Backlog. BP-127 (complete logging) + BP-128 (brainstorm prompt caching) shipped 2026-04-24 as follow-ups under this umbrella.
+**Priority:** P1 / High (Phase 3 only)
 **Re-prioritized:** 2026-04-16 — confirmed P1. We're providing managed AI access (BP-054) to alpha users. Without cost telemetry, runaway usage could quietly bleed the business. Scope down to Phase 1 (data capture) + minimal admin KPI page. Defer the budget enforcement and upsell intelligence layers.
 **Source:** Owner — need visibility into AI spend, abuse detection, and upsell opportunities
 **Date Added:** 2026-04-11
@@ -3526,7 +3542,7 @@ Two UX context issues:
 
 ### BP-094: Route-Level Tier Gating for Workspace + Notification Routes
 
-**Status:** Backlog (folded into BP-098)
+**Status:** Superseded by BP-098 (2026-04-16 — route-level redirect for `/workspace/*`, `/notifications`, `/activity` shipped in commit `a894bb0` alongside the master Team-features flag)
 **Priority:** P0 / Critical — was High
 **Re-prioritized:** 2026-04-16 — promoted. Now central to the Team-features feature-flag strategy. Implementation merges with BP-098.
 **Source:** [2026-04-16 Review] — System Logic team finding H5
@@ -3650,7 +3666,7 @@ The Free→Pro happy path is the entire product right now (Team is feature-flagg
 
 ### BP-098: Team Features Master Feature Flag
 
-**Status:** Backlog
+**Status:** Done (2026-04-16 — master env flag `NEXT_PUBLIC_TEAM_FEATURES_ENABLED`, `hasFeature()` short-circuit for Team-tier feature keys, and middleware/layout-level redirect for `/workspace/*`, `/notifications`, `/activity` all shipped in commit `a894bb0`. Folds in BP-018 + BP-094.)
 **Priority:** P0 / Critical
 **Source:** [2026-04-16 Reprioritization] — Strategic pivot to Free→Pro focus
 **Date Added:** 2026-04-16
@@ -3715,7 +3731,7 @@ We need a single flag that turns the entire Team suite off for end users while k
 
 ### BP-100: Scheduled Posts Drop Images (Edge Function Out of Sync)
 
-**Status:** Done (shipped in commit `45d36f2`; deployed as Edge Function v16 alongside BP-101 on 2026-04-22; backlog status updated 2026-04-25 when the implementation was audited during Sprint 3 hardening)
+**Status:** Done — shipped in commit `45d36f2`; deployed as Edge Function v16 alongside BP-101 on 2026-04-22; audited during Sprint 3 hardening 2026-04-25; **production-verified by owner 2026-05-04** (scheduled posts with images publishing correctly since deploy)
 **Priority:** P1 / Critical (production data loss for owner; affects every Free→Pro user who schedules with images)
 **Source:** Owner bug report 2026-04-16 (multiple LinkedIn posts published without images)
 **Date Added:** 2026-04-16
@@ -3841,9 +3857,9 @@ Applied to both user-provided `title` and `content` before they're combined into
 
 ---
 
-### BP-099: Focus View (Simplified UI Mode)
+### BP-099: Launch Pad (formerly Focus View / Simplified UI Mode)
 
-**Status:** Design revised 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — direction agreed with owner; awaiting final sign-off before implementation
+**Status:** Phase 1 Done — Launch Pad launcher home shipped to main 2026-05-04 (commits `8d4f553` Launch Pad page, `0fa4604` merge, `8cab6b7` Ideas page `?open=generate` deep-link, plus the earlier Focus View prototype lineage `91f0de2`/`84d4c1f`/`99a6f71`/`09767a4`). Phase 2 (mobile shell, "what next?" prompts, polish) remains Backlog.
 **Priority:** P1 / High
 **Source:** Owner — captured 2026-04-16; concept refined with mockups + brainstorm 2026-04-27.
 **Date Added:** 2026-04-16
@@ -4265,7 +4281,7 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 
 ### BP-113: Server-side RLS Gating for `content_library` Built-in Items
 
-**Status:** Backlog
+**Status:** Done (2026-04-25 — `has_library_access(uid)` SECURITY DEFINER helper + `content_library_builtin_rls_tier_gated` RLS policy applied; built-in rows now only readable by users whose `subscription_tier` satisfies `hasFeature("content_library")`. Verified live via direct REST call as a free-tier test user.)
 **Priority:** P2 / Medium
 **Source:** Follow-up from library content-lock security fix (2026-04-23)
 **Date Added:** 2026-04-23
@@ -4293,7 +4309,7 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 
 ### BP-114: Full Tier Rename (Creator → Personal) + User Profile Rename (Creator Profile → User Profile)
 
-**Status:** Backlog
+**Status:** Done (2026-04-24 — full tier + profile rename shipped in commit `40a18bd`. Tier key `'personal'`, table `user_profiles`, type `UserProfile` end-to-end. No `creator` references remain.)
 **Priority:** P2 / Medium (raised from P3 on 2026-04-24 — scope expanded to also cover the User Profile rename)
 **Source:** Follow-up from display-only tier rename (2026-04-23); scope extended 2026-04-24 with owner direction to rename Creator Profile → User Profile end-to-end.
 **Date Added:** 2026-04-23 · **Scope extended:** 2026-04-24
@@ -4549,7 +4565,7 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 
 ### BP-117: Feature-Gate Refactor for Subscription Model v2 (Supersedes BP-018)
 
-**Status:** Backlog
+**Status:** Done (2026-04-24 — Phases A–D shipped: Phase A data model + v2 quotas + gating in commit `9f5ff24`; Phase B BYOK bypass + 402 quota errors + usage UX in `b89f8cd`; Phases C+D admin-configurable system AI + 402 client UX in `ff4f07f`. Merged to main via `8760396`. `src/lib/constants.ts` now defines the v2 `SUBSCRIPTION_TIERS` / `TIER_FEATURES` / `GATED_FEATURES` matrix.)
 **Priority:** P0 / Critical
 **Source:** Owner pricing pivot 2026-04-24
 **Date Added:** 2026-04-24
@@ -4822,7 +4838,7 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 
 ### BP-123: Token Cost Study — Tier Max-Cost, Average-Cost-to-Serve, Quota & Model Recommendations (Pre-GTM)
 
-**Status:** Backlog (pre-GTM action) — scope expanded 2026-04-24
+**Status:** Done (2026-04-24 — deliverable shipped at [docs/cost-studies/2026-04-token-cost-study.md](cost-studies/2026-04-token-cost-study.md). Owner-approved same day; all 4 primary recommendations committed (model swap to mini-tier, image default `gpt-image-1`, Personal quotas 30/20/200/30, Personal price $20/mo). Spawned BP-127 + BP-128 as follow-ups, both also Done.)
 **Priority:** P1 / High
 **Source:** Owner pricing pivot 2026-04-24 (cost-exposure concern); scope expanded same day to cover all four tiers, average-user baseline, and recommendation outputs
 **Date Added:** 2026-04-24 · **Scope extended:** 2026-04-24
