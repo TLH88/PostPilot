@@ -16,6 +16,7 @@ import {
 import { verifyAdmin } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationsBell } from "@/components/notifications/notifications-bell";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -84,7 +85,8 @@ export default async function AdminLayout({
 
       {/* Main content */}
       <main className="flex-1 ml-56 p-6">
-        <div className="fixed top-4 right-6 z-30">
+        <div className="fixed top-4 right-6 z-30 flex items-center gap-1">
+          <NotificationsBell />
           <ThemeToggle />
         </div>
         {children}

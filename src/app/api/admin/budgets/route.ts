@@ -35,7 +35,7 @@ export async function GET() {
         ),
       supabase
         .from("ai_usage_events")
-        .select("user_id, cost_usd")
+        .select("user_id, cost_usd, source")
         .gte("created_at", periodStart),
       supabase
         .from("ai_budget_alerts")
@@ -62,12 +62,21 @@ export async function GET() {
     emailById.set(u.id, u.email ?? null);
   }
 
-  const spendByUser = new Map<string, number>();
+  // Split spend into BILLABLE (system + gateway — what we pay) vs BYOK
+  // (user paid via their own provider account). The kill-switch budget
+  // only applies to billable; BYOK is shown for context.
+  const billableByUser = new Map<string, number>();
+  const byokByUser = new Map<string, number>();
   for (const e of eventsRes.data ?? []) {
     const uid = e.user_id as string;
     const v = e.cost_usd as number | null;
+    const src = (e.source as string | null) ?? null;
     if (typeof v === "number" && !Number.isNaN(v)) {
-      spendByUser.set(uid, (spendByUser.get(uid) ?? 0) + v);
+      if (src === "byok") {
+        byokByUser.set(uid, (byokByUser.get(uid) ?? 0) + v);
+      } else {
+        billableByUser.set(uid, (billableByUser.get(uid) ?? 0) + v);
+      }
     }
   }
 
@@ -116,7 +125,8 @@ export async function GET() {
       email: emailById.get(uid) ?? null,
       fullName: (p.full_name as string | null) ?? null,
       tier: (p.subscription_tier as string | null) ?? "free",
-      currentMonthUsd: spendByUser.get(uid) ?? 0,
+      currentMonthBillableUsd: billableByUser.get(uid) ?? 0,
+      currentMonthByokUsd: byokByUser.get(uid) ?? 0,
       monthlyUsdLimit: t?.monthly_usd_limit ?? null,
       isPaused: t?.is_paused ?? false,
       pausedAt: t?.paused_at ?? null,
@@ -127,8 +137,8 @@ export async function GET() {
     };
   });
 
-  // Sort by current-month spend desc — biggest cost concerns first.
-  rows.sort((a, b) => b.currentMonthUsd - a.currentMonthUsd);
+  // Sort by billable spend desc — biggest cost concerns first.
+  rows.sort((a, b) => b.currentMonthBillableUsd - a.currentMonthBillableUsd);
 
   return NextResponse.json({ rows });
 }

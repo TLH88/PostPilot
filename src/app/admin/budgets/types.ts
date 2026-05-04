@@ -9,7 +9,19 @@ export interface AdminBudgetRow {
   email: string | null;
   fullName: string | null;
   tier: string;
-  currentMonthUsd: number;
+  /**
+   * Sum of cost_usd for ai_usage_events where source != 'byok' — i.e.
+   * what the business actually pays. The kill-switch budget compares
+   * against this number; BYOK is excluded because the user pays their
+   * own provider account.
+   */
+  currentMonthBillableUsd: number;
+  /**
+   * Sum of cost_usd for source = 'byok' — display-only context so admins
+   * can see total user activity without those costs counting against the
+   * cap. Never used for status, gate, or auto-pause decisions.
+   */
+  currentMonthByokUsd: number;
   monthlyUsdLimit: number | null;
   isPaused: boolean;
   pausedAt: string | null;

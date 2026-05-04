@@ -36,9 +36,15 @@ export function currentMonthStart(now: Date = new Date()): Date {
 }
 
 /**
- * Sum of cost_usd for the user across the current calendar month.
- * Successful + failed events count — every API call has a real cost
- * impact even when the user-facing response was an error.
+ * Sum of BILLABLE cost_usd for the user across the current calendar month.
+ *
+ * "Billable" = anything we (the business) actually pay for — system keys
+ * and gateway-routed calls. **BYOK events are excluded**: those are paid
+ * by the user from their own provider account and have zero cost impact
+ * on us, so they must not count toward the per-user kill-switch budget.
+ *
+ * Successful + failed events count among billable — every API call has a
+ * real cost impact even when the user-facing response was an error.
  */
 export async function currentMonthSpendUsd(userId: string): Promise<number> {
   const supabase = createAdminClient();
@@ -50,7 +56,9 @@ export async function currentMonthSpendUsd(userId: string): Promise<number> {
     .from("ai_usage_events")
     .select("cost_usd")
     .eq("user_id", userId)
-    .gte("created_at", start);
+    .gte("created_at", start)
+    // Exclude BYOK — user-paid; not a business cost; not enforced.
+    .neq("source", "byok");
 
   if (error) throw error;
 

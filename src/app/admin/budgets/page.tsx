@@ -98,10 +98,36 @@ export default function AdminBudgetsPage() {
     });
   }, [rows, search, filter]);
 
-  const totalSpend = useMemo(
-    () => rows.reduce((sum, r) => sum + (r.currentMonthUsd || 0), 0),
+  const totalBillable = useMemo(
+    () => rows.reduce((sum, r) => sum + (r.currentMonthBillableUsd || 0), 0),
     [rows]
   );
+  const totalByok = useMemo(
+    () => rows.reduce((sum, r) => sum + (r.currentMonthByokUsd || 0), 0),
+    [rows]
+  );
+
+  const [runningEvaluator, setRunningEvaluator] = useState(false);
+  const runEvaluatorNow = async () => {
+    setRunningEvaluator(true);
+    try {
+      const res = await fetch("/api/admin/budgets/run-evaluator", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Evaluator failed");
+      }
+      const data = await res.json();
+      const s = data.summary;
+      toast.success(
+        `Evaluator: ${s.evaluatedUsers} users · ${s.thresholdExceeded} over · ${s.autoPaused} paused · ${s.teamBurnAlerts} team-burn`
+      );
+      fetchRows();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Evaluator failed");
+    } finally {
+      setRunningEvaluator(false);
+    }
+  };
 
   const openEdit = (row: AdminBudgetRow) => {
     setEditingUserId(row.userId);
@@ -192,13 +218,21 @@ export default function AdminBudgetsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
           <p className="text-muted-foreground">
             Per-user $/month spend, thresholds, and the auto-pause kill switch.
+            Only <strong>billable</strong> spend (system + gateway) counts
+            toward the cap — BYOK is user-paid and shown for context only.
             Team accounts get a $30 burn alert (no auto-pause).
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <DollarSign className="size-4 text-emerald-500" />
-          <span className="font-mono">{fmtUsd(totalSpend)}</span>
-          <span className="text-muted-foreground">total this month</span>
+        <div className="flex flex-col items-end gap-1 text-sm">
+          <div className="flex items-center gap-2">
+            <DollarSign className="size-4 text-emerald-500" />
+            <span className="font-mono">{fmtUsd(totalBillable)}</span>
+            <span className="text-muted-foreground">billable this month</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-mono">{fmtUsd(totalByok)}</span>
+            <span>BYOK (user-paid)</span>
+          </div>
         </div>
       </div>
 
@@ -232,6 +266,16 @@ export default function AdminBudgetsPage() {
         <Button variant="outline" size="sm" onClick={fetchRows}>
           Refresh
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={runEvaluatorNow}
+          disabled={runningEvaluator}
+          title="Force the budget evaluator to run now (otherwise it runs hourly via pg_cron)."
+        >
+          {runningEvaluator && <Loader2 className="size-3 mr-1 animate-spin" />}
+          Run evaluator now
+        </Button>
       </div>
 
       {/* Table */}
@@ -246,7 +290,12 @@ export default function AdminBudgetsPage() {
               <tr>
                 <th className="px-3 py-2 text-left">User</th>
                 <th className="px-3 py-2 text-left">Tier</th>
-                <th className="px-3 py-2 text-right">This month $</th>
+                <th className="px-3 py-2 text-right" title="Billable spend (system + gateway) — counts toward the cap">
+                  Billable $
+                </th>
+                <th className="px-3 py-2 text-right" title="BYOK spend — user-paid, never counts toward the cap">
+                  BYOK $
+                </th>
                 <th className="px-3 py-2 text-right">Limit</th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-left">Last alert</th>
@@ -256,10 +305,11 @@ export default function AdminBudgetsPage() {
             <tbody>
               {filtered.map((r) => {
                 const overLimit =
-                  r.monthlyUsdLimit != null && r.currentMonthUsd > r.monthlyUsdLimit;
+                  r.monthlyUsdLimit != null &&
+                  r.currentMonthBillableUsd > r.monthlyUsdLimit;
                 const overTeamBurn =
                   (r.tier === "team" || r.tier === "enterprise") &&
-                  r.currentMonthUsd > r.teamBurnAlertThresholdUsd;
+                  r.currentMonthBillableUsd > r.teamBurnAlertThresholdUsd;
                 return (
                   <tr key={r.userId} className="border-t hover:bg-muted/20">
                     <td className="px-3 py-2">
@@ -282,8 +332,13 @@ export default function AdminBudgetsPage() {
                           overLimit || overTeamBurn ? "text-red-600 font-semibold" : ""
                         )}
                       >
-                        {fmtUsd(r.currentMonthUsd)}
+                        {fmtUsd(r.currentMonthBillableUsd)}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+                      {r.currentMonthByokUsd > 0
+                        ? fmtUsd(r.currentMonthByokUsd)
+                        : <span className="text-muted-foreground/50">—</span>}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
                       {r.monthlyUsdLimit == null
@@ -351,7 +406,7 @@ export default function AdminBudgetsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-3 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-3 py-12 text-center text-muted-foreground">
                     No users match.
                   </td>
                 </tr>

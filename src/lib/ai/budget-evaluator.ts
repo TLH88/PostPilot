@@ -21,7 +21,13 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logApiError } from "@/lib/api-utils";
+import { notifyAdmins } from "@/lib/admin/notify-admins";
 import { currentMonthStart } from "./budget-check";
+
+function fmtUsd(v: number | null): string {
+  if (v == null) return "$0.00";
+  return v < 0.01 ? `$${v.toFixed(4)}` : `$${v.toFixed(2)}`;
+}
 
 export type EvaluatorSummary = {
   evaluatedUsers: number;
@@ -41,6 +47,7 @@ interface ThresholdRow {
 interface ProfileRow {
   user_id: string;
   subscription_tier: string | null;
+  full_name: string | null;
 }
 
 /**
@@ -67,11 +74,12 @@ export async function evaluateAndAct(userId: string): Promise<{
     )
   );
 
-  // Load tier from user_profiles + threshold row.
-  const [profileRes, thresholdRes] = await Promise.all([
+  // Load tier + name from user_profiles, threshold row, and email from auth.users.
+  // Email/name are only used to make admin notifications human-readable.
+  const [profileRes, thresholdRes, authUserRes] = await Promise.all([
     supabase
       .from("user_profiles")
-      .select("user_id, subscription_tier")
+      .select("user_id, subscription_tier, full_name")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
@@ -79,10 +87,13 @@ export async function evaluateAndAct(userId: string): Promise<{
       .select("user_id, monthly_usd_limit, is_paused, team_burn_alert_threshold_usd")
       .eq("user_id", userId)
       .maybeSingle(),
+    supabase.auth.admin.getUserById(userId),
   ]);
 
   const profile = (profileRes.data as ProfileRow | null) ?? null;
   const threshold = (thresholdRes.data as ThresholdRow | null) ?? null;
+  const userEmail = authUserRes.data?.user?.email ?? null;
+  const userLabel = userEmail ?? userId;
 
   if (!profile) {
     return { thresholdExceeded: false, autoPaused: false, teamBurnAlert: false };
@@ -92,12 +103,14 @@ export async function evaluateAndAct(userId: string): Promise<{
     return { thresholdExceeded: false, autoPaused: false, teamBurnAlert: false };
   }
 
-  // Sum current-month spend.
+  // Sum current-month BILLABLE spend. BYOK events are user-paid (their
+  // own provider key) and must not count toward the kill-switch budget.
   const { data: events, error: eventsErr } = await supabase
     .from("ai_usage_events")
     .select("cost_usd")
     .eq("user_id", userId)
-    .gte("created_at", periodStart.toISOString());
+    .gte("created_at", periodStart.toISOString())
+    .neq("source", "byok");
   if (eventsErr) throw eventsErr;
 
   let spend = 0;
@@ -124,6 +137,20 @@ export async function evaluateAndAct(userId: string): Promise<{
       periodEnd
     );
     teamBurnAlert = inserted;
+
+    if (inserted) {
+      try {
+        await notifyAdmins({
+          type: "budget_team_burn",
+          title: `Team burn alert: ${userLabel}`,
+          body: `${tier} account spent ${fmtUsd(spend)} this month (alert threshold ${fmtUsd(threshold.team_burn_alert_threshold_usd)}). No auto-pause; reach out to onboard BYOK.`,
+          actionUrl: "/admin/budgets",
+          triggeredBy: userId,
+        });
+      } catch (err) {
+        logApiError(`budget-evaluator:notify-admins:team-burn:${userId}`, err);
+      }
+    }
   }
 
   // Per-user threshold path (non-Team only auto-pauses).
@@ -141,6 +168,20 @@ export async function evaluateAndAct(userId: string): Promise<{
       periodEnd
     );
     thresholdExceeded = insertedThresholdAlert;
+
+    if (insertedThresholdAlert) {
+      try {
+        await notifyAdmins({
+          type: "budget_threshold_exceeded",
+          title: `Budget exceeded: ${userLabel}`,
+          body: `${tier} user spent ${fmtUsd(spend)} this month (limit ${fmtUsd(threshold.monthly_usd_limit)}). BYOK costs excluded.`,
+          actionUrl: "/admin/budgets",
+          triggeredBy: userId,
+        });
+      } catch (err) {
+        logApiError(`budget-evaluator:notify-admins:threshold:${userId}`, err);
+      }
+    }
 
     // Auto-pause if not already paused.
     if (!threshold.is_paused) {
@@ -164,6 +205,20 @@ export async function evaluateAndAct(userId: string): Promise<{
         periodEnd
       );
       autoPaused = insertedPauseAlert;
+
+      if (insertedPauseAlert) {
+        try {
+          await notifyAdmins({
+            type: "budget_auto_paused",
+            title: `Auto-paused: ${userLabel}`,
+            body: `AI access paused for ${tier} user — billable spend ${fmtUsd(spend)} exceeded limit ${fmtUsd(threshold.monthly_usd_limit)}.`,
+            actionUrl: "/admin/budgets",
+            triggeredBy: userId,
+          });
+        } catch (err) {
+          logApiError(`budget-evaluator:notify-admins:auto-paused:${userId}`, err);
+        }
+      }
     }
   }
 

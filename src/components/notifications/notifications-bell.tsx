@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Bell, Check, UserPlus, MessageCircle, AtSign, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { Bell, Check, UserPlus, MessageCircle, AtSign, CheckCircle2, XCircle, Sparkles, AlertTriangle, Pause, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,6 +27,10 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   trial_ending: Bell,
   trial_ended: Bell,
   deadline: Bell,
+  // BP-085 Phase 3 admin alerts.
+  budget_threshold_exceeded: AlertTriangle,
+  budget_auto_paused: Pause,
+  budget_team_burn: Flame,
 };
 
 function formatTimeAgo(iso: string): string {
