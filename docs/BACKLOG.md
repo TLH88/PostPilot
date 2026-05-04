@@ -110,7 +110,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-028** Guided enhancement workflows — Fixed (develop) 2026-04-27
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
-- **BP-140** Personal reference photos for AI image generation — Design landed 2026-04-26 at docs/plans/bp-140-personal-image-references.md — awaiting owner review [UF-006]
+- **BP-140** Personal reference photos for AI image generation — **Deferred (post-GTM) 2026-05-04** — out of GTM critical path per owner. Design preserved, full entry at [docs/plans/POST-GTM-FUTURE-FEATURES.md](plans/POST-GTM-FUTURE-FEATURES.md) [UF-006]
 
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-152** Investigate RSC prefetch 503s on first dashboard load — P2 / Medium (Sprint 3 of QA-remediation, investigate-only) [UF-016]
@@ -993,8 +993,8 @@ When the user republishes after editing, what's the expected behavior?
 
 ### BP-140: Personal Reference Photos for AI Image Generation
 
-**Status:** Design landed 2026-04-26 at [docs/plans/bp-140-personal-image-references.md](plans/bp-140-personal-image-references.md) — awaiting owner review
-**Priority:** Backlog (not yet prioritized — depends on design outcome)
+**Status:** **Deferred (post-GTM) 2026-05-04** — out of GTM critical path per owner ("Ref image capability is too far out of scope"). Design doc + 5 owner-decision questions preserved at [docs/plans/POST-GTM-FUTURE-FEATURES.md](plans/POST-GTM-FUTURE-FEATURES.md). Original design doc: [docs/plans/bp-140-personal-image-references.md](plans/bp-140-personal-image-references.md).
+**Priority:** Deferred (post-GTM)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-006--personal-reference-photos-for-ai-image-generation) (UF-006)
 **Date Added:** 2026-04-26
 **EPIC:** AI Enhancements (EPIC 7)
