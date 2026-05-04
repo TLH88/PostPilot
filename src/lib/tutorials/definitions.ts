@@ -16,6 +16,9 @@ const OVERVIEW_APP: TutorialDefinition = {
   chainToTutorialId: "howto-idea-generation",
   finishButtonText: "Create your first post →",
   chainDeclineText: "No thanks, I'll explore on my own",
+  // BP-149 / UF-011: 3 of 4 steps anchor to the desktop sidebar (`hidden lg:flex`).
+  // BP-143 will redesign for mobile; until then, suppress auto-fire below 1024px.
+  minViewportWidth: 1024,
   steps: [
     {
       id: "app-nav",

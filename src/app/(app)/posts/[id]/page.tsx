@@ -34,6 +34,7 @@ import {
   X,
   Menu,
   MoreHorizontal,
+  Wand2,
   ExternalLink,
   AlertTriangle,
   AlertCircle,
@@ -99,6 +100,11 @@ import { ActivityFeed } from "@/components/activity/activity-feed";
 import { ApprovalControls } from "@/components/posts/approval-controls";
 import { SubmitForReviewDialog } from "@/components/posts/submit-for-review-dialog";
 import { logActivity } from "@/lib/activity";
+import { maybeWriteAutoSnapshot } from "@/lib/autosave-snapshot";
+import {
+  ENHANCEMENT_TEMPLATE_LIST,
+  type EnhancementTemplateKey,
+} from "@/lib/ai/enhancement-templates";
 // Tutorial target IDs on elements are used by the tutorial overlay
 import type { Post, PostVersion, AIMessage, AIConversation, UserProfile } from "@/types";
 
@@ -150,6 +156,8 @@ export default function PostWorkspacePage() {
   const [showConvertConfirm, setShowConvertConfirm] = useState(false);
   const [convertedPostId, setConvertedPostId] = useState<string | null>(null);
   const [deletingVersion, setDeletingVersion] = useState(false);
+  // BP-141: show/hide auto-kind snapshots in the version dropdown
+  const [showAutoVersions, setShowAutoVersions] = useState(false);
 
   // ── Profile state ─────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -223,6 +231,10 @@ export default function PostWorkspacePage() {
   } | null>(null);
   const [analyzingHook, setAnalyzingHook] = useState(false);
 
+  // ── Guided enhancement state (BP-028) ────────────────────────────────────
+  const [enhancing, setEnhancing] = useState(false);
+  const [enhancingTemplate, setEnhancingTemplate] = useState<EnhancementTemplateKey | null>(null);
+
   // ── Brainstorm state ─────────────────────────────────────────────────────
   const [brainstormOpen, setBrainstormOpen] = useState(false);
   const [brainstormTopic, setBrainstormTopic] = useState("");
@@ -262,6 +274,12 @@ export default function PostWorkspacePage() {
     content: string;
     hashtags: string[];
   } | null>(null);
+
+  // BP-141: track when the last auto-snapshot was written and what content it
+  // captured. Both start at values that ensure the first eligible autosave
+  // (≥5 min after page load) will snapshot — 0 ms = epoch, empty content.
+  const lastAutoSnapshotAtRef = useRef<number>(0);
+  const lastAutoSnapshotContentRef = useRef<string>("");
 
   // ── Blank post detection ────────────────────────────────────────────────
   const isBlankPost =
@@ -561,13 +579,43 @@ export default function PostWorkspacePage() {
             });
           }
         }
+
+        // BP-141: opportunistically write an auto-kind snapshot if the
+        // time-window gate passes. Failures are logged as warnings inside
+        // maybeWriteAutoSnapshot and never surfaced to the user.
+        const { data: { user: snapshotUser } } = await supabase.auth.getUser();
+        if (snapshotUser && newContent.trim()) {
+          // Compute the next version number from ALL current versions
+          // (manual + auto alike) so numbers stay monotonically increasing.
+          const nextNum = versions.length > 0 ? versions[0].version_number + 1 : 1;
+          const snapshotWritten = await maybeWriteAutoSnapshot({
+            supabase,
+            postId: post.id,
+            userId: snapshotUser.id,
+            title: newTitle,
+            content: newContent,
+            nextVersionNumber: nextNum,
+            lastAutoSnapshotAtRef,
+            lastAutoSnapshotContentRef,
+          });
+          // Re-fetch versions silently only when a snapshot was just written
+          if (snapshotWritten) {
+            const { data: freshVersions } = await supabase
+              .from("post_versions")
+              .select("*")
+              .eq("post_id", post.id)
+              .order("version_number", { ascending: false });
+            if (freshVersions) setVersions(freshVersions as PostVersion[]);
+          }
+        }
       } else {
         // BP-139: surface save failures explicitly instead of silently
         // returning to idle — the persistent indicator now shows "Save failed".
         setSaveStatus("error");
       }
     },
-    [post, supabase, contentPillars, profile]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [post, supabase, contentPillars, profile, versions]
   );
 
   // BP-139: tick the relative-time string every 30s so "Saved · Xs ago"
@@ -984,6 +1032,106 @@ export default function PostWorkspacePage() {
     }
   }
 
+  // ── Guided enhancement (BP-028) ──────────────────────────────────────────
+  async function runEnhancement(templateKey: EnhancementTemplateKey) {
+    // BP-134 pattern: read live textarea value so we operate on the user's
+    // latest edits, not the React state that may lag the autosave debounce.
+    const liveContent = textareaRef.current?.value ?? content;
+    if (!liveContent.trim()) {
+      toast.info("Write some content before enhancing.");
+      return;
+    }
+
+    setEnhancing(true);
+    setEnhancingTemplate(templateKey);
+
+    try {
+      const response = await fetch("/api/ai/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: liveContent,
+          // instruction is required by the schema; template takes precedence
+          // on the server, but we still send a placeholder to satisfy Zod.
+          instruction: templateKey,
+          template: templateKey,
+        }),
+      });
+
+      if (await maybeHandleQuotaExceeded(response)) return;
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.error || "Enhancement failed", {
+          description: errData.action,
+          duration: 8000,
+        });
+        return;
+      }
+
+      if (!response.body) throw new Error("No response body");
+
+      // Stream the result and accumulate
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) accumulated += parsed.text;
+          } catch {
+            // skip malformed SSE chunks
+          }
+        }
+      }
+
+      if (!accumulated.trim()) {
+        toast.error("Enhancement returned empty content — try again.");
+        return;
+      }
+
+      // Parse JSON response (same shape as chat: { content, changesSummary })
+      let enhanced = accumulated;
+      try {
+        const parsed = JSON.parse(accumulated);
+        if (parsed.content) {
+          enhanced = parsed.content;
+        }
+      } catch {
+        // If not JSON, use raw text directly
+      }
+
+      enhanced = enhanced.trim();
+      if (!enhanced) {
+        toast.error("Enhancement returned empty content — try again.");
+        return;
+      }
+
+      setContent(enhanced);
+      scheduleAutoSave(title, enhanced, hashtags);
+
+      const template = ENHANCEMENT_TEMPLATE_LIST.find((t) => t.key === templateKey);
+      toast.success(`"${template?.label ?? templateKey}" applied`);
+    } catch (err) {
+      console.error("Enhancement error:", err);
+      toast.error("Enhancement failed", {
+        description: "Check your connection and try again.",
+        duration: 8000,
+      });
+    } finally {
+      setEnhancing(false);
+      setEnhancingTemplate(null);
+    }
+  }
+
   function handleShareOnLinkedIn() {
     if (!post) return;
     // Always open preview dialog to prevent accidental posting
@@ -1044,6 +1192,7 @@ export default function PostWorkspacePage() {
         content,
         version_number: nextNumber,
         label: `Version ${nextNumber}`,
+        kind: "manual",
       })
       .select("*")
       .single();
@@ -1886,6 +2035,54 @@ export default function PostWorkspacePage() {
               <TooltipWrapper tooltip={EDITOR_TOOLTIPS.insertFromLibrary}>
                 <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
               </TooltipWrapper>
+
+              {/* BP-028: Guided Enhancement dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="gap-1"
+                      disabled={enhancing || !content.trim()}
+                    />
+                  }
+                >
+                  {enhancing ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Wand2 className="size-3" />
+                  )}
+                  Enhance
+                  <ChevronDown className="size-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72 whitespace-normal">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Guided Enhancements</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {ENHANCEMENT_TEMPLATE_LIST.map((tmpl) => (
+                      <DropdownMenuItem
+                        key={tmpl.key}
+                        onClick={() => runEnhancement(tmpl.key)}
+                        disabled={enhancing}
+                      >
+                        <Wand2
+                          className={cn(
+                            "size-3.5 mr-2 mt-0.5 shrink-0",
+                            enhancingTemplate === tmpl.key && "animate-spin"
+                          )}
+                        />
+                        <div className="flex flex-col">
+                          <span>{tmpl.label}</span>
+                          <span className="text-[10px] text-muted-foreground leading-tight">
+                            {tmpl.subtext}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <Separator />
@@ -2157,31 +2354,51 @@ export default function PostWorkspacePage() {
                   {versions.length > 0 && (
                     <>
                       <DropdownMenuSeparator />
-                      <span className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Version History</span>
-                      {versions.map((v) => (
-                        <DropdownMenuItem
-                          key={v.id}
-                          onClick={() => requestLoadVersion(v)}
-                          className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
-                        >
-                          <div className="flex w-full flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">
-                                {v.label ?? `Version ${v.version_number}`}
+                      <div className="flex items-center justify-between px-1.5 py-1">
+                        <span className="text-xs font-medium text-muted-foreground">Version History</span>
+                        {/* BP-141: toggle visibility of auto-kind snapshots */}
+                        {versions.some((v) => v.kind === "auto") && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowAutoVersions((prev) => !prev);
+                            }}
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showAutoVersions ? "Hide autosaves" : "Show autosaves"}
+                          </button>
+                        )}
+                      </div>
+                      {versions
+                        .filter((v) => showAutoVersions || v.kind !== "auto")
+                        .map((v) => (
+                          <DropdownMenuItem
+                            key={v.id}
+                            onClick={() => requestLoadVersion(v)}
+                            className={cn(activeVersion?.id === v.id && "bg-accent font-semibold")}
+                          >
+                            <div className="flex w-full flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  {v.kind === "auto"
+                                    ? `Autosave · ${new Date(v.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                                    : (v.label ?? `Version ${v.version_number}`)}
+                                </span>
+                                {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(v.created_at).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
                               </span>
-                              {activeVersion?.id === v.id && <Check className="size-3.5 text-primary" />}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(v.created_at).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
+                          </DropdownMenuItem>
+                        ))}
                     </>
                   )}
                 </DropdownMenuContent>

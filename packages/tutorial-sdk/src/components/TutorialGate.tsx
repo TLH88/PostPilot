@@ -60,6 +60,19 @@ export function TutorialGate({
     let cancelled = false;
     async function check() {
       try {
+        // BP-149 / UF-011: Skip if the viewport is too small for this tutorial.
+        // Tutorials that anchor steps to elements hidden by responsive CSS
+        // (e.g. the desktop-only sidebar) declare minViewportWidth so the gate
+        // doesn't fire on a screen where the steps would render against
+        // missing/hidden anchors.
+        if (
+          tutorial.minViewportWidth &&
+          typeof window !== "undefined" &&
+          window.innerWidth < tutorial.minViewportWidth
+        ) {
+          return;
+        }
+
         // Tutorial already completed — never re-prompt
         const completed = await storage.isCompleted(tutorial.id, userId);
         if (cancelled || completed) return;
@@ -177,9 +190,15 @@ export function TutorialGate({
             style={{
               width: "min(420px, calc(100vw - 2rem))",
               pointerEvents: "auto",
-              background: "var(--tutorial-bg, #ffffff)",
-              color: "var(--tutorial-bg-foreground, #0a0a0a)",
-              border: "1px solid var(--tutorial-border, #e5e7eb)",
+              // BP-149 / UF-010: Opaque background regardless of theme/timing.
+              // Prefer --tutorial-bg (set by host bridge), fall through to
+              // host's --card token, finally to plain white. Adding `opacity: 1`
+              // defeats any inherited transparency from a parent layer.
+              background:
+                "var(--tutorial-bg, var(--card, #ffffff))",
+              opacity: 1,
+              color: "var(--tutorial-bg-foreground, var(--card-foreground, #0a0a0a))",
+              border: "1px solid var(--tutorial-border, var(--border, #e5e7eb))",
               borderRadius: "var(--tutorial-radius, 12px)",
               padding: "32px 24px",
               boxShadow: "0 20px 60px -12px rgba(0,0,0,0.3)",

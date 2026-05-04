@@ -13,13 +13,15 @@
 >
 > **2026-04-16 STRATEGIC PIVOT:** Billing deferred until Free→Pro viability is validated. All Team+ features feature-flagged behind BP-098. See [docs/reviews/2026-04-16-backlog-reprioritization.md](reviews/2026-04-16-backlog-reprioritization.md) for the new priority tiers (P0–P3 + Deferred) and sprint plan.
 >
-> **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2.
+> **2026-04-16 (later same day):** Added BP-099 — Simplified Guided UI Mode (conversational assistant for less technical users). Captured a previously uncaptured owner idea. P1 / High; recommended phased rollout starting after Sprint 2. *(Concept later reframed 2026-04-27 — see entry below. BP-099 is now Focus View, a launcher-hub home page; the original "conversational assistant / coach panel" framing has been replaced.)*
 >
 > **2026-04-16 (production bug report):** Added BP-100 (P1 Critical, confirmed) — scheduled posts published via the Edge Function silently drop the user's selected image. Root cause identified: Edge Function never updated after image support shipped. Added BP-101 (P2 Watching) — possible historical text-truncation bug in scheduled posts; not currently reproducible, monitoring for recurrence.
 >
 > **2026-04-22 (BP-101 reproduced + fixed):** BP-101 promoted to P1 Critical and shipped as Done (Edge Function v16 + src/lib/linkedin-api.ts). Root cause: LinkedIn's REST Posts API `commentary` field uses "Little Text Format" with 15 reserved characters that must be backslash-escaped (`|{}@[]()<>#\\*_~`). When unescaped, LinkedIn silently truncates the post at the first reserved character. New `escapeLinkedInText()` helper in both Deno (Edge Function) and Node runtimes handles this.
 >
 > **2026-04-22 (UX Improvement Run):** Added BP-102 through BP-109 from a functional review of the application. All eight items are tagged **[UX-IMPROVE-2026-04-22]** for traceability. See the review and scope docs for the full rationale. Recommended order: Sprint 1 = BP-102, BP-104, BP-105 (low-effort, high-ROI); Sprint 2 = BP-103, BP-107 (schema migrations); Sprint 3 = BP-106, BP-108, BP-109 (polish + error hardening).
+>
+> **2026-04-27 (BP-099 redesign + sibling BPs):** Reframed BP-099 from "Guided Mode / Conversational Assistant" (persistent right-side coach panel + workflow engine) to **Focus View** (simplified launcher-hub home page with 4 cards: Create / Drafts / Scheduled / Generate Ideas). User picks Focus or Standard during onboarding. Mobile gets its own UI architecture (bottom tab bar + FAB), no Focus/Standard choice. Effort estimate halved (15–21 days → 9–13 days) by dropping the workflow engine. Spun off **BP-142** (Onboarding integrity gate — enforces required fields including new `ui_mode`) and **BP-143** (Mobile editor layout — post editor + AI assistant on small screens). All three under EPIC 4 — Onboarding & Guidance.
 
 ## Priority Legend (post-2026-04-16 pivot)
 
@@ -58,7 +60,8 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-123** Token cost study (pre-GTM action) — P1 / High
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
 - **BP-125** Pro-tier image-generation BYOK — P1 / High
-- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — P1 / High [UF-002a]
+- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — *Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)*
+- **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — **Done (develop) 2026-05-04** [UF-015]
 - *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
 
 ### EPIC 2 — Billing & Monetization (Stripe)
@@ -74,10 +77,15 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 
 ### EPIC 4 — Onboarding & Guidance
 - **BP-084** Tutorial card visual redesign — P2 / Medium
-- **BP-099** Simplified Guided UI mode — P1 / High
+- **BP-099** Launch Pad (formerly Focus View) — **Phase 1 in progress 2026-05-04** on `bp-099-launch-pad` branch. Owner pivoted 2026-05-04: Launch Pad ships as a single new page (`/launch-pad`) for every user, dropping the per-user `ui_mode` toggle / Settings picker / dual-render plumbing from the v1 spec. Phase 2 (mobile shell + "what next?" prompts + polish) remains future work — P1 / High. See [docs/plans/bp-099-guided-ui-mode.md](plans/bp-099-guided-ui-mode.md)
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
+- **BP-142** Onboarding integrity gate + server-authoritative wizard — **Done (develop) 2026-05-04** [UF-007]
+- **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
+- **BP-149** Tutorial SDK reliability fixes — **Done (develop) 2026-05-04** [UF-008..UF-011]
+- **BP-150** Onboarding first-visit UX polish — **Done (develop) 2026-05-04** [UF-012..UF-014]
+- **BP-144** Unified visual design system — **Closed 2026-05-04 (reference only)** — owner reviewed all 3 v3 finalists, will harvest individual elements over time as separate BPs rather than a coordinated rewrite. Mockups preserved at [docs/plans/bp-144/](plans/bp-144/) — see README there for the rationale and how to use the artifacts going forward.
 - *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)
@@ -98,28 +106,30 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-033** Content pillar ROI dashboard — P3 / Low
 
 ### EPIC 7 — AI Enhancements
-- **BP-026** Trending topics for brainstorming — P2 / Medium
+- **BP-026** Trending topics for brainstorming — Fixed (develop) 2026-04-27
 - **BP-027** Voice consistency validation — P3 / Low
-- **BP-028** Guided enhancement workflows — P2 / Medium
+- **BP-028** Guided enhancement workflows — Fixed (develop) 2026-04-27
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
-- **BP-140** Personal reference photos for AI image generation — Captured (design brainstorming) [UF-006]
+- **BP-140** Personal reference photos for AI image generation — **Deferred (post-GTM) 2026-05-04** — out of GTM critical path per owner. Design preserved, full entry at [docs/plans/POST-GTM-FUTURE-FEATURES.md](plans/POST-GTM-FUTURE-FEATURES.md) [UF-006]
 
 ### EPIC 8 — Reliability & Bug Fixes
+- **BP-152** Investigate RSC prefetch 503s on first dashboard load — P2 / Medium (Sprint 3 of QA-remediation, investigate-only) [UF-016]
 - **BP-100** Scheduled posts drop images — P1 / Critical
-- **BP-110** Cancel in-progress image generation — P2 / Medium
-- **BP-112** `Button` outline variant footgun — P3 / Low
-- **BP-133** Require title before post draft creation — P2 / Medium
+- **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
+- **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
+- **BP-133** Require title before post draft creation — P2 / Medium — **Fixed (develop) 2026-04-26**
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
-- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium [surfaced 2026-04-26 via QA incident; manual "Save Version" only path today]
+- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium **[Fixed (develop) 2026-04-26]**
+- **BP-145** Publish-failure recovery flow (LinkedIn auth-revoked round-trip + walkthrough surface) — P1 / High — **In Progress 2026-04-28**
 
 ### EPIC 9 — Security, Authorization & Observability
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — P2 / Medium
-- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — Function shipped 2026-04-24 (awaiting owner toggle in dashboard)
+- **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — **Done 2026-04-26** (dashboard toggle activated; verified end-to-end via live signup attempt — 403 returned with the expected rejection message)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
 
@@ -427,7 +437,7 @@ The "Convert to Post" button was hidden inside the version dropdown and only app
 
 ### BP-133: Require Title Before Post Draft Creation
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-26 — New modal gates all post creation behind a required title (≥3 / ≤200 chars). Server-side `/api/posts/create` route enforces the same rule with Zod. Idea-to-post flow pre-fills the modal with the idea title. Legacy NULL-title drafts untouched.
 **Priority:** P2 / Medium (UX hygiene — affects every new post and surfaces orphaned "Untitled" rows in admin views)
 **Source:** Owner observation 2026-04-25 — clicking the "New Post" CTA currently inserts a draft with `title: NULL` and navigates straight to `/posts/<id>`, which then displays "Untitled". Result: a stream of unlabeled drafts in the posts list / admin views, harder to scan and easy to leave half-finished.
 **Date Added:** 2026-04-25
@@ -475,7 +485,7 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 
 ### BP-141: Auto-Version Snapshot on Autosave (Accidental-Wipe Resilience)
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-26 — `kind` column added to `post_versions` (migration `20260426_add_post_version_kind.sql`); autosave writes an `auto` row at most once per 5 min per post when content has changed; version dropdown hides autosaves by default with a "Show autosaves" toggle; DB trigger prunes auto rows beyond 20 per post; manual Save Version unchanged; auto rows excluded from quota context.
 **Priority:** P2 / Medium
 **Source:** Surfaced 2026-04-26 by a QA-agent data incident — a misuse of `textarea.value = …` overwrote a real draft (`db4c305e…`, "3 Non-Negotiables for Follow the Sun Support Success") from 1518 chars to 181 chars; autosave persisted the truncation. No `post_versions` rows existed because version snapshots are only created when the user explicitly clicks "Save Version" — autosave does not snapshot.
 **Date Added:** 2026-04-26
@@ -505,6 +515,265 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 - [ ] After an accidental wipe, the user can revert to a recent autosave snapshot via the existing version-restore flow.
 
 **Effort:** S-M · **Expected ROI:** High (recovery from any future content-loss incident; safety net during the migration to richer editor features).
+
+---
+
+### BP-145: Publish-Failure Recovery Flow (LinkedIn Auth-Revoked Round-Trip)
+
+**Status:** In Progress 2026-04-28 (develop branch)
+**Priority:** P1 / High (real owner incident; affects every revoked-token recovery; degrades trust when scheduled posts fail)
+**Source:** Owner incident 2026-04-28 — scheduled post failed because LinkedIn revoked PostPilot's posting permission. Owner saw the past-due-checker modal, clicked "Reconnect LinkedIn", completed OAuth, was returned to the app, **and saw the same failure modal with the same Reconnect CTA**. The system never re-checked connection state after the OAuth round-trip and never offered the failed post for one-click recovery. Owner had to close the modal, manually verify the connection elsewhere, and navigate to the post to publish it directly.
+**Date Added:** 2026-04-28
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+
+**Problem (root causes):**
+
+1. **Stale connection state after reauth.** `PastDueChecker` (src/components/past-due-checker.tsx) reads `linkedinConnected` once on mount via `/api/linkedin/status` and never refetches. The OAuth flow is a full-page redirect (`window.location.href = "/api/linkedin/connect"`), so the component does remount on return, but a) it lands on `/settings?linkedin=connected` regardless of where the user came from, and b) the status fetch is async — first paint can render the stale "Reconnect LinkedIn" CTA instead of the action buttons.
+2. **No memory of what failed.** OAuth callback (src/app/api/linkedin/callback/route.ts) hard-redirects to `/settings`, dropping the context of *which post* triggered the reconnect. The user has no path from the notification back to the failed post.
+3. **No verified state hand-off.** Even if the modal does re-render correctly, `linkedinConnected` is read from the throttled `/api/linkedin/status` cache. There's no forced live re-validation after an OAuth round-trip — the system can't *prove* to the user "you're reconnected, here's what to do with the post that failed."
+4. **No walkthrough.** A revoked token can take down multiple scheduled posts. There's no end-to-end "walk through each failed post → confirm fix → return to a known surface with a summary" flow.
+
+**Design — the principles this BP enforces (now in `feedback_failure_handling.md`):**
+
+Every system failure shown to the user must have:
+(a) a category and plain-English root-cause statement (no raw error strings),
+(b) a guided remediation with a clear primary action,
+(c) explicit system-side verification that the fix worked,
+(d) explicit confirmation to the user — success with specifics, or failure with the new root cause and next step.
+Failures are walked through one at a time and the user is returned to a known surface (Calendar) with a summary.
+
+**Phase 1 (this BP) — chassis + the LinkedIn-auth-revoked handler:**
+
+1. **Recovery surface — new `/posts/recovery` page.** Lists every post in a "needs attention" state; walks the user through them one by one; ends by redirecting to `/calendar?recovered=N` with a success-summary banner.
+2. **OAuth state round-trip.** Before redirecting to LinkedIn, stash `{return_to, recover_post_id}` in a short-lived signed cookie (alongside the existing `linkedin_oauth_state`). Callback reads it, redirects to `/posts/recovery?reconnected=1&post=<id>` if present, otherwise the existing `/settings?linkedin=connected`.
+3. **Forced live token revalidation.** New `?force=1` query param on `POST /api/linkedin/validate` bypasses the 1-hour throttle. Recovery page calls it the moment it sees `?reconnected=1`, shows an explicit "Reconnected ✓" banner before unlocking action buttons. Verifies the fix worked rather than trusting the OAuth round-trip blindly.
+4. **Failure classification.** New `failure_category` enum column on `posts` (`linkedin_auth_revoked` / `linkedin_auth_expired` / `linkedin_rate_limited` / `linkedin_content_rejected` / `linkedin_content_too_long` / `linkedin_duplicate` / `network_transient` / `unknown`). Edge Function (`supabase/functions/publish-scheduled-posts/index.ts`) classifies the error before writing `past_due` and stores the category alongside the existing `publish_error` text. Removes the fragile string-matching heuristic in `PastDueChecker` over time.
+5. **Retire the global modal.** `PastDueChecker` becomes a thin banner ("X posts need your attention — Open Recovery") that links to `/posts/recovery`. All walkthrough UX moves into the page.
+6. **Pre-emptive validation enhancement.** `LinkedInTokenValidator` already fires once per browser session; add a `visibilitychange` listener so a tab that's been idle for hours re-validates on focus (cheap — server still 1-hour-throttles).
+7. **Calendar success summary.** When `?recovered=N` is on the URL, show a one-time toast/banner ("3 posts recovered") then strip the param.
+
+**Out of scope for this BP (separate BPs to file as work lands):**
+
+- **BP-146 (planned)** — Per-category remediation handlers for non-auth failures (`rate_limited`, `content_rejected`, `content_too_long`, `duplicate`, `network_transient`). Phase 1 ships the chassis; these are additional handlers plugged into it.
+- **BP-147 (planned)** — Aggressive pre-emptive validation. Phase 1 only adds focus-revalidation. Periodic interval polling, push-style server invalidation, and email/push notifications when revocation is detected mid-day are deferred.
+- **BP-148 (planned)** — Generalize the recovery shell to non-publish failures (AI generation timeouts, calendar sync errors, scheduler drift, billing failures, etc.). Same chassis, new categories.
+
+**Affected files:**
+- `supabase/migrations/20260428_add_post_failure_category.sql` — new
+- `supabase/functions/publish-scheduled-posts/index.ts` — classify before writing `past_due`
+- `src/app/api/linkedin/connect/route.ts` — accept + persist `return_to` + `recover_post_id`
+- `src/app/api/linkedin/callback/route.ts` — read recovery cookie, redirect to `/posts/recovery` when present
+- `src/app/api/linkedin/validate/route.ts` — accept `?force=1` to bypass throttle
+- `src/components/linkedin/connect-dialog.tsx` — pass `returnTo` + `recoverPostId` props through to `/api/linkedin/connect`
+- `src/components/linkedin/token-validator.tsx` — visibilitychange revalidation
+- `src/components/past-due-checker.tsx` — replace modal with banner; redirect to `/posts/recovery`
+- `src/app/(app)/posts/recovery/page.tsx` — new
+- `src/app/(app)/calendar/page.tsx` — read `?recovered=N`; show one-time toast
+- `src/types/index.ts` (or wherever `Post` is defined) — `failure_category` field on `Post`
+
+**Security / guardrails:**
+- Recovery cookie (`linkedin_recovery_context`) is httpOnly, sameSite=lax, scoped to `/`, max-age 600s — mirrors the existing `linkedin_oauth_state` cookie. Contains only `{return_to, recover_post_id}` — no auth, no PII.
+- `return_to` is validated server-side: must be a relative path that begins with `/` and matches an allowlist prefix (`/posts`, `/calendar`, `/dashboard`). No open redirects.
+- `recover_post_id` is validated by RLS on first read — if it doesn't belong to the user, the recovery page treats it as "not found" and falls back to the next failed post.
+- `?force=1` on `/api/linkedin/validate` is rate-limited per user (1 force-call per minute) on top of the existing 1-hour throttle for non-force calls.
+- No raw `publish_error` text is exposed to the user. The recovery page reads the structured `failure_category` first; legacy posts without a category fall back to the existing `humanizePublishError` parser.
+
+**Acceptance criteria:**
+
+- [ ] DB migration adds `failure_category` enum + column to `posts`; older `past_due` rows tolerate `NULL` (handled by client fallback).
+- [ ] Edge Function publishes the same as before on success; on failure, writes both `publish_error` (existing) and `failure_category` (new).
+- [ ] Clicking "Reconnect LinkedIn" from `PastDueChecker` (now a banner) sets the recovery cookie before the OAuth round-trip.
+- [ ] After OAuth completes, user lands on `/posts/recovery?reconnected=1&post=<id>` with a forced live `validate` call already issued.
+- [ ] If validation succeeds: explicit "✓ Reconnected to LinkedIn as [name]" banner, action buttons (Approve & Post / Reschedule / I posted manually) unlocked, current post = the one that triggered the recovery.
+- [ ] If validation fails again: explicit failure message + new root cause + next-step CTA. No silent retry.
+- [ ] After each post's action, the system verifies success (publish API success response, scheduled_for written, status=posted) and shows a specific confirmation toast ("Published to LinkedIn at 2:34 PM" / "Rescheduled to Tue 9:00 AM" / "Marked as manually posted"). Then auto-advances to the next failed post.
+- [ ] When the queue empties: redirect to `/calendar?recovered=N`. Calendar shows a one-time "N posts recovered" success banner, then strips the param.
+- [ ] `LinkedInTokenValidator` re-fires on visibilitychange (gated by the existing 1-hour server throttle).
+- [ ] QA walkthrough on test account `e2e+free@mypostpilot.app`: simulate revoked token (admin SQL), schedule a post in the past, observe banner → click reconnect → reauth → recovery page → action → calendar summary.
+- [ ] No regressions to manual publish, the regular Posts list, or the existing `?linkedin=connected` settings flow.
+
+**Effort:** M-L (new page, OAuth state, DB migration, Edge Function update, refactor of past-due-checker, calendar summary, validate route param, visibility revalidation). · **Expected ROI:** High — closes a trust-eroding gap that affects every revoked-token recovery; ships the chassis that BP-146/147/148 will plug into.
+
+---
+
+### BP-149: Tutorial SDK Reliability Fixes (Post-QA)
+
+**Status:** **Done (develop) 2026-05-04** — Sprint 1 of QA-remediation. All 5 fixes verified PASS by Sprint 1 QA agent (commit `604f4c2` on `develop`).
+**Priority:** P1 / High (entire BP-035 tutorial system silently fails its primary contract)
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-007, UF-008, UF-009, UF-010, UF-011
+**Date Added:** 2026-05-04
+**EPIC:** Onboarding & Guidance (EPIC 4)
+
+**Problem:**
+
+A live QA walkthrough of the entire tutorial registry on production exposed five reliability defects in the Tutorial SDK and one in the `overview-app` definition. The system *appears* to work — auto-fire triggers, cards render, action detectors advance — but completion never persists, cross-route restarts silently close, and the first-login gate visually entangles with the What's New modal. Net effect: the tutorial system is not delivering on its primary contract (track + complete tutorials per user).
+
+**Defects (verified live):**
+
+1. **N-T1 (Critical) — Tutorial completion never persists.** `SupabaseAdapter.markCompleted` and `SupabaseAdapter.saveProgress` ([packages/tutorial-sdk/src/storage/supabase.ts:35-44, 66-73](../packages/tutorial-sdk/src/storage/supabase.ts)) call `.upsert(...)` without `onConflict: "user_id,tutorial_id"`. Supabase defaults conflict target to PRIMARY KEY (`id`), so after `saveProgress` creates the row, every subsequent upsert tries to INSERT and fails the unique constraint — silently swallowed. Verified: `tutorial_progress.completed=false` after Finish on `overview-app` and `overview-dashboard`. `markFirstLoginPromptShown` for `tutorial_user_state` has the same bug (key on `user_id`).
+2. **N-T2 (High) — Cross-route restart from Help auto-closes within 600ms.** [packages/tutorial-sdk/src/components/TutorialProvider.tsx:79-115](../packages/tutorial-sdk/src/components/TutorialProvider.tsx) `lastTutorialPathRef` is initialized to `currentPath` at render time (= `/help`). When the engine fires `onNavigate('/ideas')`, the navigate-away detector sees a path mismatch and triggers a 600ms close-on-navigation guard. Cannot distinguish tutorial-initiated nav from user-initiated nav. Net effect: every tutorial whose first step targets a route ≠ `/help` is unrestartable from the Help page. Most of the registry is broken (`overview-ideas`, `overview-posts`, `overview-system`, etc.).
+3. **N-T3 (Medium) — Tutorial gate background renders translucent in dark mode.** [packages/tutorial-sdk/src/components/TutorialGate.tsx:179-187](../packages/tutorial-sdk/src/components/TutorialGate.tsx) — `var(--tutorial-bg, #ffffff)` resolves to a translucent dark color in dark mode. When What's New modal is open simultaneously (first-login race), the gate text bleeds through visually. Buttons still clickable but the optical mess is significant. (NOTE: the simultaneous-open issue is BP-150's responsibility; this BP just fixes the opacity.)
+4. **N-T4 (Medium) — `howto-idea-generation` step 3 click on `#tour-generate-btn` does not advance.** [packages/tutorial-sdk/src/core/action-detector.ts:73-87](../packages/tutorial-sdk/src/core/action-detector.ts) — clicking Generate fires the API call (25 ideas created server-side), but the tutorial stays on step 3 until the global 15s timeout escape kicks in. Likely a click-handler race when the button immediately re-renders into a loading state — the capture-phase `target.closest("#tour-generate-btn")` may fail when `click` event bubbles during the React re-render. Suggested fix: detect on `mousedown` instead of `click`, OR add a redundant `elementExists` action for `#tour-generated-ideas` so step 3 can also auto-advance when results appear.
+5. **N-T5 (Low) — `overview-dashboard` does not surface a tutorial-list overlay on Finish despite `showTutorialListOnFinish: true`.** Either the engine handler is missing or the flag is unwired. Either implement or remove the flag from the definition.
+6. **CR-T1 (Medium) — `overview-app` step 1 anchors to mobile-hidden sidebar.** Step 1 targets `#tour-sidebar-nav`. The `<aside>` at [src/components/layout/sidebar.tsx:65](../src/components/layout/sidebar.tsx) uses `hidden ... lg:flex` (Tailwind `lg:` = 1024px). Below 1024px the entire aside is `display: none`, so the selector exists in DOM but `offsetParent` is null and the BorderBeam has no anchor. Mobile users get a broken first step.
+
+**Solution:**
+
+1. **Upsert `onConflict` fix** — pass `{ onConflict: "user_id,tutorial_id" }` to both `markCompleted` and `saveProgress`. Pass `{ onConflict: "user_id" }` to `markFirstLoginPromptShown`. Also: fix the silent error-swallow — log unique-violation errors to console at minimum so we never have this class of bug again.
+2. **Navigate-away detector fix** — when the engine triggers a route change via `onNavigate`, set `lastTutorialPathRef.current` to the target route synchronously (or have the engine flag the next path-change as expected and skip the auto-close once).
+3. **Opaque gate background** — make `--tutorial-bg` resolve to `--card` (via the theme prop), AND set explicit opaque background on the gate's inner `<div>` regardless of theme.
+4. **`mousedown` click detection** — switch the action-detector's click listener from `click` to `mousedown`, OR add a redundant `elementExists` for `#tour-generated-ideas` to step 3. (Pick whichever is less invasive — the redundant check is more defensive.)
+5. **`showTutorialListOnFinish`** — wire the engine handler to render the SDK's `<TutorialList>` overlay on completion, OR remove the flag from `overview-dashboard`'s definition. Decide based on whether other tutorials want this UX.
+6. **Mobile `overview-app` step 1** — early-exit step 1 when viewport `< 1024px` (skip to step 2 automatically) OR change the target to `#tour-mobile-nav-toggle` (the hamburger). Ship whichever is cleaner; the mobile-first redesign of all tutorials is BP-143's job.
+
+**Affected files:**
+
+- `packages/tutorial-sdk/src/storage/supabase.ts` — upsert conflict targets + error logging
+- `packages/tutorial-sdk/src/components/TutorialProvider.tsx` — navigate-away detector
+- `packages/tutorial-sdk/src/components/TutorialGate.tsx` — opaque background
+- `packages/tutorial-sdk/src/core/action-detector.ts` — mousedown vs click (or step-level fallback)
+- `packages/tutorial-sdk/src/core/engine.ts` — `showTutorialListOnFinish` handler (if implementing)
+- `src/lib/tutorials/definitions.ts` — `overview-app` step 1 mobile-safe target
+- `src/components/tutorial-bridge.tsx` — theme value `--tutorial-bg` → `var(--card)`
+
+**Acceptance criteria:**
+
+- [ ] Completing any tutorial sets `tutorial_progress.completed=true` and `completed_at` is non-null. Verify on `overview-app`, `overview-dashboard`, `howto-idea-generation`.
+- [ ] Restarting `overview-ideas` from `/help` lands the user on `/ideas` AND keeps the tutorial card open (the navigate-away detector does not fire).
+- [ ] First-login gate dialog renders with opaque background regardless of dark/light mode and regardless of any other modal stacked behind it.
+- [ ] `howto-idea-generation` step 3 advances within 1s of clicking Generate (no global timeout fallback needed).
+- [ ] `overview-app` first step does NOT anchor to a hidden element when viewport is `<1024px` — either skipped or rebound.
+- [ ] Either `showTutorialListOnFinish` produces a visible list on Finish, or the flag is removed from the definition (no dead config).
+- [ ] Unique-constraint violations on `tutorial_progress` and `tutorial_user_state` log a console error rather than silently swallowing.
+- [ ] QA agent re-run on a fresh `e2e+tutorial-*` account: full registry walkthrough completes; every tutorial's `tutorial_progress` row shows `completed=true`.
+- [ ] No regression to the auto-fire dashboard gate, the decline-and-never-re-fire path, or the `overview-app` → `howto-idea-generation` chain.
+
+**Effort:** S (1-2 days). All changes are in `packages/tutorial-sdk/` plus one definition tweak and one theme value. · **ROI:** High — restores the entire BP-035 tutorial system to its intended contract.
+
+---
+
+### BP-150: Onboarding First-Visit UX Polish (Modal Stacking, Greeting, /onboarding/type)
+
+**Status:** **Done (develop) 2026-05-04** — Sprint 3 of QA-remediation. All 4 acceptance criteria verified PASS by Sprint 3 QA agent (commit `4bad561` on `develop`).
+**Priority:** P2 / Medium
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-012, UF-013, UF-014
+**Date Added:** 2026-05-04
+**EPIC:** Onboarding & Guidance (EPIC 4)
+
+**Problem:**
+
+A live QA walkthrough of the new-user onboarding flow on production surfaced five UX defects that bracket the wizard itself: shell-level modals fire over the wizard on first visit, the dead `/onboarding/type` route flashes blank for 1-2s before redirecting, the dashboard greeting renders awkwardly for both populated and empty profiles, and "Got it!" on the What's New modal sometimes needs two clicks. None block functionality but together they make the first-time-user experience feel broken.
+
+**Defects (verified live):**
+
+1. **N-O1 (High) — Two stacked modals over the wizard on first visit.** "What's New v0.1.3" changelog AND "Welcome! Would you like a quick tour?" tutorial gate both render at full opacity over the `/onboarding` wizard. Visually entangled. Cause: shell-level modals are mounted in the (app) layout and don't check whether the user is in onboarding.
+2. **N-O2 (Medium) — "Got it!" on What's New modal sometimes needs two clicks.** Likely focus/event-propagation interference from the underlying tour gate (related to N-O1).
+3. **Issue 5 (Low) — `/onboarding/type` is a 1-2s blank flash.** With `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=false` (prod default), the page mounts, runs an effect, and `router.replace`s to `/onboarding?type=individual`. ~1-2s of fully blank content area before the redirect lands.
+4. **N-O6 (Low) — Dashboard "Welcome back, X" first-name extraction is naive.** "Back Test User" → "Welcome back, Back!" (first space-token). Single-name users would render oddly punctuated; multi-word given names ("Jean Paul Smith") only show "Jean".
+5. **N-O7 (Low) — Empty-profile dashboard greeting fallback "Welcome back, there!" looks broken.** Combined with empty avatar and no profile data feels broken even though it's the documented fallback.
+
+**Solution:**
+
+1. **Suppress shell modals during onboarding.** Both the release-notes modal mount and the `<TutorialBridge>` first-login gate should bail early when `pathname.startsWith('/onboarding')` OR when `onboarding_completed=false`. Cleanest: a single `useShouldSuppressShellModals()` hook used by both.
+2. **What's New "Got it!" double-click** — once N-O1 is fixed, this should resolve naturally (no underlying gate to grab focus). Verify; if it persists, add `event.stopPropagation()` to the dismiss handler.
+3. **`/onboarding/type` 308 redirect** — handle the redirect at the route level (Next.js `redirect()` in a server component, or `next.config.js` redirect) so there's no client-side render flash.
+4. **First-name extraction** — switch the dashboard greeting to use a `display_name` field if present, OR extract `first_name` properly (split on whitespace, take element 0, trim). Add an "Anonymous" fallback that doesn't read as broken.
+5. **Empty-profile fallback** — replace "Welcome back, there!" with "Welcome to PostPilot" (no name) when `full_name IS NULL`. Distinguishes first-time-user from returning-user-with-no-name.
+
+**Affected files:**
+
+- `src/components/tutorial-bridge.tsx` — gate suppression on `/onboarding`
+- (release-notes modal mount point — find it and apply same suppression)
+- `src/app/(app)/onboarding/type/page.tsx` — convert to server component with `redirect()`, OR remove and add a `next.config.js` redirect
+- (dashboard greeting component — find it via grep on "Welcome back")
+
+**Acceptance criteria:**
+
+- [ ] First-time onboarding visit shows ONLY the wizard — no changelog modal, no tour gate, no other shell modal.
+- [ ] `/onboarding/type` returns HTTP 308 with no client render flash.
+- [ ] Dashboard greeting renders cleanly for: populated profile, single-name profile, multi-word-name profile, empty profile.
+- [ ] "Got it!" on What's New modal dismisses on first click in all states (not gated on N-O1's fix being applied).
+- [ ] No regression to the changelog modal, tutorial first-login gate, or onboarding wizard happy-path landing on `/dashboard`.
+
+**Effort:** S (1 day). All small targeted changes. · **ROI:** Medium — first-impression UX polish, removes "looks broken" friction.
+
+---
+
+### BP-151: Reconcile `managed_ai_access` Default with "Powered by Claude" Badge
+
+**Status:** **Done (develop) 2026-05-04** — Sprint 3 of QA-remediation. Migration `20260504_managed_ai_access_default_true.sql` applied to prod via Supabase MCP; 6 free/personal active+trial rows backfilled. Dashboard badge now gated on `aiAccess.hasAccess`. Verified PASS by Sprint 3 QA agent.
+**Priority:** P1 / High (claim/reality mismatch — affects free-user trust)
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-015
+**Date Added:** 2026-05-04
+**EPIC:** Subscription Model v2 (EPIC 1)
+
+**Problem:**
+
+All three test users created during the live onboarding QA walkthrough (free tier) had `managed_ai_access=false` and `ai_api_key_encrypted IS NULL` in the database after onboarding. Yet the dashboard rendered a "Powered by Claude (Claude Sonnet 4.6)" badge — a claim that, per the documented intent in memory note `feedback_ai_access_default.md` ("All active/trial users get system AI access by default"), should be true. The DB and the UI are out of sync. Either the column should default to `true` for free users, or the badge isn't reading the column.
+
+**Decision (owner, 2026-05-04):** Default `managed_ai_access=true` for free users. Keep the column. Fix the default. Badge tells the truth.
+
+**Solution:**
+
+1. **DB migration** — change default for `managed_ai_access` from `false` to `true` on `user_profiles`. Add a follow-up migration setting `managed_ai_access=true` for all existing free-tier rows where the column is currently `false` (data backfill).
+2. **Onboarding wizard / API route** — when creating a `user_profiles` row (whether by Auth Hook bootstrap from BP-142, or by the wizard's first save), explicitly set `managed_ai_access=true` for `subscription_tier IN ('free', 'personal')`. Pro/Team users may BYOK so the default may differ.
+3. **Verify badge reads the column** — audit the dashboard "Powered by Claude" badge component. If it's hard-coded, change it to read `managed_ai_access` from the user's profile. If it already reads the column, no UI change needed — DB fix alone is enough.
+4. **Cross-check** — every place in the codebase that gates AI features on `managed_ai_access` should now correctly grant access to free users by default.
+
+**Affected files:**
+
+- `supabase/migrations/<date>_managed_ai_access_default_true.sql` — new migration
+- (onboarding completion code — set the column explicitly)
+- (dashboard badge component — find via grep for "Powered by Claude")
+- (any AI-gating helper that reads `managed_ai_access` — audit for correctness)
+
+**Acceptance criteria:**
+
+- [ ] DB migration sets `DEFAULT true` on `managed_ai_access` and backfills all existing free/personal rows where it's currently `false`.
+- [ ] New free-tier signup ends with `managed_ai_access=true` in `user_profiles`.
+- [ ] "Powered by Claude" badge renders for users who actually have system AI access (verified by reading the column, not hard-coded).
+- [ ] AI features (chat, suggest hashtags, hook analysis, idea generation) work for new free users without requiring a BYOK key.
+- [ ] No regression to Pro/Team users who have BYOK keys configured.
+
+**Effort:** S (4-6 hours). · **ROI:** High — closes a trust-eroding mismatch that affects every new free-tier user.
+
+---
+
+### BP-152: Investigate RSC Prefetch 503s on First Dashboard Load
+
+**Status:** **Investigated (no action this sprint) 2026-05-04** — Sprint 3 of QA-remediation. Findings + recommendation in [docs/plans/bp-152-rsc-503-investigation.md](plans/bp-152-rsc-503-investigation.md). Vercel runtime logs show zero 503s for the failing routes over the 7-day window covering the QA agent's observation; no recurrence in subsequent runs. Speculative fix is high-blast-radius for a non-user-visible issue. Will file BP-153 (layout-level Supabase observability) only if the issue recurs.
+**Priority:** P2 / Medium (not user-visible, but suggests an underlying edge-runtime issue)
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-016
+**Date Added:** 2026-05-04
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+
+**Problem:**
+
+Network capture during the live onboarding QA walkthrough showed 8 of approximately 10 sidebar prefetch GETs returning **503 Service Unavailable** (`/calendar?_rsc=...`, `/profile?_rsc=...`, `/help?_rsc=...`, `/settings?_rsc=...`, `/analytics?_rsc=...`, `/library?_rsc=...`, `/posts?_rsc=...`, `/ideas?_rsc=...`, `/dashboard?_rsc=...`). These are React Server Component prefetches fired by Next.js Link components on the sidebar. Visible navigation still works because clicking a link triggers a full request that succeeds, so users don't notice — but consistently returning 503 on RSC prefetches suggests an underlying edge-runtime crash, cold-start failure, or middleware error that is wasting capacity and could escalate to user-visible errors under load.
+
+**Scope of this BP: investigate only.** Per owner direction 2026-05-04, root-cause first, document findings, then file a separate BP if the fix is non-trivial.
+
+**Investigation plan:**
+
+1. **Pull Vercel runtime logs** for the failing RSC routes during a fresh page load (use Vercel MCP `get_runtime_logs`). Capture stack traces, error categories, response times.
+2. **Check edge-runtime config** — are these routes opted into edge runtime? Is there a known cold-start latency issue?
+3. **Check middleware** — `src/middleware.ts` runs on every request. Does it throw on RSC prefetches (e.g. the auth-check fails for prefetches without proper cookies)?
+4. **Check Next.js Link prefetch behavior** — is the sidebar prefetching with stale auth state on first dashboard load (before session cookies fully hydrate)?
+5. **Reproduce in dev** — can the 503 be reproduced locally via `next dev` or `next start`? If yes, trace under a debugger.
+
+**Deliverables:**
+
+- A document at `docs/plans/bp-152-rsc-503-investigation.md` summarizing root cause, severity assessment, and a recommendation: "ship a fix in this sprint" / "file a follow-up BP" / "wontfix (acceptable)".
+- If a fix is recommended, the BP for it (BP-153 or later) is filed and linked.
+
+**Acceptance criteria:**
+
+- [ ] Investigation document exists with root cause + recommendation.
+- [ ] Owner has reviewed and accepted the recommendation.
+- [ ] If recommendation is "fix in this sprint," the fix is shipped and 503s drop to 0 (or to a documented acceptable level).
+- [ ] If recommendation is "follow-up BP," the BP is filed and linked from this entry.
+
+**Effort:** S investigation (2-4 hours); fix scope TBD. · **ROI:** Low-to-medium — invisible to users today, but suggests latent infrastructure risk worth understanding.
 
 ---
 
@@ -725,8 +994,8 @@ When the user republishes after editing, what's the expected behavior?
 
 ### BP-140: Personal Reference Photos for AI Image Generation
 
-**Status:** Captured (design brainstorming required before any implementation)
-**Priority:** Backlog (not yet prioritized — depends on design outcome)
+**Status:** **Deferred (post-GTM) 2026-05-04** — out of GTM critical path per owner ("Ref image capability is too far out of scope"). Design doc + 5 owner-decision questions preserved at [docs/plans/POST-GTM-FUTURE-FEATURES.md](plans/POST-GTM-FUTURE-FEATURES.md). Original design doc: [docs/plans/bp-140-personal-image-references.md](plans/bp-140-personal-image-references.md).
+**Priority:** Deferred (post-GTM)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-006--personal-reference-photos-for-ai-image-generation) (UF-006)
 **Date Added:** 2026-04-26
 **EPIC:** AI Enhancements (EPIC 7)
@@ -1074,12 +1343,13 @@ Read post engagement data from LinkedIn API. Requires `r_member_postAnalytics` s
 
 ### BP-026: Trending Topics for Brainstorming
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-27
 **Priority:** P2 / Medium
 **Re-prioritized:** 2026-04-16 — Free→Pro brainstorm value-add. Ship the AI-only path first; defer RSS option.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
+**Fix summary:** AI-only path shipped. Brainstorm prompt augmented with trending-awareness sentence scoped to user's industries and expertise areas. Brainstorm dialog gets a "Lean into trending topics" toggle (default ON, persisted to localStorage key `postpilot_brainstorm_trending`). Route accepts `trending: boolean` via Zod (defaults `true`). Usage logged to `ai_usage_events.metadata`. RSS option deferred.
 
 **Description:**
 Inject trending industry news into brainstorm context via RSS feeds from industry blogs. Free option: rely on AI model's knowledge of current trends.
@@ -1102,12 +1372,14 @@ After each draft, compare generated text against voice samples. Show tone score 
 
 ### BP-028: Guided Enhancement Workflows
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-27
 **Priority:** P2 / Medium — was Low
 **Re-prioritized:** 2026-04-16 — promoted. High-leverage AI feature that differentiates PostPilot from "another AI wrapper." Real Free→Pro value.
 **Source:** UVP evaluation
 **Date Added:** 2026-04-01
 **Phase:** 2
+
+**Fix summary:** Replaced generic "Enhance" (which had no UI) with a 5-template DropdownMenu in the post editor formatting toolbar. Templates: Add Hook, Make it Story-Driven, Add Social Proof, Improve CTA, and Tighten It (bonus 5th template — see report). `/api/ai/enhance` accepts an optional `template` param (Zod-validated); template prompt overrides caller-supplied instruction when present; backwards-compat fallback preserved. Template key logged to `ai_usage_events.metadata`. New module: `src/lib/ai/enhancement-templates.ts`. DB migration adds `metadata jsonb` column to `ai_usage_events`.
 
 **Description:**
 Replace generic "Enhance" with specific templates: "Add hook", "Make it story-driven", "Add social proof", "Improve CTA", each with a pre-built prompt.
@@ -3569,170 +3841,271 @@ Applied to both user-provided `title` and `content` before they're combined into
 
 ---
 
-### BP-099: Simplified Guided UI Mode (Conversational Assistant)
+### BP-099: Focus View (Simplified UI Mode)
 
-**Status:** Backlog
+**Status:** Design revised 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — direction agreed with owner; awaiting final sign-off before implementation
 **Priority:** P1 / High
-**Source:** Owner — captured 2026-04-16. Idea originated in a prior session and was not previously written into the backlog.
+**Source:** Owner — captured 2026-04-16; concept refined with mockups + brainstorm 2026-04-27.
 **Date Added:** 2026-04-16
+**Renamed:** "Guided Mode / Conversational Assistant" → "Focus View" (2026-04-27)
+**Spin-off BPs:** BP-142 (Onboarding integrity gate), BP-143 (Mobile editor layout)
 
 #### Vision
 
-A toggleable "Guided Mode" that turns PostPilot's UI into a full-time conversational assistant for less technical users. Instead of presenting the full, dense product surface and expecting the user to know what to do, the system proactively asks the user what they want to accomplish, walks them through the workflow step by step, and — after each completed task — asks "what would you like to do next?" with a curated, context-aware set of options.
+A simplified, opinionated home page that surfaces the four actions a user takes most often as large, self-explanatory cards. Replaces the standard dashboard for users who choose Focus View during onboarding. Not a coaching panel layered over the existing UI — it is a different home page with different navigation. Users can switch between Focus View and Standard Dashboard at any time via a clearly-labeled toggle.
 
-The simplified mode does **not** replace the existing UI. It overlays/augments it: real components (Idea Generator modal, Post Editor, AI Assistant panel, Schedule modal, etc.) are still used. The Guided Mode adds an always-present assistant that narrates, prompts, and confirms. Power users can keep the standard UI; less technical users get a coached experience.
+The original concept (a persistent right-side coach panel narrating each step of every workflow) was replaced after owner mockups and brainstorm on 2026-04-27. The launcher-hub model is simpler to build, easier to maintain, and better matches what less technical users actually need: a clear answer to "what do I do?" — not a step-by-step narrator.
 
-This addresses a clear gap: PostPilot has many features, and a brand-new, non-technical user can be overwhelmed before they ever publish their first post. Guided Mode is the difference between "I tried it and gave up" and "It walked me through it and I posted in 5 minutes."
+This addresses a clear gap: PostPilot has many features, and a brand-new, non-technical user can be overwhelmed before they ever publish their first post. Focus View is the difference between "I tried it and gave up" and "I knew exactly what to click."
 
 #### Problem
 
-PostPilot has accumulated significant surface area: voice profile setup, BYOK or managed AI, content pillars, Idea Bank, post editor with AI chat / hook analyzer / version management / hashtag tools / image generation, calendar, analytics, and now (when re-enabled) team workspaces. For a less technical user, knowing **where to start** and **what to do next** is the primary obstacle. Documentation, tooltips, and one-shot tutorials help but aren't enough — the user needs an assistant that stays with them throughout the session, not just on first login.
+PostPilot has accumulated significant surface area: voice profile setup, BYOK or managed AI, content pillars, Idea Bank, post editor with AI chat / hook analyzer / version management / hashtag tools / image generation, calendar, analytics, and now (when re-enabled) team workspaces. For a less technical user, knowing **where to start** is the primary obstacle. Reducing the home page to four obvious choices is a bigger UX win than narrating each step.
 
-#### Canonical Walkthrough (Owner's Reference Example)
+#### The Four Cards
 
-> **System on login:** "What would you like to do?" Options: *Create a new AI-assisted post · Brainstorm new ideas · Schedule a post · View my analytics · Manage my settings*
->
-> **User selects:** "Create a new AI-assisted post"
->
-> **System:** Opens the AI Idea Generator modal. "First, tell me what you'd like to brainstorm about. Enter a topic and pick a content pillar, then click Generate." (User-facing prompts highlight the topic field and the pillar selector.)
->
-> **User:** Enters topic, picks pillar, clicks Generate.
->
-> **System:** AI generates ideas. "Great — here are some ideas. Pick at least one you'd like to develop later and add it to your Idea Bank."
->
-> **User:** Selects ideas, saves to Idea Bank. The Idea Generator closes.
->
-> **System:** Navigates the user to the Idea Bank. "Which of these ideas would you like to develop into a LinkedIn post? Click the Develop button on the one you want to start with."
->
-> **User:** Clicks Develop on an idea. The post editor opens with the idea pre-populated. The AI Assistant starts writing the initial draft automatically.
->
-> **System:** "I'm drafting your post in the AI Assistant panel on the right. When it's done, you can review it. If you want changes, just ask the AI assistant — or click 'Apply to Editor' to take over and edit it yourself."
->
-> **User:** Reviews draft, applies it to editor, makes any edits.
->
-> **System:** "Looking good! Want to add an image? You can generate one with AI or upload your own from the Post Image section. If you'd rather skip the image, you can move on."
->
-> **User:** Generates/uploads an image, OR skips.
->
-> **System:** "Ready to share? You can publish to LinkedIn right now, or schedule it for a later date and time."
->
->   - **If user chooses "Publish now":** System publishes via LinkedIn integration. "🎉 Your post is live on LinkedIn! Want to start another one?"
->   - **If user chooses "Schedule":** Schedule modal opens. User picks date/time. "🎉 Scheduled for [date/time]. Want to start another one?"
+Focus View's home is four primary cards, in this order:
 
-This canonical example becomes the reference implementation for the V1 "Create a new AI-assisted post" workflow. Other workflows follow the same pattern.
+| # | Card | What it does | Routes to |
+|---|---|---|---|
+| 1 | **Create a Post** | Start a fresh post from scratch | `/posts/new` |
+| 2 | **View Draft Posts** | Return to unfinished drafts | `/posts?status=draft` |
+| 3 | **View Scheduled Posts** | Check the upcoming pipeline | `/calendar` |
+| 4 | **Generate New Ideas** | Open AI brainstorming | Idea Generator on `/ideas` |
+
+The cards are framed as *user actions*, not data states. The grid is intentionally fixed — context-aware menus add cognitive load for the audience this view targets. "Edit a Post" and "Review a Post" are deliberately excluded: drafts cover unfinished work, and review-before-publish lives inside the editor.
 
 #### Requirements
 
-##### 1. Guided Mode Toggle
-- Settings → New section "Guided Mode" with a master toggle (default: **on for new accounts**, **off for existing accounts** at rollout)
-- A subtle but persistent indicator in the UI when Guided Mode is active (e.g., a small assistant chip in the top bar)
-- Easy way to dismiss/disable from inside any guided step ("Skip guidance · I'll explore on my own") that turns Guided Mode off and remembers the preference
-- Easy way to re-enable from Settings or from a Help menu item
+##### 1. Two UI modes (desktop only)
+- `user_profiles.ui_mode` enum: `'focus'` or `'standard'`
+- Chosen during onboarding via a dedicated card with side-by-side previews
+- Existing accounts at rollout backfilled to `'standard'` (their experience does not change without consent)
+- New accounts default to `'focus'` if onboarding choice is somehow missing (BP-142 will enforce non-null)
 
-##### 2. Conversational Assistant Panel
-- A persistent assistant surface (slide-out panel, bottom drawer, or floating chip — design choice during implementation)
-- Renders as a chat-like conversation: system messages, suggested action buttons, and confirmation messages
-- When the user takes a suggested action (clicks a real UI element), the assistant detects it and advances the conversation
-- When the user goes off-script (clicks something outside the suggested flow), the assistant gracefully acknowledges and offers to either continue with the original goal or pivot
+##### 2. Mobile is its own architecture (not Focus/Standard)
+- Mobile users do not see a Focus/Standard choice
+- Single mobile-native UI: bottom tab bar (Home · Posts · [+] · Calendar · Settings) with center FAB
+- Four-card Focus layout adapts on mobile by stacking vertically
+- The mobile post-editor layout is **handed to BP-143** — out of scope for BP-099
 
-##### 3. Workflow Engine
-A state machine that drives guided sessions. Each workflow is a sequence of steps with:
-- A user-facing prompt
-- An expected user action (click, navigate, form-input, "task complete" signal)
-- A success message + a "what next?" branch with context-aware options
-- A "skip this step" affordance
-- A timeout/help fallback ("Need help finding it?")
+##### 3. View toggle
+- In Focus View: top-right of the top bar, after Theme toggle, labeled "Full View" with explicit-consequence dialog before switching
+- In Standard view: top-right menu, next to Theme toggle, labeled "Focus View" with same dialog
+- No Esc-key shortcut — toggle button is the only path
+- Mid-task switch auto-saves the active draft and shows "Your draft has been saved at X. You can return to it from [Y]."
 
-Reuse the action-detection patterns already built for the Tutorial SDK (`packages/tutorial-sdk/src/core/action-detector.ts`) — click, navigate, formInput, elementExists detectors are already battle-tested.
+##### 4. Routing & login behavior
+- Default landing on login depends on `ui_mode`
+- Deep links (e.g., `/posts/123` from email) **always** route to the URL — Focus View is the default landing, not a forced cage
+- "← Back to Home" affordance returns user to Focus View home from any reached page
 
-##### 4. Workflow Catalog (V1 Scope)
-Ship V1 with these workflows. Each is one full guided journey from "what do you want to do?" through "congratulations, you did it":
+##### 5. Post-task "What next?" prompts
+Inline (not modal) on the page where the task ended. Options curated by what the user just completed (full table in design doc §7).
 
-| Workflow | Trigger | End state |
-|---|---|---|
-| **Create a new AI-assisted post** (canonical example above) | Login menu, post-completion menu, dashboard CTA | Post published or scheduled |
-| **Brainstorm new ideas without developing** | Login menu, idea bank empty state | Ideas saved to Idea Bank |
-| **Develop an existing idea** | Login menu (when ideas exist), Idea Bank | Post published or scheduled |
-| **Schedule an existing draft** | Login menu (when drafts exist), Posts page | Post scheduled |
-| **Set up my profile / voice** | First-login flow, settings prompt | Voice profile complete |
-| **Connect LinkedIn** | First-login flow, settings prompt | LinkedIn OAuth complete |
+##### 6. Onboarding card (BP-099 portion)
+- New step "Choose your home screen" with two side-by-side previews
+- Selection persists to `user_profiles.ui_mode`
+- BP-099 declares `ui_mode` as a required onboarding field; **BP-142** enforces non-null on every login
 
-Each workflow ends by asking "What would you like to do next?" with options filtered by user state (e.g., don't suggest "Develop an existing idea" when the Idea Bank is empty).
+##### 7. Settings surface
+- Settings → Appearance section: Home Screen dropdown (Focus / Standard) + existing Theme control
+- Short explainer copy under the Home Screen control
 
-##### 5. Workflow Catalog (Post-V1, Documented but Deferred)
-- **Edit / improve a previous post** (use Hook Analyzer, ask AI for variations)
-- **Review my analytics and pick a winning topic to repeat**
-- **Manage my settings** (AI provider, theme, notifications)
-- **Reschedule or unschedule a post**
-- **Manually mark a post as posted**
-- **Past-due post recovery** (pairs with BP-034)
+##### 8. Tier availability
+**Available to all tiers** (Free, Personal, Professional). This is onboarding/usability infrastructure, not a paid feature. Do **not** gate it.
 
-##### 6. Login → Welcome Prompt
-- When Guided Mode is on, every login lands at a welcome prompt: "Welcome back, [name]. What would you like to do today?"
-- Options curated by user state:
-  - Always shown: "Create a new AI-assisted post"
-  - Conditional: "Develop an existing idea" (only if Idea Bank has unprocessed ideas)
-  - Conditional: "Schedule an existing draft" (only if there are unpublished drafts)
-  - Conditional: "Connect LinkedIn" (only if not yet connected)
-  - Conditional: "Set up your voice profile" (only if voice profile incomplete)
-  - Always shown: "Just let me explore" (one-time bypass for the session)
+#### Architecture (high-level)
 
-##### 7. Context-Aware "What Next?"
-After each completed workflow, the assistant asks "What would you like to do next?" with the same conditional logic as the welcome prompt — but informed by the workflow that was just completed. Examples:
-- After publishing a post → suggest "Schedule another post," "Generate more ideas," "Mark a different post as posted"
-- After saving brainstormed ideas → suggest "Develop one of these ideas now," "Generate more ideas," "Take a break"
-- After scheduling → suggest "Create another post," "View your calendar," "Done for now"
+The original Guided Mode design proposed a `GuidedModeEngine` state machine, action detectors, workflow definition files, and a `useUserState()` hook. **All dropped.** Focus View is direct navigation: cards route to existing pages. The implementation surface is roughly 1/3 the original scope.
 
-##### 8. Off-Script Handling
-- If the user clicks something outside the suggested flow, the assistant:
-  - Acknowledges: "Looks like you opened the [thing]. Want help with that, or should I keep helping you with [original goal]?"
-  - Offers to switch the active workflow OR pause the current one
-  - Never blocks or disables the rest of the UI — Guided Mode is additive, not restrictive
-
-##### 9. Persistence
-- Guided Mode preference: per-user, stored in `creator_profiles.guided_mode_enabled`
-- Active workflow state: in-memory only (no need to resume across sessions for V1)
-- "Don't show me this workflow's intro again" preference: per-workflow flag stored in `creator_profiles.guided_workflows_dismissed` (jsonb)
-
-##### 10. Tier Availability
-**Available to all tiers** including Free. This is onboarding quality, not a paid feature. Do **not** gate it.
-
-#### Technical Notes (Architecture Suggestions)
-
-- **Reuse the Tutorial SDK** (`packages/tutorial-sdk/`) for action detection, spotlight overlay, and timeout handling. Guided Mode is essentially "long-running, branching, multi-workflow tutorials" — the engine primitives are the same.
-- **New package or module** for workflow definitions (`src/lib/guided-mode/workflows/`). Each workflow is a typed array of steps.
-- **AI Assistant integration:** the existing AI Assistant panel may be the right host for the conversational layer. Consider extending it rather than building a new panel.
-- **Avoid hard-coupling** workflow steps to specific component selectors when avoidable. Use stable `data-tour-id` (already in use for tutorials) attributes.
-- **Action verification:** when the user clicks a suggested action, the workflow engine verifies the resulting state (e.g., "the modal opened," "the post status changed to scheduled") before advancing. Don't just assume the click did what we expected.
+What remains:
+- One new column on `user_profiles` (`ui_mode`)
+- A new Focus View home page component
+- Top-bar view toggle with confirm dialog (in both Focus and Standard top bars)
+- A new onboarding step for the UI choice
+- "What next?" inline sections on post-task pages
+- Mobile bottom-nav shell (the editor is BP-143)
 
 #### Out of Scope for V1
-- Cross-session workflow resume ("you started creating a post yesterday — want to continue?") — capture as future BP if requested
-- Voice/audio guidance — text only for V1
-- Multi-language support — English only
-- Analytics on workflow completion rates — capture as future BP
-- A/B testing different prompt copy — future
-- LLM-generated dynamic prompts — V1 uses static, hand-authored prompts for control and predictability
+- Per-card customization (user reordering or replacing cards)
+- Workflow analytics / completion metrics
+- Tablet-specific breakpoint work
+- The mobile post-editor layout (BP-143)
+- Onboarding integrity validation logic (BP-142)
+- Native app / PWA-specific code
 
 #### Acceptance Criteria
 
-- [ ] Guided Mode toggle in Settings, default ON for new accounts, OFF for existing accounts
-- [ ] Persistent assistant surface visible in the UI when Guided Mode is on
-- [ ] Login welcome prompt with state-aware options
-- [ ] All 6 V1 workflows ship and are tested end-to-end
-- [ ] After each workflow ends, "what next?" prompt appears with context-aware options
-- [ ] Off-script clicks are handled gracefully (acknowledge + offer to switch or pause)
-- [ ] User can disable Guided Mode mid-flow with one click
-- [ ] Re-enabling Guided Mode is discoverable in Settings and Help
-- [ ] No regressions in standard (non-guided) UI for existing users
-- [ ] Available to all tiers (Free, Creator, Pro); not gated
+- [ ] `user_profiles.ui_mode` column exists; default `'focus'` for new accounts; existing accounts backfilled to `'standard'`
+- [ ] Onboarding includes a "Choose your home screen" step that writes `ui_mode`
+- [ ] Root route renders Focus View when `ui_mode = 'focus'`, existing dashboard when `'standard'`
+- [ ] Four cards (Create / Drafts / Scheduled / Ideas) render and route correctly
+- [ ] Top-bar utilities present: Help, Account dropdown, Theme toggle, View toggle
+- [ ] View toggle (both directions) shows confirm dialog with explicit consequence text
+- [ ] Mid-task switch auto-saves drafts and shows "your draft has been saved at X" confirmation
+- [ ] Deep links bypass Focus View (direct URLs always work)
+- [ ] "What next?" prompts appear after Create / Schedule / Save Idea tasks with the correct contextual options
+- [ ] Mobile devices route to bottom-nav shell regardless of `ui_mode`
+- [ ] Mobile users do not see the Focus/Standard toggle anywhere
+- [ ] Settings → Appearance → Home Screen control reads/writes `ui_mode`
+- [ ] No regression in standard UI for users with `ui_mode = 'standard'`
+- [ ] Available to all tiers (Free, Personal, Professional); not gated
 
 #### Notes
 
-- **Strategic alignment:** This is a **viability multiplier** for the Free→Pro segment. Less technical users are exactly the alpha-testing audience the new direction targets. Without Guided Mode, the product's surface area is a barrier to first-time success.
-- **Relationship to BP-035 (Tutorial cleanup):** complementary, not competing. Tutorials are one-shot education; Guided Mode is persistent assistance. Land BP-035 first (so the Tutorial SDK foundation is solid), then build Guided Mode on top of the same engine.
-- **Relationship to BP-084 (Tutorial card visual redesign):** the new card design from BP-084 may be reused as the visual language for Guided Mode prompts. Design consistency.
-- **Effort estimate:** **L–XL** (1.5–2 weeks of focused work for V1 with 6 workflows). Possible to phase: V1a = Create Post workflow only (3-5 days), V1b = remaining 5 workflows (1-1.5 weeks).
-- **Suggested sprint placement:** After Sprint 2 (P1 viability bug fixes land first). Could be its own dedicated Sprint 2.5 or split across Sprints 3 and 4 of the [reprioritization plan](reviews/2026-04-16-backlog-reprioritization.md). Recommend the phased approach so the canonical Create Post workflow ships fast and gets user feedback before investing in the other 5.
+- **Strategic alignment:** Viability multiplier for the Free→Pro segment. Less technical users are exactly the alpha-testing audience the new direction targets.
+- **Relationship to BP-035 / BP-084 (Tutorial SDK):** Tutorial SDK still runs feature-specific one-shots inside Focus View pages without conflict. The original "Guided Mode reuses Tutorial SDK action detectors" plan no longer applies — Focus View has no step detection.
+- **Sibling BPs:**
+  - **BP-142** — Onboarding integrity gate (enforces `ui_mode` non-null + all other required onboarding fields on every login)
+  - **BP-143** — Mobile editor layout (mobile post editor with draft + AI assistant + tools on small screens)
+- **Effort estimate:** **M** (9–13 days for V1 — Phases 1–4 in the design doc). Down from the original L–XL estimate (15–21 days) because the workflow engine is dropped.
+- **Suggested sprint placement:** Sprint 4 (Polish & consistency) per the reprioritization plan, possibly slipping into a dedicated Sprint 4.5 if BP-142 and BP-143 are sequenced before launch.
+
+---
+
+### BP-142: Onboarding Integrity Gate (Required-Field Validation + Server-Authoritative Wizard)
+
+**Status:** **Done (develop) 2026-05-04** — Sprint 2 of QA-remediation. All 5 acceptance criteria verified PASS by Sprint 2 QA agent (`a8785dd` on `develop`). Note: Layer 1 (Auth Hook bootstrap) was DROPPED in favor of API-route-level bootstrap in `/api/onboarding/step` after Supabase docs confirmed there is no "After User Created" Auth Hook type. See `docs/USER_FEEDBACK.md` UF-007 for full traceability.
+**Priority:** P1 / High (raised in priority 2026-05-04 after live QA confirmed multiple architectural defects)
+**Source:** Owner — captured 2026-04-27 during BP-099 brainstorm; **scope expanded 2026-05-04** with live QA findings (UF-007a/b/c/d/e)
+**Date Added:** 2026-04-27 (spec expanded 2026-05-04)
+**Sibling of:** BP-099 (Focus View)
+**EPIC:** Onboarding & Guidance (EPIC 4)
+
+#### Problem (original framing — preserved)
+
+Required onboarding fields (voice profile, LinkedIn connection, tier choice, and now `ui_mode` per BP-099) can end up null if a user closes the onboarding wizard mid-flow, if a future schema change adds a new required field that older accounts haven't filled, or if a backfill misses someone. Today there is no central enforcement: the user lands in the app and may hit confusing errors deep in a flow rather than being prompted to finish setup.
+
+#### Problem (expanded 2026-05-04 from live QA)
+
+A live QA walkthrough on production exposed that the original framing was incomplete. The wizard has **architectural defects** that no client-side validation gate can fix:
+
+1. **No `user_profiles` row exists at signup.** No DB trigger / Auth Hook creates one. The wizard reads `.from("user_profiles").select(...).single()`, swallows the not-found error, and `subscriptionTier` stays `null`. The BP-135 tier-skip predicate (`subscriptionTier !== null && TIERS_WITHOUT_BYOK.has(subscriptionTier)`) is therefore false for every brand-new user — so all free/personal users see the AI Setup (BYOK) step contrary to BP-135's intent. **The seed script `scripts/e2e/seed-test-users.ts` masked this bug** by pre-creating profile rows for the four canonical e2e accounts.
+2. **Wizard mutations bypass Next.js API routes entirely.** Network capture shows 4× `PATCH https://...supabase.co/rest/v1/user_profiles?user_id=eq.<UUID>` and zero calls to any `/api/onboarding/*` endpoint. The wizard talks to Supabase REST directly with the user's RLS-bound JWT. Server-side rules (BP-135 tier-skip, this BP's required-field validation, future audit logging) cannot run.
+3. **Mid-wizard hard refresh restarts at step 0.** `goNext` calls `.update({ onboarding_current_step: next }).eq("user_id", userId)`. With no row yet, the update matches 0 rows and is silently a no-op. Hydration on refresh reads `undefined` and resets to step 0.
+4. **"Skip for now" allows completing onboarding with a 100% empty profile.** No per-step validation. User can click Skip ×5 + Complete Setup, land on `/dashboard` with `full_name=null, expertise_areas=[], industries=[], voice_samples=[]`, etc.
+5. **Deep-link `/onboarding?step=N` shows fake checkmarks for prior steps.** Client trusts the URL query param verbatim. With no profile data and `onboarding_current_step=null`, navigating to `?step=4` rendered AI Setup with steps 1-4 visually marked complete.
+
+#### Solution (expanded — three layers)
+
+**Layer 1 — Signup-time bootstrap (DB layer):**
+
+A Supabase Auth Hook (Postgres function + dashboard toggle, mirroring BP-129's pattern) inserts a default `user_profiles` row on `auth.users` insert. Defaults: `subscription_tier='free'`, `account_status='active'`, `onboarding_completed=false`, `managed_ai_access=true` (per BP-151). Defense-in-depth: ensures every auth user has a profile regardless of which signup path created them. Closes the gap that the BP-135 fix exposed.
+
+**Layer 2 — Server-authoritative wizard (API layer):**
+
+New `/api/onboarding/step` and `/api/onboarding/complete` POST routes own all wizard mutations. The wizard's `goNext`, `goBack`, and `handleSubmit` are rewritten to call these routes instead of Supabase REST directly. Routes:
+
+- Validate the step number against the user's actual `onboarding_current_step` (server-side clamp; rejects forward-jumps past true progress).
+- Enforce tier-based skip rules server-side (`effectiveTier = subscriptionTier ?? 'free'`).
+- Perform `.upsert({ user_id, ... }, { onConflict: 'user_id' })` so partial progress survives refresh.
+- Validate required fields on `complete`; reject with 400 + a structured "missing fields" response if any are blank.
+- Return the canonical step-state so the client never disagrees with the server.
+
+**Layer 3 — Required-field validation (client + server):**
+
+A central `src/lib/onboarding/required-fields.ts` declares the source of truth. Used by:
+
+- The new `/api/onboarding/complete` route (server-side enforcement on submit).
+- A `validateOnboardingComplete()` layout-level gate that runs on every login (the original BP-142 scope) — redirects to a focused completion flow if any required field is missing.
+- Per-step `canAdvance()` predicates in the wizard UI — disable Next on steps with mandatory fields; hide "Skip for now" on those steps; show Skip-with-confirmation on optional steps.
+
+#### Required Fields (initial set, owner-tunable in `required-fields.ts`)
+
+- `full_name` — non-null, non-empty (NEW — required for any salutation UX)
+- `expertise_areas` — array, ≥1 element (NEW — required for AI personalization)
+- `industries` — array, ≥1 element (NEW — required for AI personalization)
+- `voice_profile` — non-null and non-empty (original)
+- `linkedin_connection` — exists for the user (original)
+- `tier` — non-null (original; satisfied by Layer 1 bootstrap)
+- `ai_provider_choice` (or equivalent BYOK/managed flag) — non-null where required by tier (original)
+- `ui_mode` — non-null (declared by BP-099)
+
+#### Acceptance Criteria (expanded)
+
+**Original (preserved):**
+- [ ] Single declared source of truth for required onboarding fields (`src/lib/onboarding/required-fields.ts`)
+- [ ] Login flow runs validation; missing fields trigger a focused completion prompt
+- [ ] Post-wizard close hook runs the same validation
+- [ ] User cannot access app pages while any required field is missing
+- [ ] Adding a new required field is a one-line change to the field list
+- [ ] No regression for users who have completed onboarding (validation is fast and silent on the happy path)
+
+**Expanded (Sprint 2 deliverables):**
+- [ ] Auth Hook creates `user_profiles` row on signup with `subscription_tier='free'`, `onboarding_completed=false`, `managed_ai_access=true`. Verified via fresh signup → row visible immediately.
+- [ ] Brand-new free user does NOT see AI Setup step (step 4) in the wizard. Verified live.
+- [ ] Refresh on step 3 with partial data resumes on step 3 with data intact.
+- [ ] Cannot click "Complete Setup" while any required field is blank — server returns 400 + missing-fields list, client shows them inline.
+- [ ] "Skip for now" is hidden on required-field steps; visible (with optional confirmation) on optional steps.
+- [ ] Step 6 (Content Tools) consistency — either gains "Skip for now" OR is renamed to make the forced-finish obvious.
+- [ ] Direct nav to `/onboarding?step=4` for a user at step 1 redirects to step 1 (server-clamped).
+- [ ] All wizard mutations visible in Network panel as `POST /api/onboarding/*`, zero direct `PATCH .../user_profiles` calls.
+
+#### Affected files
+
+- `supabase/migrations/<date>_user_profile_bootstrap_hook.sql` — new (Layer 1)
+- `src/app/api/onboarding/step/route.ts` — new (Layer 2)
+- `src/app/api/onboarding/complete/route.ts` — new (Layer 2)
+- `src/lib/onboarding/required-fields.ts` — new (Layer 3 source of truth)
+- `src/lib/onboarding/validate.ts` — new (`validateOnboardingComplete()` helper)
+- `src/app/(app)/onboarding/page.tsx` — rewrite `goNext`, `goBack`, `handleSubmit` to call API routes; add `canAdvance()` per step; clamp `?step=N` against server-canonical state
+- `src/app/(app)/layout.tsx` — wire layout-level validation gate
+- (release-notes modal mount + `tutorial-bridge.tsx` — see BP-150 for shell-modal suppression on `/onboarding`; coordinate ordering)
+
+#### Notes
+
+- BP-099 declares `ui_mode` as required and depends on this BP for enforcement — but BP-099 ships independently with a soft default (`'focus'` for missing values) so the app works even if BP-142 is delayed.
+- Consider grouping with BP-103 (Contextual Onboarding CTA) since both touch the dashboard onboarding region.
+- **The Auth Hook approach mirrors BP-129's pattern.** See `feedback_auth_schema_locked.md` for the constraint that triggers cannot be created on `auth.identities`/`auth.users` via `apply_migration` — use Supabase Auth Hooks (Postgres function + dashboard toggle) instead.
+- **Effort estimate:** M-L (3-4 days). Original estimate was S-M (2-4 days) for the validation layer alone; adding Layers 1 + 2 expands scope.
+
+---
+
+### BP-143: Mobile Editor Layout (Post Editor + AI Assistant on Small Screens)
+
+**Status:** Stub — spec to be written
+**Priority:** P1 / High
+**Source:** Owner — captured 2026-04-27 during BP-099 brainstorm
+**Date Added:** 2026-04-27
+**Sibling of:** BP-099 (Focus View)
+
+#### Problem
+
+PostPilot's post editor on desktop puts the draft on the left and the AI Assistant on the right. This side-by-side layout doesn't translate to a phone screen: cramming both panels onto a 390px-wide display makes neither usable. Mobile users currently get a poor experience that is not just "the desktop UI made smaller" — it's actively unworkable.
+
+BP-099 ships the mobile shell (bottom tab bar, four-card home, Posts/Calendar/Settings tabs) but **does not** redesign the post editor itself. That redesign needs its own planning round.
+
+#### Solution Direction (Pending Design)
+
+Three patterns under consideration; final pick is part of this BP's spec phase:
+
+1. **Bottom-sheet pattern** — draft full-screen; AI assistant pulls up from bottom as a draggable sheet with snap points (peek / half / full). User controls how much screen the AI takes; can drag down to see how revisions affect the draft. *iOS Maps, Notion mobile, Linear mobile use this.* Strongest contender.
+2. **Tabbed pattern** — top segmented control: "Draft" | "AI" | "Settings". Whichever tab is active gets full width. Simple but loses the "see your draft while AI talks" benefit.
+3. **Drawer pattern** — draft full-screen; AI slides in from right when triggered. Familiar but feels desktop-y on a small screen.
+
+Other tools that need a mobile UX (image picker / generator, schedule picker, hook analyzer, version history, hashtag tools) are likely better suited to bottom sheets or modal screens — to be decided per tool during spec.
+
+#### Acceptance Criteria (placeholder)
+
+- [ ] Mobile post editor layout decision documented (one of bottom-sheet / tabbed / drawer, with rationale)
+- [ ] Draft area is always reachable; AI assistant is reachable in ≤1 tap from anywhere in the editor
+- [ ] All editor tools (image, schedule, hook, version, hashtag) have a working mobile path
+- [ ] Save / autosave behavior is identical to desktop
+- [ ] Publish + Schedule actions are reachable from a persistent bottom action bar
+- [ ] No reliance on hover-only affordances
+- [ ] Tested on iOS Safari and Android Chrome via Vercel preview
+
+#### Notes
+
+- BP-099 routes mobile users to a separate code path; this BP fills out the editor portion of that path.
+- Cross-references: BP-090 (`window.location.reload()` in post editor — Team-flagged but worth checking for mobile relevance), the existing AI Assistant component on `src/app/(app)/posts/[id]/page.tsx`.
+- **Effort estimate:** M–L (5–8 days, including design + implementation + browser testing).
+
+#### Branch State
+
+- **Branch `bp-143-mobile-editor` already exists** (created 2026-04-27, off `develop` at the same commit as `bp-099-focus-view`). It is currently empty (no commits beyond develop). It will drift behind `develop` as BP-099 work progresses on `bp-099-focus-view`.
+- **Before starting BP-143 implementation:** rebase `bp-143-mobile-editor` onto current `develop` (or onto merged BP-099, depending on sequencing) so you start from a fresh base. Do not work off the stale 2026-04-27 starting point without rebasing first.
 
 ---
 
@@ -3967,7 +4340,7 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-112: Fix `Button` Outline Variant Footgun
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-26 — replaced `outline` variant with `border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground`; audited all 113 `variant="outline"` call sites; zero sites switched to `variant="default"` (none relied on the blue gradient).
 **Priority:** P3 / Low
 **Source:** Owner feedback 2026-04-23 (surfaced while fixing the LinkedIn banner reconnect button)
 **Date Added:** 2026-04-23
@@ -4021,7 +4394,7 @@ After each completed workflow, the assistant asks "What would you like to do nex
 
 ### BP-110: Cancel In-Progress Image Generation
 
-**Status:** Backlog
+**Status:** Fixed (develop) 2026-04-27 — AbortController on fetch + signal passed to OpenAI SDK and Google fetch; server guards DB insert, quota increment, and storage uploads with abort checks; orphaned files deleted on abort; quota never debited for cancelled generations.
 **Priority:** P2 / Medium
 **Source:** Owner feedback 2026-04-23
 **Date Added:** 2026-04-23

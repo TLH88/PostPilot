@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarClock,
   ChevronLeft,
@@ -69,7 +69,30 @@ type CalendarView = "month" | "week" | "day";
 
 export default function CalendarPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // BP-145: when the user lands here after completing the recovery walkthrough,
+  // ?recovered=N tells us how many posts they fixed. Show a one-time toast and
+  // strip the param so a refresh doesn't re-fire it.
+  useEffect(() => {
+    const recoveredRaw = searchParams.get("recovered");
+    if (!recoveredRaw) return;
+    const n = Number.parseInt(recoveredRaw, 10);
+    if (Number.isFinite(n) && n > 0) {
+      toast.success(
+        n === 1
+          ? "1 post recovered. You're back on schedule."
+          : `${n} posts recovered. You're back on schedule.`,
+        { duration: 6000 }
+      );
+    } else if (Number.isFinite(n) && n === 0) {
+      toast.info("No changes made. You can revisit Recovery anytime.");
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("recovered");
+    window.history.replaceState({}, "", url.toString());
+  }, [searchParams]);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("month");

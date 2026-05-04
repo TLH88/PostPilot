@@ -34,6 +34,19 @@ interface LinkedInConnectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reason?: LinkedInConnectReason;
+  /**
+   * BP-145: where to send the user after the OAuth callback completes. Must
+   * match the server-side allowlist in src/app/api/linkedin/connect/route.ts
+   * (e.g. "/posts/recovery", "/calendar"). When omitted, the callback uses
+   * its existing default of /settings?linkedin=connected.
+   */
+  returnTo?: string;
+  /**
+   * BP-145: ID of the post that triggered this reconnect. Surfaced back on
+   * the recovery page via `?post=<id>` so the failed post is the first one
+   * walked through after the round-trip.
+   */
+  recoverPostId?: string;
 }
 
 const HEADLINES: Record<LinkedInConnectReason, string> = {
@@ -58,12 +71,20 @@ export function LinkedInConnectDialog({
   open,
   onOpenChange,
   reason = "first-time",
+  returnTo,
+  recoverPostId,
 }: LinkedInConnectDialogProps) {
   const [continuing, setContinuing] = useState(false);
 
   function handleContinue() {
     setContinuing(true);
-    window.location.href = "/api/linkedin/connect";
+    const params = new URLSearchParams();
+    if (returnTo) params.set("return_to", returnTo);
+    if (recoverPostId) params.set("recover", recoverPostId);
+    const qs = params.toString();
+    window.location.href = qs
+      ? `/api/linkedin/connect?${qs}`
+      : "/api/linkedin/connect";
   }
 
   return (

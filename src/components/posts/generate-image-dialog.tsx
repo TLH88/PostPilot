@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Sparkles, Loader2, RefreshCw, Info, Braces, ChevronLeft, ChevronRight, ChevronDown, Upload, Check } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Sparkles, Loader2, RefreshCw, Info, Braces, ChevronLeft, ChevronRight, ChevronDown, Upload, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,6 +105,9 @@ export function GenerateImageDialog({
   const [currentPostImagePath, setCurrentPostImagePath] = useState<string | null>(null);
   const [versionsLoaded, setVersionsLoaded] = useState(false);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
+
+  // Cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Provider state
   const [provider, setProvider] = useState<ImageProvider | null>(null);
@@ -221,6 +224,13 @@ export function GenerateImageDialog({
     setVersionsLoaded(true);
   }
 
+  const handleCancelGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
   function handleProviderChange(p: ImageProvider) {
     setProvider(p);
     setModel(IMAGE_PROVIDER_CONFIG[p].models[0].value);
@@ -236,6 +246,9 @@ export function GenerateImageDialog({
       return;
     }
 
+    // Create a fresh AbortController for this generation
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setGenerating(true);
 
     try {
@@ -252,6 +265,7 @@ export function GenerateImageDialog({
           imageProvider: provider,
           imageModel: model,
         }),
+        signal: controller.signal,
       });
 
       if (await maybeHandleQuotaExceeded(res)) return;
@@ -280,9 +294,15 @@ export function GenerateImageDialog({
       if (thumbnailsRef.current) {
         thumbnailsRef.current.scrollLeft = 0;
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        // User-initiated cancel — show neutral toast, do not show error
+        toast.info("Image generation canceled.");
+        return;
+      }
       toast.error("Failed to generate image. Check your AI provider settings.");
     } finally {
+      abortControllerRef.current = null;
       setGenerating(false);
     }
   }
@@ -520,13 +540,21 @@ export function GenerateImageDialog({
             )}
           </div>
 
-          {/* Generating spinner */}
+          {/* Generating spinner + cancel */}
           {generating && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="size-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">
                 Generating your image...
               </p>
+              <button
+                type="button"
+                onClick={handleCancelGeneration}
+                className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-colors"
+              >
+                <X className="size-3" />
+                Cancel
+              </button>
             </div>
           )}
 
@@ -695,9 +723,13 @@ export function GenerateImageDialog({
             )}
 
             {generating && (
-              <Button disabled className="gap-1.5">
-                <Loader2 className="size-3.5 animate-spin" />
-                Generating...
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={handleCancelGeneration}
+              >
+                <X className="size-3.5" />
+                Cancel Generation
               </Button>
             )}
           </div>

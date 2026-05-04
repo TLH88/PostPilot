@@ -49,6 +49,13 @@ export function TutorialBridge({ children, userId }: TutorialBridgeProps) {
   // Use the overview-app tutorial for first-login gate
   const overviewTutorial = TUTORIAL_REGISTRY["overview-app"];
 
+  // BP-150 / UF-012: Suppress the first-login tutorial gate while the user
+  // is in the onboarding wizard. Otherwise the gate stacked on top of the
+  // wizard on the very first render — visually entangled with the
+  // release-notes modal (also suppressed in release-notes-modal.tsx).
+  // Tutorials still auto-fire on /dashboard once onboarding completes.
+  const isOnboardingRoute = pathname?.startsWith("/onboarding") ?? false;
+
   return (
     <TutorialProvider
       storage={storage}
@@ -57,7 +64,7 @@ export function TutorialBridge({ children, userId }: TutorialBridgeProps) {
       theme={theme}
       tutorialRegistry={TUTORIAL_REGISTRY}
     >
-      {overviewTutorial && (
+      {overviewTutorial && !isOnboardingRoute && (
         <TutorialGate
           tutorial={overviewTutorial}
           storage={storage}

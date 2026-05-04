@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERTISE_SUGGESTIONS, TONE_OPTIONS } from "@/lib/constants";
+import {
+  REQUIRED_FIELDS_PER_STEP,
+  isFieldComplete,
+  type ProfileField,
+} from "@/lib/onboarding/required-fields";
 import {
   Card,
   CardContent,
@@ -159,8 +164,12 @@ export default function OnboardingPage() {
       if (!user) return;
       setUserId(user.id);
 
-      // BP-135: also fetch subscription_tier so we can hide the BYOK step
-      // for Free/Personal users.
+      // BP-142 / UF-007a + UF-007e: fetch the canonical step + tier from the
+      // server. If the profile row doesn't exist yet, treat tier as 'free' so
+      // the BP-135 skip-BYOK predicate fires for brand-new users (the wizard's
+      // first /api/onboarding/step call will materialize the row server-side).
+      // For ?step=N URL params, server-clamp against persisted progress so a
+      // user can't deep-link past steps they haven't filled (UF-007e).
       try {
         const { data } = await supabase
           .from("user_profiles")
@@ -168,25 +177,35 @@ export default function OnboardingPage() {
             "onboarding_current_step, onboarding_completed, subscription_tier"
           )
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
         const profile = data as {
           onboarding_current_step?: number | null;
           onboarding_completed?: boolean | null;
           subscription_tier?: string | null;
         } | null;
 
-        if (profile?.subscription_tier) {
-          setSubscriptionTier(profile.subscription_tier);
-        }
+        const effectiveTier = profile?.subscription_tier ?? "free";
+        setSubscriptionTier(effectiveTier);
 
-        if (requestedStep === null) {
-          const persisted = profile?.onboarding_current_step;
-          if (!profile?.onboarding_completed && typeof persisted === "number") {
-            setCurrentStep(Math.max(0, Math.min(STEPS.length - 1, persisted)));
+        const persisted = profile?.onboarding_current_step ?? 0;
+        if (requestedStep !== null) {
+          // Clamp the URL param against actual persisted progress.
+          const clamped = Math.min(
+            requestedStep,
+            Math.max(0, Math.min(STEPS.length - 1, persisted))
+          );
+          if (clamped !== requestedStep) {
+            setCurrentStep(clamped);
           }
+        } else if (
+          !profile?.onboarding_completed &&
+          typeof persisted === "number"
+        ) {
+          setCurrentStep(Math.max(0, Math.min(STEPS.length - 1, persisted)));
         }
       } catch {
-        // Column may not exist yet; fall back to defaults.
+        // Best-effort hydration; the API route is the source of truth.
+        setSubscriptionTier("free");
       }
     }
     getUser();
@@ -353,93 +372,211 @@ export default function OnboardingPage() {
     }
   };
 
+  // BP-142: Build the per-step data payload sent to /api/onboarding/step.
+  // Each step writes only the fields it owns so the server can validate the
+  // step's required fields without needing the full profile.
+  const getStepData = useCallback(
+    (step: number): Record<string, unknown> => {
+      switch (step) {
+        case 0:
+          return {
+            full_name: fullName.trim() || null,
+            headline: headline.trim() || null,
+            linkedin_url: linkedinUrl.trim() || null,
+          };
+        case 1:
+          return {
+            resume_text: resumeText || null,
+            linkedin_about: linkedinAbout || null,
+          };
+        case 2:
+          return {
+            expertise_areas: expertiseAreas,
+            industries,
+            target_audience: targetAudience.trim() || null,
+          };
+        case 3:
+          return {
+            writing_tone: writingTone,
+            voice_samples: voiceSamples.filter((s) => s.trim() !== ""),
+            content_pillars: contentPillars,
+            preferred_post_length: preferredPostLength,
+            use_emojis: useEmojis,
+            use_hashtags: useHashtags,
+          };
+        case 4:
+          // AI provider key flows through /api/settings/ai-provider, not
+          // /api/onboarding/step. This step writes nothing to user_profiles
+          // directly; the API route just records the step transition.
+          return {};
+        case 5:
+          return {};
+        default:
+          return {};
+      }
+    },
+    [
+      fullName,
+      headline,
+      linkedinUrl,
+      resumeText,
+      linkedinAbout,
+      expertiseAreas,
+      industries,
+      targetAudience,
+      writingTone,
+      voiceSamples,
+      contentPillars,
+      preferredPostLength,
+      useEmojis,
+      useHashtags,
+    ]
+  );
+
+  // BP-142 / UF-007d: per-step `canAdvance()` predicate. Mirrors the server's
+  // REQUIRED_FIELDS_PER_STEP enforcement so the UI gives immediate feedback
+  // (disabled Next button + hidden Skip) instead of letting the user click
+  // through and getting an error response. The server is still the ground
+  // truth — this is just UX.
+  const canAdvance = useMemo(() => {
+    const required = REQUIRED_FIELDS_PER_STEP[currentStep] ?? [];
+    if (required.length === 0) return true;
+    const data = getStepData(currentStep);
+    return required.every((field: ProfileField) =>
+      isFieldComplete(data[field])
+    );
+  }, [currentStep, getStepData]);
+
+  // BP-142 / UF-007d: only steps with NO required fields show "Skip for now".
+  // Required-field steps must be filled out — Skip would defeat the gate.
+  const stepHasRequiredFields = useMemo(
+    () => (REQUIRED_FIELDS_PER_STEP[currentStep] ?? []).length > 0,
+    [currentStep]
+  );
+
+  /**
+   * BP-142: Persist the current step via the new /api/onboarding/step route.
+   * The server bootstraps the profile row if missing, validates required
+   * fields, server-clamps step numbers, and returns the canonical next step.
+   */
+  const persistStep = async (step: number): Promise<number | null> => {
+    const res = await fetch("/api/onboarding/step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step, data: getStepData(step) }),
+    });
+    if (!res.ok) {
+      const errBody = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        missing?: string[];
+        canonicalStep?: number;
+      };
+      const message = errBody.missing?.length
+        ? `Please fill in: ${errBody.missing.join(", ")}`
+        : errBody.error || "Failed to save step.";
+      toast.error(message);
+      if (typeof errBody.canonicalStep === "number") {
+        setCurrentStep(errBody.canonicalStep);
+      }
+      return null;
+    }
+    const json = (await res.json()) as {
+      ok: true;
+      currentStep: number;
+      nextStep: number | null;
+    };
+    return json.nextStep;
+  };
+
   const handleSubmit = async () => {
     if (!userId) return;
-
     setIsSubmitting(true);
 
     try {
-      const profileData = {
-        user_id: userId,
-        full_name: fullName || null,
-        headline: headline || null,
-        linkedin_url: linkedinUrl || null,
-        resume_text: resumeText || null,
-        linkedin_about: linkedinAbout || null,
-        expertise_areas: expertiseAreas,
-        industries,
-        target_audience: targetAudience || null,
-        writing_tone: writingTone,
-        voice_samples: voiceSamples.filter((s) => s.trim() !== ""),
-        content_pillars: contentPillars,
-        preferred_post_length: preferredPostLength,
-        use_emojis: useEmojis,
-        use_hashtags: useHashtags,
-        onboarding_completed: true,
-        updated_at: new Date().toISOString(),
-      };
+      // Persist the final step (Content Tools) before flipping the completion
+      // flag — required fields on prior steps were already saved as the user
+      // walked through. Server validates the merged profile before commit.
+      await persistStep(currentStep);
 
-      const { error } = await supabase
-        .from("user_profiles")
-        .upsert(profileData, { onConflict: "user_id" });
-
-      if (error) throw error;
-
-      // Clear the persisted step pointer — separate call so that
-      // environments without the new column still complete onboarding.
-      try {
-        await supabase
-          .from("user_profiles")
-          .update({ onboarding_current_step: null })
-          .eq("user_id", userId);
-      } catch {
-        // column may not exist; harmless
+      // Aggregate every step's data so the server has the merged view it
+      // needs to validate against REQUIRED_FIELDS_FOR_COMPLETE in one shot.
+      const aggregateData: Record<string, unknown> = {};
+      for (let s = 0; s < STEPS.length; s++) {
+        Object.assign(aggregateData, getStepData(s));
       }
 
-      // Save AI provider settings (encryption handled server-side)
-      try {
-        await fetch("/api/settings/ai-provider", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            provider: aiProvider,
-            ...(aiApiKey.trim() ? { apiKey: aiApiKey } : {}),
-            aiModel: aiModel,
-          }),
-        });
-      } catch (aiError) {
-        console.error("Failed to save AI settings:", aiError);
-        // Non-blocking — user can configure later in Settings
+      const res = await fetch("/api/onboarding/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: aggregateData }),
+      });
+
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          missing?: string[];
+        };
+        const message = errBody.missing?.length
+          ? `Please fill in: ${errBody.missing.join(", ")}`
+          : errBody.error || "Failed to complete onboarding.";
+        toast.error(message);
+        return;
       }
 
-      // Force full page reload so the server layout re-fetches the updated profile
-      window.location.href = "/dashboard";
+      // BP-142 / UF-007: Save AI provider settings only when the user
+      // actually entered a key. Skipping AI Setup no longer fires a phantom
+      // POST (refutes the prior NEW-O6 finding for AI-skip path).
+      if (aiApiKey.trim()) {
+        try {
+          await fetch("/api/settings/ai-provider", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              provider: aiProvider,
+              apiKey: aiApiKey,
+              aiModel,
+            }),
+          });
+        } catch (aiError) {
+          console.error("Failed to save AI settings:", aiError);
+          // Non-blocking — user can configure later in Settings.
+        }
+      }
+
+      // BP-099: post-onboarding lands on Launch Pad — the simplified
+      // launcher home where every user starts.
+      // Full reload so the server layout re-fetches the updated profile.
+      window.location.href = "/launch-pad";
     } catch (error) {
-      console.error("Error saving profile:", error);
+      console.error("Error completing onboarding:", error);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const goNext = () => {
-    // BP-135: navigation walks visibleStepIndexes so hidden steps (AI Setup
-    // for Free/Personal) are skipped without breaking the original step
-    // numbering used by the per-step rendering switches.
+  const goNext = async () => {
+    if (!userId) return;
+    if (isSubmitting) return;
+
     const visIdx = visibleStepIndexes.indexOf(currentStep);
-    if (visIdx >= 0 && visIdx < visibleStepIndexes.length - 1) {
-      const next = visibleStepIndexes[visIdx + 1];
-      setCurrentStep(next);
-      // Fire-and-forget persistence — RLS ensures this only touches the
-      // current user's row. Failures shouldn't block the UI.
-      if (userId) {
-        supabase
-          .from("user_profiles")
-          .update({ onboarding_current_step: next })
-          .eq("user_id", userId)
-          .then(() => undefined);
+    const isLast = visIdx === visibleStepIndexes.length - 1;
+
+    if (isLast) {
+      await handleSubmit();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const nextStep = await persistStep(currentStep);
+      if (nextStep === null) {
+        // Server rejected (validation/etc.) — stay on the current step.
+        return;
       }
-    } else {
-      handleSubmit();
+      setCurrentStep(nextStep);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1245,15 +1382,19 @@ export default function OnboardingPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {!isLastVisibleStep && (
+            {/* BP-142 / UF-007d: hide "Skip for now" on required-field steps
+                so users can't bypass validation gates. Steps without
+                required fields still show Skip. */}
+            {!isLastVisibleStep && !stepHasRequiredFields && (
               <Button
                 variant="ghost"
                 onClick={goNext}
+                disabled={isSubmitting}
               >
                 Skip for now
               </Button>
             )}
-            <Button onClick={goNext} disabled={isSubmitting}>
+            <Button onClick={goNext} disabled={isSubmitting || !canAdvance}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

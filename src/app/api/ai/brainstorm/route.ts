@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { topic, contentPillar, count } = parsed.data;
+    const { topic, contentPillar, count, trending } = parsed.data;
 
     const { client, profile, source, provider, model } = await getUserAIClient();
     activeProvider = provider;
@@ -134,6 +134,15 @@ export async function POST(request: NextRequest) {
     if (contentPillar) {
       userMessage += ` Align with my content pillar: ${contentPillar}.`;
     }
+    if (trending) {
+      const industryScope = profile.industries?.length
+        ? profile.industries.join(", ")
+        : "my industry";
+      const expertiseScope = profile.expertise_areas?.length
+        ? `these expertise areas: ${profile.expertise_areas.join(", ")}`
+        : "my stated expertise areas";
+      userMessage += ` Where appropriate, draw on your awareness of recent industry conversations, news, debates, frameworks, or developments relevant to ${industryScope} and ${expertiseScope}. Don't force a "trending" angle if the topic is more naturally evergreen, but lean into recency when it sharpens an idea.`;
+    }
 
     const response = await client.createMessage({
       systemPrompt,
@@ -182,6 +191,7 @@ export async function POST(request: NextRequest) {
       generationId: response.generationId,
       success: true,
       latencyMs: Date.now() - startTime,
+      metadata: { trending },
     });
 
     return NextResponse.json(validated.data);

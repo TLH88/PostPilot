@@ -16,6 +16,7 @@ import {
   LogOut,
   Activity,
   CheckSquare,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 import { NewPostButton } from "@/components/posts/new-post-button";
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 const iconMap: Record<string, LucideIcon> = {
+  Rocket,
   LayoutDashboard,
   Lightbulb,
   FileText,

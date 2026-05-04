@@ -12,6 +12,7 @@ import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
 import { DevFlagsApplier } from "@/components/dev-flags-applier";
 import type { SubscriptionTier } from "@/lib/constants";
+import { validateOnboardingComplete } from "@/lib/onboarding/validate";
 
 export default async function AppLayout({
   children,
@@ -28,12 +29,18 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  // Check onboarding status and get user name
+  // BP-142: Check onboarding status, integrity, and get user name. The
+  // integrity check (validateOnboardingComplete) covers the case where a
+  // future schema change adds a required field that older accounts haven't
+  // filled — those users get redirected back to onboarding to complete the
+  // missing fields, even if `onboarding_completed=true`.
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("onboarding_completed, full_name, subscription_tier, deleted_at")
+    .select(
+      "onboarding_completed, full_name, subscription_tier, deleted_at, expertise_areas, industries"
+    )
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   // BP-131: defense-in-depth — if the account is soft-deleted, never render
   // app content for them. The auth.users ban blocks new logins; this catches
@@ -44,6 +51,8 @@ export default async function AppLayout({
   }
 
   const onboardingCompleted = profile?.onboarding_completed ?? false;
+  const integrity = validateOnboardingComplete(profile);
+  const onboardingOk = onboardingCompleted && integrity.ok;
   const userName = profile?.full_name || user.email?.split("@")[0] || "User";
   const userTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
 
@@ -52,7 +61,7 @@ export default async function AppLayout({
       <TutorialBridge userId={user.id}>
       <div className="relative min-h-screen bg-background">
         <DevFlagsApplier />
-        <OnboardingGuard onboardingCompleted={onboardingCompleted} />
+        <OnboardingGuard onboardingCompleted={onboardingOk} />
         <PastDueChecker />
         <TrialExpiryChecker />
         <LinkedInTokenValidator />

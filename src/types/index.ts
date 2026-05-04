@@ -172,6 +172,24 @@ export interface Idea {
   updated_at: string;
 }
 
+/**
+ * BP-145: Structured classification of a publish failure. Must match the
+ * CHECK constraint in supabase/migrations/20260428_add_post_failure_category.sql
+ * AND the `classifyPublishError` function in
+ * supabase/functions/publish-scheduled-posts/index.ts.
+ */
+export type PostFailureCategory =
+  | "linkedin_auth_revoked"
+  | "linkedin_auth_expired"
+  | "linkedin_rate_limited"
+  | "linkedin_content_rejected"
+  | "linkedin_content_too_long"
+  | "linkedin_duplicate"
+  | "network_transient"
+  | "profile_missing"
+  | "token_decrypt_failed"
+  | "unknown";
+
 export interface Post {
   id: string;
   user_id: string;
@@ -193,6 +211,10 @@ export interface Post {
   publish_method: "scheduled" | "direct" | "manual" | null;
   publish_attempts: number;
   publish_error: string | null;
+  // BP-145: structured classification of the most recent publish failure.
+  // NULL when the post has never failed (or for legacy past_due rows from
+  // before this column existed). See also PostFailureCategory below.
+  failure_category: PostFailureCategory | null;
   // Image
   image_url: string | null;
   image_storage_path: string | null;
@@ -234,6 +256,8 @@ export interface PostVersion {
   content: string;
   version_number: number;
   label: string | null;
+  /** BP-141: 'manual' = user-initiated; 'auto' = autosave snapshot */
+  kind: "manual" | "auto";
   created_at: string;
 }
 
