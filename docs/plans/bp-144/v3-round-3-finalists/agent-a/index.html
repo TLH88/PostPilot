@@ -1,0 +1,2460 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostPilot — The Studio v3 (Agent A, Round 3 Final)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   THE STUDIO v3 — Agent A (Editorial Minimalism)
+   Round 3 Final · BP-144
+
+   Lineage: Stripe / Linear / Vercel / Things 3 / Cron.
+   Philosophy: A tool's job is to disappear into the work.
+   Color used as punctuation, not paragraphs. Type carries
+   the design. Hairline borders. Calibrated motion.
+
+   R3 fixes vs R2:
+   - Focus View restored to BP-099 (greeting + 4 cards, no draft)
+   - Warm-dark palette (no more dark-blue clash)
+   - Persistent 48px rail — nav never disappears
+   - Toolbar anchored to bottom of canvas (no floating)
+   - Idea Bank cleaned: no point values, no duplicate counts
+   - AI generation: shimmer sweep → typewriter (no rotating circle)
+   - Calendar refined off PostPilot's existing patterns
+   - AI agent dock fleshed out: Reading / Open / Generating
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Light mode — warm sand surface system ── */
+  --bg:            #F7F6F3;
+  --canvas:        #FAF9F6;
+  --panel-left:    #F2F0EB;
+  --panel-hover:   #ECE9E2;
+  --surface:       #FFFFFF;
+  --surface-raised:#FCFBF8;
+  --border:        #E8E5DD;
+  --border-strong: #D8D2C5;
+  --border-faint:  #EFECE5;
+  --text-1:        #1A1814;
+  --text-2:        #6B635B;
+  --text-3:        #A8A095;
+  --text-4:        #C8C0B2;
+  /* Brand — deep blue gradient as primary theme color (R3 owner direction).
+     Token names "accent" preserved for diff continuity; values now in the
+     deep-blue family. Sky-blue --ai stays separate for AI moments. */
+  --brand-deep:    #0B1F4F;
+  --brand-mid:     #1E3FA8;
+  --brand-light:   #3B6FE0;
+  --brand-soft:    #6C9AF0;
+  --brand-gradient: linear-gradient(135deg, #0B1F4F 0%, #1E3FA8 55%, #3B6FE0 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #163074 0%, #2649B8 55%, #487FE8 100%);
+  --accent:        #1E3FA8;
+  --accent-hover:  #163074;
+  --accent-light:  #EEF3FB;
+  --accent-border: #C8D6F2;
+  --accent-glow:   rgba(30,63,168,0.18);
+  --ai:            #5A8AFF;        /* sky blue — AI moments only */
+  --ai-light:      #EEF3FF;
+  --ai-border:     #C7D6F8;
+  --ai-glow:       rgba(90,138,255,0.14);
+  --success:       #4A8B6A;
+  --success-light: #E8F2EC;
+  --warning:       #C8830C;
+  --warning-light: #FBF0D8;
+  --pillar-lead:   #4A6BC8;
+  --pillar-innov:  #C25E1A;
+  --pillar-cult:   #7E58B8;
+  --pillar-growth: #4A8B6A;
+  --pillar-mind:   #B83040;
+  --shadow-fine:   0 1px 2px rgba(26,24,20,0.05);
+  --shadow-soft:   0 1px 3px rgba(26,24,20,0.06), 0 4px 12px rgba(26,24,20,0.04);
+  --shadow-pop:    0 4px 16px rgba(26,24,20,0.08), 0 12px 36px rgba(26,24,20,0.06);
+  --radius:        10px;
+  --radius-sm:     6px;
+  --radius-pill:   999px;
+  --font-display:  'Instrument Serif', Georgia, serif;
+  --font-ui:       'Inter', -apple-system, sans-serif;
+  --font-mono:     'IBM Plex Mono', ui-monospace, monospace;
+  --rail-w:        48px;
+  --library-w:     232px;
+  --library-collapsed: 0px;
+  --ai-dock-h:     220px;
+  --ease-out:      cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast:        140ms;
+  --t-base:        200ms;
+}
+
+/* ── Dark mode — warm-near-black, no cold navy (R3 owner direction) ── */
+[data-theme="dark"] {
+  --bg:            #110E0A;
+  --canvas:        #1A1712;
+  --panel-left:    #161310;
+  --panel-hover:   #1E1B16;
+  --surface:       #1A1712;
+  --surface-raised:#201D18;
+  --border:        #2E2A22;
+  --border-strong: #3A3528;
+  --border-faint:  #261F18;
+  --text-1:        #EDE8E2;
+  --text-2:        #A09A94;
+  --text-3:        #5A5550;
+  --text-4:        #3A3530;
+  --brand-deep:    #0A1738;
+  --brand-mid:     #2548A8;
+  --brand-light:   #5B8DEF;
+  --brand-soft:    #8FB3F5;
+  --brand-gradient: linear-gradient(135deg, #0A1738 0%, #2548A8 55%, #5B8DEF 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #13225A 0%, #3158C8 55%, #7AA4F5 100%);
+  --accent:        #5B8DEF;
+  --accent-hover:  #7AA4F5;
+  --accent-light:  #11203F;
+  --accent-border: #1F3370;
+  --accent-glow:   rgba(91,141,239,0.32);
+  --ai:            #6B9EFF;
+  --ai-light:      #0E1520;
+  --ai-border:     #1C2A48;
+  --ai-glow:       rgba(107,158,255,0.20);
+  --success:       #6FB890;
+  --success-light: #14241A;
+  --warning:       #E0A53D;
+  --warning-light: #2A2010;
+  --pillar-lead:   #6B8AE8;
+  --pillar-innov:  #E08F4A;
+  --pillar-cult:   #A98ADE;
+  --pillar-growth: #6FB890;
+  --pillar-mind:   #D86060;
+  --shadow-fine:   0 1px 2px rgba(0,0,0,0.30);
+  --shadow-soft:   0 1px 3px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.18);
+  --shadow-pop:    0 4px 16px rgba(0,0,0,0.40), 0 12px 36px rgba(0,0,0,0.30);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: var(--font-ui); font-size: 14px; }
+body {
+  background: var(--bg); color: var(--text-1); min-height: 100vh; overflow-x: hidden;
+  font-feature-settings: 'ss01', 'cv11';
+  transition: background var(--t-base), color var(--t-base);
+}
+button { font-family: var(--font-ui); }
+
+/* ── Keyframes ─────────────────────────────────────────── */
+@keyframes ambient-pulse {
+  0%,100% { transform: scale(1); opacity: 0.6; }
+  50%      { transform: scale(1.4); opacity: 1; }
+}
+@keyframes sweep-bar {
+  0%   { transform: translateX(-100%); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 1; }
+}
+@keyframes type-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Theme toggle ──────────────────────────────────────── */
+.theme-toggle {
+  position: fixed; top: 16px; right: 20px; z-index: 999;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-1); padding: 7px 14px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  box-shadow: var(--shadow-fine);
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.theme-toggle:hover { background: var(--panel-left); border-color: var(--border-strong); }
+
+/* ── Page wrap & section labels ────────────────────────── */
+.page-wrap { max-width: 1360px; margin: 0 auto; padding: 0 24px 80px; }
+.section-block { margin-top: 64px; }
+.section-block:first-of-type { margin-top: 36px; }
+.section-label {
+  display: inline-flex; align-items: baseline; gap: 10px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 0.10em;
+  padding: 4px 0 12px;
+}
+.section-label::before {
+  content: ''; display: inline-block;
+  width: 18px; height: 1px; background: var(--accent);
+  position: relative; top: -3px;
+}
+.section-meta {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 400;
+  color: var(--text-3); text-transform: none; letter-spacing: 0;
+}
+
+/* ── Case header — restrained editorial style ─────────── */
+.case-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+  padding: 56px 4px 32px;
+  border-bottom: 1px solid var(--border);
+}
+.case-header h1 {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 56px; font-weight: 400; line-height: 1;
+  color: var(--text-1); letter-spacing: -0.02em;
+}
+.case-header h1 .accent {
+  font-style: italic;
+  background: linear-gradient(135deg, #6C9AF0 0%, #3B6FE0 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.case-header p {
+  font-size: 13px; color: var(--text-2); margin-top: 8px;
+  letter-spacing: -0.005em;
+}
+.case-meta {
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: flex-end; padding-bottom: 4px;
+}
+.case-meta-row { display: flex; gap: 32px; }
+.case-meta-item {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.case-meta-item strong {
+  display: block; font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+  color: var(--text-1); text-transform: none; letter-spacing: -0.005em;
+  margin-top: 2px;
+}
+.badge-r3 {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--accent); border: 1px solid var(--accent-border);
+  padding: 3px 8px; border-radius: 4px; letter-spacing: 0.05em;
+  background: var(--accent-light);
+}
+
+/* ═══════════════════════════════════════════════════════
+   APP FRAME — shared shell
+   ═══════════════════════════════════════════════════════ */
+.app-frame {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; background: var(--bg);
+  box-shadow: var(--shadow-fine); margin-top: 18px;
+}
+
+/* ── 48px Persistent Icon Rail (R3 — never disappears) ── */
+.rail {
+  width: var(--rail-w); flex-shrink: 0;
+  background: var(--panel-left); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0;
+}
+.rail-brand {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); margin-bottom: 18px;
+}
+.rail-item {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); cursor: pointer; position: relative;
+  margin-bottom: 4px;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.rail-item:hover { background: var(--panel-hover); color: var(--text-1); }
+.rail-item.active { color: var(--accent); }
+.rail-item.active::before {
+  content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px;
+  width: 2px; background: var(--accent); border-radius: 0 1px 1px 0;
+}
+.rail-item .rail-tip {
+  position: absolute; left: 100%; top: 50%; transform: translate(8px, -50%);
+  background: var(--text-1); color: var(--bg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px;
+  border-radius: 4px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity var(--t-fast);
+  z-index: 50;
+}
+.rail-item:hover .rail-tip { opacity: 1; }
+.rail-spacer { flex: 1; }
+.rail-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #C25E1A);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: white; cursor: pointer;
+}
+
+/* ── Library Panel (left, collapsible via Cmd+.) ──────── */
+.library {
+  width: var(--library-w); flex-shrink: 0;
+  background: var(--panel-left); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: width var(--t-base) var(--ease-out);
+}
+.library[data-collapsed="true"] { width: var(--library-collapsed); }
+.library-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+.library-title {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3);
+}
+.library-shortcut {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-3);
+  border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px;
+  background: var(--surface);
+}
+.library-tabs {
+  display: flex; gap: 14px; padding: 0 16px;
+  border-bottom: 1px solid var(--border-faint); margin-bottom: 4px;
+}
+.library-tab {
+  font-size: 12px; font-weight: 500; padding: 8px 0;
+  color: var(--text-3); cursor: pointer; position: relative;
+  transition: color var(--t-fast);
+}
+.library-tab:hover { color: var(--text-1); }
+.library-tab.active { color: var(--text-1); }
+.library-tab.active::after {
+  content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+  height: 1px; background: var(--accent);
+}
+.library-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
+.library-item {
+  padding: 9px 10px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background var(--t-fast);
+  margin-bottom: 1px;
+}
+.library-item:hover { background: var(--panel-hover); }
+.library-item.active { background: var(--surface); border: 1px solid var(--border); }
+.library-item-pillar-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.library-pillar-dot { width: 6px; height: 6px; border-radius: 50%; }
+.library-pillar-dot.lead { background: var(--pillar-lead); }
+.library-pillar-dot.innov { background: var(--pillar-innov); }
+.library-pillar-dot.cult { background: var(--pillar-cult); }
+.library-pillar-dot.growth { background: var(--pillar-growth); }
+.library-pillar-dot.mind { background: var(--pillar-mind); }
+.library-pillar-name {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.library-pillar-name.lead { color: var(--pillar-lead); }
+.library-pillar-name.innov { color: var(--pillar-innov); }
+.library-pillar-name.cult { color: var(--pillar-cult); }
+.library-pillar-name.growth { color: var(--pillar-growth); }
+.library-pillar-name.mind { color: var(--pillar-mind); }
+.library-item-title {
+  font-size: 12.5px; font-weight: 500; color: var(--text-1);
+  line-height: 1.4; letter-spacing: -0.005em;
+}
+.library-item-meta {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-3);
+  margin-top: 5px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FOCUS VIEW — BP-099 strict (greeting + 4 cards only)
+   ═══════════════════════════════════════════════════════ */
+.focus-view { display: flex; min-height: 720px; }
+.focus-main {
+  flex: 1; min-width: 0;
+  background: var(--canvas);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 96px 56px;
+  position: relative; overflow: hidden;
+}
+.focus-blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(100px); pointer-events: none;
+}
+.focus-blob.tr {
+  top: -120px; right: -120px; width: 380px; height: 380px;
+  background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+  opacity: 0.7;
+}
+.focus-blob.bl {
+  bottom: -160px; left: -120px; width: 460px; height: 460px;
+  background: radial-gradient(circle, var(--ai-glow), transparent 70%);
+  opacity: 0.6;
+}
+.focus-dots {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, var(--text-3) 0.8px, transparent 0.8px);
+  background-size: 24px 24px; opacity: 0.18;
+  pointer-events: none;
+}
+.focus-content {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 720px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.focus-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 0.10em;
+  margin-bottom: 18px;
+}
+.focus-greeting {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 56px; font-weight: 400; line-height: 1.05;
+  color: var(--text-1); letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.focus-greeting .name { color: var(--accent); font-style: italic; }
+.focus-subtitle {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 22px; font-weight: 400;
+  color: var(--text-2); margin-bottom: 56px;
+  letter-spacing: -0.01em; line-height: 1.4;
+  max-width: 520px;
+}
+.focus-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px; width: 100%; max-width: 600px;
+}
+.focus-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px 22px 20px;
+  cursor: pointer; text-align: left; position: relative;
+  transition: border-color var(--t-fast), background var(--t-fast);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.focus-card:hover {
+  border-color: var(--accent-border); background: var(--surface-raised);
+}
+.focus-card-icon {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3);
+  transition: color var(--t-fast);
+}
+.focus-card:hover .focus-card-icon { color: var(--accent); }
+.focus-card-title {
+  font-size: 14px; font-weight: 500; color: var(--text-1);
+  letter-spacing: -0.005em;
+}
+.focus-card-desc {
+  font-size: 12.5px; color: var(--text-2); line-height: 1.5;
+}
+.focus-card-arrow {
+  position: absolute; top: 24px; right: 22px;
+  color: var(--text-4);
+  transition: color var(--t-fast), transform var(--t-fast);
+}
+.focus-card:hover .focus-card-arrow {
+  color: var(--accent); transform: translateX(2px);
+}
+
+/* ═══════════════════════════════════════════════════════
+   STANDARD DASHBOARD — daily hub
+   ═══════════════════════════════════════════════════════ */
+.dash-view { display: flex; min-height: 760px; }
+.dash-main {
+  flex: 1; min-width: 0; background: var(--canvas);
+  padding: 36px 44px 48px; overflow-y: auto;
+}
+.dash-greeting-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 36px; padding-bottom: 22px;
+  border-bottom: 1px solid var(--border-faint);
+}
+.dash-greeting-block { display: flex; flex-direction: column; gap: 4px; }
+.dash-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.10em;
+}
+.dash-greeting {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 38px; font-weight: 400; line-height: 1.1;
+  color: var(--text-1); letter-spacing: -0.02em;
+  margin-top: 6px;
+}
+.dash-greeting .name { color: var(--accent); }
+.dash-quick-actions { display: flex; gap: 8px; }
+.dash-stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  background: var(--border); margin-bottom: 32px;
+  border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border);
+}
+.dash-stat {
+  background: var(--surface); padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dash-stat-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.dash-stat-value {
+  font-family: var(--font-display); font-size: 30px; font-weight: 400;
+  color: var(--text-1); line-height: 1; letter-spacing: -0.02em;
+}
+.dash-stat-value.accent { color: var(--accent); }
+.dash-stat-value.alert { color: var(--pillar-mind); }
+.dash-stat-sub { font-size: 11px; color: var(--text-2); line-height: 1.4; }
+.dash-grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; }
+.dash-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px;
+}
+.dash-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-faint);
+}
+.dash-panel-title {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.dash-panel-link {
+  font-size: 12px; font-weight: 500; color: var(--accent);
+  text-decoration: none; cursor: pointer;
+  transition: color var(--t-fast);
+}
+.dash-panel-link:hover { color: var(--accent-hover); }
+.dash-ai-rec {
+  border: 1px solid var(--ai-border); background: var(--ai-light);
+  border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px;
+}
+.dash-ai-rec-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--ai); text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.dash-ai-rec-text {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 17px; font-weight: 400; line-height: 1.5;
+  color: var(--text-1); letter-spacing: -0.01em;
+}
+.dash-ai-rec-cta {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+  background: var(--ai); color: white; border: none;
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: opacity var(--t-fast);
+}
+.dash-ai-rec-cta:hover { opacity: 0.9; }
+.dash-draft-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 0; border-bottom: 1px solid var(--border-faint);
+  cursor: pointer; transition: opacity var(--t-fast);
+}
+.dash-draft-row:last-child { border-bottom: none; }
+.dash-draft-row:hover { opacity: 0.78; }
+.dash-draft-pillar { width: 3px; height: 30px; flex-shrink: 0; }
+.dash-draft-pillar.lead { background: var(--pillar-lead); }
+.dash-draft-pillar.innov { background: var(--pillar-innov); }
+.dash-draft-pillar.cult { background: var(--pillar-cult); }
+.dash-draft-pillar.growth { background: var(--pillar-growth); }
+.dash-draft-info { flex: 1; min-width: 0; }
+.dash-draft-title {
+  font-size: 13.5px; font-weight: 500; color: var(--text-1);
+  letter-spacing: -0.005em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-draft-meta {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-3);
+  margin-top: 3px;
+}
+.status-chip {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid;
+}
+.status-chip.draft { color: var(--accent); border-color: var(--accent-border); background: var(--accent-light); }
+.status-chip.scheduled { color: var(--ai); border-color: var(--ai-border); background: var(--ai-light); }
+.status-chip.ready { color: var(--success); border-color: var(--success); background: var(--success-light); }
+.status-chip.live { color: var(--text-2); border-color: var(--border); background: var(--panel-left); }
+
+.dash-streak-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px;
+}
+.dash-streak-eye { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.dash-streak-num-row { display: flex; align-items: baseline; gap: 10px; }
+.dash-streak-num {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 44px; font-weight: 400; color: var(--accent);
+  line-height: 1; letter-spacing: -0.02em;
+}
+.dash-streak-day-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.dash-streak-sub { font-size: 12px; color: var(--text-2); line-height: 1.5; margin-top: 4px; }
+.dash-streak-grid { display: grid; grid-template-columns: repeat(14, 1fr); gap: 4px; margin-top: 16px; }
+.dash-streak-tick { height: 14px; border-radius: 2px; background: var(--accent); opacity: 0.9; }
+.dash-streak-tick.empty { background: var(--border); opacity: 1; }
+
+.dash-week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.dwd {
+  background: var(--canvas); border: 1px solid var(--border-faint);
+  border-radius: var(--radius-sm); padding: 8px 6px; min-height: 70px;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color var(--t-fast);
+}
+.dwd:hover { border-color: var(--accent-border); }
+.dwd.today { border-color: var(--accent); background: var(--accent-light); }
+.dwd-name {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.dwd.today .dwd-name { color: var(--accent); }
+.dwd-num {
+  font-family: var(--font-display); font-size: 18px; font-weight: 400;
+  color: var(--text-1); line-height: 1; letter-spacing: -0.01em;
+}
+.dwd.today .dwd-num { color: var(--accent); font-style: italic; }
+.dwd-pill {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  padding: 1px 4px; border-radius: 2px; margin-top: auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dwd-pill.draft { color: var(--accent); background: var(--accent-light); }
+.dwd-pill.scheduled { color: var(--ai); background: var(--ai-light); }
+
+/* Buttons */
+.btn-primary {
+  background: var(--brand-gradient); color: white; border: none;
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 2px 8px rgba(11,31,79,0.20);
+  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+.btn-primary:hover { background: var(--brand-gradient-hover); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(11,31,79,0.26); }
+.btn-secondary {
+  background: var(--surface); color: var(--text-1);
+  border: 1px solid var(--border);
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.btn-secondary:hover { background: var(--panel-left); border-color: var(--border-strong); }
+.btn-ghost {
+  background: transparent; color: var(--text-2); border: none;
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.btn-ghost:hover { color: var(--text-1); background: var(--panel-left); }
+.btn-ai {
+  background: var(--ai); color: white; border: none;
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: opacity var(--t-fast);
+}
+.btn-ai:hover { opacity: 0.9; }
+
+/* ═══════════════════════════════════════════════════════
+   STUDIO — Editor + AI Agent Dock at bottom
+   ═══════════════════════════════════════════════════════ */
+.studio-frame { display: flex; height: 800px; }
+.canvas-wrap {
+  flex: 1; min-width: 0;
+  background: var(--canvas);
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.canvas-topbar {
+  height: 52px; padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0;
+}
+.canvas-title-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-family: var(--font-display); font-style: italic;
+  font-size: 17px; font-weight: 400; color: var(--text-1);
+  letter-spacing: -0.01em;
+}
+.canvas-title-input::placeholder { color: var(--text-3); font-style: italic; }
+.canvas-edit-meta {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+  color: var(--text-3);
+}
+.lifecycle-strip { display: flex; align-items: center; gap: 0; }
+.lc-step {
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 6px;
+}
+.lc-step .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+.lc-step.done { color: var(--success); }
+.lc-step.done .dot { background: var(--success); }
+.lc-step.active { color: var(--accent); }
+.lc-step.active .dot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.lc-line { width: 14px; height: 1px; background: var(--border); }
+.lc-line.done { background: var(--success); opacity: 0.5; }
+
+.canvas-collapse-btn {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+  position: relative;
+}
+.canvas-collapse-btn:hover { background: var(--panel-left); color: var(--text-1); }
+.canvas-collapse-btn .shortcut-hint {
+  position: absolute; right: 100%; top: 50%; transform: translate(-8px, -50%);
+  background: var(--text-1); color: var(--bg);
+  font-size: 10px; font-family: var(--font-mono); padding: 3px 7px;
+  border-radius: 4px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity var(--t-fast);
+}
+.canvas-collapse-btn:hover .shortcut-hint { opacity: 1; }
+
+.canvas-writing {
+  flex: 1; padding: 36px 56px 24px;
+  font-family: var(--font-display);
+  font-size: 19px; line-height: 1.7;
+  color: var(--text-1); overflow-y: auto;
+  letter-spacing: -0.005em;
+}
+.canvas-writing .post-hook {
+  font-style: italic; font-size: 21px; line-height: 1.55;
+  color: var(--text-1); margin-bottom: 22px;
+}
+.canvas-writing .post-body p { margin-bottom: 18px; }
+.canvas-writing .post-body p:last-child { margin-bottom: 0; }
+.canvas-writing .slash-marker {
+  display: inline-block; font-family: var(--font-mono); font-size: 14px;
+  background: var(--accent-light); color: var(--accent);
+  padding: 1px 6px; border-radius: 3px; vertical-align: 2px;
+  border: 1px solid var(--accent-border);
+}
+.canvas-hashtags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 22px; padding-top: 18px;
+  border-top: 1px solid var(--border-faint);
+  font-family: var(--font-ui);
+}
+.hashtag-chip {
+  font-size: 12px; color: var(--ai);
+  background: var(--ai-light); border: 1px solid var(--ai-border);
+  border-radius: var(--radius-pill); padding: 3px 10px; cursor: pointer;
+  transition: background var(--t-fast);
+}
+.hashtag-chip:hover { background: var(--ai); color: white; }
+.hashtag-chip.add { color: var(--text-3); background: transparent; border-style: dashed; }
+
+/* ── Bottom-anchored toolbar (R3 — replaces R2 floating pill) ── */
+.canvas-bottom-bar {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px 24px;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 16px;
+  flex-shrink: 0;
+}
+.cbb-left { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.cbb-left .ok { color: var(--success); font-weight: 500; }
+.format-pill {
+  display: inline-flex; align-items: center;
+  background: var(--canvas); border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 4px 6px; gap: 1px;
+  box-shadow: var(--shadow-fine);
+  justify-self: center;
+}
+.fp-btn {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: none; background: transparent; color: var(--text-2);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.fp-btn:hover { background: var(--panel-left); color: var(--text-1); }
+.fp-btn.is-ai { color: var(--ai); }
+.fp-btn.is-ai:hover { background: var(--ai-light); }
+.fp-divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+.cbb-right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+
+/* ═══════════════════════════════════════════════════════
+   AI AGENT DOCK — three states (R3 headline)
+   Reading (ambient, ~44px) → Open (full, ~220px) → Generating
+   ═══════════════════════════════════════════════════════ */
+.ai-dock {
+  border-top: 1px solid var(--ai-border);
+  background: var(--ai-light);
+  flex-shrink: 0;
+  display: flex; flex-direction: column;
+  transition: max-height var(--t-base) var(--ease-out);
+  overflow: hidden;
+  max-height: var(--ai-dock-h);
+}
+.ai-dock[data-state="ambient"] { max-height: 44px; }
+.ai-dock[data-state="open"] { max-height: var(--ai-dock-h); }
+
+.ai-dock-ambient {
+  height: 44px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; flex-shrink: 0;
+  border-bottom: 1px solid var(--ai-border);
+  background: var(--ai-light);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.ai-dock-ambient:hover { background: rgba(90,138,255,0.08); }
+[data-theme="dark"] .ai-dock-ambient:hover { background: rgba(107,158,255,0.10); }
+.ai-amb-left {
+  display: flex; align-items: center; gap: 12px;
+  flex: 1; min-width: 0;
+}
+.ai-amb-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--ai);
+  position: relative; flex-shrink: 0;
+}
+.ai-amb-dot::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  background: var(--ai); opacity: 0.4;
+  animation: ambient-pulse 2.4s ease-in-out infinite;
+}
+.ai-amb-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--ai); text-transform: uppercase; letter-spacing: 0.08em;
+  flex-shrink: 0;
+}
+.ai-amb-divider { width: 1px; height: 14px; background: var(--ai-border); }
+.ai-amb-observation {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 14px; color: var(--text-1); line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ai-amb-toggle {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--ai); text-transform: uppercase; letter-spacing: 0.08em;
+  background: transparent; border: none; cursor: pointer;
+  flex-shrink: 0;
+}
+.ai-amb-toggle:hover { color: var(--accent); }
+.ai-amb-toggle svg { transition: transform var(--t-fast); }
+.ai-dock[data-state="open"] .ai-amb-toggle svg { transform: rotate(180deg); }
+
+.ai-dock-body {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1.4fr 1fr;
+  border-top: 1px solid var(--ai-border);
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity var(--t-fast);
+}
+.ai-dock[data-state="ambient"] .ai-dock-body { opacity: 0; }
+.ai-dock-left {
+  padding: 14px 22px 14px 24px;
+  border-right: 1px solid var(--ai-border);
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ai-prop-card {
+  background: var(--surface); border: 1px solid var(--ai-border);
+  border-radius: var(--radius); padding: 12px 14px;
+  animation: fade-up var(--t-base) var(--ease-out);
+}
+.ai-prop-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  color: var(--ai); text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 7px;
+}
+.ai-prop-text {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 14.5px; line-height: 1.5;
+  color: var(--text-1); letter-spacing: -0.005em;
+}
+.ai-prop-text em { color: var(--ai); font-style: italic; font-weight: 500; }
+.ai-prop-actions { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.ai-prop-cta {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--ai); color: white; border: none;
+  padding: 5px 12px; border-radius: var(--radius-sm);
+  font-size: 11.5px; font-weight: 500; cursor: pointer;
+  transition: opacity var(--t-fast);
+}
+.ai-prop-cta:hover { opacity: 0.9; }
+.ai-prop-cta.inserted { background: var(--success); }
+.ai-prop-skip {
+  background: transparent; color: var(--text-3); border: none;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  padding: 5px 8px; border-radius: var(--radius-sm);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.ai-prop-skip:hover { color: var(--text-1); background: var(--panel-left); }
+
+/* Generating shimmer-sweep (R3 — replaces R2 rotating circle) */
+.ai-generating {
+  background: var(--surface); border: 1px solid var(--ai-border);
+  border-radius: var(--radius); padding: 14px 16px; position: relative;
+  overflow: hidden;
+}
+.ai-generating-eye {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 10px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  color: var(--ai); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ai-sweep-bar {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  overflow: hidden; pointer-events: none;
+}
+.ai-sweep-bar::before {
+  content: ''; display: block; width: 35%; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--ai), transparent);
+  animation: sweep-bar 1.4s var(--ease-out) infinite;
+}
+.ai-gen-text {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 14.5px; line-height: 1.55; color: var(--text-1);
+  letter-spacing: -0.005em;
+}
+.ai-gen-text .word {
+  display: inline-block; opacity: 0;
+  animation: type-in 0.3s var(--ease-out) forwards;
+}
+
+.ai-dock-right {
+  padding: 14px 24px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--ai-light);
+}
+.ai-prompt-eye {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  color: var(--ai); text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+.ai-prompt-input {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--ai-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  transition: border-color var(--t-fast);
+}
+.ai-prompt-input:focus-within { border-color: var(--ai); }
+.ai-prompt-input input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-family: var(--font-ui); font-size: 12.5px; color: var(--text-1);
+}
+.ai-prompt-input input::placeholder { color: var(--text-3); }
+.ai-prompt-send {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--ai); color: white; border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.ai-prompt-send:hover { transform: scale(1.05); }
+.ai-prompt-suggestions { display: flex; flex-direction: column; gap: 4px; }
+.ai-prompt-sugg {
+  display: flex; align-items: center; gap: 8px;
+  background: transparent; border: 1px dashed var(--ai-border);
+  border-radius: var(--radius-sm); padding: 6px 10px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-2);
+  cursor: pointer; text-align: left;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.ai-prompt-sugg:hover {
+  background: var(--surface); color: var(--ai); border-color: var(--ai);
+  border-style: solid;
+}
+
+/* ═══════════════════════════════════════════════════════
+   IDEA BANK — KANBAN (R3 cleaned: no point values, single count)
+   ═══════════════════════════════════════════════════════ */
+.kanban-frame { display: flex; min-height: 720px; }
+.kanban-main {
+  flex: 1; min-width: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.kanban-topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 18px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  flex-shrink: 0;
+}
+.kanban-title-block { display: flex; flex-direction: column; gap: 2px; }
+.kanban-title {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 26px; font-weight: 400; color: var(--text-1);
+  letter-spacing: -0.02em; line-height: 1;
+}
+.kanban-subtitle {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+  margin-top: 4px;
+}
+.kanban-pillar-filters { display: flex; align-items: center; gap: 4px; }
+.filter-pill {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 4px 10px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-2); cursor: pointer; white-space: nowrap;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.filter-pill:hover { background: var(--panel-left); color: var(--text-1); }
+.filter-pill.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent-border); }
+.kanban-actions { display: flex; gap: 8px; }
+
+.kanban-board {
+  flex: 1; overflow-x: auto; overflow-y: hidden;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(240px, 1fr));
+  gap: 14px; padding: 24px 28px;
+}
+.kanban-column {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 12px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 100%; max-height: 640px; overflow: hidden;
+}
+.kanban-col-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px; flex-shrink: 0;
+}
+.kanban-col-name {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 500;
+  color: var(--text-1); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.kanban-col-dot { width: 8px; height: 8px; border-radius: 50%; }
+.kanban-col-dot.lead { background: var(--pillar-lead); }
+.kanban-col-dot.innov { background: var(--pillar-innov); }
+.kanban-col-dot.cult { background: var(--pillar-cult); }
+.kanban-col-dot.growth { background: var(--pillar-growth); }
+.kanban-col-dot.mind { background: var(--pillar-mind); }
+.kanban-col-ai-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: transparent; border: 1px solid var(--ai-border);
+  color: var(--ai); padding: 2px 8px; border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  cursor: pointer; transition: background var(--t-fast);
+}
+.kanban-col-ai-btn:hover { background: var(--ai); color: white; }
+.kanban-cards {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 4px 2px;
+}
+.kanban-card {
+  background: var(--canvas); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 13px 9px;
+  cursor: grab; transition: border-color var(--t-fast), background var(--t-fast);
+}
+.kanban-card:hover { border-color: var(--accent-border); background: var(--surface); }
+.kanban-card-title {
+  font-size: 13px; font-weight: 500; color: var(--text-1);
+  letter-spacing: -0.005em; line-height: 1.4; margin-bottom: 5px;
+}
+.kanban-card-body {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 12.5px; line-height: 1.45; color: var(--text-2);
+  margin-bottom: 8px; letter-spacing: -0.005em;
+}
+.kanban-card-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-3);
+}
+.kanban-add {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em;
+  background: transparent; border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm); padding: 7px;
+  cursor: pointer; flex-shrink: 0;
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.kanban-add:hover {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-light);
+  border-style: solid;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CALENDAR — month grid + upcoming sidebar
+   (lifts patterns from src/app/(app)/calendar/page.tsx)
+   ═══════════════════════════════════════════════════════ */
+.cal-frame { display: flex; min-height: 800px; }
+.cal-main {
+  flex: 1; min-width: 0; background: var(--bg);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.cal-topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 18px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-shrink: 0;
+}
+.cal-title-block { display: flex; align-items: center; gap: 18px; }
+.cal-title {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 28px; font-weight: 400; color: var(--text-1);
+  letter-spacing: -0.02em; line-height: 1;
+}
+.cal-nav-btns { display: flex; align-items: center; gap: 4px; }
+.cal-nav-btn {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.cal-nav-btn:hover { background: var(--panel-left); color: var(--text-1); }
+.cal-today-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-1); font-family: var(--font-ui);
+  font-size: 12px; font-weight: 500;
+  padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.cal-today-btn:hover { background: var(--accent-light); border-color: var(--accent-border); color: var(--accent); }
+.cal-view-segment {
+  display: inline-flex; background: var(--canvas);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.cal-view-btn {
+  border: none; background: transparent;
+  padding: 5px 14px; font-family: var(--font-ui);
+  font-size: 12px; font-weight: 500; color: var(--text-2);
+  border-radius: 4px; cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.cal-view-btn.active { background: var(--surface); color: var(--text-1); box-shadow: var(--shadow-fine); }
+
+.cal-body { flex: 1; display: grid; grid-template-columns: 1fr 340px; overflow: hidden; }
+.cal-grid-wrap {
+  padding: 22px 26px 16px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  margin-bottom: 6px;
+}
+.cal-weekday {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 6px 8px;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 100px; gap: 4px;
+}
+.cal-day {
+  background: var(--surface); border: 1px solid var(--border-faint);
+  border-radius: var(--radius-sm); padding: 7px 9px;
+  display: flex; flex-direction: column; gap: 5px;
+  cursor: pointer; transition: border-color var(--t-fast);
+  overflow: hidden; position: relative;
+}
+.cal-day:hover { border-color: var(--accent-border); }
+.cal-day.outside { opacity: 0.45; }
+.cal-day-num {
+  font-family: var(--font-display); font-size: 14px; font-weight: 400;
+  color: var(--text-1); line-height: 1; letter-spacing: -0.01em;
+}
+.cal-day.today .cal-day-num {
+  background: var(--brand-gradient); color: white;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-style: italic; font-weight: 600;
+  box-shadow: 0 2px 6px rgba(11,31,79,0.28);
+}
+.cal-day-pill {
+  font-family: var(--font-ui); font-size: 10px; font-weight: 500;
+  padding: 2px 6px; border-radius: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; line-height: 1.4;
+}
+.cal-day-pill.draft { background: var(--accent-light); color: var(--accent); border-left: 2px solid var(--accent); }
+.cal-day-pill.scheduled { background: var(--ai-light); color: var(--ai); border-left: 2px solid var(--ai); }
+.cal-day-pill.live { background: var(--success-light); color: var(--success); border-left: 2px solid var(--success); }
+.cal-day-more {
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-3);
+  font-weight: 500; cursor: pointer; padding: 1px 4px;
+}
+.cal-day-more:hover { color: var(--accent); }
+
+.cal-upcoming {
+  background: var(--canvas);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.cal-upcoming-header {
+  padding: 22px 22px 12px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border-faint);
+}
+.cal-up-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.10em;
+  margin-bottom: 4px;
+}
+.cal-up-title {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 22px; font-weight: 400; color: var(--text-1);
+  letter-spacing: -0.02em; line-height: 1;
+}
+.cal-upcoming-list {
+  flex: 1; overflow-y: auto;
+  padding: 12px 16px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cal-up-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  cursor: pointer; position: relative;
+  transition: border-color var(--t-fast);
+}
+.cal-up-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+}
+.cal-up-card.scheduled::before { background: var(--ai); }
+.cal-up-card.draft::before { background: var(--accent); }
+.cal-up-card:hover { border-color: var(--accent-border); }
+.cal-up-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-up-when { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+.cal-up-title-text {
+  font-size: 13.5px; font-weight: 500; color: var(--text-1);
+  line-height: 1.45; letter-spacing: -0.005em; margin-bottom: 10px;
+}
+.cal-up-actions { display: flex; gap: 4px; }
+.cal-up-btn {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 500;
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-2); cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.cal-up-btn:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent-border); }
+
+/* ── Component Gallery ─────────────────────────────────── */
+.comp-gallery {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 36px 40px;
+  margin-top: 18px;
+  display: flex; flex-direction: column; gap: 36px;
+}
+.comp-section-title {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 22px; font-weight: 400; color: var(--text-1);
+  letter-spacing: -0.02em; line-height: 1; margin-bottom: 12px;
+}
+.comp-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.comp-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.10em;
+  margin-bottom: 10px;
+}
+
+/* Toast */
+.studio-toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--text-1); color: var(--bg);
+  padding: 9px 18px; border-radius: var(--radius-pill);
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 500;
+  box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+  z-index: 1000;
+  display: inline-flex; align-items: center; gap: 8px;
+  letter-spacing: -0.005em;
+}
+.studio-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.studio-toast .toast-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+/* Utility */
+.icon-btn {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: none; background: transparent;
+  color: var(--text-2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.icon-btn:hover { background: var(--panel-left); color: var(--text-1); }
+svg { display: block; }
+
+</style>
+</head>
+
+<body>
+
+<button class="theme-toggle" id="themeToggle">
+  <span id="themeLabel">☾ Dark</span>
+</button>
+
+<div class="studio-toast" id="studioToast">
+  <span class="toast-dot"></span>
+  <span id="toastMsg">Inserted into draft</span>
+</div>
+
+<div class="page-wrap">
+
+<!-- CASE HEADER -->
+<div class="case-header">
+  <div>
+    <h1>The <span class="accent">Studio</span></h1>
+    <p>Agent A — Editorial Minimalism &nbsp;·&nbsp; Round 3 Final</p>
+  </div>
+  <div class="case-meta">
+    <div class="case-meta-row">
+      <div class="case-meta-item">Concept<strong>The Studio v3</strong></div>
+      <div class="case-meta-item">Headline<strong>AI Agent Dock</strong></div>
+      <div class="case-meta-item">Target<strong>VP &amp; Young Pro</strong></div>
+    </div>
+    <div><span class="badge-r3">ROUND 3 · FINAL</span></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 1 — FOCUS VIEW (BP-099 strict)
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">① Focus View<span class="section-meta">Greeting + four orientation cards. Nothing else.</span></div>
+  <div class="app-frame">
+    <div class="focus-view">
+      <nav class="rail">
+        <div class="rail-brand">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".95"/>
+            <rect x="12" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/>
+            <rect x="2" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/>
+            <rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".30"/>
+          </svg>
+        </div>
+        <div class="rail-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="rail-tip">Focus</span>
+        </div>
+        <div class="rail-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span class="rail-tip">Dashboard</span>
+        </div>
+        <div class="rail-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <span class="rail-tip">Studio</span>
+        </div>
+        <div class="rail-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg>
+          <span class="rail-tip">Ideas · 47</span>
+        </div>
+        <div class="rail-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span class="rail-tip">Calendar</span>
+        </div>
+        <div class="rail-spacer"></div>
+        <div class="rail-avatar" title="Marcus H.">MH</div>
+      </nav>
+
+      <main class="focus-main">
+        <div class="focus-blob tr"></div>
+        <div class="focus-blob bl"></div>
+        <div class="focus-dots"></div>
+        <div class="focus-content">
+          <div class="focus-eyebrow">Monday · April 28 · 2026</div>
+          <div class="focus-greeting">Good morning, <span class="name">Marcus</span>.</div>
+          <div class="focus-subtitle">What can I help you focus on today?</div>
+          <div class="focus-cards">
+            <div class="focus-card">
+              <div class="focus-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.5.4.8 1 .8 1.6V18h6.4v-1.7c0-.6.3-1.2.8-1.6A7 7 0 0012 2z"/></svg>
+              </div>
+              <div class="focus-card-title">Generate New Ideas</div>
+              <div class="focus-card-desc">Spin up post angles from your pillars and recent posts.</div>
+              <div class="focus-card-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></div>
+            </div>
+            <div class="focus-card">
+              <div class="focus-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </div>
+              <div class="focus-card-title">Create a Post</div>
+              <div class="focus-card-desc">Open the Studio with the AI Agent on. Start a fresh draft.</div>
+              <div class="focus-card-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></div>
+            </div>
+            <div class="focus-card">
+              <div class="focus-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="focus-card-title">View Draft Posts</div>
+              <div class="focus-card-desc">Pick up where you left off — 4 in progress, 1 ready to schedule.</div>
+              <div class="focus-card-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></div>
+            </div>
+            <div class="focus-card">
+              <div class="focus-card-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div class="focus-card-title">View Scheduled Posts</div>
+              <div class="focus-card-desc">Three queued this week. Next ships Tuesday at 9:00 AM.</div>
+              <div class="focus-card-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 2 — STANDARD DASHBOARD
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">② Standard Dashboard<span class="section-meta">Daily hub: stats, AI, drafts, week.</span></div>
+  <div class="app-frame">
+    <div class="dash-view">
+      <nav class="rail">
+        <div class="rail-brand"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".95"/><rect x="12" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="2" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".30"/></svg></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rail-tip">Focus</span></div>
+        <div class="rail-item active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="rail-tip">Dashboard</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span class="rail-tip">Studio</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg><span class="rail-tip">Ideas · 47</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rail-tip">Calendar</span></div>
+        <div class="rail-spacer"></div>
+        <div class="rail-avatar">MH</div>
+      </nav>
+      <main class="dash-main">
+        <div class="dash-greeting-row">
+          <div class="dash-greeting-block">
+            <div class="dash-eyebrow">Monday · April 28 · 2026</div>
+            <div class="dash-greeting">Welcome back, <span class="name">Marcus</span>.</div>
+          </div>
+          <div class="dash-quick-actions">
+            <button class="btn-secondary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search
+            </button>
+            <button class="btn-primary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New post
+            </button>
+          </div>
+        </div>
+
+        <div class="dash-stats-row">
+          <div class="dash-stat">
+            <div class="dash-stat-label">Drafts in progress</div>
+            <div class="dash-stat-value accent">4</div>
+            <div class="dash-stat-sub">1 ready to schedule</div>
+          </div>
+          <div class="dash-stat">
+            <div class="dash-stat-label">Days since Leadership</div>
+            <div class="dash-stat-value alert">9</div>
+            <div class="dash-stat-sub">Top-performing pillar — gap is widening</div>
+          </div>
+          <div class="dash-stat">
+            <div class="dash-stat-label">Scheduled this week</div>
+            <div class="dash-stat-value">3</div>
+            <div class="dash-stat-sub">Next out · Tuesday 9:00 AM</div>
+          </div>
+          <div class="dash-stat">
+            <div class="dash-stat-label">Posts this month</div>
+            <div class="dash-stat-value">11</div>
+            <div class="dash-stat-sub">2 above your monthly cadence</div>
+          </div>
+        </div>
+
+        <div class="dash-grid-2">
+          <div class="dash-panel">
+            <div class="dash-panel-header">
+              <span class="dash-panel-title">Today's AI Recommendation</span>
+              <a class="dash-panel-link">Configure →</a>
+            </div>
+            <div class="dash-ai-rec">
+              <div class="dash-ai-rec-eyebrow">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg>
+                Studio AI · close your Leadership gap
+              </div>
+              <div class="dash-ai-rec-text">"You have a Leadership gap and a fully-developed idea about decision-making under pressure. This one could go out Thursday and fill your gap. Want me to draft an opening?"</div>
+              <button class="dash-ai-rec-cta">Draft it now →</button>
+            </div>
+
+            <div class="dash-panel-header" style="margin-top:6px;">
+              <span class="dash-panel-title">In Progress</span>
+              <a class="dash-panel-link">View all 4 →</a>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar lead"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">The decision I made wrong — then made right</div>
+                <div class="dash-draft-meta">Leadership · edited 2h ago · 642 chars</div>
+              </div>
+              <span class="status-chip draft">Draft</span>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar innov"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">Why most feedback loops break in fast-growing teams</div>
+                <div class="dash-draft-meta">Innovation · edited 1d ago · 1,142 chars</div>
+              </div>
+              <span class="status-chip draft">Draft</span>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar growth"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">What I learned from building in public for 90 days</div>
+                <div class="dash-draft-meta">Growth · edited 4h ago · 2,210 chars · Tue 9:00 AM</div>
+              </div>
+              <span class="status-chip ready">Ready</span>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar cult"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">The onboarding question we ask that no one else does</div>
+                <div class="dash-draft-meta">Culture · edited 3d ago · 480 chars</div>
+              </div>
+              <span class="status-chip draft">Draft</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:18px;">
+            <div class="dash-streak-card">
+              <div class="dash-streak-eye">
+                <div class="dash-panel-title" style="border:none;padding:0;">Streak</div>
+                <a class="dash-panel-link">Goal settings →</a>
+              </div>
+              <div class="dash-streak-num-row">
+                <span class="dash-streak-num">12</span>
+                <span class="dash-streak-day-label">Days · current run</span>
+              </div>
+              <div class="dash-streak-sub">Posting at least once on weekdays. Two more days to set a new personal record.</div>
+              <div class="dash-streak-grid">
+                <div class="dash-streak-tick"></div><div class="dash-streak-tick"></div><div class="dash-streak-tick"></div><div class="dash-streak-tick"></div><div class="dash-streak-tick"></div>
+                <div class="dash-streak-tick"></div><div class="dash-streak-tick"></div><div class="dash-streak-tick"></div><div class="dash-streak-tick"></div><div class="dash-streak-tick"></div>
+                <div class="dash-streak-tick"></div><div class="dash-streak-tick"></div>
+                <div class="dash-streak-tick empty"></div><div class="dash-streak-tick empty"></div>
+              </div>
+            </div>
+
+            <div class="dash-panel">
+              <div class="dash-panel-header">
+                <span class="dash-panel-title">This Week</span>
+                <a class="dash-panel-link">Open calendar →</a>
+              </div>
+              <div class="dash-week-strip">
+                <div class="dwd today"><div class="dwd-name">Mon</div><div class="dwd-num">28</div><div class="dwd-pill draft">Leadership</div></div>
+                <div class="dwd"><div class="dwd-name">Tue</div><div class="dwd-num">29</div><div class="dwd-pill scheduled">Build public</div></div>
+                <div class="dwd"><div class="dwd-name">Wed</div><div class="dwd-num">30</div></div>
+                <div class="dwd"><div class="dwd-name">Thu</div><div class="dwd-num">1</div><div class="dwd-pill draft">Decision</div></div>
+                <div class="dwd"><div class="dwd-name">Fri</div><div class="dwd-num">2</div><div class="dwd-pill scheduled">Culture</div></div>
+                <div class="dwd"><div class="dwd-name">Sat</div><div class="dwd-num">3</div></div>
+                <div class="dwd"><div class="dwd-name">Sun</div><div class="dwd-num">4</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 3 — STUDIO (Editor + AI Agent Dock)
+     Headline feature. Open state shown by default.
+     Click the chevron / ambient bar to toggle ambient/open.
+     Generating example shown in component gallery.
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">③ Studio<span class="section-meta">Library · Canvas · AI Agent dock at bottom — three states. ⌘. focuses the canvas.</span></div>
+  <div class="app-frame">
+    <div class="studio-frame">
+      <nav class="rail">
+        <div class="rail-brand"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".95"/><rect x="12" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="2" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".30"/></svg></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rail-tip">Focus</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="rail-tip">Dashboard</span></div>
+        <div class="rail-item active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span class="rail-tip">Studio</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg><span class="rail-tip">Ideas · 47</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rail-tip">Calendar</span></div>
+        <div class="rail-spacer"></div>
+        <div class="rail-avatar">MH</div>
+      </nav>
+
+      <aside class="library" id="studioLibrary">
+        <div class="library-header">
+          <span class="library-title">Library</span>
+          <span class="library-shortcut">⌘ .</span>
+        </div>
+        <div class="library-tabs">
+          <span class="library-tab active">Drafts · 4</span>
+          <span class="library-tab">Ideas · 47</span>
+        </div>
+        <div class="library-list">
+          <div class="library-item active">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot lead"></span>
+              <span class="library-pillar-name lead">Leadership</span>
+            </div>
+            <div class="library-item-title">The decision I made wrong — then made right</div>
+            <div class="library-item-meta">edited 2h ago · 642 chars</div>
+          </div>
+          <div class="library-item">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot innov"></span>
+              <span class="library-pillar-name innov">Innovation</span>
+            </div>
+            <div class="library-item-title">Why most feedback loops break in fast-growing teams</div>
+            <div class="library-item-meta">edited 1d ago · 1,142 chars</div>
+          </div>
+          <div class="library-item">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot growth"></span>
+              <span class="library-pillar-name growth">Growth</span>
+            </div>
+            <div class="library-item-title">What I learned from building in public for 90 days</div>
+            <div class="library-item-meta">edited 4h ago · ready · Tue 9 AM</div>
+          </div>
+          <div class="library-item">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot cult"></span>
+              <span class="library-pillar-name cult">Culture</span>
+            </div>
+            <div class="library-item-title">The onboarding question we ask that no one else does</div>
+            <div class="library-item-meta">edited 3d ago · 480 chars</div>
+          </div>
+          <div class="library-item">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot lead"></span>
+              <span class="library-pillar-name lead">Leadership</span>
+            </div>
+            <div class="library-item-title">The memo that changed how I run 1:1s</div>
+            <div class="library-item-meta">saved 3d ago · idea</div>
+          </div>
+          <div class="library-item">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot mind"></span>
+              <span class="library-pillar-name mind">Mindset</span>
+            </div>
+            <div class="library-item-title">The hardest part of being right</div>
+            <div class="library-item-meta">saved 3d ago · idea</div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="canvas-wrap">
+        <div class="canvas-topbar">
+          <input class="canvas-title-input" type="text" value="The decision I made wrong — then made right">
+          <span class="canvas-edit-meta">edited 2h ago</span>
+          <div class="lifecycle-strip">
+            <div class="lc-step done"><div class="dot"></div>Idea</div>
+            <div class="lc-line done"></div>
+            <div class="lc-step active"><div class="dot"></div>Draft</div>
+            <div class="lc-line"></div>
+            <div class="lc-step"><div class="dot"></div>Refined</div>
+            <div class="lc-line"></div>
+            <div class="lc-step"><div class="dot"></div>Live</div>
+          </div>
+          <button class="canvas-collapse-btn" id="libraryToggle" title="Toggle library">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9 18 3 12 9 6"/><line x1="3" y1="12" x2="14" y2="12"/></svg>
+            <span class="shortcut-hint">⌘ . focus</span>
+          </button>
+        </div>
+
+        <div class="canvas-writing">
+          <div class="post-hook">Three years ago I made a call that cost us two months and one senior engineer. Last week the same situation came back — and this time I did it differently.</div>
+          <div class="post-body">
+            <p>The first time around, I had all the information I needed. I had the data, I had the team's input, and I had a clear recommendation sitting in my inbox. What I didn't have was the courage to act on something that felt counterintuitive to the people above me.</p>
+            <p>So I deferred. I waited for consensus that never came. And we paid for it.</p>
+            <p>What changed the second time wasn't more information or more confidence. It was a single question I've started asking before every hard call: <span class="slash-marker">/ai closing</span></p>
+          </div>
+          <div class="canvas-hashtags">
+            <span class="hashtag-chip">#leadership</span>
+            <span class="hashtag-chip">#decisionmaking</span>
+            <span class="hashtag-chip">#management</span>
+            <span class="hashtag-chip add">+ Add</span>
+          </div>
+        </div>
+
+        <!-- Bottom-anchored toolbar pill (R3 fix) -->
+        <div class="canvas-bottom-bar">
+          <div class="cbb-left"><span class="ok">642</span> / 3000 chars</div>
+          <div class="format-pill">
+            <button class="fp-btn" title="Bold"><strong>B</strong></button>
+            <button class="fp-btn" title="Italic"><em>I</em></button>
+            <button class="fp-btn" title="Strikethrough" style="text-decoration:line-through;">S</button>
+            <div class="fp-divider"></div>
+            <button class="fp-btn" title="Heading 1" style="font-size:11px;">H1</button>
+            <button class="fp-btn" title="Heading 2" style="font-size:11px;">H2</button>
+            <button class="fp-btn" title="Heading 3" style="font-size:11px;">H3</button>
+            <div class="fp-divider"></div>
+            <button class="fp-btn" title="Format">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>
+            </button>
+            <button class="fp-btn" title="Code">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </button>
+            <button class="fp-btn" title="Link">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            </button>
+            <div class="fp-divider"></div>
+            <button class="fp-btn is-ai" title="Chat with AI">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </button>
+            <button class="fp-btn is-ai" title="AI generate">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg>
+            </button>
+          </div>
+          <div class="cbb-right">
+            <button class="btn-ghost">Preview</button>
+            <button class="btn-primary">Schedule
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- AI AGENT DOCK — Reading (ambient) + Open (default) states -->
+        <div class="ai-dock" id="aiDock" data-state="open">
+          <div class="ai-dock-ambient" id="aiDockAmbientBar">
+            <div class="ai-amb-left">
+              <span class="ai-amb-dot"></span>
+              <span class="ai-amb-label">Reading</span>
+              <span class="ai-amb-divider"></span>
+              <span class="ai-amb-observation">Your hook is strong. The closing could use a question to drive engagement.</span>
+            </div>
+            <button class="ai-amb-toggle" id="aiDockToggle">
+              <span id="aiDockToggleLabel">Collapse</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          <div class="ai-dock-body">
+            <div class="ai-dock-left">
+              <div class="ai-prop-card">
+                <div class="ai-prop-eyebrow">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg>
+                  Hook · stronger opening
+                </div>
+                <div class="ai-prop-text">"It cost us two months and one engineer. Here's why I let it happen." — leads with the cost; <em>stakes-first hooks perform better for leadership content.</em></div>
+                <div class="ai-prop-actions">
+                  <button class="ai-prop-cta" data-action="insert">Try it →</button>
+                  <button class="ai-prop-skip">Skip</button>
+                </div>
+              </div>
+              <div class="ai-prop-card">
+                <div class="ai-prop-eyebrow">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                  Go deeper · paragraph 2
+                </div>
+                <div class="ai-prop-text">Para 2 ends with "we paid for it" but doesn't say <em>how</em>. One number or one name would triple the relatability.</div>
+                <div class="ai-prop-actions">
+                  <button class="ai-prop-cta" data-action="insert">Try it →</button>
+                  <button class="ai-prop-skip">Skip</button>
+                </div>
+              </div>
+            </div>
+            <div class="ai-dock-right">
+              <div class="ai-prompt-eye">Ask the agent</div>
+              <div class="ai-prompt-input">
+                <input type="text" placeholder="/make it shorter, /add a stat, …">
+                <button class="ai-prompt-send" title="Send">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                </button>
+              </div>
+              <div class="ai-prompt-suggestions">
+                <button class="ai-prompt-sugg">/expand the second paragraph</button>
+                <button class="ai-prompt-sugg">/add a closing question</button>
+                <button class="ai-prompt-sugg">/rewrite tone — more direct</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 4 — IDEA BANK · KANBAN
+     R3 cleanup: no point values, no duplicate counts.
+     Single nav badge holds the count (Ideas · 47 in rail).
+     Columns are PILLARS with + AI button per column.
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">④ Idea Bank<span class="section-meta">Kanban by pillar. AI generates per-column on demand.</span></div>
+  <div class="app-frame">
+    <div class="kanban-frame">
+      <nav class="rail">
+        <div class="rail-brand"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".95"/><rect x="12" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="2" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".30"/></svg></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rail-tip">Focus</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="rail-tip">Dashboard</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span class="rail-tip">Studio</span></div>
+        <div class="rail-item active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg><span class="rail-tip">Ideas · 47</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rail-tip">Calendar</span></div>
+        <div class="rail-spacer"></div>
+        <div class="rail-avatar">MH</div>
+      </nav>
+
+      <main class="kanban-main">
+        <div class="kanban-topbar">
+          <div class="kanban-title-block">
+            <div class="kanban-title">Idea Bank</div>
+            <div class="kanban-subtitle">Drag cards between pillars · click + AI to generate per-column</div>
+          </div>
+          <div class="kanban-pillar-filters">
+            <span class="filter-pill active">All</span>
+            <span class="filter-pill">Drafts only</span>
+            <span class="filter-pill">Ideas only</span>
+          </div>
+          <div class="kanban-actions">
+            <button class="btn-secondary">Sort</button>
+            <button class="btn-primary">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg>
+              Generate ideas
+            </button>
+          </div>
+        </div>
+
+        <div class="kanban-board">
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-name"><span class="kanban-col-dot lead"></span>Leadership</div>
+              <button class="kanban-col-ai-btn">+ AI</button>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card">
+                <div class="kanban-card-title">The decision I made wrong — then made right</div>
+                <div class="kanban-card-body">"Three years ago I made a call that cost us two months and one engineer…"</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip draft">Draft</span>
+                  <span>edited 2h ago</span>
+                </div>
+              </div>
+              <div class="kanban-card">
+                <div class="kanban-card-title">The memo that changed how I run 1:1s</div>
+                <div class="kanban-card-body">A two-paragraph memo I send before every 1:1. Why agendas don't fix bad meetings.</div>
+                <div class="kanban-card-meta">
+                  <span></span>
+                  <span>saved 3d ago</span>
+                </div>
+              </div>
+              <div class="kanban-card">
+                <div class="kanban-card-title">What "ownership" actually means on a high-performing team</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip live">Posted</span>
+                  <span>Apr 26 · 1.2K</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add">+ Add</button>
+          </div>
+
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-name"><span class="kanban-col-dot innov"></span>Innovation</div>
+              <button class="kanban-col-ai-btn">+ AI</button>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card">
+                <div class="kanban-card-title">Why most feedback loops break in fast-growing teams</div>
+                <div class="kanban-card-body">Feedback rituals scale terribly. The ones that survive have no scheduling component.</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip draft">Draft</span>
+                  <span>edited 1d ago</span>
+                </div>
+              </div>
+              <div class="kanban-card">
+                <div class="kanban-card-title">The $0 experiment that changed our product direction</div>
+                <div class="kanban-card-body">A hallway conversation on a Friday became our fastest-growing feature.</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip ready">Ready</span>
+                  <span>Fri 11 AM</span>
+                </div>
+              </div>
+              <div class="kanban-card">
+                <div class="kanban-card-title">Why I stopped measuring team velocity</div>
+                <div class="kanban-card-meta">
+                  <span></span>
+                  <span>saved 5d ago</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add">+ Add</button>
+          </div>
+
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-name"><span class="kanban-col-dot cult"></span>Culture</div>
+              <button class="kanban-col-ai-btn">+ AI</button>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card">
+                <div class="kanban-card-title">The onboarding question we ask that no one else does</div>
+                <div class="kanban-card-body">"What do you need from me to do your best work?" — asked on day one, not month three.</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip draft">Draft</span>
+                  <span>edited 3d ago</span>
+                </div>
+              </div>
+              <div class="kanban-card">
+                <div class="kanban-card-title">Remote teams don't have a communication problem, they have a context problem</div>
+                <div class="kanban-card-meta">
+                  <span></span>
+                  <span>saved 1w ago</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add">+ Add</button>
+          </div>
+
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-name"><span class="kanban-col-dot growth"></span>Growth</div>
+              <button class="kanban-col-ai-btn">+ AI</button>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card">
+                <div class="kanban-card-title">What I learned from building in public for 90 days</div>
+                <div class="kanban-card-body">Building in public didn't make me more disciplined. It exposed how undisciplined I'd been getting away with being.</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip ready">Ready</span>
+                  <span>Tue 9 AM</span>
+                </div>
+              </div>
+              <div class="kanban-card">
+                <div class="kanban-card-title">Compounding skills: what 5 years of writing actually built</div>
+                <div class="kanban-card-meta">
+                  <span class="status-chip live">Posted</span>
+                  <span>Apr 23 · 847</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add">+ Add</button>
+          </div>
+
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-name"><span class="kanban-col-dot mind"></span>Mindset</div>
+              <button class="kanban-col-ai-btn">+ AI</button>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card">
+                <div class="kanban-card-title">The hardest part of being right</div>
+                <div class="kanban-card-body">It's not convincing others. It's the period where you're right but can't prove it yet.</div>
+                <div class="kanban-card-meta">
+                  <span></span>
+                  <span>saved 3d ago</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add">+ Add</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 5 — CALENDAR
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">⑤ Calendar<span class="section-meta">Month grid · upcoming queue with reschedule actions.</span></div>
+  <div class="app-frame">
+    <div class="cal-frame">
+      <nav class="rail">
+        <div class="rail-brand"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".95"/><rect x="12" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="2" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".55"/><rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" opacity=".30"/></svg></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="rail-tip">Focus</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="rail-tip">Dashboard</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span class="rail-tip">Studio</span></div>
+        <div class="rail-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg><span class="rail-tip">Ideas · 47</span></div>
+        <div class="rail-item active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="rail-tip">Calendar</span></div>
+        <div class="rail-spacer"></div>
+        <div class="rail-avatar">MH</div>
+      </nav>
+
+      <main class="cal-main">
+        <div class="cal-topbar">
+          <div class="cal-title-block">
+            <div class="cal-title">April 2026</div>
+            <div class="cal-nav-btns">
+              <button class="cal-nav-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <button class="cal-today-btn">Today</button>
+              <button class="cal-nav-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+            </div>
+          </div>
+          <div class="cal-view-segment">
+            <button class="cal-view-btn active">Month</button>
+            <button class="cal-view-btn">Week</button>
+            <button class="cal-view-btn">Day</button>
+          </div>
+          <button class="btn-primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New post
+          </button>
+        </div>
+
+        <div class="cal-body">
+          <div class="cal-grid-wrap">
+            <div class="cal-weekdays">
+              <div class="cal-weekday">Sun</div><div class="cal-weekday">Mon</div><div class="cal-weekday">Tue</div><div class="cal-weekday">Wed</div><div class="cal-weekday">Thu</div><div class="cal-weekday">Fri</div><div class="cal-weekday">Sat</div>
+            </div>
+            <div class="cal-grid">
+              <div class="cal-day outside"><div class="cal-day-num">29</div></div>
+              <div class="cal-day outside"><div class="cal-day-num">30</div></div>
+              <div class="cal-day outside"><div class="cal-day-num">31</div></div>
+              <div class="cal-day"><div class="cal-day-num">1</div><div class="cal-day-pill live">Ownership essay</div></div>
+              <div class="cal-day"><div class="cal-day-num">2</div></div>
+              <div class="cal-day"><div class="cal-day-num">3</div><div class="cal-day-pill live">Compounding skills</div></div>
+              <div class="cal-day"><div class="cal-day-num">4</div></div>
+
+              <div class="cal-day"><div class="cal-day-num">5</div></div>
+              <div class="cal-day"><div class="cal-day-num">6</div><div class="cal-day-pill live">Velocity essay</div></div>
+              <div class="cal-day"><div class="cal-day-num">7</div></div>
+              <div class="cal-day"><div class="cal-day-num">8</div><div class="cal-day-pill live">Manager memo</div></div>
+              <div class="cal-day"><div class="cal-day-num">9</div></div>
+              <div class="cal-day"><div class="cal-day-num">10</div><div class="cal-day-pill live">Friday lessons</div></div>
+              <div class="cal-day"><div class="cal-day-num">11</div></div>
+
+              <div class="cal-day"><div class="cal-day-num">12</div></div>
+              <div class="cal-day"><div class="cal-day-num">13</div><div class="cal-day-pill live">Hiring loops</div></div>
+              <div class="cal-day"><div class="cal-day-num">14</div></div>
+              <div class="cal-day"><div class="cal-day-num">15</div><div class="cal-day-pill live">Async culture</div><div class="cal-day-pill live">Decision fatigue</div></div>
+              <div class="cal-day"><div class="cal-day-num">16</div></div>
+              <div class="cal-day"><div class="cal-day-num">17</div><div class="cal-day-pill live">Tough quarters</div></div>
+              <div class="cal-day"><div class="cal-day-num">18</div></div>
+
+              <div class="cal-day"><div class="cal-day-num">19</div></div>
+              <div class="cal-day"><div class="cal-day-num">20</div><div class="cal-day-pill live">Trust capital</div></div>
+              <div class="cal-day"><div class="cal-day-num">21</div></div>
+              <div class="cal-day"><div class="cal-day-num">22</div><div class="cal-day-pill live">Cheap experiments</div></div>
+              <div class="cal-day"><div class="cal-day-num">23</div></div>
+              <div class="cal-day"><div class="cal-day-num">24</div><div class="cal-day-pill live">Ownership truth</div></div>
+              <div class="cal-day"><div class="cal-day-num">25</div></div>
+
+              <div class="cal-day"><div class="cal-day-num">26</div></div>
+              <div class="cal-day"><div class="cal-day-num">27</div></div>
+              <div class="cal-day today"><div class="cal-day-num">28</div><div class="cal-day-pill draft">Decision draft</div></div>
+              <div class="cal-day"><div class="cal-day-num">29</div><div class="cal-day-pill scheduled">Build public · 9 AM</div></div>
+              <div class="cal-day"><div class="cal-day-num">30</div></div>
+              <div class="cal-day outside"><div class="cal-day-num">1</div><div class="cal-day-pill draft">Decision-making</div></div>
+              <div class="cal-day outside"><div class="cal-day-num">2</div><div class="cal-day-pill scheduled">Culture · 11 AM</div></div>
+            </div>
+          </div>
+
+          <aside class="cal-upcoming">
+            <div class="cal-upcoming-header">
+              <div class="cal-up-eyebrow">Upcoming · next 5</div>
+              <div class="cal-up-title">Queue</div>
+            </div>
+            <div class="cal-upcoming-list">
+              <div class="cal-up-card scheduled">
+                <div class="cal-up-row">
+                  <span class="status-chip scheduled">Scheduled</span>
+                  <span class="cal-up-when">Tue · Apr 29 · 9:00 AM</span>
+                </div>
+                <div class="cal-up-title-text">What I learned from building in public for 90 days</div>
+                <div class="cal-up-actions">
+                  <button class="cal-up-btn">Reschedule</button>
+                  <button class="cal-up-btn">Edit</button>
+                  <button class="cal-up-btn">Post now</button>
+                </div>
+              </div>
+              <div class="cal-up-card scheduled">
+                <div class="cal-up-row">
+                  <span class="status-chip scheduled">Scheduled</span>
+                  <span class="cal-up-when">Fri · May 2 · 11:00 AM</span>
+                </div>
+                <div class="cal-up-title-text">The $0 experiment that changed our product direction</div>
+                <div class="cal-up-actions">
+                  <button class="cal-up-btn">Reschedule</button>
+                  <button class="cal-up-btn">Edit</button>
+                  <button class="cal-up-btn">Post now</button>
+                </div>
+              </div>
+              <div class="cal-up-card draft">
+                <div class="cal-up-row">
+                  <span class="status-chip ready">Ready</span>
+                  <span class="cal-up-when">Thu · May 1 · 9:00 AM</span>
+                </div>
+                <div class="cal-up-title-text">The decision I made wrong — then made right</div>
+                <div class="cal-up-actions">
+                  <button class="cal-up-btn">Schedule</button>
+                  <button class="cal-up-btn">Edit</button>
+                </div>
+              </div>
+              <div class="cal-up-card scheduled">
+                <div class="cal-up-row">
+                  <span class="status-chip scheduled">Scheduled</span>
+                  <span class="cal-up-when">Mon · May 5 · 9:00 AM</span>
+                </div>
+                <div class="cal-up-title-text">The onboarding question we ask that no one else does</div>
+                <div class="cal-up-actions">
+                  <button class="cal-up-btn">Reschedule</button>
+                  <button class="cal-up-btn">Edit</button>
+                </div>
+              </div>
+              <div class="cal-up-card draft">
+                <div class="cal-up-row">
+                  <span class="status-chip draft">Draft</span>
+                  <span class="cal-up-when">Wed · May 7 · TBD</span>
+                </div>
+                <div class="cal-up-title-text">Why most feedback loops break in fast-growing teams</div>
+                <div class="cal-up-actions">
+                  <button class="cal-up-btn">Schedule</button>
+                  <button class="cal-up-btn">Edit</button>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 6 — COMPONENT GALLERY
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">⑥ Component Gallery<span class="section-meta">Toolbar in both modes · AI dock states · primitives.</span></div>
+  <div class="comp-gallery">
+
+    <div>
+      <div class="comp-section-title">Bottom-anchored toolbar</div>
+      <div class="comp-row" style="gap:32px;align-items:flex-start;">
+        <div>
+          <div class="comp-label">Light</div>
+          <div class="format-pill" style="background:#FAF9F6;border-color:#E8E5DD;">
+            <button class="fp-btn" style="color:#6B635B;"><strong>B</strong></button>
+            <button class="fp-btn" style="color:#6B635B;"><em>I</em></button>
+            <button class="fp-btn" style="color:#6B635B;text-decoration:line-through;">S</button>
+            <div class="fp-divider" style="background:#E8E5DD;"></div>
+            <button class="fp-btn" style="color:#6B635B;font-size:11px;">H1</button>
+            <button class="fp-btn" style="color:#6B635B;font-size:11px;">H2</button>
+            <button class="fp-btn" style="color:#6B635B;font-size:11px;">H3</button>
+            <div class="fp-divider" style="background:#E8E5DD;"></div>
+            <button class="fp-btn" style="color:#6B635B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg></button>
+            <button class="fp-btn" style="color:#6B635B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+            <button class="fp-btn" style="color:#6B635B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></button>
+            <div class="fp-divider" style="background:#E8E5DD;"></div>
+            <button class="fp-btn" style="color:#5A8AFF;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>
+            <button class="fp-btn" style="color:#5A8AFF;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg></button>
+          </div>
+        </div>
+        <div>
+          <div class="comp-label">Dark</div>
+          <div class="format-pill" style="background:#1A1712;border-color:#2E2A22;">
+            <button class="fp-btn" style="color:#A09A94;"><strong>B</strong></button>
+            <button class="fp-btn" style="color:#A09A94;"><em>I</em></button>
+            <button class="fp-btn" style="color:#A09A94;text-decoration:line-through;">S</button>
+            <div class="fp-divider" style="background:#2E2A22;"></div>
+            <button class="fp-btn" style="color:#A09A94;font-size:11px;">H1</button>
+            <button class="fp-btn" style="color:#A09A94;font-size:11px;">H2</button>
+            <button class="fp-btn" style="color:#A09A94;font-size:11px;">H3</button>
+            <div class="fp-divider" style="background:#2E2A22;"></div>
+            <button class="fp-btn" style="color:#A09A94;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg></button>
+            <button class="fp-btn" style="color:#A09A94;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+            <button class="fp-btn" style="color:#A09A94;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></button>
+            <div class="fp-divider" style="background:#2E2A22;"></div>
+            <button class="fp-btn" style="color:#6B9EFF;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>
+            <button class="fp-btn" style="color:#6B9EFF;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="comp-section-title">AI Agent dock — three states</div>
+      <div class="comp-row" style="flex-direction:column;gap:14px;align-items:stretch;">
+        <div>
+          <div class="comp-label">State A · Reading (ambient)</div>
+          <div style="border:1px solid var(--ai-border);border-radius:var(--radius);overflow:hidden;">
+            <div class="ai-dock-ambient" style="border-bottom:none;cursor:default;">
+              <div class="ai-amb-left">
+                <span class="ai-amb-dot"></span>
+                <span class="ai-amb-label">Reading</span>
+                <span class="ai-amb-divider"></span>
+                <span class="ai-amb-observation">Your hook is strong. The closing could use a question to drive engagement.</span>
+              </div>
+              <button class="ai-amb-toggle" style="cursor:default;">
+                Open dock
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="comp-label">State C · Generating (sweep + typewriter — replaces R2 rotating circle)</div>
+          <div class="ai-generating" style="max-width:560px;">
+            <div class="ai-sweep-bar"></div>
+            <div class="ai-generating-eye">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg>
+              Drafting closing options
+            </div>
+            <div class="ai-gen-text" id="genTextDemo"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="comp-section-title">Buttons</div>
+      <div class="comp-row">
+        <button class="btn-primary">Schedule post</button>
+        <button class="btn-secondary">Preview</button>
+        <button class="btn-ai">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 7 7 1-5.5 4 1.7 7L12 17l-5.2 4 1.7-7L3 10l7-1z"/></svg>
+          AI Draft
+        </button>
+        <button class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="comp-section-title">Status &amp; pillars</div>
+      <div class="comp-row" style="margin-bottom:14px;">
+        <span class="status-chip draft">Draft</span>
+        <span class="status-chip scheduled">Scheduled</span>
+        <span class="status-chip ready">Ready</span>
+        <span class="status-chip live">Posted</span>
+      </div>
+      <div class="comp-row">
+        <span class="filter-pill" style="border-color:var(--pillar-lead);color:var(--pillar-lead);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pillar-lead);margin-right:6px;"></span>Leadership</span>
+        <span class="filter-pill" style="border-color:var(--pillar-innov);color:var(--pillar-innov);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pillar-innov);margin-right:6px;"></span>Innovation</span>
+        <span class="filter-pill" style="border-color:var(--pillar-cult);color:var(--pillar-cult);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pillar-cult);margin-right:6px;"></span>Culture</span>
+        <span class="filter-pill" style="border-color:var(--pillar-growth);color:var(--pillar-growth);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pillar-growth);margin-right:6px;"></span>Growth</span>
+        <span class="filter-pill" style="border-color:var(--pillar-mind);color:var(--pillar-mind);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pillar-mind);margin-right:6px;"></span>Mindset</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="comp-section-title">Cards</div>
+      <div class="comp-row" style="align-items:flex-start;">
+        <div style="width:280px;">
+          <div class="comp-label">Library item</div>
+          <div class="library-item active" style="cursor:default;">
+            <div class="library-item-pillar-row">
+              <span class="library-pillar-dot lead"></span>
+              <span class="library-pillar-name lead">Leadership</span>
+            </div>
+            <div class="library-item-title">The decision I made wrong — then made right</div>
+            <div class="library-item-meta">edited 2h ago · 642 chars</div>
+          </div>
+        </div>
+        <div style="width:260px;">
+          <div class="comp-label">Kanban card</div>
+          <div class="kanban-card" style="cursor:default;">
+            <div class="kanban-card-title">The decision I made wrong — then made right</div>
+            <div class="kanban-card-body">"Three years ago I made a call that cost us two months and one engineer…"</div>
+            <div class="kanban-card-meta">
+              <span class="status-chip draft">Draft</span>
+              <span>edited 2h ago</span>
+            </div>
+          </div>
+        </div>
+        <div style="width:140px;">
+          <div class="comp-label">Calendar · today</div>
+          <div class="cal-day today" style="height:100px;cursor:default;">
+            <div class="cal-day-num">28</div>
+            <div class="cal-day-pill draft">Decision draft</div>
+          </div>
+        </div>
+        <div style="width:240px;">
+          <div class="comp-label">Upcoming queue card</div>
+          <div class="cal-up-card scheduled" style="cursor:default;">
+            <div class="cal-up-row">
+              <span class="status-chip scheduled">Scheduled</span>
+              <span class="cal-up-when">Tue · 9:00 AM</span>
+            </div>
+            <div class="cal-up-title-text">What I learned from building in public for 90 days</div>
+            <div class="cal-up-actions">
+              <button class="cal-up-btn">Reschedule</button>
+              <button class="cal-up-btn">Edit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="comp-section-title">Lifecycle &amp; streak</div>
+      <div class="comp-row" style="align-items:center;">
+        <div class="lifecycle-strip" style="background:var(--canvas);padding:8px 16px;border-radius:8px;border:1px solid var(--border);">
+          <div class="lc-step done"><div class="dot"></div>Idea</div>
+          <div class="lc-line done"></div>
+          <div class="lc-step done"><div class="dot"></div>Draft</div>
+          <div class="lc-line done"></div>
+          <div class="lc-step active"><div class="dot"></div>Refined</div>
+          <div class="lc-line"></div>
+          <div class="lc-step"><div class="dot"></div>Scheduled</div>
+          <div class="lc-line"></div>
+          <div class="lc-step"><div class="dot"></div>Live</div>
+        </div>
+        <div style="display:inline-flex;align-items:baseline;gap:10px;background:var(--surface);border:1px solid var(--border);padding:10px 18px;border-radius:var(--radius-pill);">
+          <span class="dash-streak-num" style="font-size:24px;">12</span>
+          <span class="dash-streak-day-label">Day streak · current run</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /page-wrap -->
+
+<script>
+// ── THEME TOGGLE — single addEventListener, no inline onclick (R3 fix) ──
+(function() {
+  const btn = document.getElementById('themeToggle');
+  const label = document.getElementById('themeLabel');
+  btn.addEventListener('click', () => {
+    const html = document.documentElement;
+    const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+    html.dataset.theme = next;
+    label.textContent = next === 'dark' ? '☀ Light' : '☾ Dark';
+  });
+})();
+
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('studioToast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── LIBRARY collapse ⌘. ──
+function toggleLibrary() {
+  const library = document.getElementById('studioLibrary');
+  if (!library) return;
+  const collapsed = library.dataset.collapsed === 'true';
+  library.dataset.collapsed = collapsed ? 'false' : 'true';
+}
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === '.') {
+    e.preventDefault();
+    toggleLibrary();
+  }
+});
+
+// ── AI DOCK toggle (ambient ↔ open) ──
+function toggleAiDock() {
+  const aiDock = document.getElementById('aiDock');
+  if (!aiDock) return;
+  const next = aiDock.dataset.state === 'open' ? 'ambient' : 'open';
+  aiDock.dataset.state = next;
+  const lbl = document.getElementById('aiDockToggleLabel');
+  if (lbl) lbl.textContent = next === 'open' ? 'Collapse' : 'Open dock';
+}
+
+// Wire up handlers after DOM-load to cover dynamically-injected sections
+function wireStudioHandlers() {
+  const libToggle = document.getElementById('libraryToggle');
+  if (libToggle && !libToggle.dataset.wired) {
+    libToggle.dataset.wired = '1';
+    libToggle.addEventListener('click', toggleLibrary);
+  }
+  const aiDockToggle = document.getElementById('aiDockToggle');
+  if (aiDockToggle && !aiDockToggle.dataset.wired) {
+    aiDockToggle.dataset.wired = '1';
+    aiDockToggle.addEventListener('click', e => { e.stopPropagation(); toggleAiDock(); });
+  }
+  const aiDockAmbBar = document.getElementById('aiDockAmbientBar');
+  if (aiDockAmbBar && !aiDockAmbBar.dataset.wired) {
+    aiDockAmbBar.dataset.wired = '1';
+    aiDockAmbBar.addEventListener('click', e => {
+      if (e.target.closest('.ai-amb-toggle')) return;
+      toggleAiDock();
+    });
+  }
+
+  document.querySelectorAll('.ai-prop-cta[data-action="insert"]').forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', function() {
+      if (this.classList.contains('inserted')) return;
+      const original = this.textContent;
+      this.classList.add('inserted');
+      this.textContent = '✓ Inserted';
+      showToast('Inserted into draft');
+      setTimeout(() => {
+        this.classList.remove('inserted');
+        this.textContent = original;
+      }, 2400);
+    });
+  });
+
+  document.querySelectorAll('.ai-prompt-sugg').forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => showToast('Sent to AI agent'));
+  });
+
+  document.querySelectorAll('.focus-card').forEach(card => {
+    if (card.dataset.wired) return;
+    card.dataset.wired = '1';
+    card.addEventListener('click', () => {
+      const title = card.querySelector('.focus-card-title').textContent;
+      showToast('Opening: ' + title);
+    });
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+    });
+  });
+
+  document.querySelectorAll('.kanban-card, .library-item').forEach(card => {
+    if (card.dataset.wired) return;
+    card.dataset.wired = '1';
+    card.addEventListener('mousedown', () => { card.style.cursor = 'grabbing'; });
+    card.addEventListener('mouseup', () => { card.style.cursor = ''; });
+  });
+
+  document.querySelectorAll('.cal-up-btn').forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', e => { e.stopPropagation(); showToast(btn.textContent + ' →'); });
+  });
+
+  document.querySelectorAll('.kanban-col-ai-btn').forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      const col = btn.closest('.kanban-column');
+      const name = col ? col.querySelector('.kanban-col-name').textContent.trim() : 'pillar';
+      showToast('Generating ' + name + ' ideas…');
+    });
+  });
+
+  document.querySelectorAll('.kanban-add').forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => showToast('New idea card created'));
+  });
+}
+
+// ── Generating-state typewriter demo (DOM-safe, no innerHTML) ──
+function paintTypewriter() {
+  const target = document.getElementById('genTextDemo');
+  if (!target) return;
+  const sentence = '"What would I do if I wasn’t afraid of being wrong?" — that question is the closing line your draft has been waiting for.';
+  const words = sentence.split(' ');
+  // Clear via DOM
+  while (target.firstChild) target.removeChild(target.firstChild);
+  words.forEach((w, i) => {
+    const span = document.createElement('span');
+    span.className = 'word';
+    span.textContent = w;
+    span.style.animationDelay = (i * 38) + 'ms';
+    target.appendChild(span);
+    if (i < words.length - 1) target.appendChild(document.createTextNode(' '));
+  });
+}
+
+wireStudioHandlers();
+paintTypewriter();
+setInterval(paintTypewriter, 6000);
+</script>
+</body>
+</html>

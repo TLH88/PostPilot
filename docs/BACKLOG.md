@@ -85,6 +85,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
 - **BP-149** Tutorial SDK reliability fixes — **Done (develop) 2026-05-04** [UF-008..UF-011]
 - **BP-150** Onboarding first-visit UX polish — **Done (develop) 2026-05-04** [UF-012..UF-014]
+- **BP-144** Unified visual design system — **Closed 2026-05-04 (reference only)** — owner reviewed all 3 v3 finalists, will harvest individual elements over time as separate BPs rather than a coordinated rewrite. Mockups preserved at [docs/plans/bp-144/](plans/bp-144/) — see README there for the rationale and how to use the artifacts going forward.
 - *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)

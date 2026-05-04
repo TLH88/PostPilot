@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-nav-expanded="false">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostPilot — The Studio v3 (Agent B, Round 3 Final)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   THE STUDIO v3 — Agent B Warm AI Companion
+   Round 3 Final · BP-144
+   Fixes: theme toggle bug, BP-099 focus view, kanban ideas,
+          sticky toolbar, expandable nav, collapsible shelf,
+          expanded slash commands, dedicated calendar surface.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* Light mode — warm oat surfaces preserved (Agent B's structural warmth);
+     accents shifted to deep-blue gradient per owner R3 direction. */
+  --bg:          #F7F4EF;
+  --surface:     #FFFFFF;
+  --surface-2:   #FBF8F3;
+  --shelf-bg:    #F0EDE7;
+  --canvas-bg:   #FEFCF8;
+  --ai-col-bg:   #F0F4FB;          /* pale azure tinted with warm hint */
+  --ai-col-border: rgba(30,63,168,0.22);
+  --text-primary:  #1A1614;
+  --text-secondary:#7A736B;
+  --text-muted:    #B0A89E;
+  /* Brand — deep blue gradient as primary theme color (R3 owner direction) */
+  --brand-deep:    #0B1F4F;
+  --brand-mid:     #1E3FA8;
+  --brand-light:   #3B6FE0;
+  --brand-soft:    #6C9AF0;
+  --brand-gradient: linear-gradient(135deg, #0B1F4F 0%, #1E3FA8 55%, #3B6FE0 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #163074 0%, #2649B8 55%, #487FE8 100%);
+  /* Token names retained from R2 to minimize diff; values now align with brand blue */
+  --ai-amber:      var(--brand-mid);
+  --ai-amber-lt:   var(--brand-light);
+  --ai-amber-dim:  rgba(30,63,168,0.10);
+  --ai-amber-glow: rgba(30,63,168,0.24);
+  --action-blue:   #2F54C8;
+  --action-blue-dim:rgba(47,84,200,0.10);
+  --success:       #2A7A52;
+  --success-dim:   rgba(42,122,82,0.12);
+  --warning:       #B8650A;
+  --warning-dim:   rgba(184,101,10,0.12);
+  --pillar-lead:   #2F54C8;
+  --pillar-innov:  #C85E00;
+  --pillar-cult:   #8B4FC8;
+  --pillar-growth: #2A7A52;
+  --pillar-mind:   #B83040;
+  --border:        #E8E2D8;
+  --border-strong: #D4CEBE;
+  --shadow-soft:   0 2px 16px rgba(26,22,20,0.07);
+  --shadow-card:   0 1px 4px rgba(26,22,20,0.08), 0 4px 16px rgba(26,22,20,0.05);
+  --radius:        12px;
+  --radius-sm:     8px;
+  --radius-pill:   999px;
+  --font-display:  'Plus Jakarta Sans', sans-serif;
+  --font-ui:       'Inter', sans-serif;
+  --font-canvas:   'Lora', Georgia, serif;
+  --font-mono:     'JetBrains Mono', monospace;
+  --nav-w:         64px;
+}
+
+[data-nav-expanded="true"] { --nav-w: 220px; }
+
+/* DARK MODE — warm-brown surfaces preserved + lifted blue accents */
+[data-theme="dark"] {
+  --bg:            #1A1714;
+  --surface:       #231F1B;
+  --surface-2:     #1E1B17;
+  --shelf-bg:      #1E1B18;
+  --canvas-bg:     #231F1B;
+  --ai-col-bg:     #1B2543;        /* deep azure-tinted dark, sits next to warm-brown canvas */
+  --ai-col-border: rgba(91,141,239,0.30);
+  --text-primary:  #EDE8E2;
+  --text-secondary:#8A837B;
+  --text-muted:    #524D48;
+  --brand-deep:    #0A1738;
+  --brand-mid:     #2548A8;
+  --brand-light:   #5B8DEF;
+  --brand-soft:    #8FB3F5;
+  --brand-gradient: linear-gradient(135deg, #0A1738 0%, #2548A8 55%, #5B8DEF 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #13225A 0%, #3158C8 55%, #7AA4F5 100%);
+  --ai-amber:      var(--brand-light);
+  --ai-amber-lt:   var(--brand-soft);
+  --ai-amber-dim:  rgba(91,141,239,0.16);
+  --ai-amber-glow: rgba(91,141,239,0.32);
+  --action-blue:   #6B90FF;
+  --action-blue-dim:rgba(107,144,255,0.14);
+  --success:       #4DBF87;
+  --success-dim:   rgba(77,191,135,0.14);
+  --warning:       #F0A840;
+  --warning-dim:   rgba(240,168,64,0.12);
+  --pillar-lead:   #6B90FF;
+  --pillar-innov:  #F0A840;
+  --pillar-cult:   #B07AFF;
+  --pillar-growth: #4DBF87;
+  --pillar-mind:   #E07070;
+  --border:        #2E2A26;
+  --border-strong: #3E3830;
+  --shadow-soft:   0 2px 16px rgba(0,0,0,0.32);
+  --shadow-card:   0 1px 4px rgba(0,0,0,0.32), 0 4px 16px rgba(0,0,0,0.28);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: var(--font-ui); font-size: 14px; }
+body { background: var(--bg); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; transition: background 0.25s, color 0.25s; }
+button { font-family: var(--font-ui); }
+
+/* ── KEYFRAMES ─────────────────────────────────────────── */
+@keyframes pulse-amber {
+  0%,100% { opacity: 1; box-shadow: 0 0 0 0 var(--ai-amber-glow); }
+  50%      { opacity: 0.7; box-shadow: 0 0 0 4px transparent; }
+}
+@keyframes ai-scan {
+  0%   { transform: translateX(-100%); opacity: 0.5; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+@keyframes type-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer-warm {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes border-pulse {
+  0%,100% { box-shadow: inset 3px 0 0 var(--ai-amber-dim); }
+  50%      { box-shadow: inset 3px 0 0 var(--ai-amber); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── THEME TOGGLE ─────────────────────────────────────── */
+.theme-toggle {
+  position: fixed; top: 16px; right: 20px; z-index: 999;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-primary); padding: 7px 14px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--shadow-soft); transition: background 0.2s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.theme-toggle:hover { background: var(--shelf-bg); }
+
+/* ── PAGE WRAPPER & SECTION LABELS ───────────────────── */
+.page-wrap { max-width: 1360px; margin: 0 auto; padding: 0 24px 80px; }
+.section-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--brand-gradient); color: #FFFFFF;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 0 0 6px 0;
+  box-shadow: 0 2px 8px rgba(11,31,79,0.18);
+}
+.section-block { margin-top: 56px; }
+.section-block:first-of-type { margin-top: 32px; }
+
+/* ── CASE HEADER ──────────────────────────────────────── */
+.case-header {
+  background: var(--text-primary); color: var(--surface);
+  padding: 28px 40px; display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+[data-theme="dark"] .case-header { background: #100D0B; color: var(--text-primary); }
+.case-header h1 {
+  font-family: var(--font-display); font-size: 26px; font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #8FB3F5 0%, #5B8DEF 50%, #3B6FE0 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.case-header p { font-size: 13px; opacity: 0.55; margin-top: 4px; }
+.case-meta { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.case-meta-item { font-size: 11px; opacity: 0.45; text-transform: uppercase; letter-spacing: 0.05em; }
+.case-meta-item strong { display: block; font-size: 13px; opacity: 1; text-transform: none; letter-spacing: 0; font-weight: 600; margin-top: 2px; color: #8FB3F5; }
+.badge-r3 {
+  background: var(--brand-gradient); color: #FFFFFF; font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: var(--radius-pill); letter-spacing: 0.05em;
+  align-self: flex-start; margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   APP FRAME — shared shell for all screen mockups
+   ═══════════════════════════════════════════════════════ */
+.app-frame {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; box-shadow: var(--shadow-soft);
+  background: var(--bg); margin-top: 16px;
+}
+
+/* ── EXPANDABLE SHELF NAV ─────────────────────────────── */
+.shelf-nav {
+  width: var(--nav-w);
+  background: var(--shelf-bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 12px 0 12px 0; gap: 2px;
+  transition: width 0.22s ease;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.shelf-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px 14px; color: var(--ai-amber);
+  height: 36px;
+}
+.shelf-brand-name {
+  font-family: var(--font-display); font-size: 13px; font-weight: 800;
+  letter-spacing: -0.01em; opacity: 0; width: 0; overflow: hidden;
+  transition: opacity 0.18s, width 0.22s ease; white-space: nowrap;
+}
+[data-nav-expanded="true"] .shelf-brand-name { opacity: 1; width: auto; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 10px; padding: 0 12px; height: 36px;
+  border-radius: 8px;
+  color: var(--text-secondary); cursor: pointer; position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-item:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.nav-item.active { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; background: var(--ai-amber); border-radius: 0 2px 2px 0;
+}
+.nav-icon { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-label {
+  font-size: 13px; font-weight: 500;
+  opacity: 0; width: 0; overflow: hidden;
+  transition: opacity 0.18s, width 0.22s ease; white-space: nowrap;
+}
+[data-nav-expanded="true"] .nav-label { opacity: 1; width: auto; }
+.nav-spacer { flex: 1; }
+.nav-toggle {
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 10px 8px; height: 30px; border-radius: 6px;
+  color: var(--text-muted); cursor: pointer;
+  background: transparent; border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-toggle:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.nav-toggle svg { transition: transform 0.22s ease; }
+[data-nav-expanded="true"] .nav-toggle svg { transform: rotate(180deg); }
+.nav-avatar {
+  margin: 0 12px 4px; height: 36px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer; padding: 0 4px; border-radius: 8px;
+}
+.nav-avatar:hover { background: var(--ai-amber-dim); }
+.nav-avatar-circle {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--action-blue), #8B6FFF);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: white;
+}
+.nav-avatar-name {
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+  opacity: 0; width: 0; overflow: hidden;
+  transition: opacity 0.18s, width 0.22s ease; white-space: nowrap;
+}
+[data-nav-expanded="true"] .nav-avatar-name { opacity: 1; width: auto; }
+
+/* ── COLLAPSIBLE IDEA SHELF ───────────────────────────── */
+.idea-shelf {
+  width: 220px;
+  background: var(--shelf-bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: width 0.22s ease;
+  flex-shrink: 0;
+}
+.idea-shelf[data-collapsed="true"] { width: 0; }
+.idea-shelf-reveal-tab {
+  width: 28px; flex-shrink: 0;
+  background: var(--shelf-bg); border-right: 1px solid var(--border);
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+.idea-shelf-reveal-tab:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.idea-shelf-reveal-tab span {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.idea-shelf[data-collapsed="true"] + .idea-shelf-reveal-tab { display: flex; }
+.shelf-header {
+  padding: 13px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.shelf-header-title {
+  font-family: var(--font-display); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-secondary);
+}
+.shelf-collapse-btn {
+  width: 22px; height: 22px; border-radius: 5px;
+  border: none; background: transparent; color: var(--text-muted);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+.shelf-collapse-btn:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.shelf-filter-bar {
+  display: flex; gap: 4px; padding: 8px 12px 6px; flex-wrap: nowrap; overflow-x: auto;
+  flex-shrink: 0;
+}
+.filter-pill {
+  font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+}
+.filter-pill:hover { background: var(--ai-amber-dim); }
+.filter-pill.active { background: var(--ai-amber-dim); color: var(--ai-amber); border-color: var(--ai-amber-glow); }
+.idea-list { flex: 1; overflow-y: auto; padding: 6px 10px; display: flex; flex-direction: column; gap: 7px; }
+.idea-card {
+  background: var(--surface); border-radius: 10px;
+  padding: 10px 12px; cursor: grab; border: 1px solid var(--border);
+  box-shadow: var(--shadow-card); transition: box-shadow 0.2s, transform 0.15s;
+  position: relative; overflow: hidden;
+}
+.idea-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.idea-card.lead::before { background: var(--pillar-lead); }
+.idea-card.innov::before { background: var(--pillar-innov); }
+.idea-card.cult::before { background: var(--pillar-cult); }
+.idea-card.growth::before { background: var(--pillar-growth); }
+.idea-card.mind::before { background: var(--pillar-mind); }
+.idea-card:hover { box-shadow: 0 0 0 2px var(--ai-amber-glow), var(--shadow-card); transform: translateY(-1px); }
+.idea-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.idea-tag.lead { color: var(--pillar-lead); }
+.idea-tag.innov { color: var(--pillar-innov); }
+.idea-tag.cult { color: var(--pillar-cult); }
+.idea-tag.growth { color: var(--pillar-growth); }
+.idea-tag.mind { color: var(--pillar-mind); }
+.idea-title { font-size: 12px; font-weight: 500; line-height: 1.45; color: var(--text-primary); }
+.idea-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 5px; }
+.idea-card-actions { display: flex; gap: 4px; margin-top: 7px; }
+.idea-btn {
+  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px;
+  border: none; cursor: pointer; transition: background 0.15s;
+}
+.idea-btn-primary { background: var(--action-blue); color: white; }
+.idea-btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+.idea-btn-ghost:hover { background: var(--ai-amber-dim); color: var(--ai-amber); border-color: var(--ai-amber); }
+.shelf-gen-btn {
+  margin: 8px 10px 12px; padding: 9px 12px; border-radius: 8px;
+  border: 1.5px dashed var(--ai-amber); background: var(--ai-amber-dim);
+  color: var(--ai-amber); font-size: 12px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background 0.15s; flex-shrink: 0;
+}
+.shelf-gen-btn:hover { background: var(--ai-amber-glow); }
+
+/* ── CANVAS / EDITOR AREA ──────────────────────────────── */
+.canvas-area {
+  flex: 1; min-width: 0;
+  background: var(--canvas-bg); display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.canvas-topbar {
+  height: 48px; padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); flex-shrink: 0;
+}
+.canvas-title-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-family: var(--font-display); font-size: 14px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: -0.01em;
+}
+.canvas-title-input::placeholder { color: var(--text-muted); font-weight: 400; }
+.lifecycle-strip { display: flex; align-items: center; gap: 0; }
+.lc-step {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px;
+}
+.lc-step .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+.lc-step.done { color: var(--success); }
+.lc-step.done .dot { background: var(--success); }
+.lc-step.active { color: var(--action-blue); }
+.lc-step.active .dot { background: var(--action-blue); box-shadow: 0 0 0 3px var(--action-blue-dim); }
+.lc-line { width: 12px; height: 1px; background: var(--border); }
+.lc-line.done { background: var(--success); }
+
+.canvas-writing {
+  flex: 1; padding: 28px 36px 16px;
+  font-family: var(--font-canvas); font-size: 16px; line-height: 1.8;
+  color: var(--text-primary); overflow-y: auto;
+}
+.canvas-writing .post-hook {
+  font-style: italic; color: var(--text-secondary); font-size: 15px;
+  margin-bottom: 18px; line-height: 1.7;
+}
+.canvas-writing .post-body p { margin-bottom: 14px; }
+.canvas-writing .post-body p:last-child { margin-bottom: 0; }
+.canvas-writing .slash-inline {
+  display: inline-block; font-family: var(--font-mono); font-size: 13px;
+  background: var(--ai-amber-dim); color: var(--ai-amber);
+  padding: 1px 7px; border-radius: 4px; border: 1px solid var(--ai-amber-glow);
+}
+.canvas-hashtags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.hashtag-chip {
+  font-family: var(--font-ui); font-size: 12px; color: var(--action-blue);
+  background: var(--action-blue-dim); border-radius: var(--radius-pill);
+  padding: 3px 10px; cursor: pointer;
+}
+
+/* ── BOTTOM-ANCHORED TOOLBAR (NEW R3 — replaces float-toolbar) ── */
+.canvas-bottom-toolbar {
+  position: sticky; bottom: 0;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 10px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  z-index: 5;
+}
+.format-pill {
+  display: inline-flex; align-items: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 4px 6px; gap: 1px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+[data-theme="dark"] .format-pill { background: var(--shelf-bg); }
+.fp-btn {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: none; background: transparent; color: var(--text-secondary);
+  font-size: 13px; font-weight: 700; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: background 0.12s, color 0.12s;
+}
+.fp-btn:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.fp-btn.is-ai { color: var(--ai-amber); }
+.fp-btn.is-ai:hover { background: var(--ai-amber-glow); }
+.fp-divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+.toolbar-right {
+  display: flex; align-items: center; gap: 12px;
+}
+.char-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+.char-count .ok { color: var(--success); font-weight: 600; }
+.canvas-btns { display: flex; gap: 6px; }
+.btn-primary {
+  background: var(--action-blue); color: white; border: none;
+  padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-secondary {
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border); padding: 6px 14px;
+  border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: var(--shelf-bg); }
+.btn-amber {
+  background: var(--brand-gradient); color: #FFFFFF; border: none;
+  padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 2px 8px rgba(11,31,79,0.20);
+  transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+}
+.btn-amber:hover { background: var(--brand-gradient-hover); box-shadow: 0 4px 14px rgba(11,31,79,0.26); transform: translateY(-1px); }
+
+/* ── SLASH COMMAND PALETTE (expanded R3) ─────────────── */
+.slash-dropdown {
+  position: absolute; top: 200px; left: 56px;
+  background: var(--surface); border: 1px solid var(--ai-amber-glow);
+  border-radius: var(--radius-sm); box-shadow: 0 12px 32px rgba(26,22,20,0.16);
+  width: 320px; overflow: hidden; z-index: 20;
+  animation: scale-in 0.15s ease;
+}
+[data-theme="dark"] .slash-dropdown { background: var(--ai-col-bg); }
+.slash-header {
+  padding: 9px 12px 7px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.slash-cat-label {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); padding: 8px 12px 4px;
+}
+.slash-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px; cursor: pointer; transition: background 0.12s;
+}
+.slash-item:hover { background: var(--ai-amber-dim); }
+.slash-item-icon {
+  width: 22px; height: 22px; border-radius: 5px;
+  background: var(--ai-amber-dim); color: var(--ai-amber);
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+  flex-shrink: 0;
+}
+.slash-item-body { flex: 1; min-width: 0; }
+.slash-item-name {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  color: var(--text-primary);
+}
+.slash-item-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.slash-item-shortcut {
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
+  background: var(--shelf-bg); padding: 2px 6px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.slash-item.highlighted { background: var(--ai-amber-dim); }
+.slash-item.highlighted .slash-item-name { color: var(--ai-amber); }
+
+/* ═══════════════════════════════════════════════════════
+   AI COLLABORATOR COLUMN — THE HEADLINE FEATURE
+   ═══════════════════════════════════════════════════════ */
+.ai-col {
+  width: 284px; flex-shrink: 0;
+  background: var(--ai-col-bg);
+  border-left: 1px solid var(--ai-col-border);
+  box-shadow: inset 3px 0 0 var(--ai-amber-dim);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.ai-col-header {
+  padding: 11px 14px 10px;
+  border-bottom: 1px solid var(--ai-col-border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.ai-col-brand { display: flex; align-items: center; gap: 7px; }
+.ai-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--ai-amber);
+  animation: pulse-amber 2.2s ease-in-out infinite; flex-shrink: 0;
+}
+.ai-col-wordmark {
+  font-family: var(--font-display); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ai-amber);
+}
+.ai-col-state { font-size: 10px; color: var(--text-muted); font-style: italic; }
+.ai-col-scroll { flex: 1; overflow-y: auto; padding: 12px 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.ai-reading-bar {
+  background: var(--ai-amber-dim); border: 1px solid var(--ai-amber-glow);
+  border-radius: 8px; padding: 8px 10px; position: relative; overflow: hidden;
+}
+.ai-reading-bar::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--ai-amber-glow), transparent);
+  animation: ai-scan 2.4s ease-in-out infinite;
+}
+.ai-reading-label { font-size: 10px; font-weight: 700; color: var(--ai-amber); letter-spacing: 0.04em; text-transform: uppercase; }
+.ai-reading-excerpt { font-family: var(--font-canvas); font-size: 11px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; font-style: italic; }
+.ai-suggestion-block {
+  background: var(--surface); border-radius: 10px;
+  border: 1px solid var(--border); overflow: hidden;
+  box-shadow: var(--shadow-card); animation: fade-up 0.3s ease;
+}
+.ai-suggestion-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px 7px; border-bottom: 1px solid var(--border);
+  background: var(--ai-amber-dim);
+}
+.ai-suggestion-cat {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ai-amber); display: flex; align-items: center; gap: 5px;
+}
+.ai-suggestion-actions { display: flex; gap: 5px; }
+.ai-sug-action {
+  font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+  border: none; cursor: pointer; transition: background 0.12s, opacity 0.12s;
+}
+.ai-sug-use { background: var(--brand-gradient); color: #FFFFFF; }
+.ai-sug-use:hover { opacity: 0.85; }
+.ai-sug-dismiss { background: transparent; color: var(--text-muted); }
+.ai-sug-dismiss:hover { background: var(--border); }
+.ai-suggestion-body { padding: 9px 10px; }
+.ai-suggestion-text {
+  font-family: var(--font-canvas); font-size: 13px; line-height: 1.55;
+  color: var(--text-primary); animation: type-in 0.4s ease;
+}
+.ai-suggestion-text em { color: var(--ai-amber); font-style: normal; font-weight: 500; }
+.ai-sub-options { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.ai-option-row {
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--shelf-bg); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+  transition: border-color 0.15s;
+}
+.ai-option-row:hover { border-color: var(--ai-amber-glow); }
+.ai-option-text {
+  flex: 1; padding: 6px 9px;
+  font-family: var(--font-canvas); font-size: 12px; color: var(--text-secondary);
+  line-height: 1.4;
+}
+.ai-option-insert {
+  border: none; background: var(--ai-amber-dim); color: var(--ai-amber);
+  font-size: 10px; font-weight: 700; padding: 0 10px;
+  cursor: pointer; transition: background 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 4px;
+}
+.ai-option-insert:hover { background: var(--ai-amber-glow); }
+.ai-option-insert.inserted { background: var(--success-dim); color: var(--success); }
+.ai-generating {
+  background: var(--surface); border-radius: 10px;
+  border: 1px solid var(--ai-amber-glow); overflow: hidden;
+  box-shadow: 0 0 0 2px var(--ai-amber-dim);
+  animation: border-pulse 1.6s ease-in-out infinite;
+  padding: 10px 12px;
+}
+.ai-gen-label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ai-amber); margin-bottom: 6px; }
+.ai-gen-text {
+  font-family: var(--font-canvas); font-size: 13px; line-height: 1.55; color: var(--text-secondary);
+  background: linear-gradient(90deg, var(--text-primary) 30%, var(--ai-amber-lt) 50%, var(--text-secondary) 70%);
+  background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; animation: shimmer-warm 2.4s linear infinite;
+}
+.ai-ask-field {
+  margin: 10px 12px 12px; display: flex; align-items: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 7px 12px; transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.ai-ask-field:focus-within { border-color: var(--ai-amber-glow); }
+.ai-ask-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-size: 12px; color: var(--text-primary); font-family: var(--font-ui);
+}
+.ai-ask-input::placeholder { color: var(--text-muted); font-style: italic; }
+.ai-ask-send {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--brand-gradient);
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: #FFFFFF; font-size: 11px; flex-shrink: 0; transition: opacity 0.15s, transform 0.12s;
+}
+.ai-ask-send:hover { transform: scale(1.06); opacity: 0.92; }
+
+/* ═══════════════════════════════════════════════════════
+   FOCUS VIEW — BP-099 SPEC (greeting + 4 cards only)
+   ═══════════════════════════════════════════════════════ */
+.focus-view {
+  display: flex; min-height: 720px;
+}
+.focus-main {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 80px 40px;
+  position: relative; overflow: hidden;
+  background: var(--canvas-bg);
+}
+.focus-blob-1, .focus-blob-2 {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); opacity: 0.45; pointer-events: none;
+}
+.focus-blob-1 {
+  top: -120px; right: -120px; width: 400px; height: 400px;
+  background: radial-gradient(circle, var(--ai-amber-glow), transparent 70%);
+}
+.focus-blob-2 {
+  bottom: -160px; left: -120px; width: 460px; height: 460px;
+  background: radial-gradient(circle, var(--action-blue-dim), transparent 70%);
+}
+.focus-dot-pattern {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, var(--text-muted) 1px, transparent 1px);
+  background-size: 22px 22px; opacity: 0.18; pointer-events: none;
+}
+.focus-content {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 760px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.focus-greeting {
+  font-family: var(--font-display); font-size: 38px; font-weight: 800;
+  letter-spacing: -0.025em; color: var(--text-primary); margin-bottom: 8px;
+}
+.focus-greeting-name { color: var(--ai-amber); }
+.focus-subtitle {
+  font-family: var(--font-canvas); font-style: italic;
+  font-size: 18px; color: var(--text-secondary);
+  margin-bottom: 48px;
+}
+.focus-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px; width: 100%; max-width: 640px;
+}
+.focus-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 22px 22px 20px;
+  cursor: pointer; transition: transform 0.15s, box-shadow 0.18s, border-color 0.15s;
+  text-align: left; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: var(--shadow-card);
+  position: relative; overflow: hidden;
+}
+.focus-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(26,22,20,0.10), 0 0 0 2px var(--ai-amber-glow);
+  border-color: var(--ai-amber-glow);
+}
+.focus-card-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.focus-card.ideas .focus-card-icon { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.focus-card.create .focus-card-icon { background: var(--action-blue-dim); color: var(--action-blue); }
+.focus-card.drafts .focus-card-icon { background: rgba(139,79,200,0.12); color: var(--pillar-cult); }
+.focus-card.scheduled .focus-card-icon { background: var(--success-dim); color: var(--success); }
+.focus-card-title {
+  font-family: var(--font-display); font-size: 16px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: -0.01em;
+}
+.focus-card-desc {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.45;
+}
+.focus-card-arrow {
+  position: absolute; top: 22px; right: 22px;
+  color: var(--text-muted);
+  transition: transform 0.18s, color 0.15s;
+}
+.focus-card:hover .focus-card-arrow { transform: translateX(2px); color: var(--brand-mid); }
+
+/* Streak badge — moved from dashboard hello row per R3 owner direction */
+.focus-streak-badge {
+  display: inline-flex; align-items: center; gap: 12px;
+  margin-top: 36px;
+  padding: 10px 18px;
+  background: var(--surface);
+  border: 1px solid var(--ai-amber-glow);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 12px rgba(11,31,79,0.10);
+  position: relative; z-index: 1;
+}
+.focus-streak-badge .flame { font-size: 18px; line-height: 1; }
+.focus-streak-text { display: flex; flex-direction: column; gap: 1px; align-items: flex-start; text-align: left; }
+.focus-streak-line { display: inline-flex; align-items: baseline; gap: 5px; }
+.focus-streak-num {
+  font-family: var(--font-display); font-size: 18px; font-weight: 800;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.01em;
+}
+.focus-streak-day-label {
+  font-size: 11px; font-weight: 700; color: var(--brand-mid);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.focus-streak-sub {
+  font-size: 11px; color: var(--text-secondary); line-height: 1.3;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STANDARD DASHBOARD — rich content moved from Focus View
+   ═══════════════════════════════════════════════════════ */
+.dashboard-view { display: flex; min-height: 760px; }
+.dashboard-main {
+  flex: 1; min-width: 0;
+  background: var(--canvas-bg); padding: 32px 40px;
+  overflow-y: auto;
+}
+.dash-hello-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 24px; gap: 24px; flex-wrap: wrap;
+}
+.dash-greeting-block { display: flex; flex-direction: column; gap: 2px; }
+.dash-date-line {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ai-amber);
+  margin-bottom: 4px;
+}
+.dash-greeting {
+  font-family: var(--font-display); font-size: 26px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--text-primary);
+}
+.dash-greeting em { color: var(--ai-amber); font-style: normal; }
+.dash-streak-pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--ai-amber-dim); border: 1px solid var(--ai-amber-glow);
+  border-radius: var(--radius-pill); padding: 8px 16px;
+}
+.dash-streak-pill .flame { font-size: 18px; }
+.dash-streak-num {
+  font-family: var(--font-display); font-size: 18px; font-weight: 800;
+  color: var(--ai-amber);
+}
+.dash-streak-label {
+  font-size: 11px; font-weight: 600; color: var(--ai-amber);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.dash-snippets {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-bottom: 24px;
+}
+.dash-snip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.dash-snip-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.dash-snip-value {
+  font-family: var(--font-display); font-size: 22px; font-weight: 800;
+  color: var(--text-primary); letter-spacing: -0.01em;
+}
+.dash-snip-value.amber { color: var(--ai-amber); }
+.dash-snip-value.alert { color: var(--pillar-mind); }
+.dash-snip-sub {
+  font-size: 11px; color: var(--text-secondary); line-height: 1.4;
+}
+.dash-grid {
+  display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px;
+}
+.dash-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; box-shadow: var(--shadow-card);
+}
+.dash-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.dash-panel-title {
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary);
+}
+.dash-panel-link {
+  font-size: 11px; font-weight: 600; color: var(--ai-amber);
+  text-decoration: none; cursor: pointer;
+}
+.dash-panel-link:hover { text-decoration: underline; }
+.dash-ai-rec {
+  background: linear-gradient(135deg, var(--ai-amber-dim), transparent);
+  border: 1px solid var(--ai-amber-glow);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+}
+.dash-ai-rec-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ai-amber); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+}
+.dash-ai-rec-text {
+  font-family: var(--font-canvas); font-size: 14px; line-height: 1.55;
+  color: var(--text-primary);
+}
+.dash-ai-rec-cta {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+  background: var(--brand-gradient); color: #FFFFFF; border: none;
+  padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(11,31,79,0.18);
+  transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+}
+.dash-ai-rec-cta:hover { background: var(--brand-gradient-hover); box-shadow: 0 4px 14px rgba(11,31,79,0.24); transform: translateY(-1px); }
+.dash-draft-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.12s;
+}
+.dash-draft-row:last-child { border-bottom: none; }
+.dash-draft-row:hover { background: var(--shelf-bg); margin: 0 -8px; padding: 11px 8px; border-radius: 6px; border-bottom: 1px solid transparent; }
+.dash-draft-pillar {
+  width: 4px; height: 28px; border-radius: 2px; flex-shrink: 0;
+}
+.dash-draft-pillar.lead { background: var(--pillar-lead); }
+.dash-draft-pillar.innov { background: var(--pillar-innov); }
+.dash-draft-pillar.cult { background: var(--pillar-cult); }
+.dash-draft-pillar.growth { background: var(--pillar-growth); }
+.dash-draft-info { flex: 1; min-width: 0; }
+.dash-draft-title {
+  font-size: 13px; font-weight: 500; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-draft-meta {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  margin-top: 2px;
+}
+.dash-status-chip {
+  font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 4px;
+  letter-spacing: 0.04em; text-transform: uppercase; flex-shrink: 0;
+}
+.dash-status-chip.draft { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.dash-status-chip.scheduled { background: var(--action-blue-dim); color: var(--action-blue); }
+.dash-status-chip.ready { background: var(--success-dim); color: var(--success); }
+.dash-streak-row {
+  display: flex; align-items: center; gap: 4px; margin-top: 12px;
+}
+.dash-streak-dot {
+  width: 14px; height: 14px; border-radius: 4px;
+  background: var(--ai-amber); opacity: 0.92;
+}
+.dash-streak-dot.empty { background: var(--border); opacity: 0.5; }
+.dash-week-strip {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+  margin-top: 4px;
+}
+.dwd {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 8px; min-height: 80px;
+  display: flex; flex-direction: column; gap: 5px;
+  cursor: pointer; transition: border-color 0.15s, transform 0.15s;
+}
+.dwd:hover { border-color: var(--ai-amber-glow); transform: translateY(-1px); }
+.dwd.today { border-color: var(--ai-amber); background: var(--ai-amber-dim); }
+.dwd-name { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.dwd.today .dwd-name { color: var(--ai-amber); }
+.dwd-num { font-size: 18px; font-weight: 800; color: var(--text-primary); line-height: 1; font-family: var(--font-display); }
+.dwd.today .dwd-num { color: var(--ai-amber); }
+.dwd-pill {
+  font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: auto;
+}
+.dwd-pill.draft { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.dwd-pill.scheduled { background: var(--action-blue-dim); color: var(--action-blue); }
+.dwd-pill.live { background: var(--success-dim); color: var(--success); }
+
+/* Toast */
+.studio-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--text-primary); color: var(--bg);
+  padding: 10px 20px; border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.studio-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.studio-toast .toast-icon { color: var(--ai-amber); }
+
+/* ═══════════════════════════════════════════════════════
+   IDEA BANK — KANBAN (4 status columns)
+   ═══════════════════════════════════════════════════════ */
+.kanban-view { display: flex; min-height: 720px; }
+.kanban-main {
+  flex: 1; min-width: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.kanban-topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0;
+}
+.kanban-title-block { display: flex; flex-direction: column; gap: 2px; }
+.kanban-title {
+  font-family: var(--font-display); font-size: 18px; font-weight: 800;
+  letter-spacing: -0.01em; color: var(--text-primary);
+}
+.kanban-subtitle { font-size: 11px; color: var(--text-muted); }
+.kanban-pillar-filters { display: flex; gap: 6px; align-items: center; }
+.kanban-actions { display: flex; gap: 8px; }
+.kanban-board {
+  flex: 1; overflow-x: auto; overflow-y: hidden;
+  display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr));
+  gap: 16px; padding: 20px 24px;
+}
+.kanban-column {
+  background: var(--shelf-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 100%; max-height: 660px; overflow: hidden;
+}
+.kanban-col-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 4px 0;
+  flex-shrink: 0;
+}
+.kanban-col-title {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-display); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-secondary);
+}
+.kanban-col-dot { width: 8px; height: 8px; border-radius: 50%; }
+.kanban-col-dot.amber { background: var(--ai-amber); }
+.kanban-col-dot.blue { background: var(--action-blue); }
+.kanban-col-dot.green { background: var(--success); }
+.kanban-col-dot.gray { background: var(--text-muted); }
+.kanban-col-count {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: var(--radius-pill); color: var(--text-secondary);
+}
+.kanban-cards {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  padding: 4px 2px;
+}
+.kanban-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 12px 10px; cursor: grab;
+  position: relative; overflow: hidden; transition: box-shadow 0.18s, transform 0.15s;
+  box-shadow: var(--shadow-card);
+}
+.kanban-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.kanban-card.lead::before { background: var(--pillar-lead); }
+.kanban-card.innov::before { background: var(--pillar-innov); }
+.kanban-card.cult::before { background: var(--pillar-cult); }
+.kanban-card.growth::before { background: var(--pillar-growth); }
+.kanban-card.mind::before { background: var(--pillar-mind); }
+.kanban-card:hover { box-shadow: 0 0 0 2px var(--ai-amber-glow), var(--shadow-card); transform: translateY(-1px); }
+.kc-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.kc-tag.lead { color: var(--pillar-lead); }
+.kc-tag.innov { color: var(--pillar-innov); }
+.kc-tag.cult { color: var(--pillar-cult); }
+.kc-tag.growth { color: var(--pillar-growth); }
+.kc-tag.mind { color: var(--pillar-mind); }
+.kc-title {
+  font-size: 13px; font-weight: 500; color: var(--text-primary);
+  line-height: 1.4; margin-bottom: 4px;
+}
+.kc-body {
+  font-family: var(--font-canvas); font-size: 12px; color: var(--text-secondary);
+  line-height: 1.5; margin-bottom: 7px;
+}
+.kc-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+}
+.kanban-add-btn {
+  margin-top: 4px; padding: 8px 10px; border-radius: 8px;
+  border: 1.5px dashed var(--border-strong); background: transparent;
+  color: var(--text-muted); font-size: 11px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.kanban-add-btn:hover { border-color: var(--ai-amber); color: var(--ai-amber); background: var(--ai-amber-dim); }
+
+/* ═══════════════════════════════════════════════════════
+   CALENDAR — month grid + upcoming sidebar
+   (lifts patterns from src/app/(app)/calendar/page.tsx)
+   ═══════════════════════════════════════════════════════ */
+.calendar-view { display: flex; min-height: 760px; }
+.cal-main {
+  flex: 1; min-width: 0; background: var(--bg);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.cal-topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex-shrink: 0;
+}
+.cal-title-block { display: flex; align-items: center; gap: 14px; }
+.cal-title {
+  font-family: var(--font-display); font-size: 20px; font-weight: 800;
+  letter-spacing: -0.01em; color: var(--text-primary);
+}
+.cal-nav-btns { display: flex; gap: 4px; align-items: center; }
+.cal-nav-btn {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.cal-nav-btn:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.cal-today-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 12px; font-weight: 600;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer;
+}
+.cal-today-btn:hover { background: var(--ai-amber-dim); color: var(--ai-amber); border-color: var(--ai-amber); }
+.cal-view-segment {
+  display: inline-flex; background: var(--shelf-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px;
+}
+.cal-view-btn {
+  border: none; background: transparent; padding: 5px 14px;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.cal-view-btn.active { background: var(--surface); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.cal-body {
+  flex: 1; display: grid; grid-template-columns: 1fr 320px; gap: 0; overflow: hidden;
+}
+.cal-grid-wrap { padding: 18px 22px; overflow-y: auto; }
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  margin-bottom: 6px;
+}
+.cal-weekday {
+  font-family: var(--font-display); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);
+  padding: 4px 8px; text-align: left;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 96px; gap: 4px;
+}
+.cal-day {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  cursor: pointer; transition: border-color 0.15s, transform 0.12s;
+  overflow: hidden; position: relative;
+}
+.cal-day:hover { border-color: var(--ai-amber-glow); }
+.cal-day.outside { opacity: 0.4; }
+.cal-day-num {
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  color: var(--text-primary);
+}
+.cal-day.today .cal-day-num {
+  background: var(--brand-gradient); color: #FFFFFF;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  box-shadow: 0 2px 6px rgba(11,31,79,0.28);
+}
+.cal-day-pill {
+  font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+}
+.cal-day-pill.draft { background: var(--ai-amber-dim); color: var(--ai-amber); border-left: 2px solid var(--ai-amber); }
+.cal-day-pill.scheduled { background: var(--action-blue-dim); color: var(--action-blue); border-left: 2px solid var(--action-blue); }
+.cal-day-pill.live { background: var(--success-dim); color: var(--success); border-left: 2px solid var(--success); }
+.cal-day-more {
+  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  padding: 1px 4px; cursor: pointer;
+}
+.cal-day-more:hover { color: var(--ai-amber); }
+.cal-upcoming {
+  background: var(--surface-2); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.cal-upcoming-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.cal-upcoming-title {
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-secondary);
+}
+.cal-upcoming-list {
+  flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.cal-upcoming-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  transition: box-shadow 0.18s, transform 0.12s;
+  position: relative; overflow: hidden;
+}
+.cal-upcoming-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.cal-upcoming-card.scheduled::before { background: var(--action-blue); }
+.cal-upcoming-card.draft::before { background: var(--ai-amber); }
+.cal-upcoming-card:hover { box-shadow: var(--shadow-card); transform: translateY(-1px); }
+.cu-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cu-status-chip {
+  font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.cu-status-chip.scheduled { background: var(--action-blue-dim); color: var(--action-blue); }
+.cu-status-chip.draft { background: var(--ai-amber-dim); color: var(--ai-amber); }
+.cu-when { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.cu-title { font-size: 13px; font-weight: 500; color: var(--text-primary); line-height: 1.4; margin-bottom: 8px; }
+.cu-actions { display: flex; gap: 6px; }
+.cu-btn {
+  font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 5px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.cu-btn:hover { background: var(--ai-amber-dim); color: var(--ai-amber); border-color: var(--ai-amber); }
+
+/* ── COMPONENT GALLERY ─────────────────────────────────── */
+.comp-gallery {
+  display: flex; flex-direction: column; gap: 28px;
+  padding: 32px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-top: 16px;
+}
+.comp-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.comp-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 12px;
+}
+.comp-section-title {
+  font-family: var(--font-display); font-size: 14px; font-weight: 700;
+  color: var(--text-primary); margin-bottom: 12px;
+}
+
+/* ── UTILITY ────────────────────────────────────────────── */
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+.icon-btn:hover { background: var(--ai-amber-dim); color: var(--ai-amber); }
+svg { display: block; }
+
+/* SVG icon definitions (re-used) */
+.studio-frame { display: flex; height: 760px; }
+
+</style>
+</head>
+
+<body>
+<button class="theme-toggle" id="themeToggle">
+  <span id="themeLabel">☾ Dark Mode</span>
+</button>
+
+<div class="studio-toast" id="studioToast">
+  <span class="toast-icon">✓</span>
+  <span id="toastMsg">Inserted into draft</span>
+</div>
+
+<!-- CASE HEADER -->
+<div class="case-header">
+  <div>
+    <h1>The Studio</h1>
+    <p>Agent B — Warm AI Companion &nbsp;·&nbsp; Round 3 Final</p>
+  </div>
+  <div class="case-meta">
+    <div class="case-meta-item">Concept<strong>The Studio v3</strong></div>
+    <div class="case-meta-item">Headline<strong>AI Collaborator</strong></div>
+    <div class="case-meta-item">Target<strong>VP primary, young pro secondary</strong></div>
+    <div class="case-meta-item"><span class="badge-r3">ROUND 3 · FINAL</span></div>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 1 — FOCUS VIEW (BP-099 SPEC)
+     Greeting + subtitle + 4 cards. Nothing else.
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">① Focus View — Simple Landing</div>
+  <div class="app-frame">
+    <div class="focus-view">
+      <!-- Persistent shelf nav -->
+      <nav class="shelf-nav">
+        <div class="shelf-brand">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="12" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".3"/></svg>
+          <span class="shelf-brand-name">PostPilot</span>
+        </div>
+        <div class="nav-item active">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span class="nav-label">Focus</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></span>
+          <span class="nav-label">Studio</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></span>
+          <span class="nav-label">Ideas</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="nav-label">Calendar</span>
+        </div>
+        <div class="nav-spacer"></div>
+        <div class="nav-toggle" data-action="toggle-nav" title="Expand / collapse navigation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="nav-avatar">
+          <div class="nav-avatar-circle">MH</div>
+          <span class="nav-avatar-name">Marcus H.</span>
+        </div>
+      </nav>
+
+      <!-- Focus main: greeting + subtitle + 4 cards (BP-099) -->
+      <main class="focus-main">
+        <div class="focus-blob-1"></div>
+        <div class="focus-blob-2"></div>
+        <div class="focus-dot-pattern"></div>
+        <div class="focus-content">
+          <h1 class="focus-greeting">Good morning, <span class="focus-greeting-name">Marcus</span>.</h1>
+          <div class="focus-subtitle">What can I help you focus on today?</div>
+          <div class="focus-cards">
+            <div class="focus-card ideas">
+              <div class="focus-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.5.4.8 1 .8 1.6V18h6.4v-1.7c0-.6.3-1.2.8-1.6A7 7 0 0012 2z"/></svg>
+              </div>
+              <div class="focus-card-title">Generate New Ideas</div>
+              <div class="focus-card-desc">Spin up post angles from your pillars and recent posts.</div>
+              <div class="focus-card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg></div>
+            </div>
+            <div class="focus-card create">
+              <div class="focus-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </div>
+              <div class="focus-card-title">Create a Post</div>
+              <div class="focus-card-desc">Open the Studio with the AI Collaborator on. Start a fresh draft.</div>
+              <div class="focus-card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg></div>
+            </div>
+            <div class="focus-card drafts">
+              <div class="focus-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="focus-card-title">View Draft Posts</div>
+              <div class="focus-card-desc">Pick up where you left off — 4 in progress, 1 ready to schedule.</div>
+              <div class="focus-card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg></div>
+            </div>
+            <div class="focus-card scheduled">
+              <div class="focus-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div class="focus-card-title">View Scheduled Posts</div>
+              <div class="focus-card-desc">Three queued this week. Next one ships Tuesday at 9:00 AM.</div>
+              <div class="focus-card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg></div>
+            </div>
+          </div>
+
+          <!-- Streak badge — relocated here from dashboard per R3 owner direction -->
+          <div class="focus-streak-badge" title="Day streak">
+            <span class="flame">🔥</span>
+            <div class="focus-streak-text">
+              <div class="focus-streak-line">
+                <span class="focus-streak-num">12</span>
+                <span class="focus-streak-day-label">Day streak</span>
+              </div>
+              <div class="focus-streak-sub">Strongest run yet — keep going</div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 2 — STANDARD DASHBOARD
+     The richer landing for users who want the daily hub
+     (status snippets, streak, AI today, drafts, week preview)
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">② Standard Dashboard — Daily Hub</div>
+  <div class="app-frame">
+    <div class="dashboard-view">
+      <!-- nav -->
+      <nav class="shelf-nav">
+        <div class="shelf-brand">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="12" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".3"/></svg>
+          <span class="shelf-brand-name">PostPilot</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span class="nav-label">Focus</span>
+        </div>
+        <div class="nav-item active">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></span>
+          <span class="nav-label">Studio</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></span>
+          <span class="nav-label">Ideas</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="nav-label">Calendar</span>
+        </div>
+        <div class="nav-spacer"></div>
+        <div class="nav-toggle" data-action="toggle-nav" title="Expand / collapse navigation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="nav-avatar">
+          <div class="nav-avatar-circle">MH</div>
+          <span class="nav-avatar-name">Marcus H.</span>
+        </div>
+      </nav>
+
+      <main class="dashboard-main">
+        <div class="dash-hello-row">
+          <div class="dash-greeting-block">
+            <div class="dash-date-line">Monday · April 28 · 2026</div>
+            <div class="dash-greeting">Welcome back, <em>Marcus</em>.</div>
+          </div>
+          <!-- Streak pill removed per R3 owner direction; the Streak panel
+               below remains as the single source of streak detail on this view. -->
+        </div>
+
+        <div class="dash-snippets">
+          <div class="dash-snip">
+            <div class="dash-snip-label">Drafts in progress</div>
+            <div class="dash-snip-value amber">4</div>
+            <div class="dash-snip-sub">1 is ready to schedule</div>
+          </div>
+          <div class="dash-snip">
+            <div class="dash-snip-label">Days since Leadership</div>
+            <div class="dash-snip-value alert">9</div>
+            <div class="dash-snip-sub">Your top-performing pillar — gap is widening</div>
+          </div>
+          <div class="dash-snip">
+            <div class="dash-snip-label">Scheduled this week</div>
+            <div class="dash-snip-value">3</div>
+            <div class="dash-snip-sub">Next out · Tuesday 9:00 AM</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <!-- Left column: AI rec + drafts -->
+          <div class="dash-panel">
+            <div class="dash-panel-header">
+              <span class="dash-panel-title">Today's AI Recommendation</span>
+              <a class="dash-panel-link">Configure →</a>
+            </div>
+            <div class="dash-ai-rec">
+              <div class="dash-ai-rec-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+                Studio AI · Close your Leadership gap
+              </div>
+              <div class="dash-ai-rec-text">You have a Leadership gap and a fully-developed idea about decision-making under pressure. This one could go out Thursday and fill your gap. Want me to draft an opening?</div>
+              <button class="dash-ai-rec-cta">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+                Draft it now
+              </button>
+            </div>
+
+            <div class="dash-panel-header" style="margin-top:8px;">
+              <span class="dash-panel-title">In Progress</span>
+              <a class="dash-panel-link">View all 4 →</a>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar lead"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">The decision I made wrong — then made right</div>
+                <div class="dash-draft-meta">Leadership · Edited 2h ago · 642 chars</div>
+              </div>
+              <span class="dash-status-chip draft">Draft</span>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar innov"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">Why most feedback loops break in fast-growing teams</div>
+                <div class="dash-draft-meta">Innovation · Edited 1d ago · 1,142 chars</div>
+              </div>
+              <span class="dash-status-chip draft">Draft</span>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar growth"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">What I learned from building in public for 90 days</div>
+                <div class="dash-draft-meta">Growth · Edited 4h ago · 2,210 chars · Tue 9:00 AM</div>
+              </div>
+              <span class="dash-status-chip ready">Ready</span>
+            </div>
+            <div class="dash-draft-row">
+              <div class="dash-draft-pillar cult"></div>
+              <div class="dash-draft-info">
+                <div class="dash-draft-title">The onboarding question we ask that no one else does</div>
+                <div class="dash-draft-meta">Culture · Edited 3d ago · 480 chars</div>
+              </div>
+              <span class="dash-status-chip draft">Draft</span>
+            </div>
+          </div>
+
+          <!-- Right column: streak + week preview -->
+          <div style="display:flex;flex-direction:column;gap:18px;">
+            <div class="dash-panel">
+              <div class="dash-panel-header">
+                <span class="dash-panel-title">Streak · 12 days</span>
+                <a class="dash-panel-link">Goal settings →</a>
+              </div>
+              <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">Posting at least once on weekdays. Two more days to set a new personal record.</div>
+              <div class="dash-streak-row">
+                <div class="dash-streak-dot"></div><div class="dash-streak-dot"></div><div class="dash-streak-dot"></div><div class="dash-streak-dot"></div><div class="dash-streak-dot"></div>
+                <div class="dash-streak-dot"></div><div class="dash-streak-dot"></div><div class="dash-streak-dot"></div><div class="dash-streak-dot"></div><div class="dash-streak-dot"></div>
+                <div class="dash-streak-dot"></div><div class="dash-streak-dot"></div>
+                <div class="dash-streak-dot empty"></div><div class="dash-streak-dot empty"></div>
+              </div>
+            </div>
+
+            <div class="dash-panel">
+              <div class="dash-panel-header">
+                <span class="dash-panel-title">This Week</span>
+                <a class="dash-panel-link">Open calendar →</a>
+              </div>
+              <div class="dash-week-strip">
+                <div class="dwd today">
+                  <div class="dwd-name">Mon</div>
+                  <div class="dwd-num">28</div>
+                  <div class="dwd-pill draft">Leadership</div>
+                </div>
+                <div class="dwd">
+                  <div class="dwd-name">Tue</div>
+                  <div class="dwd-num">29</div>
+                  <div class="dwd-pill scheduled">Build public</div>
+                </div>
+                <div class="dwd">
+                  <div class="dwd-name">Wed</div>
+                  <div class="dwd-num">30</div>
+                </div>
+                <div class="dwd">
+                  <div class="dwd-name">Thu</div>
+                  <div class="dwd-num">1</div>
+                  <div class="dwd-pill draft">Decision</div>
+                </div>
+                <div class="dwd">
+                  <div class="dwd-name">Fri</div>
+                  <div class="dwd-num">2</div>
+                  <div class="dwd-pill scheduled">Culture</div>
+                </div>
+                <div class="dwd">
+                  <div class="dwd-name">Sat</div>
+                  <div class="dwd-num">3</div>
+                </div>
+                <div class="dwd">
+                  <div class="dwd-name">Sun</div>
+                  <div class="dwd-num">4</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 3 — POST EDITOR WITH AI COLLABORATOR
+     The headline feature. Idea shelf (collapsible) + writing
+     surface (full height, serif canvas) + persistent AI panel
+     with Hook / Go Deeper / Closing categories + bottom toolbar
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">③ Studio — Post Editor + AI Collaborator</div>
+  <div class="app-frame">
+    <div class="studio-frame">
+
+      <!-- Persistent shelf nav -->
+      <nav class="shelf-nav">
+        <div class="shelf-brand">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="12" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".3"/></svg>
+          <span class="shelf-brand-name">PostPilot</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span class="nav-label">Focus</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item active">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></span>
+          <span class="nav-label">Studio</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></span>
+          <span class="nav-label">Ideas</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="nav-label">Calendar</span>
+        </div>
+        <div class="nav-spacer"></div>
+        <div class="nav-toggle" data-action="toggle-nav" title="Expand / collapse navigation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="nav-avatar">
+          <div class="nav-avatar-circle">MH</div>
+          <span class="nav-avatar-name">Marcus H.</span>
+        </div>
+      </nav>
+
+      <!-- Idea shelf (collapsible) -->
+      <aside class="idea-shelf" id="ideaShelf">
+        <div class="shelf-header">
+          <span class="shelf-header-title">Idea Shelf</span>
+          <button class="shelf-collapse-btn" data-action="collapse-shelf" title="Collapse">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        </div>
+        <div class="shelf-filter-bar">
+          <span class="filter-pill active">All</span>
+          <span class="filter-pill">Lead</span>
+          <span class="filter-pill">Innov</span>
+          <span class="filter-pill">Culture</span>
+          <span class="filter-pill">Growth</span>
+        </div>
+        <div class="idea-list">
+          <div class="idea-card lead">
+            <div class="idea-tag lead">Leadership</div>
+            <div class="idea-title">The memo that changed how I run 1:1s</div>
+            <div class="idea-meta">Saved 3d ago</div>
+            <div class="idea-card-actions">
+              <button class="idea-btn idea-btn-primary">Draft →</button>
+              <button class="idea-btn idea-btn-ghost">Later</button>
+            </div>
+          </div>
+          <div class="idea-card innov">
+            <div class="idea-tag innov">Innovation</div>
+            <div class="idea-title">Why I stopped measuring team velocity</div>
+            <div class="idea-meta">Saved 5d ago</div>
+            <div class="idea-card-actions">
+              <button class="idea-btn idea-btn-primary">Draft →</button>
+              <button class="idea-btn idea-btn-ghost">Later</button>
+            </div>
+          </div>
+          <div class="idea-card cult">
+            <div class="idea-tag cult">Culture</div>
+            <div class="idea-title">The onboarding question we ask that no one else does</div>
+            <div class="idea-meta">Saved 1w ago</div>
+            <div class="idea-card-actions">
+              <button class="idea-btn idea-btn-primary">Draft →</button>
+              <button class="idea-btn idea-btn-ghost">Later</button>
+            </div>
+          </div>
+          <div class="idea-card growth">
+            <div class="idea-tag growth">Growth</div>
+            <div class="idea-title">Compounding skills: what 5 years of writing actually built</div>
+            <div class="idea-meta">Saved 2w ago</div>
+            <div class="idea-card-actions">
+              <button class="idea-btn idea-btn-primary">Draft →</button>
+              <button class="idea-btn idea-btn-ghost">Later</button>
+            </div>
+          </div>
+          <div class="idea-card mind">
+            <div class="idea-tag mind">Mindset</div>
+            <div class="idea-title">The hardest part of being right</div>
+            <div class="idea-meta">Saved 3d ago</div>
+            <div class="idea-card-actions">
+              <button class="idea-btn idea-btn-primary">Draft →</button>
+              <button class="idea-btn idea-btn-ghost">Later</button>
+            </div>
+          </div>
+        </div>
+        <button class="shelf-gen-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+          Generate ideas
+        </button>
+      </aside>
+      <div class="idea-shelf-reveal-tab" data-action="expand-shelf" title="Show idea shelf">
+        <span>Ideas</span>
+      </div>
+
+      <!-- Canvas / editor -->
+      <div class="canvas-area">
+        <div class="canvas-topbar">
+          <input class="canvas-title-input" type="text" value="The decision I made wrong — then made right">
+          <div class="lifecycle-strip">
+            <div class="lc-step done"><div class="dot"></div>Idea</div>
+            <div class="lc-line done"></div>
+            <div class="lc-step active"><div class="dot"></div>Draft</div>
+            <div class="lc-line"></div>
+            <div class="lc-step"><div class="dot"></div>Refined</div>
+            <div class="lc-line"></div>
+            <div class="lc-step"><div class="dot"></div>Live</div>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">Edited 2h ago</span>
+          <button class="icon-btn" title="Preview">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+
+        <!-- Slash command palette (R3 expanded — 10 commands in 3 cats) -->
+        <div class="slash-dropdown">
+          <div class="slash-header">
+            <span>/ai &nbsp;— AI commands</span>
+            <span class="slash-item-shortcut">↑↓ to nav</span>
+          </div>
+          <div class="slash-cat-label">Content AI</div>
+          <div class="slash-item highlighted">
+            <div class="slash-item-icon">⚓</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/hook</div>
+              <div class="slash-item-desc">Rewrite opening for maximum pull</div>
+            </div>
+            <span class="slash-item-shortcut">⌘H</span>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">🎯</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/closing</div>
+              <div class="slash-item-desc">Three ways to land this post</div>
+            </div>
+            <span class="slash-item-shortcut">⌘L</span>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">↗</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/expand</div>
+              <div class="slash-item-desc">Go deeper on the selected paragraph</div>
+            </div>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">↘</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/shorten</div>
+              <div class="slash-item-desc">Tighten and cut the selection</div>
+            </div>
+          </div>
+          <div class="slash-cat-label">Style &amp; Tone</div>
+          <div class="slash-item">
+            <div class="slash-item-icon">✦</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/rewrite-tone</div>
+              <div class="slash-item-desc">Rephrase in your authentic voice</div>
+            </div>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">✓</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/check-grammar</div>
+              <div class="slash-item-desc">Fix grammar and flow issues</div>
+            </div>
+          </div>
+          <div class="slash-cat-label">Insert</div>
+          <div class="slash-item">
+            <div class="slash-item-icon">📊</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/insert-stat</div>
+              <div class="slash-item-desc">Find a relevant statistic to cite</div>
+            </div>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">❝</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/insert-quote</div>
+              <div class="slash-item-desc">Suggest a memorable quote</div>
+            </div>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">?</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/insert-question</div>
+              <div class="slash-item-desc">Add a thought-provoking question</div>
+            </div>
+          </div>
+          <div class="slash-item">
+            <div class="slash-item-icon">→</div>
+            <div class="slash-item-body">
+              <div class="slash-item-name">/insert-cta</div>
+              <div class="slash-item-desc">Write a clear call-to-action</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-writing">
+          <div class="post-hook">Three years ago I made a call that cost us two months and one senior engineer. Last week the same situation came back — and this time I did it differently.</div>
+          <div class="post-body">
+            <p>The first time around, I had all the information I needed. I had the data, I had the team's input, and I had a clear recommendation sitting in my inbox. What I didn't have was the courage to act on something that felt counterintuitive to the people above me.</p>
+            <p>So I deferred. I waited for consensus that never came. And we paid for it.</p>
+            <p>What changed the second time wasn't more information or more confidence. It was a single question I've started asking before every hard call: <span class="slash-inline">/ai</span></p>
+          </div>
+          <div class="canvas-hashtags">
+            <span class="hashtag-chip">#leadership</span>
+            <span class="hashtag-chip">#decisionmaking</span>
+            <span class="hashtag-chip">#management</span>
+            <span class="hashtag-chip">+ Add</span>
+          </div>
+        </div>
+
+        <!-- BOTTOM-ANCHORED TOOLBAR — R3 fix -->
+        <div class="canvas-bottom-toolbar">
+          <div class="format-pill">
+            <button class="fp-btn" title="Bold"><strong>B</strong></button>
+            <button class="fp-btn" title="Italic"><em>I</em></button>
+            <button class="fp-btn" title="Strikethrough" style="text-decoration:line-through;">S</button>
+            <div class="fp-divider"></div>
+            <button class="fp-btn" title="Heading 1" style="font-size:11px;">H1</button>
+            <button class="fp-btn" title="Heading 2" style="font-size:11px;">H2</button>
+            <button class="fp-btn" title="Heading 3" style="font-size:11px;">H3</button>
+            <div class="fp-divider"></div>
+            <button class="fp-btn" title="Format">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            </button>
+            <button class="fp-btn" title="Code">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </button>
+            <button class="fp-btn" title="Link">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            </button>
+            <div class="fp-divider"></div>
+            <button class="fp-btn is-ai" title="Chat with AI">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </button>
+            <button class="fp-btn is-ai" title="AI generate">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <span class="char-count"><span class="ok">642</span> / 3000 chars</span>
+            <div class="canvas-btns">
+              <button class="btn-secondary">Preview</button>
+              <button class="btn-primary">
+                Schedule
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI COLLABORATOR COLUMN — three permanent categories -->
+      <aside class="ai-col">
+        <div class="ai-col-header">
+          <div class="ai-col-brand">
+            <div class="ai-status-dot"></div>
+            <span class="ai-col-wordmark">Studio AI</span>
+          </div>
+          <span class="ai-col-state">Reading draft…</span>
+        </div>
+        <div class="ai-col-scroll">
+
+          <div class="ai-reading-bar">
+            <div class="ai-reading-label">Reading your draft</div>
+            <div class="ai-reading-excerpt">"…I had the data, I had the team's input, and I had a clear recommendation…"</div>
+          </div>
+
+          <!-- Hook options (permanent category) -->
+          <div class="ai-suggestion-block">
+            <div class="ai-suggestion-header">
+              <div class="ai-suggestion-cat">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 12H7m0 0l4-4m-4 4l4 4"/></svg>
+                Hook options
+              </div>
+              <div class="ai-suggestion-actions">
+                <button class="ai-sug-action ai-sug-dismiss">Skip</button>
+              </div>
+            </div>
+            <div class="ai-suggestion-body">
+              <div class="ai-suggestion-text">Your opening is strong but starts with setup. Try leading with the cost — <em>leads with stakes</em> perform better for leadership content.</div>
+              <div class="ai-sub-options">
+                <div class="ai-option-row">
+                  <div class="ai-option-text">"It cost us two months and one engineer. Here's why I let it happen."</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+                <div class="ai-option-row">
+                  <div class="ai-option-text">"The hardest part wasn't being wrong. It was watching everyone agree with me."</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Go deeper here (permanent category) -->
+          <div class="ai-suggestion-block">
+            <div class="ai-suggestion-header">
+              <div class="ai-suggestion-cat">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                Go deeper here
+              </div>
+              <div class="ai-suggestion-actions">
+                <button class="ai-sug-action ai-sug-dismiss">Skip</button>
+              </div>
+            </div>
+            <div class="ai-suggestion-body">
+              <div class="ai-suggestion-text">Para 2 ends with "we paid for it" but doesn't say <em>how</em>. Specificity here would triple the relatability. One number or one name is enough.</div>
+              <div class="ai-sub-options">
+                <div class="ai-option-row">
+                  <div class="ai-option-text">"…we paid for it — six weeks, one senior engineer who left, and the version of the product we never shipped."</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Generating state (live demo) -->
+          <div class="ai-generating">
+            <div class="ai-gen-label">Drafting closing options…</div>
+            <div class="ai-gen-text">The question I ask now before every hard call is deceptively simple: "What would I do if I wasn't afraid of being wrong?" Not "what's the right answer" — that question is too easy to overthink. This one cuts through…</div>
+          </div>
+
+          <!-- Closing options (permanent category) -->
+          <div class="ai-suggestion-block">
+            <div class="ai-suggestion-header">
+              <div class="ai-suggestion-cat">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Closing options
+              </div>
+              <div class="ai-suggestion-actions">
+                <button class="ai-sug-action ai-sug-dismiss">Skip all</button>
+              </div>
+            </div>
+            <div class="ai-suggestion-body">
+              <div class="ai-sub-options">
+                <div class="ai-option-row">
+                  <div class="ai-option-text">End with the question (open loop — high engagement)</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+                <div class="ai-option-row">
+                  <div class="ai-option-text">End with the lesson reframed as advice to your team</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+                <div class="ai-option-row">
+                  <div class="ai-option-text">End with what you'd tell your past self</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="ai-ask-field">
+          <input class="ai-ask-input" type="text" placeholder="Ask anything about this draft…">
+          <button class="ai-ask-send">↑</button>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 4 — IDEA BANK (KANBAN)
+     Four status columns: Ideas / Drafting / Ready / Published
+     Pillar color-coded left borders. + Add at column foot.
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">④ Idea Bank — Kanban</div>
+  <div class="app-frame">
+    <div class="kanban-view">
+      <!-- nav -->
+      <nav class="shelf-nav">
+        <div class="shelf-brand">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="12" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".3"/></svg>
+          <span class="shelf-brand-name">PostPilot</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span class="nav-label">Focus</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></span>
+          <span class="nav-label">Studio</span>
+        </div>
+        <div class="nav-item active">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></span>
+          <span class="nav-label">Ideas</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="nav-label">Calendar</span>
+        </div>
+        <div class="nav-spacer"></div>
+        <div class="nav-toggle" data-action="toggle-nav">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="nav-avatar">
+          <div class="nav-avatar-circle">MH</div>
+          <span class="nav-avatar-name">Marcus H.</span>
+        </div>
+      </nav>
+
+      <main class="kanban-main">
+        <div class="kanban-topbar">
+          <div class="kanban-title-block">
+            <div class="kanban-title">Idea Bank</div>
+            <div class="kanban-subtitle">10 ideas · move cards between columns to track progress</div>
+          </div>
+          <div class="kanban-pillar-filters">
+            <span class="filter-pill active">All pillars</span>
+            <span class="filter-pill" style="border-color:var(--pillar-lead);color:var(--pillar-lead)">Leadership</span>
+            <span class="filter-pill" style="border-color:var(--pillar-innov);color:var(--pillar-innov)">Innovation</span>
+            <span class="filter-pill" style="border-color:var(--pillar-cult);color:var(--pillar-cult)">Culture</span>
+            <span class="filter-pill" style="border-color:var(--pillar-growth);color:var(--pillar-growth)">Growth</span>
+            <span class="filter-pill" style="border-color:var(--pillar-mind);color:var(--pillar-mind)">Mindset</span>
+          </div>
+          <div class="kanban-actions">
+            <button class="btn-secondary">Sort</button>
+            <button class="btn-amber">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+              Generate ideas
+            </button>
+          </div>
+        </div>
+
+        <div class="kanban-board">
+
+          <!-- Column 1: Ideas -->
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="kanban-col-dot amber"></span>
+                Ideas
+              </div>
+              <span class="kanban-col-count">3</span>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card lead">
+                <div class="kc-tag lead">Leadership</div>
+                <div class="kc-title">The memo that changed how I run 1:1s</div>
+                <div class="kc-body">A two-paragraph memo I send before every 1:1. Why agendas don't fix bad meetings, and what does.</div>
+                <div class="kc-meta">
+                  <span>Saved 3d ago</span>
+                  <span>💡 Idea</span>
+                </div>
+              </div>
+              <div class="kanban-card mind">
+                <div class="kc-tag mind">Mindset</div>
+                <div class="kc-title">The hardest part of being right</div>
+                <div class="kc-body">It's not convincing others. It's the period where you're right but can't prove it yet.</div>
+                <div class="kc-meta">
+                  <span>Saved 3d ago</span>
+                  <span>💡 Idea</span>
+                </div>
+              </div>
+              <div class="kanban-card cult">
+                <div class="kc-tag cult">Culture</div>
+                <div class="kc-title">Remote teams don't have a communication problem, they have a context problem</div>
+                <div class="kc-meta">
+                  <span>Saved 1w ago</span>
+                  <span>💡 Idea</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add-btn">+ Add idea</button>
+          </div>
+
+          <!-- Column 2: Drafting -->
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="kanban-col-dot blue"></span>
+                Drafting
+              </div>
+              <span class="kanban-col-count">3</span>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card lead">
+                <div class="kc-tag lead">Leadership</div>
+                <div class="kc-title">The decision I made wrong — then made right</div>
+                <div class="kc-body">Three years ago I made a call that cost us two months and one senior engineer. Last week the same situation came back…</div>
+                <div class="kc-meta">
+                  <span>Edited 2h ago</span>
+                  <span>642 chars</span>
+                </div>
+              </div>
+              <div class="kanban-card innov">
+                <div class="kc-tag innov">Innovation</div>
+                <div class="kc-title">Why most feedback loops break in fast-growing teams</div>
+                <div class="kc-body">Feedback rituals scale terribly. The ones that survive are the ones with no scheduling component.</div>
+                <div class="kc-meta">
+                  <span>Edited 1d ago</span>
+                  <span>1,142 chars</span>
+                </div>
+              </div>
+              <div class="kanban-card cult">
+                <div class="kc-tag cult">Culture</div>
+                <div class="kc-title">The onboarding question we ask that no one else does</div>
+                <div class="kc-body">"What do you need from me to do your best work?" — asked on day one, not month three.</div>
+                <div class="kc-meta">
+                  <span>Edited 3d ago</span>
+                  <span>480 chars</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add-btn">+ Add draft</button>
+          </div>
+
+          <!-- Column 3: Ready -->
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="kanban-col-dot green"></span>
+                Ready
+              </div>
+              <span class="kanban-col-count">2</span>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card growth">
+                <div class="kc-tag growth">Growth</div>
+                <div class="kc-title">What I learned from building in public for 90 days</div>
+                <div class="kc-body">Building in public didn't make me more disciplined. It exposed how undisciplined I'd been getting away with being.</div>
+                <div class="kc-meta">
+                  <span>Reviewed today</span>
+                  <span>✓ Tue 9:00 AM</span>
+                </div>
+              </div>
+              <div class="kanban-card innov">
+                <div class="kc-tag innov">Innovation</div>
+                <div class="kc-title">The $0 experiment that changed our product direction</div>
+                <div class="kc-body">A hallway conversation on a Friday became our fastest-growing feature. How we think about cheap experiments now.</div>
+                <div class="kc-meta">
+                  <span>Reviewed 2d ago</span>
+                  <span>✓ Fri 11:00 AM</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add-btn">+ Promote draft</button>
+          </div>
+
+          <!-- Column 4: Published -->
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="kanban-col-dot gray"></span>
+                Published
+              </div>
+              <span class="kanban-col-count">2</span>
+            </div>
+            <div class="kanban-cards">
+              <div class="kanban-card lead" style="opacity:0.85;">
+                <div class="kc-tag lead">Leadership</div>
+                <div class="kc-title">What "ownership" actually means on a high-performing team</div>
+                <div class="kc-body">Ownership isn't a feeling. It's a sequence of small, costly decisions that compound over months.</div>
+                <div class="kc-meta">
+                  <span>Posted Apr 26</span>
+                  <span>📈 1.2K reactions</span>
+                </div>
+              </div>
+              <div class="kanban-card growth" style="opacity:0.85;">
+                <div class="kc-tag growth">Growth</div>
+                <div class="kc-title">Compounding skills: what 5 years of writing actually built</div>
+                <div class="kc-body">Writing publicly for five years didn't make me a better writer. It made me a better thinker.</div>
+                <div class="kc-meta">
+                  <span>Posted Apr 23</span>
+                  <span>📈 847 reactions</span>
+                </div>
+              </div>
+            </div>
+            <button class="kanban-add-btn" style="visibility:hidden;">+ Add</button>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 5 — CALENDAR
+     Month grid (lifted from src/app/(app)/calendar/page.tsx
+     patterns: today circle, status pills, +N more) +
+     upcoming sidebar with reschedule/edit actions.
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">⑤ Calendar</div>
+  <div class="app-frame">
+    <div class="calendar-view">
+      <!-- nav -->
+      <nav class="shelf-nav">
+        <div class="shelf-brand">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".9"/><rect x="12" y="3" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="currentColor" opacity=".3"/></svg>
+          <span class="shelf-brand-name">PostPilot</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <span class="nav-label">Focus</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></span>
+          <span class="nav-label">Studio</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></span>
+          <span class="nav-label">Ideas</span>
+        </div>
+        <div class="nav-item active">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="nav-label">Calendar</span>
+        </div>
+        <div class="nav-spacer"></div>
+        <div class="nav-toggle" data-action="toggle-nav">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="nav-avatar">
+          <div class="nav-avatar-circle">MH</div>
+          <span class="nav-avatar-name">Marcus H.</span>
+        </div>
+      </nav>
+
+      <main class="cal-main">
+        <div class="cal-topbar">
+          <div class="cal-title-block">
+            <div class="cal-title">April 2026</div>
+            <div class="cal-nav-btns">
+              <button class="cal-nav-btn" title="Previous">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button class="cal-today-btn">Today</button>
+              <button class="cal-nav-btn" title="Next">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="cal-view-segment">
+            <button class="cal-view-btn active">Month</button>
+            <button class="cal-view-btn">Week</button>
+            <button class="cal-view-btn">Day</button>
+          </div>
+          <button class="btn-amber">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New post
+          </button>
+        </div>
+
+        <div class="cal-body">
+          <div class="cal-grid-wrap">
+            <div class="cal-weekdays">
+              <div class="cal-weekday">Sun</div>
+              <div class="cal-weekday">Mon</div>
+              <div class="cal-weekday">Tue</div>
+              <div class="cal-weekday">Wed</div>
+              <div class="cal-weekday">Thu</div>
+              <div class="cal-weekday">Fri</div>
+              <div class="cal-weekday">Sat</div>
+            </div>
+            <div class="cal-grid">
+              <!-- Week 1 (Mar 29 - Apr 4) -->
+              <div class="cal-day outside"><div class="cal-day-num">29</div></div>
+              <div class="cal-day outside"><div class="cal-day-num">30</div></div>
+              <div class="cal-day outside"><div class="cal-day-num">31</div></div>
+              <div class="cal-day"><div class="cal-day-num">1</div><div class="cal-day-pill live">Ownership essay</div></div>
+              <div class="cal-day"><div class="cal-day-num">2</div></div>
+              <div class="cal-day"><div class="cal-day-num">3</div><div class="cal-day-pill live">Compounding skills</div></div>
+              <div class="cal-day"><div class="cal-day-num">4</div></div>
+
+              <!-- Week 2 (Apr 5-11) -->
+              <div class="cal-day"><div class="cal-day-num">5</div></div>
+              <div class="cal-day"><div class="cal-day-num">6</div><div class="cal-day-pill live">Velocity essay</div></div>
+              <div class="cal-day"><div class="cal-day-num">7</div></div>
+              <div class="cal-day"><div class="cal-day-num">8</div><div class="cal-day-pill live">Manager memo</div></div>
+              <div class="cal-day"><div class="cal-day-num">9</div></div>
+              <div class="cal-day"><div class="cal-day-num">10</div><div class="cal-day-pill live">Friday lessons</div></div>
+              <div class="cal-day"><div class="cal-day-num">11</div></div>
+
+              <!-- Week 3 (Apr 12-18) -->
+              <div class="cal-day"><div class="cal-day-num">12</div></div>
+              <div class="cal-day"><div class="cal-day-num">13</div><div class="cal-day-pill live">Hiring loops</div></div>
+              <div class="cal-day"><div class="cal-day-num">14</div></div>
+              <div class="cal-day"><div class="cal-day-num">15</div><div class="cal-day-pill live">Async culture</div></div>
+              <div class="cal-day"><div class="cal-day-num">16</div></div>
+              <div class="cal-day"><div class="cal-day-num">17</div><div class="cal-day-pill live">Decision fatigue</div></div>
+              <div class="cal-day"><div class="cal-day-num">18</div></div>
+
+              <!-- Week 4 (Apr 19-25) — current week-ish -->
+              <div class="cal-day"><div class="cal-day-num">19</div></div>
+              <div class="cal-day"><div class="cal-day-num">20</div><div class="cal-day-pill live">Tough quarters</div></div>
+              <div class="cal-day"><div class="cal-day-num">21</div></div>
+              <div class="cal-day"><div class="cal-day-num">22</div><div class="cal-day-pill live">Trust capital</div></div>
+              <div class="cal-day"><div class="cal-day-num">23</div></div>
+              <div class="cal-day"><div class="cal-day-num">24</div><div class="cal-day-pill live">Cheap experiments</div></div>
+              <div class="cal-day"><div class="cal-day-num">25</div></div>
+
+              <!-- Week 5 (Apr 26-May 2) — TODAY = 28 -->
+              <div class="cal-day"><div class="cal-day-num">26</div><div class="cal-day-pill live">Ownership truth</div></div>
+              <div class="cal-day"><div class="cal-day-num">27</div></div>
+              <div class="cal-day today">
+                <div class="cal-day-num">28</div>
+                <div class="cal-day-pill draft">Decision I made wrong</div>
+              </div>
+              <div class="cal-day">
+                <div class="cal-day-num">29</div>
+                <div class="cal-day-pill scheduled">Building in public</div>
+              </div>
+              <div class="cal-day"><div class="cal-day-num">30</div></div>
+              <div class="cal-day outside">
+                <div class="cal-day-num">1</div>
+                <div class="cal-day-pill draft">Decision-making</div>
+              </div>
+              <div class="cal-day outside">
+                <div class="cal-day-num">2</div>
+                <div class="cal-day-pill scheduled">Team culture piece</div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="cal-upcoming">
+            <div class="cal-upcoming-header">
+              <div class="cal-upcoming-title">Upcoming</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Next 5 scheduled posts</div>
+            </div>
+            <div class="cal-upcoming-list">
+              <div class="cal-upcoming-card scheduled">
+                <div class="cu-row">
+                  <span class="cu-status-chip scheduled">Scheduled</span>
+                  <span class="cu-when">Tue · Apr 29 · 9:00 AM</span>
+                </div>
+                <div class="cu-title">What I learned from building in public for 90 days</div>
+                <div class="cu-actions">
+                  <button class="cu-btn">Reschedule</button>
+                  <button class="cu-btn">Edit</button>
+                  <button class="cu-btn">Post now</button>
+                </div>
+              </div>
+              <div class="cal-upcoming-card scheduled">
+                <div class="cu-row">
+                  <span class="cu-status-chip scheduled">Scheduled</span>
+                  <span class="cu-when">Fri · May 2 · 11:00 AM</span>
+                </div>
+                <div class="cu-title">The $0 experiment that changed our product direction</div>
+                <div class="cu-actions">
+                  <button class="cu-btn">Reschedule</button>
+                  <button class="cu-btn">Edit</button>
+                  <button class="cu-btn">Post now</button>
+                </div>
+              </div>
+              <div class="cal-upcoming-card draft">
+                <div class="cu-row">
+                  <span class="cu-status-chip draft">Draft · ready</span>
+                  <span class="cu-when">Thu · May 1 · 9:00 AM</span>
+                </div>
+                <div class="cu-title">The decision I made wrong — then made right</div>
+                <div class="cu-actions">
+                  <button class="cu-btn">Schedule</button>
+                  <button class="cu-btn">Edit</button>
+                </div>
+              </div>
+              <div class="cal-upcoming-card scheduled">
+                <div class="cu-row">
+                  <span class="cu-status-chip scheduled">Scheduled</span>
+                  <span class="cu-when">Mon · May 5 · 9:00 AM</span>
+                </div>
+                <div class="cu-title">The onboarding question we ask that no one else does</div>
+                <div class="cu-actions">
+                  <button class="cu-btn">Reschedule</button>
+                  <button class="cu-btn">Edit</button>
+                </div>
+              </div>
+              <div class="cal-upcoming-card draft">
+                <div class="cu-row">
+                  <span class="cu-status-chip draft">Draft</span>
+                  <span class="cu-when">Wed · May 7 · TBD</span>
+                </div>
+                <div class="cu-title">Why most feedback loops break in fast-growing teams</div>
+                <div class="cu-actions">
+                  <button class="cu-btn">Schedule</button>
+                  <button class="cu-btn">Edit</button>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     SECTION 6 — COMPONENT GALLERY
+     Toolbar pill in BOTH modes (per owner spec) + AI states +
+     kanban card + calendar day + buttons + status chips +
+     pillar tags + slash command palette + lifecycle.
+     ════════════════════════════════════════════════════════ -->
+<div class="section-block">
+  <div class="section-label">⑥ Component Gallery</div>
+  <div class="comp-gallery">
+
+    <!-- Bottom-anchored toolbar in BOTH modes (owner reference image style) -->
+    <div>
+      <div class="comp-section-title">Bottom-anchored Toolbar Pill — both modes</div>
+      <div class="comp-row" style="gap:24px;align-items:center;">
+        <div>
+          <div class="comp-label">Light mode</div>
+          <div class="format-pill" style="background:#FBF8F3;border-color:#E8E2D8;">
+            <button class="fp-btn" style="color:#7A736B;"><strong>B</strong></button>
+            <button class="fp-btn" style="color:#7A736B;"><em>I</em></button>
+            <button class="fp-btn" style="color:#7A736B;text-decoration:line-through;">S</button>
+            <div class="fp-divider" style="background:#E8E2D8;"></div>
+            <button class="fp-btn" style="color:#7A736B;font-size:11px;">H1</button>
+            <button class="fp-btn" style="color:#7A736B;font-size:11px;">H2</button>
+            <button class="fp-btn" style="color:#7A736B;font-size:11px;">H3</button>
+            <div class="fp-divider" style="background:#E8E2D8;"></div>
+            <button class="fp-btn" style="color:#7A736B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg></button>
+            <button class="fp-btn" style="color:#7A736B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+            <button class="fp-btn" style="color:#7A736B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></button>
+            <div class="fp-divider" style="background:#E8E2D8;"></div>
+            <button class="fp-btn" style="color:#D4870A;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>
+            <button class="fp-btn" style="color:#D4870A;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg></button>
+          </div>
+        </div>
+        <div>
+          <div class="comp-label">Dark mode</div>
+          <div class="format-pill" style="background:#1E1B18;border-color:#2E2A26;">
+            <button class="fp-btn" style="color:#8A837B;"><strong>B</strong></button>
+            <button class="fp-btn" style="color:#8A837B;"><em>I</em></button>
+            <button class="fp-btn" style="color:#8A837B;text-decoration:line-through;">S</button>
+            <div class="fp-divider" style="background:#2E2A26;"></div>
+            <button class="fp-btn" style="color:#8A837B;font-size:11px;">H1</button>
+            <button class="fp-btn" style="color:#8A837B;font-size:11px;">H2</button>
+            <button class="fp-btn" style="color:#8A837B;font-size:11px;">H3</button>
+            <div class="fp-divider" style="background:#2E2A26;"></div>
+            <button class="fp-btn" style="color:#8A837B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg></button>
+            <button class="fp-btn" style="color:#8A837B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+            <button class="fp-btn" style="color:#8A837B;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></button>
+            <div class="fp-divider" style="background:#2E2A26;"></div>
+            <button class="fp-btn" style="color:#F0A840;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>
+            <button class="fp-btn" style="color:#F0A840;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div>
+      <div class="comp-section-title">Buttons</div>
+      <div class="comp-row">
+        <button class="btn-primary">Schedule post</button>
+        <button class="btn-secondary">Preview</button>
+        <button class="btn-amber">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+          AI Draft
+        </button>
+        <button class="btn-secondary" style="color:var(--pillar-mind);border-color:rgba(184,48,64,0.3);">Discard</button>
+      </div>
+    </div>
+
+    <!-- Status chips + Pillar tags -->
+    <div>
+      <div class="comp-section-title">Status Chips &amp; Pillar Tags</div>
+      <div class="comp-row" style="margin-bottom:12px;">
+        <span class="dash-status-chip draft">Draft</span>
+        <span class="dash-status-chip scheduled">Scheduled</span>
+        <span class="dash-status-chip ready">Ready</span>
+        <span class="dash-status-chip" style="background:rgba(122,115,107,0.12);color:var(--text-secondary);">Posted</span>
+      </div>
+      <div class="comp-row">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pillar-lead);background:var(--action-blue-dim);padding:3px 10px;border-radius:var(--radius-pill);">Leadership</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pillar-innov);background:rgba(200,94,0,0.1);padding:3px 10px;border-radius:var(--radius-pill);">Innovation</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pillar-cult);background:rgba(139,79,200,0.1);padding:3px 10px;border-radius:var(--radius-pill);">Culture</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pillar-growth);background:var(--success-dim);padding:3px 10px;border-radius:var(--radius-pill);">Growth</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pillar-mind);background:rgba(184,48,64,0.1);padding:3px 10px;border-radius:var(--radius-pill);">Mindset</span>
+      </div>
+    </div>
+
+    <!-- AI states -->
+    <div>
+      <div class="comp-section-title">AI Collaborator States</div>
+      <div class="comp-row" style="align-items:stretch;">
+        <div style="width:240px;">
+          <div class="comp-label">Reading</div>
+          <div class="ai-reading-bar">
+            <div class="ai-reading-label">Reading your draft</div>
+            <div class="ai-reading-excerpt">"…I had the data, I had the team's input…"</div>
+          </div>
+        </div>
+        <div style="width:240px;">
+          <div class="comp-label">Generating</div>
+          <div class="ai-generating">
+            <div class="ai-gen-label">Generating hook…</div>
+            <div class="ai-gen-text">What if being wrong was never the problem? The problem was needing to be right…</div>
+          </div>
+        </div>
+        <div style="width:280px;">
+          <div class="comp-label">Suggestion · click-to-insert</div>
+          <div class="ai-suggestion-block" style="animation:none;">
+            <div class="ai-suggestion-header">
+              <div class="ai-suggestion-cat">Hook option ready</div>
+            </div>
+            <div class="ai-suggestion-body">
+              <div class="ai-sub-options">
+                <div class="ai-option-row">
+                  <div class="ai-option-text">"It cost us two months. Here's why I let it happen."</div>
+                  <button class="ai-option-insert">Insert →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slash command palette -->
+    <div>
+      <div class="comp-section-title">Slash Command Palette — 10 commands · 3 categories</div>
+      <div class="comp-row">
+        <div class="slash-dropdown" style="position:static;width:340px;animation:none;">
+          <div class="slash-header">
+            <span>/ai &nbsp;— AI commands</span>
+            <span class="slash-item-shortcut">↑↓ to nav</span>
+          </div>
+          <div class="slash-cat-label">Content AI</div>
+          <div class="slash-item highlighted"><div class="slash-item-icon">⚓</div><div class="slash-item-body"><div class="slash-item-name">/hook</div><div class="slash-item-desc">Rewrite opening for maximum pull</div></div><span class="slash-item-shortcut">⌘H</span></div>
+          <div class="slash-item"><div class="slash-item-icon">🎯</div><div class="slash-item-body"><div class="slash-item-name">/closing</div><div class="slash-item-desc">Three ways to land this post</div></div><span class="slash-item-shortcut">⌘L</span></div>
+          <div class="slash-item"><div class="slash-item-icon">↗</div><div class="slash-item-body"><div class="slash-item-name">/expand</div><div class="slash-item-desc">Go deeper on the selected paragraph</div></div></div>
+          <div class="slash-item"><div class="slash-item-icon">↘</div><div class="slash-item-body"><div class="slash-item-name">/shorten</div><div class="slash-item-desc">Tighten and cut the selection</div></div></div>
+          <div class="slash-cat-label">Style &amp; Tone</div>
+          <div class="slash-item"><div class="slash-item-icon">✦</div><div class="slash-item-body"><div class="slash-item-name">/rewrite-tone</div><div class="slash-item-desc">Rephrase in your authentic voice</div></div></div>
+          <div class="slash-item"><div class="slash-item-icon">✓</div><div class="slash-item-body"><div class="slash-item-name">/check-grammar</div><div class="slash-item-desc">Fix grammar and flow issues</div></div></div>
+          <div class="slash-cat-label">Insert</div>
+          <div class="slash-item"><div class="slash-item-icon">📊</div><div class="slash-item-body"><div class="slash-item-name">/insert-stat</div><div class="slash-item-desc">Find a relevant statistic</div></div></div>
+          <div class="slash-item"><div class="slash-item-icon">❝</div><div class="slash-item-body"><div class="slash-item-name">/insert-quote</div><div class="slash-item-desc">Suggest a memorable quote</div></div></div>
+          <div class="slash-item"><div class="slash-item-icon">?</div><div class="slash-item-body"><div class="slash-item-name">/insert-question</div><div class="slash-item-desc">Add a thought-provoking question</div></div></div>
+          <div class="slash-item"><div class="slash-item-icon">→</div><div class="slash-item-body"><div class="slash-item-name">/insert-cta</div><div class="slash-item-desc">Write a clear call-to-action</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kanban card + calendar day -->
+    <div>
+      <div class="comp-section-title">Kanban Card · Calendar Day</div>
+      <div class="comp-row" style="align-items:flex-start;">
+        <div style="width:260px;">
+          <div class="comp-label">Kanban card (drafting)</div>
+          <div class="kanban-card lead" style="cursor:default;">
+            <div class="kc-tag lead">Leadership</div>
+            <div class="kc-title">The decision I made wrong — then made right</div>
+            <div class="kc-body">Three years ago I made a call that cost us two months and one senior engineer. Last week the same situation came back…</div>
+            <div class="kc-meta">
+              <span>Edited 2h ago</span>
+              <span>642 chars</span>
+            </div>
+          </div>
+        </div>
+        <div style="width:140px;">
+          <div class="comp-label">Calendar day · today</div>
+          <div class="cal-day today" style="height:96px;">
+            <div class="cal-day-num">28</div>
+            <div class="cal-day-pill draft">Decision draft</div>
+          </div>
+        </div>
+        <div style="width:140px;">
+          <div class="comp-label">Day with scheduled</div>
+          <div class="cal-day" style="height:96px;">
+            <div class="cal-day-num">29</div>
+            <div class="cal-day-pill scheduled">Building public</div>
+          </div>
+        </div>
+        <div style="width:240px;">
+          <div class="comp-label">Upcoming card</div>
+          <div class="cal-upcoming-card scheduled" style="cursor:default;">
+            <div class="cu-row">
+              <span class="cu-status-chip scheduled">Scheduled</span>
+              <span class="cu-when">Tue · 9:00 AM</span>
+            </div>
+            <div class="cu-title">What I learned from building in public for 90 days</div>
+            <div class="cu-actions">
+              <button class="cu-btn">Reschedule</button>
+              <button class="cu-btn">Edit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Streak + lifecycle -->
+    <div>
+      <div class="comp-section-title">Gamification &amp; Lifecycle</div>
+      <div class="comp-row" style="align-items:center;">
+        <div class="focus-streak-badge" style="margin-top:0;">
+          <span class="flame">🔥</span>
+          <div class="focus-streak-text">
+            <div class="focus-streak-line">
+              <span class="focus-streak-num">12</span>
+              <span class="focus-streak-day-label">Day streak</span>
+            </div>
+            <div class="focus-streak-sub">Strongest run yet — keep going</div>
+          </div>
+        </div>
+        <div class="lifecycle-strip" style="background:var(--shelf-bg);padding:8px 16px;border-radius:8px;border:1px solid var(--border);">
+          <div class="lc-step done"><div class="dot"></div>Idea</div>
+          <div class="lc-line done"></div>
+          <div class="lc-step done"><div class="dot"></div>Draft</div>
+          <div class="lc-line done"></div>
+          <div class="lc-step active"><div class="dot"></div>Refined</div>
+          <div class="lc-line"></div>
+          <div class="lc-step"><div class="dot"></div>Scheduled</div>
+          <div class="lc-line"></div>
+          <div class="lc-step"><div class="dot"></div>Live</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /page-wrap -->
+
+<script>
+// ── THEME TOGGLE — single handler only (R3 bug fix) ──
+// Round 2 had both an inline onclick attribute AND an addEventListener
+// firing on the same click, cancelling each other out. R3 has only the
+// addEventListener, no inline onclick. Click visibly flips the theme.
+(function() {
+  const btn = document.getElementById('themeToggle');
+  const label = document.getElementById('themeLabel');
+  btn.addEventListener('click', function() {
+    const html = document.documentElement;
+    const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+    html.dataset.theme = next;
+    label.textContent = next === 'dark' ? '☀ Light Mode' : '☾ Dark Mode';
+  });
+})();
+
+// ── NAV EXPAND / COLLAPSE ──
+// Click toggle → "pinned" state that persists. Hover-expand is a soft
+// preview that does NOT override a pinned-open or pinned-closed state.
+let navPinned = false;
+document.querySelectorAll('[data-action="toggle-nav"]').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const html = document.documentElement;
+    const willExpand = html.dataset.navExpanded !== 'true';
+    html.dataset.navExpanded = willExpand ? 'true' : 'false';
+    navPinned = true;
+  });
+});
+document.querySelectorAll('.shelf-nav').forEach(nav => {
+  nav.addEventListener('mouseenter', () => {
+    if (!navPinned) document.documentElement.dataset.navExpanded = 'true';
+  });
+  nav.addEventListener('mouseleave', () => {
+    if (!navPinned) document.documentElement.dataset.navExpanded = 'false';
+  });
+});
+
+// ── IDEA SHELF COLLAPSE / EXPAND ──
+document.querySelectorAll('[data-action="collapse-shelf"]').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const shelf = this.closest('.idea-shelf');
+    if (shelf) shelf.dataset.collapsed = 'true';
+  });
+});
+document.querySelectorAll('[data-action="expand-shelf"]').forEach(tab => {
+  tab.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const shelf = this.previousElementSibling;
+    if (shelf && shelf.classList.contains('idea-shelf')) {
+      shelf.dataset.collapsed = 'false';
+    }
+  });
+});
+
+// ── TOAST helper ──
+function showToast(msg) {
+  const toast = document.getElementById('studioToast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+// ── FOCUS CARD click → toast ──
+document.querySelectorAll('.focus-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const title = card.querySelector('.focus-card-title').textContent;
+    showToast('Opening: ' + title);
+  });
+});
+
+// ── AI SUGGESTION INSERT (click-to-insert with confirmation flash) ──
+document.querySelectorAll('.ai-option-insert').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (this.classList.contains('inserted')) return;
+    const original = this.textContent;
+    this.classList.add('inserted');
+    this.textContent = '✓ Inserted';
+    showToast('Inserted into draft');
+    setTimeout(() => {
+      this.classList.remove('inserted');
+      this.textContent = original;
+    }, 2200);
+  });
+});
+
+// ── AI SUGGESTION USE button ──
+document.querySelectorAll('.ai-sug-use').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const block = this.closest('.ai-suggestion-block');
+    if (block) {
+      block.style.opacity = '0.55';
+      block.style.transition = 'opacity 0.3s';
+      this.textContent = '✓ Used';
+      this.style.background = 'var(--success)';
+      this.style.color = 'white';
+    }
+    showToast('Applied to draft');
+  });
+});
+
+// ── AI SUGGESTION DISMISS ──
+document.querySelectorAll('.ai-sug-dismiss').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const block = this.closest('.ai-suggestion-block, .ai-generating');
+    if (block) {
+      block.style.opacity = '0';
+      block.style.transition = 'opacity 0.25s';
+      setTimeout(() => block.style.display = 'none', 250);
+    }
+  });
+});
+
+// ── SLASH COMMAND highlight on hover ──
+document.querySelectorAll('.slash-dropdown').forEach(dropdown => {
+  const items = dropdown.querySelectorAll('.slash-item');
+  items.forEach(item => {
+    item.addEventListener('mouseenter', function() {
+      items.forEach(i => i.classList.remove('highlighted'));
+      this.classList.add('highlighted');
+    });
+  });
+});
+
+// ── IDEA / KANBAN card grab cursor ──
+document.querySelectorAll('.idea-card, .kanban-card').forEach(card => {
+  card.addEventListener('mousedown', function() { this.style.cursor = 'grabbing'; });
+  card.addEventListener('mouseup', function() { this.style.cursor = 'grab'; });
+});
+
+// ── KANBAN add buttons → toast ──
+document.querySelectorAll('.kanban-add-btn').forEach(btn => {
+  btn.addEventListener('click', () => showToast('New idea card created'));
+});
+
+// ── CALENDAR upcoming actions → toast ──
+document.querySelectorAll('.cu-btn').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    showToast(this.textContent + ' →');
+  });
+});
+
+// ── FOCUS CARD ICON ARROW: nudge on hover (CSS handles, JS just keyboard accessible) ──
+document.querySelectorAll('.focus-card').forEach(card => {
+  card.setAttribute('tabindex', '0');
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+  });
+});
+</script>
+</body>
+</html>
