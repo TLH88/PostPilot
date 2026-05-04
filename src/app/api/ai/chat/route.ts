@@ -9,6 +9,7 @@ import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder
 import { ChatInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
+import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
@@ -34,6 +35,15 @@ export async function POST(request: NextRequest) {
     const quota = await checkQuota(profile.user_id, "chat_messages", { bypass });
     if (!quota.allowed) {
       return buildQuotaExceededResponse(quota, "chat_messages");
+    }
+
+    // BP-085 Phase 3: per-user $ budget gate (additive to BP-117 quota).
+    const budget = await checkBudget(profile.user_id);
+    if (!budget.ok) {
+      return new Response(JSON.stringify(buildBudgetExceededBody(budget)), {
+        status: 402,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // Increment quota before streaming (optimistic; no-op for BYOK)

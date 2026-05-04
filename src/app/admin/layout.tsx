@@ -11,6 +11,7 @@ import {
   Activity,
   Wrench,
   Mail,
+  DollarSign,
 } from "lucide-react";
 import { verifyAdmin } from "@/lib/supabase/admin";
 import { Separator } from "@/components/ui/separator";
@@ -19,6 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/usage", label: "AI Usage", icon: Activity },
+  { href: "/admin/budgets", label: "Budgets", icon: DollarSign },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/workspaces", label: "Workspaces", icon: Building2 },
   { href: "/admin/waitlist", label: "Waitlist", icon: Mail },

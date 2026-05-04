@@ -10,6 +10,7 @@ import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeA
 import { createClient } from "@/lib/supabase/server";
 import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
+import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
@@ -35,6 +36,12 @@ export async function POST(request: NextRequest) {
     const quota = await checkQuota(profile.user_id, "brainstorms", { bypass });
     if (!quota.allowed) {
       return buildQuotaExceededResponse(quota, "brainstorms");
+    }
+
+    // BP-085 Phase 3: per-user $ budget gate (additive to BP-117 quota).
+    const budget = await checkBudget(profile.user_id);
+    if (!budget.ok) {
+      return NextResponse.json(buildBudgetExceededBody(budget), { status: 402 });
     }
 
     // Fetch recent posts and ideas for history context
