@@ -12,7 +12,10 @@ interface SupabaseQueryBuilder {
   select(columns: string): SupabaseFilterBuilder;
   insert(values: Record<string, unknown> | Record<string, unknown>[]): SupabaseFilterBuilder;
   update(values: Record<string, unknown>): SupabaseFilterBuilder;
-  upsert(values: Record<string, unknown> | Record<string, unknown>[]): SupabaseFilterBuilder;
+  upsert(
+    values: Record<string, unknown> | Record<string, unknown>[],
+    options?: { onConflict?: string; ignoreDuplicates?: boolean }
+  ): SupabaseFilterBuilder;
   delete(): SupabaseFilterBuilder;
 }
 
@@ -33,14 +36,23 @@ export class SupabaseAdapter implements TutorialStorageAdapter {
   ) {}
 
   async markCompleted(tutorialId: string): Promise<void> {
-    await this.client.from("tutorial_progress").upsert({
-      user_id: this.userId,
-      tutorial_id: tutorialId,
-      completed: true,
-      completed_at: new Date().toISOString(),
-      current_step: 0,
-      updated_at: new Date().toISOString(),
-    });
+    const { error } = (await this.client.from("tutorial_progress").upsert(
+      {
+        user_id: this.userId,
+        tutorial_id: tutorialId,
+        completed: true,
+        completed_at: new Date().toISOString(),
+        current_step: 0,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,tutorial_id" }
+    )) as { data: unknown; error: unknown };
+    if (error) {
+      console.error(
+        "[tutorial-sdk] markCompleted upsert failed",
+        { tutorialId, userId: this.userId, error }
+      );
+    }
   }
 
   async isCompleted(tutorialId: string): Promise<boolean> {
@@ -64,12 +76,21 @@ export class SupabaseAdapter implements TutorialStorageAdapter {
   }
 
   async saveProgress(tutorialId: string, step: number): Promise<void> {
-    await this.client.from("tutorial_progress").upsert({
-      user_id: this.userId,
-      tutorial_id: tutorialId,
-      current_step: step,
-      updated_at: new Date().toISOString(),
-    });
+    const { error } = (await this.client.from("tutorial_progress").upsert(
+      {
+        user_id: this.userId,
+        tutorial_id: tutorialId,
+        current_step: step,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,tutorial_id" }
+    )) as { data: unknown; error: unknown };
+    if (error) {
+      console.error(
+        "[tutorial-sdk] saveProgress upsert failed",
+        { tutorialId, step, userId: this.userId, error }
+      );
+    }
   }
 
   async isFirstLogin(): Promise<boolean> {
@@ -86,10 +107,19 @@ export class SupabaseAdapter implements TutorialStorageAdapter {
     _userId?: string,
     response?: "accepted" | "declined"
   ): Promise<void> {
-    await this.client.from("tutorial_user_state").upsert({
-      user_id: this.userId,
-      first_login_prompt_shown: true,
-      first_login_prompt_response: response ?? null,
-    });
+    const { error } = (await this.client.from("tutorial_user_state").upsert(
+      {
+        user_id: this.userId,
+        first_login_prompt_shown: true,
+        first_login_prompt_response: response ?? null,
+      },
+      { onConflict: "user_id" }
+    )) as { data: unknown; error: unknown };
+    if (error) {
+      console.error(
+        "[tutorial-sdk] markFirstLoginPromptShown upsert failed",
+        { response, userId: this.userId, error }
+      );
+    }
   }
 }

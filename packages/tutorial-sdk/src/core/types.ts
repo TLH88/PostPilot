@@ -114,8 +114,21 @@ export interface TutorialDefinition {
   finishButtonText?: string;
   /** Custom text for the decline option when chaining (e.g., "No thanks, I'll explore on my own") */
   chainDeclineText?: string;
-  /** Show a list of other tutorials on the final step */
+  /**
+   * On the final step, render a "View other tutorials" toggle button alongside
+   * Skip / Finish. Clicking it slides out a panel of other registered tutorials
+   * so the user can chain into one before finishing. Does NOT auto-popup after
+   * Finish — by design, Finish exits cleanly back to the page.
+   */
   showTutorialListOnFinish?: boolean;
+  /**
+   * Minimum viewport width (px) at which this tutorial is supported.
+   * If the user's window.innerWidth is below this, TutorialGate skips the
+   * auto-prompt. Useful for tutorials whose step selectors anchor to elements
+   * that are hidden by responsive CSS at small widths (e.g. desktop sidebar).
+   * Mobile-specific tutorials should omit this field. (BP-149 / UF-011)
+   */
+  minViewportWidth?: number;
 }
 
 // ─── Engine State ────────────────────────────────────────────────────────────

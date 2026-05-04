@@ -45,17 +45,37 @@ export function TutorialProvider({
   const actionCleanupRef = useRef<(() => void) | null>(null);
   const timerCleanupRef = useRef<(() => void) | null>(null);
 
+  // BP-149 / UF-009: track engine-initiated navigation so the navigate-away
+  // detector can distinguish "tutorial moved us" from "user moved away."
+  // Set right before the engine's onNavigate fires; cleared by the detector
+  // once the path actually arrives. Without this, restarting any tutorial
+  // from /help that has a route ≠ /help on its first step would race against
+  // the 600 ms close-on-navigation guard and silently close the tutorial.
+  const navigationIntentRef = useRef<string | null>(null);
+
+  // Wrap the host onNavigate so we record the intent before forwarding.
+  const wrappedOnNavigate = useCallback(
+    (path: string) => {
+      navigationIntentRef.current = path;
+      onNavigate?.(path);
+    },
+    [onNavigate]
+  );
+
   // Initialize engine once
   if (!engineRef.current) {
-    engineRef.current = new TutorialEngine({ storage, onNavigate });
+    engineRef.current = new TutorialEngine({
+      storage,
+      onNavigate: wrappedOnNavigate,
+    });
   }
 
   const engine = engineRef.current;
 
-  // Keep onNavigate in sync
+  // Keep onNavigate in sync (always passing the wrapped version).
   useEffect(() => {
-    if (onNavigate) engine.setOnNavigate(onNavigate);
-  }, [engine, onNavigate]);
+    engine.setOnNavigate(wrappedOnNavigate);
+  }, [engine, wrappedOnNavigate]);
 
   // Subscribe to engine state changes
   const [state, setState] = useState<TutorialEngineState>(engine.getState());
@@ -79,10 +99,23 @@ export function TutorialProvider({
   useEffect(() => {
     if (!state.isActive || !state.activeTutorial) {
       lastTutorialPathRef.current = currentPath;
+      navigationIntentRef.current = null;
       return;
     }
 
     const step = state.activeTutorial.steps[state.currentStep];
+
+    // BP-149 / UF-009: If the engine just triggered a navigation and the new
+    // path matches that intent, treat the change as expected — not a user
+    // navigate-away. Update the ref and clear the intent.
+    if (
+      navigationIntentRef.current &&
+      currentPath === navigationIntentRef.current
+    ) {
+      lastTutorialPathRef.current = currentPath;
+      navigationIntentRef.current = null;
+      return;
+    }
 
     // If this step has a route, the tutorial is controlling navigation
     if (step?.route) {
