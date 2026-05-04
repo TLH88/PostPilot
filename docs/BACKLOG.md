@@ -740,7 +740,7 @@ All three test users created during the live onboarding QA walkthrough (free tie
 
 ### BP-152: Investigate RSC Prefetch 503s on First Dashboard Load
 
-**Status:** Backlog (Sprint 3 of QA-remediation sprint)
+**Status:** **Investigated (no action this sprint) 2026-05-04** — Sprint 3 of QA-remediation. Findings + recommendation in [docs/plans/bp-152-rsc-503-investigation.md](plans/bp-152-rsc-503-investigation.md). Vercel runtime logs show zero 503s for the failing routes over the 7-day window covering the QA agent's observation; no recurrence in subsequent runs. Speculative fix is high-blast-radius for a non-user-visible issue. Will file BP-153 (layout-level Supabase observability) only if the issue recurs.
 **Priority:** P2 / Medium (not user-visible, but suggests an underlying edge-runtime issue)
 **Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-016
 **Date Added:** 2026-05-04
