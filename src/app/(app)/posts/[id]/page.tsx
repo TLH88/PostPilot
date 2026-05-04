@@ -492,7 +492,7 @@ export default function PostWorkspacePage() {
       // Auto-open chat and trigger draft generation
       setPanelView("ai");
       const prompt = ideaDescription
-        ? `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${decodeURIComponent(ideaDescription)}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`
+        ? `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${ideaDescription}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`
         : `I am writing a LinkedIn post on the topic of "${title}". Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
 
       sendChatMessage(prompt, `Draft a post about "${title}"`);
