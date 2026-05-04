@@ -35,6 +35,18 @@
  *   failure (Playwright guarantees this). If cleanup fails for any
  *   reason, the teardown script (`npm run test:e2e:teardown`) will
  *   sweep up any orphaned `is_test_user=true` rows on the next run.
+ *
+ * Known content coupling — DOCUMENTED, not a bug:
+ *   The Expertise step exercises suggestion-chip click affordances by
+ *   accessible name: `AI/ML`, `Engineering`, `Technology`, `SaaS`. These
+ *   strings live in the onboarding wizard's UI under
+ *   `src/app/(app)/onboarding/`. If a future content/visual rewrite
+ *   (e.g. anything stemming from the preserved BP-144 design references)
+ *   renames or replaces those chip labels, the corresponding `getByRole`
+ *   selectors in this spec must be updated in lockstep — otherwise the
+ *   Expertise step will fail to advance and the spec will fail at the
+ *   next required-field gate. Treat this spec as part of any content-
+ *   rename PR's blast radius.
  */
 import { expect, test, type Page, type Request } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
