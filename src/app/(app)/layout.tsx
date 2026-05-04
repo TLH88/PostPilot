@@ -7,6 +7,8 @@ import { PastDueChecker } from "@/components/past-due-checker";
 import { LinkedInTokenValidator } from "@/components/linkedin/token-validator";
 import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
+import { PausedBanner } from "@/components/budget/paused-banner";
+import { PausedModal } from "@/components/budget/paused-modal";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
@@ -56,6 +58,20 @@ export default async function AppLayout({
   const userName = profile?.full_name || user.email?.split("@")[0] || "User";
   const userTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
 
+  // BP-085 P3: budget paused-state UX. ai_budget_thresholds row only
+  // exists when an admin has set a threshold for this user; the LEFT-JOIN-
+  // shaped query returns null for users with no row, which we treat as
+  // unlimited / never paused. Read via the user-scoped client so RLS gates
+  // the row to its owner.
+  const { data: budget } = await supabase
+    .from("ai_budget_thresholds")
+    .select("is_paused, paused_at, paused_reason")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const isPaused = budget?.is_paused ?? false;
+  const pausedAt = budget?.paused_at ?? null;
+  const pausedReason = budget?.paused_reason ?? null;
+
   return (
     <HelpSidebarProvider>
       <TutorialBridge userId={user.id}>
@@ -66,6 +82,7 @@ export default async function AppLayout({
         <TrialExpiryChecker />
         <LinkedInTokenValidator />
         <ReleaseNotesModal />
+        <PausedModal userId={user.id} paused={isPaused} pausedAt={pausedAt} />
         {/* Sidebar - hidden on mobile */}
         <Sidebar userName={userName} userTier={userTier} />
 
@@ -73,6 +90,7 @@ export default async function AppLayout({
         <div className="lg:pl-64">
           <TopBar userName={userName} userTier={userTier} />
           <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+            <PausedBanner paused={isPaused} reason={pausedReason} />
             <LinkedInStatusBanner />
             {children}
           </main>

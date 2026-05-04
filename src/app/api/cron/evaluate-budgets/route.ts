@@ -46,7 +46,7 @@ async function verifyJwtSignature(token: string, secret: string): Promise<boolea
   return crypto.subtle.verify("HMAC", key, sigBytes, data);
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const secret = process.env.PG_CRON_JWT_SECRET;
     if (!secret) {
