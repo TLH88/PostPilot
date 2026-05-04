@@ -60,7 +60,8 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-123** Token cost study (pre-GTM action) — P1 / High
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
 - **BP-125** Pro-tier image-generation BYOK — P1 / High
-- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — P1 / High [UF-002a]
+- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — P1 / High [UF-002a] — *root cause is BP-142 architectural fix; QA confirmed broken live 2026-05-04*
+- **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — P1 / High [UF-015]
 - *Superseded/absorbed:* BP-018 (folded into BP-117), BP-045 (folded into BP-119)
 
 ### EPIC 2 — Billing & Monetization (Stripe)
@@ -80,8 +81,10 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
-- **BP-142** Onboarding integrity gate (login + post-wizard required-field validation) — P1 / High (sibling of BP-099)
+- **BP-142** Onboarding integrity gate + server-authoritative wizard (scope expanded 2026-05-04 per live QA) — P1 / High (sibling of BP-099) [UF-007]
 - **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
+- **BP-149** Tutorial SDK reliability fixes (post-QA: upsert conflict, cross-route, mobile anchor) — P1 / High (Sprint 1 of QA-remediation) [UF-008..UF-011]
+- **BP-150** Onboarding first-visit UX polish (modal stacking, greeting, /onboarding/type) — P2 / Medium [UF-012..UF-014]
 - *(Shipped: BP-035 guided tutorial Phases A–C, 2026-04-22)*
 
 ### EPIC 5 — Team Collaboration (behind BP-098 flag)
@@ -110,6 +113,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-140** Personal reference photos for AI image generation — Design landed 2026-04-26 at docs/plans/bp-140-personal-image-references.md — awaiting owner review [UF-006]
 
 ### EPIC 8 — Reliability & Bug Fixes
+- **BP-152** Investigate RSC prefetch 503s on first dashboard load — P2 / Medium (Sprint 3 of QA-remediation, investigate-only) [UF-016]
 - **BP-100** Scheduled posts drop images — P1 / Critical
 - **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
 - **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
@@ -588,6 +592,187 @@ Failures are walked through one at a time and the user is returned to a known su
 - [ ] No regressions to manual publish, the regular Posts list, or the existing `?linkedin=connected` settings flow.
 
 **Effort:** M-L (new page, OAuth state, DB migration, Edge Function update, refactor of past-due-checker, calendar summary, validate route param, visibility revalidation). · **Expected ROI:** High — closes a trust-eroding gap that affects every revoked-token recovery; ships the chassis that BP-146/147/148 will plug into.
+
+---
+
+### BP-149: Tutorial SDK Reliability Fixes (Post-QA)
+
+**Status:** In Progress 2026-05-04 (Sprint 1 of QA-remediation sprint)
+**Priority:** P1 / High (entire BP-035 tutorial system silently fails its primary contract)
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-007, UF-008, UF-009, UF-010, UF-011
+**Date Added:** 2026-05-04
+**EPIC:** Onboarding & Guidance (EPIC 4)
+
+**Problem:**
+
+A live QA walkthrough of the entire tutorial registry on production exposed five reliability defects in the Tutorial SDK and one in the `overview-app` definition. The system *appears* to work — auto-fire triggers, cards render, action detectors advance — but completion never persists, cross-route restarts silently close, and the first-login gate visually entangles with the What's New modal. Net effect: the tutorial system is not delivering on its primary contract (track + complete tutorials per user).
+
+**Defects (verified live):**
+
+1. **N-T1 (Critical) — Tutorial completion never persists.** `SupabaseAdapter.markCompleted` and `SupabaseAdapter.saveProgress` ([packages/tutorial-sdk/src/storage/supabase.ts:35-44, 66-73](../packages/tutorial-sdk/src/storage/supabase.ts)) call `.upsert(...)` without `onConflict: "user_id,tutorial_id"`. Supabase defaults conflict target to PRIMARY KEY (`id`), so after `saveProgress` creates the row, every subsequent upsert tries to INSERT and fails the unique constraint — silently swallowed. Verified: `tutorial_progress.completed=false` after Finish on `overview-app` and `overview-dashboard`. `markFirstLoginPromptShown` for `tutorial_user_state` has the same bug (key on `user_id`).
+2. **N-T2 (High) — Cross-route restart from Help auto-closes within 600ms.** [packages/tutorial-sdk/src/components/TutorialProvider.tsx:79-115](../packages/tutorial-sdk/src/components/TutorialProvider.tsx) `lastTutorialPathRef` is initialized to `currentPath` at render time (= `/help`). When the engine fires `onNavigate('/ideas')`, the navigate-away detector sees a path mismatch and triggers a 600ms close-on-navigation guard. Cannot distinguish tutorial-initiated nav from user-initiated nav. Net effect: every tutorial whose first step targets a route ≠ `/help` is unrestartable from the Help page. Most of the registry is broken (`overview-ideas`, `overview-posts`, `overview-system`, etc.).
+3. **N-T3 (Medium) — Tutorial gate background renders translucent in dark mode.** [packages/tutorial-sdk/src/components/TutorialGate.tsx:179-187](../packages/tutorial-sdk/src/components/TutorialGate.tsx) — `var(--tutorial-bg, #ffffff)` resolves to a translucent dark color in dark mode. When What's New modal is open simultaneously (first-login race), the gate text bleeds through visually. Buttons still clickable but the optical mess is significant. (NOTE: the simultaneous-open issue is BP-150's responsibility; this BP just fixes the opacity.)
+4. **N-T4 (Medium) — `howto-idea-generation` step 3 click on `#tour-generate-btn` does not advance.** [packages/tutorial-sdk/src/core/action-detector.ts:73-87](../packages/tutorial-sdk/src/core/action-detector.ts) — clicking Generate fires the API call (25 ideas created server-side), but the tutorial stays on step 3 until the global 15s timeout escape kicks in. Likely a click-handler race when the button immediately re-renders into a loading state — the capture-phase `target.closest("#tour-generate-btn")` may fail when `click` event bubbles during the React re-render. Suggested fix: detect on `mousedown` instead of `click`, OR add a redundant `elementExists` action for `#tour-generated-ideas` so step 3 can also auto-advance when results appear.
+5. **N-T5 (Low) — `overview-dashboard` does not surface a tutorial-list overlay on Finish despite `showTutorialListOnFinish: true`.** Either the engine handler is missing or the flag is unwired. Either implement or remove the flag from the definition.
+6. **CR-T1 (Medium) — `overview-app` step 1 anchors to mobile-hidden sidebar.** Step 1 targets `#tour-sidebar-nav`. The `<aside>` at [src/components/layout/sidebar.tsx:65](../src/components/layout/sidebar.tsx) uses `hidden ... lg:flex` (Tailwind `lg:` = 1024px). Below 1024px the entire aside is `display: none`, so the selector exists in DOM but `offsetParent` is null and the BorderBeam has no anchor. Mobile users get a broken first step.
+
+**Solution:**
+
+1. **Upsert `onConflict` fix** — pass `{ onConflict: "user_id,tutorial_id" }` to both `markCompleted` and `saveProgress`. Pass `{ onConflict: "user_id" }` to `markFirstLoginPromptShown`. Also: fix the silent error-swallow — log unique-violation errors to console at minimum so we never have this class of bug again.
+2. **Navigate-away detector fix** — when the engine triggers a route change via `onNavigate`, set `lastTutorialPathRef.current` to the target route synchronously (or have the engine flag the next path-change as expected and skip the auto-close once).
+3. **Opaque gate background** — make `--tutorial-bg` resolve to `--card` (via the theme prop), AND set explicit opaque background on the gate's inner `<div>` regardless of theme.
+4. **`mousedown` click detection** — switch the action-detector's click listener from `click` to `mousedown`, OR add a redundant `elementExists` for `#tour-generated-ideas` to step 3. (Pick whichever is less invasive — the redundant check is more defensive.)
+5. **`showTutorialListOnFinish`** — wire the engine handler to render the SDK's `<TutorialList>` overlay on completion, OR remove the flag from `overview-dashboard`'s definition. Decide based on whether other tutorials want this UX.
+6. **Mobile `overview-app` step 1** — early-exit step 1 when viewport `< 1024px` (skip to step 2 automatically) OR change the target to `#tour-mobile-nav-toggle` (the hamburger). Ship whichever is cleaner; the mobile-first redesign of all tutorials is BP-143's job.
+
+**Affected files:**
+
+- `packages/tutorial-sdk/src/storage/supabase.ts` — upsert conflict targets + error logging
+- `packages/tutorial-sdk/src/components/TutorialProvider.tsx` — navigate-away detector
+- `packages/tutorial-sdk/src/components/TutorialGate.tsx` — opaque background
+- `packages/tutorial-sdk/src/core/action-detector.ts` — mousedown vs click (or step-level fallback)
+- `packages/tutorial-sdk/src/core/engine.ts` — `showTutorialListOnFinish` handler (if implementing)
+- `src/lib/tutorials/definitions.ts` — `overview-app` step 1 mobile-safe target
+- `src/components/tutorial-bridge.tsx` — theme value `--tutorial-bg` → `var(--card)`
+
+**Acceptance criteria:**
+
+- [ ] Completing any tutorial sets `tutorial_progress.completed=true` and `completed_at` is non-null. Verify on `overview-app`, `overview-dashboard`, `howto-idea-generation`.
+- [ ] Restarting `overview-ideas` from `/help` lands the user on `/ideas` AND keeps the tutorial card open (the navigate-away detector does not fire).
+- [ ] First-login gate dialog renders with opaque background regardless of dark/light mode and regardless of any other modal stacked behind it.
+- [ ] `howto-idea-generation` step 3 advances within 1s of clicking Generate (no global timeout fallback needed).
+- [ ] `overview-app` first step does NOT anchor to a hidden element when viewport is `<1024px` — either skipped or rebound.
+- [ ] Either `showTutorialListOnFinish` produces a visible list on Finish, or the flag is removed from the definition (no dead config).
+- [ ] Unique-constraint violations on `tutorial_progress` and `tutorial_user_state` log a console error rather than silently swallowing.
+- [ ] QA agent re-run on a fresh `e2e+tutorial-*` account: full registry walkthrough completes; every tutorial's `tutorial_progress` row shows `completed=true`.
+- [ ] No regression to the auto-fire dashboard gate, the decline-and-never-re-fire path, or the `overview-app` → `howto-idea-generation` chain.
+
+**Effort:** S (1-2 days). All changes are in `packages/tutorial-sdk/` plus one definition tweak and one theme value. · **ROI:** High — restores the entire BP-035 tutorial system to its intended contract.
+
+---
+
+### BP-150: Onboarding First-Visit UX Polish (Modal Stacking, Greeting, /onboarding/type)
+
+**Status:** Backlog (Sprint 3 of QA-remediation sprint)
+**Priority:** P2 / Medium
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-012, UF-013, UF-014
+**Date Added:** 2026-05-04
+**EPIC:** Onboarding & Guidance (EPIC 4)
+
+**Problem:**
+
+A live QA walkthrough of the new-user onboarding flow on production surfaced five UX defects that bracket the wizard itself: shell-level modals fire over the wizard on first visit, the dead `/onboarding/type` route flashes blank for 1-2s before redirecting, the dashboard greeting renders awkwardly for both populated and empty profiles, and "Got it!" on the What's New modal sometimes needs two clicks. None block functionality but together they make the first-time-user experience feel broken.
+
+**Defects (verified live):**
+
+1. **N-O1 (High) — Two stacked modals over the wizard on first visit.** "What's New v0.1.3" changelog AND "Welcome! Would you like a quick tour?" tutorial gate both render at full opacity over the `/onboarding` wizard. Visually entangled. Cause: shell-level modals are mounted in the (app) layout and don't check whether the user is in onboarding.
+2. **N-O2 (Medium) — "Got it!" on What's New modal sometimes needs two clicks.** Likely focus/event-propagation interference from the underlying tour gate (related to N-O1).
+3. **Issue 5 (Low) — `/onboarding/type` is a 1-2s blank flash.** With `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=false` (prod default), the page mounts, runs an effect, and `router.replace`s to `/onboarding?type=individual`. ~1-2s of fully blank content area before the redirect lands.
+4. **N-O6 (Low) — Dashboard "Welcome back, X" first-name extraction is naive.** "Back Test User" → "Welcome back, Back!" (first space-token). Single-name users would render oddly punctuated; multi-word given names ("Jean Paul Smith") only show "Jean".
+5. **N-O7 (Low) — Empty-profile dashboard greeting fallback "Welcome back, there!" looks broken.** Combined with empty avatar and no profile data feels broken even though it's the documented fallback.
+
+**Solution:**
+
+1. **Suppress shell modals during onboarding.** Both the release-notes modal mount and the `<TutorialBridge>` first-login gate should bail early when `pathname.startsWith('/onboarding')` OR when `onboarding_completed=false`. Cleanest: a single `useShouldSuppressShellModals()` hook used by both.
+2. **What's New "Got it!" double-click** — once N-O1 is fixed, this should resolve naturally (no underlying gate to grab focus). Verify; if it persists, add `event.stopPropagation()` to the dismiss handler.
+3. **`/onboarding/type` 308 redirect** — handle the redirect at the route level (Next.js `redirect()` in a server component, or `next.config.js` redirect) so there's no client-side render flash.
+4. **First-name extraction** — switch the dashboard greeting to use a `display_name` field if present, OR extract `first_name` properly (split on whitespace, take element 0, trim). Add an "Anonymous" fallback that doesn't read as broken.
+5. **Empty-profile fallback** — replace "Welcome back, there!" with "Welcome to PostPilot" (no name) when `full_name IS NULL`. Distinguishes first-time-user from returning-user-with-no-name.
+
+**Affected files:**
+
+- `src/components/tutorial-bridge.tsx` — gate suppression on `/onboarding`
+- (release-notes modal mount point — find it and apply same suppression)
+- `src/app/(app)/onboarding/type/page.tsx` — convert to server component with `redirect()`, OR remove and add a `next.config.js` redirect
+- (dashboard greeting component — find it via grep on "Welcome back")
+
+**Acceptance criteria:**
+
+- [ ] First-time onboarding visit shows ONLY the wizard — no changelog modal, no tour gate, no other shell modal.
+- [ ] `/onboarding/type` returns HTTP 308 with no client render flash.
+- [ ] Dashboard greeting renders cleanly for: populated profile, single-name profile, multi-word-name profile, empty profile.
+- [ ] "Got it!" on What's New modal dismisses on first click in all states (not gated on N-O1's fix being applied).
+- [ ] No regression to the changelog modal, tutorial first-login gate, or onboarding wizard happy-path landing on `/dashboard`.
+
+**Effort:** S (1 day). All small targeted changes. · **ROI:** Medium — first-impression UX polish, removes "looks broken" friction.
+
+---
+
+### BP-151: Reconcile `managed_ai_access` Default with "Powered by Claude" Badge
+
+**Status:** Backlog (Sprint 3 of QA-remediation sprint)
+**Priority:** P1 / High (claim/reality mismatch — affects free-user trust)
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-015
+**Date Added:** 2026-05-04
+**EPIC:** Subscription Model v2 (EPIC 1)
+
+**Problem:**
+
+All three test users created during the live onboarding QA walkthrough (free tier) had `managed_ai_access=false` and `ai_api_key_encrypted IS NULL` in the database after onboarding. Yet the dashboard rendered a "Powered by Claude (Claude Sonnet 4.6)" badge — a claim that, per the documented intent in memory note `feedback_ai_access_default.md` ("All active/trial users get system AI access by default"), should be true. The DB and the UI are out of sync. Either the column should default to `true` for free users, or the badge isn't reading the column.
+
+**Decision (owner, 2026-05-04):** Default `managed_ai_access=true` for free users. Keep the column. Fix the default. Badge tells the truth.
+
+**Solution:**
+
+1. **DB migration** — change default for `managed_ai_access` from `false` to `true` on `user_profiles`. Add a follow-up migration setting `managed_ai_access=true` for all existing free-tier rows where the column is currently `false` (data backfill).
+2. **Onboarding wizard / API route** — when creating a `user_profiles` row (whether by Auth Hook bootstrap from BP-142, or by the wizard's first save), explicitly set `managed_ai_access=true` for `subscription_tier IN ('free', 'personal')`. Pro/Team users may BYOK so the default may differ.
+3. **Verify badge reads the column** — audit the dashboard "Powered by Claude" badge component. If it's hard-coded, change it to read `managed_ai_access` from the user's profile. If it already reads the column, no UI change needed — DB fix alone is enough.
+4. **Cross-check** — every place in the codebase that gates AI features on `managed_ai_access` should now correctly grant access to free users by default.
+
+**Affected files:**
+
+- `supabase/migrations/<date>_managed_ai_access_default_true.sql` — new migration
+- (onboarding completion code — set the column explicitly)
+- (dashboard badge component — find via grep for "Powered by Claude")
+- (any AI-gating helper that reads `managed_ai_access` — audit for correctness)
+
+**Acceptance criteria:**
+
+- [ ] DB migration sets `DEFAULT true` on `managed_ai_access` and backfills all existing free/personal rows where it's currently `false`.
+- [ ] New free-tier signup ends with `managed_ai_access=true` in `user_profiles`.
+- [ ] "Powered by Claude" badge renders for users who actually have system AI access (verified by reading the column, not hard-coded).
+- [ ] AI features (chat, suggest hashtags, hook analysis, idea generation) work for new free users without requiring a BYOK key.
+- [ ] No regression to Pro/Team users who have BYOK keys configured.
+
+**Effort:** S (4-6 hours). · **ROI:** High — closes a trust-eroding mismatch that affects every new free-tier user.
+
+---
+
+### BP-152: Investigate RSC Prefetch 503s on First Dashboard Load
+
+**Status:** Backlog (Sprint 3 of QA-remediation sprint)
+**Priority:** P2 / Medium (not user-visible, but suggests an underlying edge-runtime issue)
+**Source:** Live QA walkthrough 2026-05-04 — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md) UF-016
+**Date Added:** 2026-05-04
+**EPIC:** Reliability & Bug Fixes (EPIC 8)
+
+**Problem:**
+
+Network capture during the live onboarding QA walkthrough showed 8 of approximately 10 sidebar prefetch GETs returning **503 Service Unavailable** (`/calendar?_rsc=...`, `/profile?_rsc=...`, `/help?_rsc=...`, `/settings?_rsc=...`, `/analytics?_rsc=...`, `/library?_rsc=...`, `/posts?_rsc=...`, `/ideas?_rsc=...`, `/dashboard?_rsc=...`). These are React Server Component prefetches fired by Next.js Link components on the sidebar. Visible navigation still works because clicking a link triggers a full request that succeeds, so users don't notice — but consistently returning 503 on RSC prefetches suggests an underlying edge-runtime crash, cold-start failure, or middleware error that is wasting capacity and could escalate to user-visible errors under load.
+
+**Scope of this BP: investigate only.** Per owner direction 2026-05-04, root-cause first, document findings, then file a separate BP if the fix is non-trivial.
+
+**Investigation plan:**
+
+1. **Pull Vercel runtime logs** for the failing RSC routes during a fresh page load (use Vercel MCP `get_runtime_logs`). Capture stack traces, error categories, response times.
+2. **Check edge-runtime config** — are these routes opted into edge runtime? Is there a known cold-start latency issue?
+3. **Check middleware** — `src/middleware.ts` runs on every request. Does it throw on RSC prefetches (e.g. the auth-check fails for prefetches without proper cookies)?
+4. **Check Next.js Link prefetch behavior** — is the sidebar prefetching with stale auth state on first dashboard load (before session cookies fully hydrate)?
+5. **Reproduce in dev** — can the 503 be reproduced locally via `next dev` or `next start`? If yes, trace under a debugger.
+
+**Deliverables:**
+
+- A document at `docs/plans/bp-152-rsc-503-investigation.md` summarizing root cause, severity assessment, and a recommendation: "ship a fix in this sprint" / "file a follow-up BP" / "wontfix (acceptable)".
+- If a fix is recommended, the BP for it (BP-153 or later) is filed and linked.
+
+**Acceptance criteria:**
+
+- [ ] Investigation document exists with root cause + recommendation.
+- [ ] Owner has reviewed and accepted the recommendation.
+- [ ] If recommendation is "fix in this sprint," the fix is shipped and 503s drop to 0 (or to a documented acceptable level).
+- [ ] If recommendation is "follow-up BP," the BP is filed and linked from this entry.
+
+**Effort:** S investigation (2-4 hours); fix scope TBD. · **ROI:** Low-to-medium — invisible to users today, but suggests latent infrastructure risk worth understanding.
 
 ---
 
@@ -3778,49 +3963,101 @@ What remains:
 
 ---
 
-### BP-142: Onboarding Integrity Gate (Required-Field Validation on Login)
+### BP-142: Onboarding Integrity Gate (Required-Field Validation + Server-Authoritative Wizard)
 
-**Status:** Stub — spec to be written
-**Priority:** P1 / High
-**Source:** Owner — captured 2026-04-27 during BP-099 brainstorm
-**Date Added:** 2026-04-27
+**Status:** Spec ready — Sprint 2 of QA-remediation sprint (2026-05-04)
+**Priority:** P1 / High (raised in priority 2026-05-04 after live QA confirmed multiple architectural defects)
+**Source:** Owner — captured 2026-04-27 during BP-099 brainstorm; **scope expanded 2026-05-04** with live QA findings (UF-007a/b/c/d/e)
+**Date Added:** 2026-04-27 (spec expanded 2026-05-04)
 **Sibling of:** BP-099 (Focus View)
+**EPIC:** Onboarding & Guidance (EPIC 4)
 
-#### Problem
+#### Problem (original framing — preserved)
 
 Required onboarding fields (voice profile, LinkedIn connection, tier choice, and now `ui_mode` per BP-099) can end up null if a user closes the onboarding wizard mid-flow, if a future schema change adds a new required field that older accounts haven't filled, or if a backfill misses someone. Today there is no central enforcement: the user lands in the app and may hit confusing errors deep in a flow rather than being prompted to finish setup.
 
-#### Solution Sketch
+#### Problem (expanded 2026-05-04 from live QA)
 
-A central `validateOnboardingComplete()` helper plus a layout-level gate that runs:
+A live QA walkthrough on production exposed that the original framing was incomplete. The wizard has **architectural defects** that no client-side validation gate can fix:
 
-1. **On every login** — checks all required `user_profiles` fields are populated. If any are missing, redirects to a focused completion flow that prompts only for the missing fields. Access to the rest of the app is blocked until all are populated.
-2. **Immediately after the onboarding wizard closes** — same check; catches the case where a user dismissed the wizard early.
+1. **No `user_profiles` row exists at signup.** No DB trigger / Auth Hook creates one. The wizard reads `.from("user_profiles").select(...).single()`, swallows the not-found error, and `subscriptionTier` stays `null`. The BP-135 tier-skip predicate (`subscriptionTier !== null && TIERS_WITHOUT_BYOK.has(subscriptionTier)`) is therefore false for every brand-new user — so all free/personal users see the AI Setup (BYOK) step contrary to BP-135's intent. **The seed script `scripts/e2e/seed-test-users.ts` masked this bug** by pre-creating profile rows for the four canonical e2e accounts.
+2. **Wizard mutations bypass Next.js API routes entirely.** Network capture shows 4× `PATCH https://...supabase.co/rest/v1/user_profiles?user_id=eq.<UUID>` and zero calls to any `/api/onboarding/*` endpoint. The wizard talks to Supabase REST directly with the user's RLS-bound JWT. Server-side rules (BP-135 tier-skip, this BP's required-field validation, future audit logging) cannot run.
+3. **Mid-wizard hard refresh restarts at step 0.** `goNext` calls `.update({ onboarding_current_step: next }).eq("user_id", userId)`. With no row yet, the update matches 0 rows and is silently a no-op. Hydration on refresh reads `undefined` and resets to step 0.
+4. **"Skip for now" allows completing onboarding with a 100% empty profile.** No per-step validation. User can click Skip ×5 + Complete Setup, land on `/dashboard` with `full_name=null, expertise_areas=[], industries=[], voice_samples=[]`, etc.
+5. **Deep-link `/onboarding?step=N` shows fake checkmarks for prior steps.** Client trusts the URL query param verbatim. With no profile data and `onboarding_current_step=null`, navigating to `?step=4` rendered AI Setup with steps 1-4 visually marked complete.
 
-The list of required fields is a single declared source of truth (e.g., `src/lib/onboarding/required-fields.ts`) so adding a new required field in a future BP only requires editing that list.
+#### Solution (expanded — three layers)
 
-#### Required Fields (initial set)
+**Layer 1 — Signup-time bootstrap (DB layer):**
 
-- `voice_profile` — non-null and non-empty
-- `linkedin_connection` — exists for the user
-- `tier` — non-null
-- `ai_provider_choice` (or equivalent BYOK/managed flag) — non-null where required by tier
+A Supabase Auth Hook (Postgres function + dashboard toggle, mirroring BP-129's pattern) inserts a default `user_profiles` row on `auth.users` insert. Defaults: `subscription_tier='free'`, `account_status='active'`, `onboarding_completed=false`, `managed_ai_access=true` (per BP-151). Defense-in-depth: ensures every auth user has a profile regardless of which signup path created them. Closes the gap that the BP-135 fix exposed.
+
+**Layer 2 — Server-authoritative wizard (API layer):**
+
+New `/api/onboarding/step` and `/api/onboarding/complete` POST routes own all wizard mutations. The wizard's `goNext`, `goBack`, and `handleSubmit` are rewritten to call these routes instead of Supabase REST directly. Routes:
+
+- Validate the step number against the user's actual `onboarding_current_step` (server-side clamp; rejects forward-jumps past true progress).
+- Enforce tier-based skip rules server-side (`effectiveTier = subscriptionTier ?? 'free'`).
+- Perform `.upsert({ user_id, ... }, { onConflict: 'user_id' })` so partial progress survives refresh.
+- Validate required fields on `complete`; reject with 400 + a structured "missing fields" response if any are blank.
+- Return the canonical step-state so the client never disagrees with the server.
+
+**Layer 3 — Required-field validation (client + server):**
+
+A central `src/lib/onboarding/required-fields.ts` declares the source of truth. Used by:
+
+- The new `/api/onboarding/complete` route (server-side enforcement on submit).
+- A `validateOnboardingComplete()` layout-level gate that runs on every login (the original BP-142 scope) — redirects to a focused completion flow if any required field is missing.
+- Per-step `canAdvance()` predicates in the wizard UI — disable Next on steps with mandatory fields; hide "Skip for now" on those steps; show Skip-with-confirmation on optional steps.
+
+#### Required Fields (initial set, owner-tunable in `required-fields.ts`)
+
+- `full_name` — non-null, non-empty (NEW — required for any salutation UX)
+- `expertise_areas` — array, ≥1 element (NEW — required for AI personalization)
+- `industries` — array, ≥1 element (NEW — required for AI personalization)
+- `voice_profile` — non-null and non-empty (original)
+- `linkedin_connection` — exists for the user (original)
+- `tier` — non-null (original; satisfied by Layer 1 bootstrap)
+- `ai_provider_choice` (or equivalent BYOK/managed flag) — non-null where required by tier (original)
 - `ui_mode` — non-null (declared by BP-099)
 
-#### Acceptance Criteria
+#### Acceptance Criteria (expanded)
 
-- [ ] Single declared source of truth for required onboarding fields
+**Original (preserved):**
+- [ ] Single declared source of truth for required onboarding fields (`src/lib/onboarding/required-fields.ts`)
 - [ ] Login flow runs validation; missing fields trigger a focused completion prompt
 - [ ] Post-wizard close hook runs the same validation
 - [ ] User cannot access app pages while any required field is missing
 - [ ] Adding a new required field is a one-line change to the field list
 - [ ] No regression for users who have completed onboarding (validation is fast and silent on the happy path)
 
+**Expanded (Sprint 2 deliverables):**
+- [ ] Auth Hook creates `user_profiles` row on signup with `subscription_tier='free'`, `onboarding_completed=false`, `managed_ai_access=true`. Verified via fresh signup → row visible immediately.
+- [ ] Brand-new free user does NOT see AI Setup step (step 4) in the wizard. Verified live.
+- [ ] Refresh on step 3 with partial data resumes on step 3 with data intact.
+- [ ] Cannot click "Complete Setup" while any required field is blank — server returns 400 + missing-fields list, client shows them inline.
+- [ ] "Skip for now" is hidden on required-field steps; visible (with optional confirmation) on optional steps.
+- [ ] Step 6 (Content Tools) consistency — either gains "Skip for now" OR is renamed to make the forced-finish obvious.
+- [ ] Direct nav to `/onboarding?step=4` for a user at step 1 redirects to step 1 (server-clamped).
+- [ ] All wizard mutations visible in Network panel as `POST /api/onboarding/*`, zero direct `PATCH .../user_profiles` calls.
+
+#### Affected files
+
+- `supabase/migrations/<date>_user_profile_bootstrap_hook.sql` — new (Layer 1)
+- `src/app/api/onboarding/step/route.ts` — new (Layer 2)
+- `src/app/api/onboarding/complete/route.ts` — new (Layer 2)
+- `src/lib/onboarding/required-fields.ts` — new (Layer 3 source of truth)
+- `src/lib/onboarding/validate.ts` — new (`validateOnboardingComplete()` helper)
+- `src/app/(app)/onboarding/page.tsx` — rewrite `goNext`, `goBack`, `handleSubmit` to call API routes; add `canAdvance()` per step; clamp `?step=N` against server-canonical state
+- `src/app/(app)/layout.tsx` — wire layout-level validation gate
+- (release-notes modal mount + `tutorial-bridge.tsx` — see BP-150 for shell-modal suppression on `/onboarding`; coordinate ordering)
+
 #### Notes
 
 - BP-099 declares `ui_mode` as required and depends on this BP for enforcement — but BP-099 ships independently with a soft default (`'focus'` for missing values) so the app works even if BP-142 is delayed.
 - Consider grouping with BP-103 (Contextual Onboarding CTA) since both touch the dashboard onboarding region.
-- **Effort estimate:** S–M (2–4 days).
+- **The Auth Hook approach mirrors BP-129's pattern.** See `feedback_auth_schema_locked.md` for the constraint that triggers cannot be created on `auth.identities`/`auth.users` via `apply_migration` — use Supabase Auth Hooks (Postgres function + dashboard toggle) instead.
+- **Effort estimate:** M-L (3-4 days). Original estimate was S-M (2-4 days) for the validation layer alone; adding Layers 1 + 2 expands scope.
 
 ---
 

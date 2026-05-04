@@ -38,6 +38,16 @@
 | UF-004 | 2026-04-26 | Test user (cycle 1) | No discoverable way to edit & republish a `posted` post; existing "Revert to Draft" only visible behind `?edit=true` | [BP-138](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** — Option A shipped |
 | UF-005 | 2026-04-26 | Test user (cycle 1) | Auto-save "Saved" indicator disappears after 2s; user can't tell if work is saved | [BP-139](BACKLOG.md) | **Verified (QA, dev preview) 2026-04-26** |
 | UF-006 | 2026-04-26 | Test user (cycle 1) | Wants AI-generated images that "look like them" — request for reference-photo upload feeding into image prompts | [BP-140](BACKLOG.md) | Captured (needs design brainstorming) |
+| UF-007 | 2026-05-04 | QA agent (live walkthrough) | Onboarding wizard architectural defects: no profile-row at signup, wizard bypasses API routes, refresh restarts at step 0, skip-everything completes with empty profile, deep-link `?step=N` shows fake checkmarks | [BP-142](BACKLOG.md) | **Planned** — Sprint 2 of QA-remediation |
+| UF-008 | 2026-05-04 | QA agent (live walkthrough) | Tutorial completion never persists — `tutorial_progress.completed` stays `false` after Finish (upsert `onConflict` mismatch silently fails) | [BP-149](BACKLOG.md) | **In Progress** — Sprint 1 |
+| UF-009 | 2026-05-04 | QA agent (live walkthrough) | Cross-route restart from Help auto-closes tutorial within 600ms (most of the registry is unrestartable from Help) | [BP-149](BACKLOG.md) | **In Progress** — Sprint 1 |
+| UF-010 | 2026-05-04 | QA agent (live walkthrough) | Tutorial gate background renders translucent in dark mode, visually entangled with What's New modal | [BP-149](BACKLOG.md) | **In Progress** — Sprint 1 |
+| UF-011 | 2026-05-04 | QA agent (live walkthrough) | `howto-idea-generation` step 3 click on Generate doesn't advance tutorial; `overview-app` step 1 anchors to mobile-hidden sidebar | [BP-149](BACKLOG.md) | **In Progress** — Sprint 1 |
+| UF-012 | 2026-05-04 | QA agent (live walkthrough) | Two stacked modals (What's New + tutorial gate) over the wizard on first onboarding visit; "Got it!" sometimes needs two clicks | [BP-150](BACKLOG.md) | **Planned** — Sprint 3 |
+| UF-013 | 2026-05-04 | QA agent (live walkthrough) | `/onboarding/type` is a 1-2s blank flash before redirect | [BP-150](BACKLOG.md) | **Planned** — Sprint 3 |
+| UF-014 | 2026-05-04 | QA agent (live walkthrough) | Dashboard greeting first-name extraction is naive ("Back Test User" → "Welcome back, Back!"); empty-profile fallback "Welcome back, there!" looks broken | [BP-150](BACKLOG.md) | **Planned** — Sprint 3 |
+| UF-015 | 2026-05-04 | QA agent (live walkthrough) | "Powered by Claude" badge claims system AI access while DB has `managed_ai_access=false` for new free users | [BP-151](BACKLOG.md) | **Planned** — Sprint 3 |
+| UF-016 | 2026-05-04 | QA agent (live walkthrough) | 8 of ~10 sidebar RSC prefetch GETs return 503 on first dashboard load (not user-visible due to fallback, but suggests latent edge-runtime issue) | [BP-152](BACKLOG.md) | **Planned** — Sprint 3 (investigate only) |
 
 ---
 
@@ -311,6 +321,271 @@ AI-generated images for posts are generic. The user wants generated visuals that
 
 ### Fix summary (after fix)
 *N/A.*
+
+---
+
+## UF-007 — Onboarding wizard architectural defects
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough on production, fresh `e2e+onboarding-*` test users)
+**Status:** **Planned** → BP-142 (scope expanded)
+
+### Raw feedback (verbatim — agent report summary)
+Five defects confirmed live across three test users:
+- **(a)** Brand-new free user sees AI Setup (BYOK) step contrary to BP-135 — all 3 test users hit step 4.
+- **(b)** Wizard mutations bypass Next.js API routes entirely — Network panel shows 4× `PATCH .../user_profiles` direct to Supabase REST, zero `/api/onboarding/*` calls.
+- **(c)** Refresh on step 3 with partial data → drops back to step 1, empty fields. (`goNext` does `.update` not `.upsert`; no row exists yet to update.)
+- **(d)** Skip-everything completes onboarding with empty profile (`full_name=null`, `expertise_areas=[]`, etc.) — no per-step validation.
+- **(e)** Direct nav to `/onboarding?step=4` for a fresh user shows steps 1-4 falsely checkmarked.
+
+### Issue
+The wizard has no server-side authority. It reads/writes Supabase directly with the user's RLS-bound JWT, no Next.js API routes are involved, and no DB trigger creates a `user_profiles` row at signup. As a result every server-side rule (BP-135 tier-skip, validation, audit) is unenforceable. The seed script `scripts/e2e/seed-test-users.ts` masked the bug for the four canonical e2e accounts by pre-creating profile rows.
+
+### Root cause
+- Layer 1 (DB): no Auth Hook / trigger creates `user_profiles` row on signup. `subscriptionTier` is `null` for every brand-new user.
+- Layer 2 (API): wizard talks to Supabase REST directly. No server route to enforce rules.
+- Layer 3 (UI): no `canAdvance()` per-step predicate; no server-side clamp on `?step=N`.
+
+### Action plan
+Folded into BP-142 with expanded scope. Three layers: Auth Hook bootstrap (DB), `/api/onboarding/{step,complete}` routes (API), `canAdvance()` + central `required-fields.ts` (UI). Sprint 2 of QA-remediation. Effort M-L (3-4 days).
+
+### Fix summary (after fix)
+*Pending Sprint 2 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-008 — Tutorial completion never persists
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough on production, fresh `e2e+tutorial-*` test users)
+**Status:** **In Progress** → BP-149
+
+### Raw feedback (verbatim — agent report)
+After completing `overview-app` and `overview-dashboard` (clicking "Finish ✓"), `tutorial_progress.completed` row stays `false`. Verified via Supabase MCP query immediately after Finish.
+
+### Issue
+The entire BP-035 tutorial system silently fails its primary contract. Users can complete tutorials but no state is recorded. Resume-prompt logic can never know they finished. Help-page completion checkmarks (if any) never flip.
+
+### Root cause
+[packages/tutorial-sdk/src/storage/supabase.ts:35-44, 66-73](../packages/tutorial-sdk/src/storage/supabase.ts) — `markCompleted` and `saveProgress` call `.upsert(...)` without `onConflict: "user_id,tutorial_id"`. Supabase defaults conflict target to PRIMARY KEY (`id`), so after `saveProgress` creates the row, every subsequent upsert tries to INSERT and fails the unique constraint. The error is swallowed by the engine's try/catch. `markFirstLoginPromptShown` for `tutorial_user_state` has the same bug (key on `user_id`).
+
+### Action plan
+BP-149 (Sprint 1 of QA-remediation). Add `onConflict` to all three upserts. Surface unique-violation errors via console.error instead of swallowing. Effort: XS.
+
+### Fix summary (after fix)
+*Pending Sprint 1 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-009 — Cross-route restart from Help auto-closes tutorial
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **In Progress** → BP-149
+
+### Raw feedback (verbatim — agent report)
+Click "Start tutorial" on `/help` for `overview-ideas`, `overview-posts`, or `overview-system`. Browser routes correctly, then ~600ms later the tutorial card silently disappears.
+
+### Issue
+Most of the tutorial registry is unrestartable from the Help page. The entire BP-137 entry point is broken for cross-route tutorials.
+
+### Root cause
+[packages/tutorial-sdk/src/components/TutorialProvider.tsx:79-115](../packages/tutorial-sdk/src/components/TutorialProvider.tsx) — `lastTutorialPathRef` is initialized to `currentPath` at render time (= `/help`). When the engine fires `onNavigate('/ideas')`, the navigate-away detector sees a path mismatch and triggers a 600ms close-on-navigation guard. Cannot distinguish tutorial-initiated nav from user-initiated nav.
+
+### Action plan
+BP-149 (Sprint 1). Set `lastTutorialPathRef.current` synchronously to the target route when the engine triggers navigation, OR have the engine flag the next path-change as expected. Effort: S.
+
+### Fix summary (after fix)
+*Pending Sprint 1 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-010 — Tutorial gate background renders translucent in dark mode
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **In Progress** → BP-149
+
+### Raw feedback (verbatim — agent report)
+First-login dashboard visit shows both the What's New v0.1.3 modal and the Welcome tour gate at the same time, stacked and visually entangled — gate text bleeds through to show What's New behind it.
+
+### Issue
+Visual mess on first impression. Buttons are clickable but the user sees overlapping text and feels something is broken.
+
+### Root cause
+[packages/tutorial-sdk/src/components/TutorialGate.tsx:179-187](../packages/tutorial-sdk/src/components/TutorialGate.tsx) and [src/components/tutorial-bridge.tsx:38-39](../src/components/tutorial-bridge.tsx) — `var(--tutorial-bg, #ffffff)` resolves to a translucent dark color in dark mode. The simultaneous-open issue (which triggered the visual entanglement) is BP-150's responsibility; this UF/BP-149 just fixes the opacity.
+
+### Action plan
+BP-149 (Sprint 1). Make `--tutorial-bg` resolve to `--card` (opaque card color), AND set explicit opaque background on the gate's inner div regardless of theme. Effort: XS.
+
+### Fix summary (after fix)
+*Pending Sprint 1 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-011 — Tutorial step-advance bugs (`gen-waiting` click race + mobile `overview-app` anchor)
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **In Progress** → BP-149
+
+### Raw feedback (verbatim — agent report)
+Two related defects rolled up:
+- `howto-idea-generation` step 3: clicking Generate Ideas fires the API call (25 ideas created server-side), but tutorial stays on step 3 until the global 15s timeout escape kicks in.
+- `overview-app` step 1: anchors to `#tour-sidebar-nav` which is hidden on viewports < 1024px (sidebar uses `hidden lg:flex`). Selector exists in DOM but `offsetParent` is null — BorderBeam has no anchor on mobile.
+
+### Issue
+Step-3 click race makes the most-used "how to" tutorial feel broken (15s wait before recovery prompt). Mobile users see the first step of the auto-firing tutorial render incorrectly.
+
+### Root cause
+[packages/tutorial-sdk/src/core/action-detector.ts:73-87](../packages/tutorial-sdk/src/core/action-detector.ts) — capture-phase `target.closest("#tour-generate-btn")` may fail when `click` event bubbles during the React re-render that swaps the button into a loading state. [src/lib/tutorials/definitions.ts](../src/lib/tutorials/definitions.ts) `overview-app` step 1 hard-codes the desktop selector.
+
+### Action plan
+BP-149 (Sprint 1). Switch click detection to `mousedown` OR add a redundant `elementExists` for `#tour-generated-ideas` to step 3. For mobile: early-exit step 1 below 1024px OR change target to `#tour-mobile-nav-toggle`. Effort: S.
+
+### Fix summary (after fix)
+*Pending Sprint 1 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-012 — Two stacked modals over the onboarding wizard on first visit
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **Planned** → BP-150
+
+### Raw feedback (verbatim — agent report)
+On first `/onboarding` visit after magic-link login: a "What's New v0.1.3" changelog modal AND a "Welcome! Would you like a quick tour?" tutorial dialog both render at full opacity over the wizard. Visually overlapping; "Got it!" on the changelog sometimes needs two clicks (likely focus interference from the underlying tour dialog).
+
+### Issue
+First impression for every new user is two competing modals on top of the wizard they're trying to fill out.
+
+### Root cause
+Global app-shell modals (release-notes popup + tutorial first-login gate) are rendered without checking whether the user is currently inside the onboarding flow. The onboarding page reuses the dashboard shell, so shell-level modals fire too. `TutorialBridge` mounts the gate unconditionally when the user has no `tutorial_user_state` row.
+
+### Action plan
+BP-150 (Sprint 3). Suppress both shell modals when `pathname.startsWith('/onboarding')` OR `onboarding_completed=false`. Effort: S.
+
+### Fix summary (after fix)
+*Pending Sprint 3 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-013 — `/onboarding/type` is a 1-2s blank flash
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **Planned** → BP-150
+
+### Raw feedback (verbatim — agent report)
+Direct navigation to `/onboarding/type` produces ~1-2s of fully blank content area (sidebar still visible, no skeleton/loader) before redirecting to `/onboarding?type=individual`.
+
+### Issue
+Dead UI — with `NEXT_PUBLIC_TEAM_FEATURES_ENABLED=false` (prod default per BP-098), the page renders nothing, runs a client-side effect, then redirects. Cosmetic but feels broken.
+
+### Root cause
+[src/components/onboarding/workspace-type-selector.tsx:29-37](../src/components/onboarding/workspace-type-selector.tsx) — `useEffect` `router.replace`s after mount, returns `null` in the meantime.
+
+### Action plan
+BP-150 (Sprint 3). Convert to a server component with `redirect()`, OR add a `next.config.js` redirect at the route level. Either approach yields HTTP 308 with no client render. Effort: XS.
+
+### Fix summary (after fix)
+*Pending Sprint 3 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-014 — Dashboard greeting renders awkwardly
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **Planned** → BP-150
+
+### Raw feedback (verbatim — agent report)
+Two sub-issues:
+- "Back Test User" → "Welcome back, **Back!**" (first space-token extraction is naive). Single-name users would render oddly punctuated; multi-word given names ("Jean Paul Smith") only show "Jean".
+- After skip-everything onboarding: "Welcome back, **there!**" — fallback string is fine but combined with empty avatar feels broken.
+
+### Issue
+Cosmetic but consistently triggered for every new user.
+
+### Root cause
+Dashboard greeting component extracts first-name via naive `split(' ')[0]`. Empty-profile fallback uses "there" which doesn't read as deliberate.
+
+### Action plan
+BP-150 (Sprint 3). Switch to a `display_name` field, OR proper first-name extraction with empty-profile-aware fallback ("Welcome to PostPilot" instead of "Welcome back, there!"). Effort: XS.
+
+### Fix summary (after fix)
+*Pending Sprint 3 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-015 — `managed_ai_access` mismatch with "Powered by Claude" badge
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **Planned** → BP-151
+
+### Raw feedback (verbatim — agent report)
+All three test users (free tier) had `managed_ai_access=false` and `ai_api_key_encrypted IS NULL` in the DB after onboarding, yet the dashboard rendered a "Powered by Claude (Claude Sonnet 4.6)" badge.
+
+### Issue
+DB and UI are out of sync. Per memory note `feedback_ai_access_default.md` ("All active/trial users get system AI access by default"), `managed_ai_access` should be `true` for free users. Either the badge isn't reading the column, or the column default is wrong.
+
+### Root cause
+Two candidates:
+- (a) `managed_ai_access` column default is `false`; badge is hard-coded.
+- (b) Column default is `false`; badge correctly reads tier directly.
+
+Either way the documented intent is broken — free users should have system AI access by default.
+
+### Action plan
+BP-151 (Sprint 3). Owner decision 2026-05-04: keep the column, default it to `true` for free users, ensure badge reads the column. Migration + backfill + audit of all `managed_ai_access` reads. Effort: S.
+
+### Fix summary (after fix)
+*Pending Sprint 3 implementation.*
+
+### QA verification — *pending*
+
+---
+
+## UF-016 — RSC prefetch 503s on first dashboard load
+
+**Date captured:** 2026-05-04
+**Source:** QA agent (live walkthrough)
+**Status:** **Planned** → BP-152 (investigate only)
+
+### Raw feedback (verbatim — agent report)
+Network capture during first dashboard load showed 8 of approximately 10 sidebar RSC prefetch GETs returning **503 Service Unavailable** (`/calendar?_rsc=...`, `/profile?_rsc=...`, `/help?_rsc=...`, `/settings?_rsc=...`, `/analytics?_rsc=...`, `/library?_rsc=...`, `/posts?_rsc=...`, `/ideas?_rsc=...`, `/dashboard?_rsc=...`). Visible navigation works because clicks trigger full requests that succeed.
+
+### Issue
+Not user-visible today (full-request fallback works), but consistent 503s on RSC prefetches suggest an underlying edge-runtime crash, cold-start failure, or middleware error wasting capacity. Could escalate to user-visible errors under load.
+
+### Root cause
+Unknown — needs investigation.
+
+### Action plan
+BP-152 (Sprint 3, investigate only). Pull Vercel runtime logs for the failing routes; check edge-runtime config; check `src/middleware.ts` behavior on RSC prefetches. Document findings + recommendation in `docs/plans/bp-152-rsc-503-investigation.md`. If fix is non-trivial, file a follow-up BP. Effort: investigation S (2-4 hours); fix scope TBD.
+
+### Fix summary (after fix)
+*Pending Sprint 3 investigation.*
+
+### QA verification — *pending*
 
 ---
 
