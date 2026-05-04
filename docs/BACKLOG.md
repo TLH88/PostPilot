@@ -60,7 +60,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-123** Token cost study (pre-GTM action) — **Done 2026-04-24** (deliverable + owner-approved recommendations)
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
 - **BP-125** Pro-tier image-generation BYOK — P1 / High
-- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — *Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)*
+- **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04). Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)
 - **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — **Done (develop) 2026-05-04** [UF-015]
 - *Superseded/absorbed:* BP-018 (folded into BP-117). *Note: BP-045 ad integration is a separate live Backlog item — see EPIC 1 below; it is NOT absorbed into BP-119 (Phase 2 of which still also Backlog).*
 
@@ -79,8 +79,8 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-084** Tutorial card visual redesign — **Done 2026-05-04 (covered by BP-149)**
 - **BP-099** Launch Pad (formerly Focus View) — **Phase 1 Done 2026-05-04 (shipped to main)** via commits `8d4f553` + `0fa4604` + `8cab6b7`. Phase 2 (mobile shell + "what next?" prompts + polish) — Backlog — P1 / High. See [docs/plans/bp-099-guided-ui-mode.md](plans/bp-099-guided-ui-mode.md)
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
-- **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
-- **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]
+- **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
+- **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-142** Onboarding integrity gate + server-authoritative wizard — **Done (develop) 2026-05-04** [UF-007]
 - **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
 - **BP-149** Tutorial SDK reliability fixes — **Done (develop) 2026-05-04** [UF-008..UF-011]
@@ -119,10 +119,10 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
 - **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
 - **BP-133** Require title before post draft creation — P2 / Medium — **Fixed (develop) 2026-04-26**
-- **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001]
-- **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open]
-- **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005]
-- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium **[Fixed (develop) 2026-04-26]**
+- **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
+- **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
+- **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
+- **BP-141** Auto-version snapshot on autosave (resilience to accidental wipes) — P2 / Medium — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-145** Publish-failure recovery flow (LinkedIn auth-revoked round-trip + walkthrough surface) — P1 / High — **Done (main) 2026-04-28** (commits `ec04c46` + merge `f17e5c6`, on main via `7f194cc`)
 
 ### EPIC 9 — Security, Authorization & Observability
@@ -485,7 +485,7 @@ This produces a backlog of `Untitled` drafts in `/posts` and on the dashboard. I
 
 ### BP-141: Auto-Version Snapshot on Autosave (Accidental-Wipe Resilience)
 
-**Status:** Fixed (develop) 2026-04-26 — `kind` column added to `post_versions` (migration `20260426_add_post_version_kind.sql`); autosave writes an `auto` row at most once per 5 min per post when content has changed; version dropdown hides autosaves by default with a "Show autosaves" toggle; DB trigger prunes auto rows beyond 20 per post; manual Save Version unchanged; auto rows excluded from quota context.
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production. `kind` column added to `post_versions` (migration `20260426_add_post_version_kind.sql`); autosave writes an `auto` row at most once per 5 min per post when content has changed; version dropdown hides autosaves by default with a "Show autosaves" toggle; DB trigger prunes auto rows beyond 20 per post; manual Save Version unchanged; auto rows excluded from quota context.
 **Priority:** P2 / Medium
 **Source:** Surfaced 2026-04-26 by a QA-agent data incident — a misuse of `textarea.value = …` overwrote a real draft (`db4c305e…`, "3 Non-Negotiables for Follow the Sun Support Success") from 1518 chars to 181 chars; autosave persisted the truncation. No `post_versions` rows existed because version snapshots are only created when the user explicitly clicks "Save Version" — autosave does not snapshot.
 **Date Added:** 2026-04-26
@@ -779,7 +779,7 @@ Network capture during the live onboarding QA walkthrough showed 8 of approximat
 
 ### BP-134: AI Chat Reads Stale Editor Content After Manual Edits
 
-**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production.
 **Priority:** P2 / Medium (UX-affecting bug; degrades the AI assistant's perceived quality)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-001--ai-assistant-not-reading-editor-on-manual-edits) (UF-001)
 **Date Added:** 2026-04-26
@@ -807,7 +807,7 @@ Network capture during the live onboarding QA walkthrough showed 8 of approximat
 
 ### BP-135: Onboarding Tier-Gate for AI Setup Step (Skip BYOK for Free/Personal)
 
-**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production. Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause of any residual mis-gating was no profile row at signup, not the BP-135 predicate logic).
 **Priority:** P1 / High (Subscription Model v2 violation — onboarding asks Free/Personal users to set up something they cannot use)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-002a--onboarding-shows-byok-step-to-freepersonal-users) (UF-002a)
 **Date Added:** 2026-04-26
@@ -837,7 +837,7 @@ Network capture during the live onboarding QA walkthrough showed 8 of approximat
 
 ### BP-136: LinkedIn-OAuth Pre-Redirect Interstitial Dialog
 
-**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production.
 **Priority:** P1 / High (real user reported thinking they'd been logged out — that's a session-trust failure mode)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-002b--abrupt-linkedin-oauth-redirect-with-no-warning) (UF-002b)
 **Date Added:** 2026-04-26
@@ -878,7 +878,7 @@ Network capture during the live onboarding QA walkthrough showed 8 of approximat
 
 ### BP-137: Tutorial Row Icon = Launch Button (Merge Left Icon with Start CTA)
 
-**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production.
 **Priority:** P3 / Low (polish; reduces redundant UI)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-003--tutorial-row-icon-should-be-the-launch-button) (UF-003)
 **Date Added:** 2026-04-26
@@ -909,7 +909,7 @@ Network capture during the live onboarding QA walkthrough showed 8 of approximat
 
 ### BP-138: Edit & Republish Posted Posts — Discoverable CTA + Duplicate-Prevention Copy
 
-**Status:** **Fixed (develop) 2026-04-26** — Option A shipped per the approved UX recommendation at [docs/plans/bp-138-ux-recommendation.md](plans/bp-138-ux-recommendation.md). Verified end-to-end via preview-server walkthrough; entry visible on published view, dialog enforces checkbox, editor auto-flips status + shows the new republish banner. Awaiting Vercel deploy + production rollout.
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production. Option A shipped per the approved UX recommendation at [docs/plans/bp-138-ux-recommendation.md](plans/bp-138-ux-recommendation.md). Verified end-to-end via preview-server walkthrough; entry visible on published view, dialog enforces checkbox, editor auto-flips status + shows the new republish banner.
 **Priority:** P2 / Medium (UX gap on a real workflow; user already worked around it manually)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-004--edit--repost-a-posted-post) (UF-004)
 **Date Added:** 2026-04-26
@@ -955,7 +955,7 @@ When the user republishes after editing, what's the expected behavior?
 
 ### BP-139: Persistent Save Indicator With Relative Timestamp
 
-**Status:** **Fixed (develop) 2026-04-26** — awaiting Vercel deploy + QA walkthrough
+**Status:** Done (main) 2026-04-26 — bundled into the QA-remediation arc develop → main merge `7f194cc` (2026-05-04). Live in production.
 **Priority:** P2 / Medium (every editor session is affected; this is a daily-friction issue for any active user)
 **Source:** Test user feedback 2026-04-26 (cycle 1) — see [docs/USER_FEEDBACK.md](USER_FEEDBACK.md#uf-005--persistent-save-indicator) (UF-005)
 **Date Added:** 2026-04-26
