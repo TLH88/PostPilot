@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,12 @@ export function ReleaseNotesModal({
   const [autoOpened, setAutoOpened] = useState(false);
   const hasCheckedRef = useRef(false);
   const supabase = createClient();
+  const pathname = usePathname();
+  // BP-150 / UF-012: never auto-open shell modals while the user is in the
+  // onboarding wizard. The release-notes auto-open + tutorial first-login
+  // gate were both firing on /onboarding's first render, stacking on top
+  // of the wizard. External-open (from Settings) is unaffected.
+  const isOnboardingRoute = pathname?.startsWith("/onboarding") ?? false;
 
   // Fetch all published notes (newest first by version, then by published date)
   async function fetchAllNotes() {
@@ -54,6 +61,7 @@ export function ReleaseNotesModal({
   // Auto-open for unread notes on mount (once)
   useEffect(() => {
     if (hasCheckedRef.current || externalOpen) return;
+    if (isOnboardingRoute) return; // BP-150 / UF-012: suppress on /onboarding
     hasCheckedRef.current = true;
 
     async function checkUnread() {

@@ -47,7 +47,7 @@
 | UF-013 | 2026-05-04 | QA agent (live walkthrough) | `/onboarding/type` is a 1-2s blank flash before redirect | [BP-150](BACKLOG.md) | **Planned** — Sprint 3 |
 | UF-014 | 2026-05-04 | QA agent (live walkthrough) | Dashboard greeting first-name extraction is naive ("Back Test User" → "Welcome back, Back!"); empty-profile fallback "Welcome back, there!" looks broken | [BP-150](BACKLOG.md) | **Planned** — Sprint 3 |
 | UF-015 | 2026-05-04 | QA agent (live walkthrough) | "Powered by Claude" badge claims system AI access while DB has `managed_ai_access=false` for new free users | [BP-151](BACKLOG.md) | **Planned** — Sprint 3 |
-| UF-016 | 2026-05-04 | QA agent (live walkthrough) | 8 of ~10 sidebar RSC prefetch GETs return 503 on first dashboard load (not user-visible due to fallback, but suggests latent edge-runtime issue) | [BP-152](BACKLOG.md) | **Planned** — Sprint 3 (investigate only) |
+| UF-016 | 2026-05-04 | QA agent (live walkthrough) | 8 of ~10 sidebar RSC prefetch GETs return 503 on first dashboard load (not user-visible due to fallback, but suggests latent edge-runtime issue) | [BP-152](BACKLOG.md) | **Wontfix this cycle (2026-05-04)** — investigation found no recurrence in 7 days of prod logs. See [docs/plans/bp-152-rsc-503-investigation.md](plans/bp-152-rsc-503-investigation.md). |
 
 ---
 

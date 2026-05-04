@@ -223,8 +223,13 @@ export default async function DashboardPage() {
     // the binary "Complete Setup" state.
   }
 
-  // First name only — keeps the greeting personal without feeling formal.
-  const displayName = profile?.full_name?.trim().split(/\s+/)[0] || "there";
+  // BP-150 / UF-014: First-name extraction for the greeting. When full_name
+  // is missing entirely (empty profile), use a first-time greeting instead
+  // of "Welcome back, there!" which read as broken.
+  const firstName = profile?.full_name?.trim().split(/\s+/)[0];
+  const greeting = firstName
+    ? `Welcome back, ${firstName}!`
+    : "Welcome to PostPilot";
   const activeWorkspaceId = await getActiveWorkspaceIdServer();
 
   // Resolve AI access (UX hint — authoritative check still happens in /api/ai/*)
@@ -454,12 +459,18 @@ export default async function DashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Welcome back, {displayName}!
+          {greeting}
         </h1>
         <p className="text-muted-foreground">
           Let&apos;s make something worth sharing today. We can brainstorm a fresh idea, pick up where a draft left off, or line up the week on your calendar — your call.
         </p>
-        {profile?.ai_provider && (
+        {/* BP-151 / UF-015: gate the "Powered by" badge on actual AI access,
+            not just on `ai_provider` being set (which defaults to 'anthropic'
+            on every profile and was therefore always truthy). resolveAIAccess
+            already factors in BYOK keys, the Vercel AI gateway availability,
+            and the new managed_ai_access default-on policy — using its result
+            ensures the badge claim matches reality. */}
+        {profile?.ai_provider && aiAccess.hasAccess && (
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
             <Bot className="size-3.5" />
             <span>
