@@ -74,16 +74,26 @@ export function setupActionDetector(
       const selector = step.clickTarget || step.selector;
       if (!selector) break;
 
-      // Strategy 1: Capture-phase click listener
-      function handleClick(e: Event) {
+      // BP-149 / UF-011: Listen on BOTH `mousedown` and `click` capture-phase.
+      // `click` alone races against React re-renders that immediately swap the
+      // button into a loading state — the capture handler can miss the target
+      // when the dialog containing the button starts unmounting on the same
+      // tick. `mousedown` fires earlier (before the React click handler runs)
+      // so it catches the press even if the button mutates milliseconds later.
+      // The `completed` guard inside complete() prevents double-firing.
+      function handlePress(e: Event) {
         const target = e.target as Element;
         if (target.closest(selector!)) {
-          debugLog("click matched", { selector });
+          debugLog(`${e.type} matched`, { selector });
           complete();
         }
       }
-      document.addEventListener("click", handleClick, true);
-      cleanups.push(() => document.removeEventListener("click", handleClick, true));
+      document.addEventListener("mousedown", handlePress, true);
+      document.addEventListener("click", handlePress, true);
+      cleanups.push(() => {
+        document.removeEventListener("mousedown", handlePress, true);
+        document.removeEventListener("click", handlePress, true);
+      });
       break;
     }
 
