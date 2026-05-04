@@ -213,27 +213,14 @@ export default function AdminBudgetsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
-          <p className="text-muted-foreground">
-            Per-user $/month spend, thresholds, and the auto-pause kill switch.
-            Only <strong>billable</strong> spend (system + gateway) counts
-            toward the cap — BYOK is user-paid and shown for context only.
-            Team accounts get a $30 burn alert (no auto-pause).
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1 text-sm">
-          <div className="flex items-center gap-2">
-            <DollarSign className="size-4 text-emerald-500" />
-            <span className="font-mono">{fmtUsd(totalBillable)}</span>
-            <span className="text-muted-foreground">billable this month</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-mono">{fmtUsd(totalByok)}</span>
-            <span>BYOK (user-paid)</span>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
+        <p className="text-muted-foreground">
+          Per-user $/month spend, thresholds, and the auto-pause kill switch.
+          Only <strong>billable</strong> spend (system + gateway) counts
+          toward the cap — BYOK is user-paid and shown for context only.
+          Team accounts get a $30 burn alert (no auto-pause).
+        </p>
       </div>
 
       {/* Filters */}
@@ -412,6 +399,21 @@ export default function AdminBudgetsPage() {
                 </tr>
               )}
             </tbody>
+            <tfoot className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-t">
+                <td className="px-3 py-2 text-left font-semibold" colSpan={2}>
+                  Totals (all users)
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-foreground">
+                  <DollarSign className="inline size-3 -mt-0.5 mr-0.5 text-emerald-500" />
+                  {fmtUsd(totalBillable)}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-foreground">
+                  {totalByok > 0 ? fmtUsd(totalByok) : <span className="text-muted-foreground/50">—</span>}
+                </td>
+                <td className="px-3 py-2" colSpan={4}></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
