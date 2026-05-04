@@ -1,12 +1,30 @@
-# BP-099 — Focus View (Simplified UI Mode)
+# BP-099 — Launch Pad (formerly Focus View)
 
-> Author: Owner + design agent, 2026-04-27 (revised)
+> Author: Owner + design agent · v1 2026-04-27 · v2 (Launch Pad pivot) 2026-05-04
 > Backlog: [BACKLOG.md BP-099](../BACKLOG.md)
-> Status: Direction agreed with owner — awaiting final sign-off before implementation.
+> Status: **Phase 1 implementation in progress on `bp-099-launch-pad` branch (2026-05-04).**
 >
-> **Naming note:** Previously called "Guided Mode" / "Conversational Assistant." Renamed to **Focus View** based on owner direction 2026-04-27. The earlier coaching-panel concept has been replaced with a simpler launcher-hub model. Sibling BPs spun off: BP-142 (Onboarding integrity gate) and BP-143 (Mobile editor layout).
+> **2026-05-04 Pivot — owner direction:** Focus View is no longer a per-user *mode* gated by a `ui_mode` toggle. It is now **Launch Pad** — a single new page (`/launch-pad`) with the four primary action cards. **Every user lands on Launch Pad by default after login.** The full Dashboard (`/dashboard`) remains unchanged and is still reachable from the sidebar; Launch Pad is additive, not a replacement.
 >
-> **Scope note:** This is a design document only. No code has been written or modified. All file paths referenced are anchors for the implementation phase.
+> **Dropped from the v1 design after the pivot:**
+> - `user_profiles.ui_mode` column (no per-user mode)
+> - `/api/profile/ui-mode` route (nothing to write)
+> - View-toggle component in the top bar (no toggle)
+> - Settings → Appearance → Home Screen picker (no setting)
+> - Mid-task switch confirm dialog (no switching)
+> - Conditional render in `/dashboard` (Launch Pad is its own route)
+> - Soft-default + backfill logic for `ui_mode` (column doesn't exist)
+>
+> **Kept from the v1 design:**
+> - The four-card layout (Generate / Create / Drafts / Scheduled — editorial flow order)
+> - Visual treatment (gradient blobs, dot-grid pattern, gradient-text greeting, hover lift)
+> - Time-of-day greeting + first-name extraction
+> - Brainstorm-fires-AI-dialog integration on `?open=generate`
+> - Phase 2 scope kept as future work (mobile UI shell, "what next?" prompts, additional polish)
+>
+> **Naming history:** "Guided Mode" / "Conversational Assistant" → "Focus View" (2026-04-27) → **"Launch Pad"** (2026-05-04). Sibling BPs spun off and shipped: BP-142 (Onboarding integrity gate, Done 2026-05-04). BP-143 (Mobile editor layout) remains active as Phase 2 territory.
+>
+> **Scope note:** Sections below describe the v1 Focus View design (preserved for historical context). Treat the v2 pivot above as the source of truth for what's being built.
 
 ---
 

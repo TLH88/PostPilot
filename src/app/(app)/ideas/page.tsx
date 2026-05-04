@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId, applyWorkspaceFilter } from "@/lib/workspace";
 import { logActivity } from "@/lib/activity";
@@ -305,6 +305,23 @@ export default function IdeasPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [developingId, setDevelopingId] = useState<string | null>(null);
+
+  // BP-099: Launch Pad's "Brainstorm" card sends users to /ideas?open=generate
+  // so they land directly in the AI Idea Generator with no extra click. Honor
+  // the param on mount and strip it from the URL so a refresh doesn't re-open
+  // the dialog. Only triggers when generateOpen is currently false.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("open") === "generate" && !generateOpen) {
+      setGenerateOpen(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("open");
+      window.history.replaceState(null, "", url.toString());
+    }
+    // Run once per searchParams snapshot. generateOpen intentionally excluded
+    // to avoid re-opening after the user closes the dialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Load ideas and profile on mount
   useEffect(() => {

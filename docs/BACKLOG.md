@@ -77,7 +77,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 
 ### EPIC 4 — Onboarding & Guidance
 - **BP-084** Tutorial card visual redesign — P2 / Medium
-- **BP-099** Focus View (Simplified UI Mode) — Design revised 2026-04-27 at docs/plans/bp-099-guided-ui-mode.md — P1 / High
+- **BP-099** Launch Pad (formerly Focus View) — **Phase 1 in progress 2026-05-04** on `bp-099-launch-pad` branch. Owner pivoted 2026-05-04: Launch Pad ships as a single new page (`/launch-pad`) for every user, dropping the per-user `ui_mode` toggle / Settings picker / dual-render plumbing from the v1 spec. Phase 2 (mobile shell + "what next?" prompts + polish) remains future work — P1 / High. See [docs/plans/bp-099-guided-ui-mode.md](plans/bp-099-guided-ui-mode.md)
 - **BP-121** Tutorial "don't show again" + settings reset — P2 / Medium
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b]
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003]

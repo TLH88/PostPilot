@@ -110,6 +110,10 @@ export const MAX_RESUME_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
  * tiers) leave this false.
  */
 export const NAV_ITEMS = [
+  // BP-099: Launch Pad — simplified launcher home with the four primary
+  // actions (Create / Drafts / Scheduled / Ideas). Default post-login
+  // destination; Dashboard remains for users who want the full activity view.
+  { href: "/launch-pad", label: "Launch Pad", icon: "Rocket" },
   { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   { href: "/ideas", label: "Idea Bank", icon: "Lightbulb" },
   { href: "/posts", label: "Posts", icon: "FileText" },

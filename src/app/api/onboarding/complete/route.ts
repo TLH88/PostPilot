@@ -125,7 +125,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, redirectTo: "/dashboard" });
+    // BP-099: post-onboarding lands on Launch Pad.
+    return NextResponse.json({ ok: true, redirectTo: "/launch-pad" });
   } catch (err) {
     logApiError("api/onboarding/complete", err);
     return NextResponse.json(
