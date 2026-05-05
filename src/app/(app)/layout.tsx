@@ -10,6 +10,7 @@ import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner
 import { PausedBanner } from "@/components/budget/paused-banner";
 import { PausedModal } from "@/components/budget/paused-modal";
 import { AdBlockerGate } from "@/components/ads/ad-blocker-gate";
+import { ThemePersistence } from "@/components/theme-persistence";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
@@ -40,7 +41,7 @@ export default async function AppLayout({
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "onboarding_completed, full_name, subscription_tier, deleted_at, expertise_areas, industries"
+      "onboarding_completed, full_name, subscription_tier, deleted_at, expertise_areas, industries, theme_preference"
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -79,6 +80,11 @@ export default async function AppLayout({
   // a prop so the detection runs only when we actually need it.
   const adSupportedTier = userTier === "free" || userTier === "personal";
 
+  // Cross-device theme persistence — null when the user hasn't picked
+  // a theme yet (falls back to the app default of "dark").
+  const themePreference =
+    (profile?.theme_preference as string | null | undefined) ?? null;
+
   return (
     <HelpSidebarProvider>
       <TutorialBridge userId={user.id}>
@@ -91,6 +97,7 @@ export default async function AppLayout({
         <ReleaseNotesModal />
         <PausedModal userId={user.id} paused={isPaused} pausedAt={pausedAt} />
         {adSupportedTier && <AdBlockerGate />}
+        <ThemePersistence initialTheme={themePreference} />
         {/* Sidebar - hidden on mobile */}
         <Sidebar userName={userName} userTier={userTier} />
 
