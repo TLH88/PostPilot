@@ -4,8 +4,7 @@
  *
  * Dispatches a global `postpilot:quota-exceeded` CustomEvent that
  * `<QuotaReachedModal>` (mounted in app/layout.tsx) listens for and renders
- * a tier-aware upgrade modal. Falls back to a toast if no modal is mounted
- * (defensive — e.g. an admin route that doesn't include the provider).
+ * a tier-aware upgrade modal.
  *
  * Usage at a fetch call site:
  *
@@ -37,44 +36,12 @@ async function readBody(res: Response): Promise<Partial<QuotaExceededBody> | nul
   }
 }
 
-function labelForQuotaType(quotaType: string | undefined): string {
-  switch (quotaType) {
-    case "posts": return "posts";
-    case "brainstorms": return "brainstorms";
-    case "chat_messages": return "AI chats";
-    case "scheduled_posts": return "scheduled posts";
-    case "image_generations": return "image generations";
-    default: return "AI requests";
-  }
-}
-
-/** Fallback toast for environments where the modal provider isn't mounted. */
-function toastFallback(body: QuotaExceededBody) {
-  const featureLabel = labelForQuotaType(body.quotaType);
-  const headline = `You've used all your ${featureLabel} this month (${body.used}/${body.limit}).`;
-  toast.error(headline, {
-    description:
-      body.upgradePath === "byok"
-        ? "Add your own AI provider key in Settings → AI Model for unlimited usage."
-        : "Upgrade your plan to keep creating.",
-    action: {
-      label: body.upgradePath === "byok" ? "Add key" : "View plans",
-      onClick: () => {
-        if (typeof window !== "undefined") {
-          window.location.href =
-            body.upgradePath === "byok" ? "/settings" : "/pricing";
-        }
-      },
-    },
-    duration: 8000,
-  });
-}
-
 export async function handleQuotaExceededResponse(res: Response): Promise<void> {
   const body = await readBody(res);
 
-  // Fall back to a generic message if the route hasn't adopted the
-  // structured body yet.
+  // Fall back to a generic toast if the route hasn't adopted the structured
+  // body yet — without quotaType/used/limit/tier the modal has nothing useful
+  // to render.
   if (!body || body.reason !== "quota_exceeded") {
     toast.error(
       body?.error ??
@@ -85,24 +52,11 @@ export async function handleQuotaExceededResponse(res: Response): Promise<void> 
 
   if (typeof window === "undefined") return;
 
-  // Dispatch the modal event. If nothing's listening (rare — modal is mounted
-  // in app/layout.tsx), fall back to the legacy toast so the user still gets
-  // a signal. We detect "nothing listening" via a one-shot boolean flipped by
-  // the modal's listener through a synchronous follow-up event.
-  const detail = body as QuotaExceededBody;
-  let handled = false;
-  const ackHandler = () => {
-    handled = true;
-  };
-  window.addEventListener("postpilot:quota-exceeded:ack", ackHandler, {
-    once: true,
-  });
+  // Dispatch the global event. <QuotaReachedModal> (mounted in app/layout.tsx)
+  // picks it up and opens the modal.
   window.dispatchEvent(
-    new CustomEvent(QUOTA_EXCEEDED_EVENT, { detail })
+    new CustomEvent(QUOTA_EXCEEDED_EVENT, { detail: body as QuotaExceededBody })
   );
-  // Listener acks synchronously inside the dispatch tick, so by here we know.
-  window.removeEventListener("postpilot:quota-exceeded:ack", ackHandler);
-  if (!handled) toastFallback(detail);
 }
 
 /**

@@ -20,6 +20,21 @@ import type { QuotaExceededBody } from "@/lib/errors/handle-quota-exceeded";
 
 export const QUOTA_EXCEEDED_EVENT = "postpilot:quota-exceeded";
 
+// `buildQuotaExceededResponse` in src/lib/quota.ts ships the user-facing
+// label ("Free", "Personal", "Professional") rather than the internal key.
+// Map back so we can drive the conditional plan-card rendering.
+function normalizeTier(serverTier: string | undefined): SubscriptionTier {
+  if (!serverTier) return "free";
+  const direct = serverTier as SubscriptionTier;
+  if (direct in SUBSCRIPTION_TIERS) return direct;
+  for (const [key, def] of Object.entries(SUBSCRIPTION_TIERS)) {
+    if (def.label.toLowerCase() === serverTier.toLowerCase()) {
+      return key as SubscriptionTier;
+    }
+  }
+  return "free";
+}
+
 const QUOTA_LABELS: Record<QuotaType, string> = {
   posts: "posts",
   brainstorms: "brainstorms",
@@ -174,12 +189,7 @@ export function QuotaReachedModal() {
   useEffect(() => {
     function onQuota(e: Event) {
       const detail = (e as CustomEvent<QuotaExceededBody>).detail;
-      if (detail && detail.reason === "quota_exceeded") {
-        setBody(detail);
-        // Synchronously ack so the dispatcher knows a modal handled this and
-        // can skip the toast fallback.
-        window.dispatchEvent(new Event("postpilot:quota-exceeded:ack"));
-      }
+      if (detail && detail.reason === "quota_exceeded") setBody(detail);
     }
     window.addEventListener(QUOTA_EXCEEDED_EVENT, onQuota);
     return () => window.removeEventListener(QUOTA_EXCEEDED_EVENT, onQuota);
@@ -187,7 +197,7 @@ export function QuotaReachedModal() {
 
   const open = body !== null;
   const featureLabel = body ? QUOTA_LABELS[body.quotaType as QuotaType] ?? "AI requests" : "";
-  const tier = (body?.tier as SubscriptionTier) ?? "free";
+  const tier = normalizeTier(body?.tier);
   const upgradePath = body?.upgradePath ?? "higher_tier";
 
   // Decide which plan cards to render.
