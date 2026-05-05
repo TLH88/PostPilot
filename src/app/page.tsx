@@ -120,13 +120,13 @@ export default function Home() {
               imagery showing through. */}
           <div
             aria-hidden
-            className="absolute inset-0 bg-background/72 backdrop-blur-sm"
+            className="absolute inset-0 bg-background/45 backdrop-blur-[2px]"
           />
 
           {/* Foreground copy */}
           <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 text-center sm:pt-32">
             <div className="mx-auto max-w-2xl">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/70 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
                 <Send className="size-3.5 text-primary" />
                 AI-Powered LinkedIn Content
               </div>
