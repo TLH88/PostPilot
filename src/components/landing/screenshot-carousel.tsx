@@ -230,20 +230,16 @@ export function ScreenshotCarousel({
                     sizes="(max-width: 1024px) 100vw, 1024px"
                     className="object-cover object-top"
                   />
-                  {/* Caption overlay — only on the active slide. Soft
-                      bottom gradient so the white text reads against any
-                      screenshot. Re-keys on active so it fades in fresh. */}
+                  {/* Caption — glass panel inset from the slide's bottom
+                      edge. Theme-aware bg so it reads in light & dark mode
+                      against any screenshot, not just dark imagery. */}
                   {isActive && (
                     <div
                       key={`caption-${active}`}
                       aria-live="polite"
-                      className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-8 pt-20 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:px-10 sm:pb-10"
-                      style={{
-                        background:
-                          "linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 45%, transparent 100%)",
-                      }}
+                      className="pointer-events-none absolute inset-x-6 bottom-6 rounded-2xl border border-foreground/10 bg-background/80 px-6 py-4 shadow-xl backdrop-blur-lg motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:inset-x-12 sm:bottom-10 sm:px-8 sm:py-5"
                     >
-                      <p className="text-xl font-semibold leading-snug text-white drop-shadow sm:text-2xl">
+                      <p className="text-balance text-center text-xl font-semibold leading-snug text-foreground sm:text-2xl">
                         {s.caption}
                       </p>
                     </div>

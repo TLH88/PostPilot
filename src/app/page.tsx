@@ -150,40 +150,39 @@ export default function Home() {
         {/* Product screenshots — see-it-in-action carousel.
             Section spans the full page width so the 3D peek layout has
             wing-space on either side of the centered frame for prev/next
-            slide previews to extend into. Size prop controls the frame's
-            max-width, not the section's. */}
+            slide previews to extend into. */}
         <section className="border-t py-20">
-          <div className="mx-auto mb-12 max-w-2xl px-6 text-center">
+          <div className="mx-auto mb-12 max-w-4xl px-6 text-center">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               See PostPilot in action
             </h2>
-            <p className="mt-3 text-muted-foreground">
-              From the first idea on the launch pad to a published
-              calendar — here&apos;s the workflow.
+            <p className="mt-3 text-balance text-muted-foreground">
+              Replace blank-page anxiety with on-trend drafts, planned posts, and a clear view of what&apos;s actually working.
             </p>
           </div>
           <ScreenshotCarousel
             size="xl"
+            intervalMs={8000}
             slides={[
               {
                 src: "/images/carousel/launch-pad.png",
-                alt: "PostPilot Launch Pad — daily focus screen with quick actions",
-                caption: "Launch Pad — Start every session with intention.",
+                alt: "PostPilot Launch Pad: daily focus screen with quick actions",
+                caption: "Launch Pad: Stop wondering where to start. See exactly what to work on next.",
               },
               {
                 src: "/images/carousel/post-editor.png",
                 alt: "PostPilot post editor with AI strategist sidebar",
-                caption: "Post Editor — Write with an AI strategist alongside you.",
+                caption: "Post Editor: Draft polished, on-trend posts with an AI strategist who knows your voice.",
               },
               {
                 src: "/images/carousel/calendar.png",
-                alt: "PostPilot content calendar — monthly view of scheduled posts",
-                caption: "Content Calendar — See your week and month at a glance.",
+                alt: "PostPilot content calendar: monthly view of scheduled posts",
+                caption: "Content Calendar: Stay organized and consistent. Never miss a posting window again.",
               },
               {
                 src: "/images/carousel/analytics.png",
-                alt: "PostPilot analytics dashboard — engagement, impressions, content pillars",
-                caption: "Analytics — Track what resonates and double down on what works.",
+                alt: "PostPilot analytics dashboard: engagement, impressions, content pillars",
+                caption: "Analytics: Get a deep view into the hooks, topics, and formats that actually move your audience.",
               },
             ]}
           />
