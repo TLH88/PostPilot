@@ -489,16 +489,23 @@ export default function PricingPage() {
             Edge fades wash the gradient back to bg-background at the
             top and bottom of the section so it doesn't hard-clip against
             the surrounding sections. */}
-        <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 py-16">
-          {/* Dot-grid pattern with vignette mask */}
+        <section
+          className="relative isolate overflow-hidden py-16"
+          style={{
+            background: "linear-gradient(135deg, #2774ae 0%, #002E5D 100%)",
+          }}
+        >
+          {/* Dot-grid pattern with vignette mask. White dots so they
+              read against the dark-navy gradient instead of disappearing
+              into it. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.15]"
+            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.20]"
             style={{
               backgroundImage:
                 "radial-gradient(circle, currentColor 1px, transparent 1px)",
               backgroundSize: "24px 24px",
-              color: "var(--color-muted-foreground, #94a3b8)",
+              color: "#ffffff",
               maskImage:
                 "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
               WebkitMaskImage:
@@ -525,7 +532,7 @@ export default function PricingPage() {
           />
 
           <div className="relative z-10 mx-auto max-w-3xl px-6">
-            <h2 className="mb-8 text-center text-2xl font-semibold">
+            <h2 className="mb-8 text-center text-2xl font-semibold text-white">
               Frequently asked questions
             </h2>
             <div className="space-y-4">
