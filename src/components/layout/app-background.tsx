@@ -13,6 +13,13 @@
 export function AppBackground() {
   return (
     <>
+      {/* Top-left grey blob — anchors the upper-left corner with a slate
+          shadow that contrasts the colored blobs on the other three corners.
+          Light-mode only: dark mode already feels balanced without it. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -left-32 -top-40 -z-10 size-[63rem] rounded-full bg-gradient-to-bl from-slate-600/45 via-slate-500/30 to-transparent blur-3xl dark:hidden"
+      />
       {/* Top-right gradient blob — strong brand blue.
           Light mode uses pastel 200-stops so the blob reads as a soft sky
           tint rather than a saturated splotch on a near-white page. Dark
