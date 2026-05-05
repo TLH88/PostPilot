@@ -115,46 +115,26 @@ export default function Home() {
             ]}
             intervalMs={6000}
           />
-          {/* No full-page veil. Readability comes from two creative tricks:
-              (a) A soft radial "spotlight" vignette concentrated behind the
-                  copy area only — fades to fully transparent at the section
-                  edges so the carousel reads cleanly there.
-              (b) Theme-aware text-shadow halo on the headline + body so the
-                  letters always have a soft outline against any underlying
-                  screenshot. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse 55% 65% at 50% 45%, color-mix(in oklch, var(--color-background) 75%, transparent) 0%, color-mix(in oklch, var(--color-background) 30%, transparent) 45%, transparent 75%)",
-            }}
-          />
-
-          {/* Foreground copy */}
-          <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 text-center sm:pt-32">
-            <div className="mx-auto max-w-2xl">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/85 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
+          {/* No global overlay. Copy lives inside a centered frosted-glass
+              card — the carousel shows at full saturation everywhere except
+              behind the card. Tuning knobs:
+                - bg-background/55  → bump toward /70 for more text contrast
+                                      drop toward /40 to see more carousel
+                                      through the card
+                - backdrop-blur-md  → swap to backdrop-blur-lg for stronger
+                                      blur, backdrop-blur-sm for less
+          */}
+          <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 sm:pt-32">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-foreground/10 bg-background/55 px-6 py-10 text-center shadow-2xl shadow-primary/10 backdrop-blur-md sm:px-12 sm:py-14">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
                 <Send className="size-3.5 text-primary" />
                 AI-Powered LinkedIn Content
               </div>
-              <h1
-                className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl"
-                style={{
-                  textShadow:
-                    "0 2px 12px color-mix(in oklch, var(--color-background) 90%, transparent), 0 1px 2px color-mix(in oklch, var(--color-background) 70%, transparent)",
-                }}
-              >
+              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Your AI-powered LinkedIn{" "}
                 <span className="text-primary">content partner</span>
               </h1>
-              <p
-                className="mt-6 text-lg leading-8 text-foreground/80"
-                style={{
-                  textShadow:
-                    "0 1px 8px color-mix(in oklch, var(--color-background) 85%, transparent)",
-                }}
-              >
+              <p className="mt-6 text-lg leading-8 text-muted-foreground">
                 PostPilot helps you brainstorm, draft, and schedule high-performing
                 LinkedIn posts. Spend less time writing and more time building your
                 professional brand.
