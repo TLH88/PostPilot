@@ -150,7 +150,7 @@ export function ScreenshotCarousel({
             priority={i === 0}
             sizes="100vw"
             className={cn(
-              "object-cover object-top transition-opacity duration-1000 ease-in-out",
+              "object-contain transition-opacity duration-1000 ease-in-out",
               i === active ? "opacity-100" : "opacity-0",
             )}
           />
