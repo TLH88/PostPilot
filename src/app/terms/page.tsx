@@ -7,16 +7,13 @@ export const metadata = {
 };
 
 /**
- * BP-045 — Terms of Service.
- *
- * **DRAFT — pending legal review.** This page exists to (a) give the
- * BP-045 ad-blocker hard-gate modal a real document to link to, and
- * (b) lock in the ad-clause language the owner specifically asked for.
- * Sections marked TODO are placeholders that need attorney review and
- * proper jurisdiction-specific language before public launch.
+ * Terms of Service for PostPilot, operated by Foundry 88 Labs LLC.
+ * Originally drafted under BP-045 to support the Free / Personal tier
+ * ad experience; now extended with entity identification (section 1)
+ * and Clark County, WA / PNW governing law + venue (section 12).
  */
 export default function TermsOfServicePage() {
-  const lastUpdated = "2026-05-04";
+  const lastUpdated = "2026-05-05";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 lg:px-6">
@@ -30,17 +27,6 @@ export default function TermsOfServicePage() {
         <p className="text-sm text-muted-foreground">
           Last updated: {lastUpdated}
         </p>
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
-          <p className="font-medium text-amber-900 dark:text-amber-100">
-            Draft pending legal review.
-          </p>
-          <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
-            This document is a v1 draft to support the launch of PostPilot&apos;s
-            Free and Personal tier ad experience. It will be replaced with an
-            attorney-reviewed version before general availability. Sections
-            marked &ldquo;TODO&rdquo; require legal completion.
-          </p>
-        </div>
       </div>
 
       <div className="prose prose-sm dark:prose-invert mt-8 max-w-none">
