@@ -132,6 +132,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — **Done 2026-04-26** (dashboard toggle activated; verified end-to-end via live signup attempt — 403 returned with the expected rejection message)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
+- **BP-153** Supabase server-side hardening sweep (RLS initplan, pg_net schema, post-images bucket, unused-index audit) — P2 / Medium
 
 ### EPIC 10 — Admin & Cost Controls
 - **BP-085** AI usage monitoring, cost analysis & budget enforcement — Phases 1+2 Done; **Phase 3 (budget enforcement) Backlog** — P1 / High
@@ -5158,6 +5159,88 @@ The reverse (disabling the Email provider) breaks `admin.generateLink` and takes
 - [ ] Rejected signup attempts surface in Supabase logs.
 
 **Effort:** S–M · **Expected ROI:** Low-Medium (closes a small existing gap cleanly, codifies "LinkedIn-only" at the auth layer rather than just in UI)
+
+---
+
+### BP-153: Supabase Server-Side Hardening Sweep
+
+**Status:** Backlog — opened 2026-05-05 from log/advisor scan
+**Priority:** P2 / Medium (no user-visible bug; performance + defense-in-depth)
+**Source:** Supabase advisor scan + log review run on 2026-05-05 after the develop e2e workflow brought existing log noise into focus
+**EPIC:** Security, Authorization & Observability (EPIC 9) — also touches EPIC 8 (Reliability)
+
+**Why this is one BP rather than four small ones:**
+The four items below all touch live Supabase server state (RLS policies, schema permissions, storage policies, indexes). They each require careful audits of callers before applying, and several can be batched into single migrations to reduce the number of cutover windows. Bundling them keeps the QA pass coherent — one branch, one set of regression tests, one migration sequence.
+
+**Out of scope for this BP** (already shipped 2026-05-05 as safe-auto-fixes):
+- Function `search_path` lockdown on 4 SECURITY DEFINER functions
+- `REVOKE EXECUTE ... FROM PUBLIC, anon` on 4 SECURITY DEFINER helpers
+- 24 missing FK indexes (`add_missing_fk_indexes` migration)
+- `process-account-deletions` outer try/catch (edge function v3)
+- `/api/linkedin/{validate,status}` `getUser()` try/catch + log-level downgrade
+
+**The four items in scope:**
+
+#### 1. RLS `auth_rls_initplan` rewrites — biggest perf win
+**Finding:** 69 RLS policies across `posts`, `workspaces`, `workspace_members`, `ideas`, and others call `auth.uid()` / `auth.jwt()` un-wrapped. Postgres re-evaluates the function for every row scanned.
+**Fix:** Wrap each call in `(select auth.uid())` so the planner caches the value once per query. Pure perf change, semantics identical when written correctly.
+**Risk:** High blast radius — these gate multi-tenant data access. Each `DROP POLICY` + `CREATE POLICY` pair must preserve the original logic exactly. Worth a security review pass per table before applying.
+**Approach:**
+1. Generate a "before" snapshot: `SELECT schemaname, tablename, policyname, qual, with_check FROM pg_policies WHERE schemaname='public'` → commit to `docs/plans/bp-153/policies-before.sql`.
+2. For each policy, write the rewritten version. Group by table so each migration touches one table at a time (rollback is easier if one table breaks).
+3. After applying, regenerate the snapshot and diff. The only differences should be the `auth.uid()` → `(select auth.uid())` wrappers.
+4. Run the full e2e suite against a Supabase branch before merging to main.
+
+#### 2. `pg_net` extension schema move
+**Finding:** Advisor flags `pg_net` installed in `public`. Recommended location is its own `extensions` schema (or similar).
+**Fix:** `ALTER EXTENSION pg_net SET SCHEMA extensions;` (create the schema first if needed).
+**Risk:** Anything that calls `net.http_post(...)` via the default search_path will fail until callers qualify with `extensions.net.http_post(...)` or `extensions` is added to the role search_path.
+**Approach:**
+1. Grep all migrations + edge functions for `net.http_`, `net.http_post`, `net.http_get`. Build a caller list.
+2. Decide between (a) qualify callers, or (b) add `extensions` to the search_path of relevant roles. Owner picks.
+3. Apply move + caller updates in the same migration window.
+
+#### 3. `post-images` public bucket SELECT policy
+**Finding:** Bucket `post-images` has a SELECT policy granting the `public` role broad access, which means `anon` can LIST the bucket (not just GET-by-key).
+**Fix:** Replace with a policy that allows public GET-by-key but disallows LIST. The "list-by-prefix" pattern requires the request to know the path; CDN-style image URLs don't need LIST.
+**Risk:** Broken image renders on the LinkedIn preview, post editor, and any other surface that displays user-generated images. Need to confirm with owner: are post images intended to be publicly enumerable?
+**Approach:**
+1. Confirm with owner that LIST is not intended (default assumption: not).
+2. Drop the broad SELECT policy; add a tightened one. Test image renders on the editor + LinkedIn preview + dashboard before merging.
+
+#### 4. Unused-index audit (13 indexes flagged)
+**Finding:** 13 indexes have zero recorded usage:
+`idx_ideas_status`, `idx_content_library_type`, `ai_usage_events_provider_created_idx`, `ai_usage_events_error_idx`, `ai_usage_events_gen_id_idx`, `tier_waitlist_*_idx` (3), `account_deletions_pending_grace_idx`, `user_profiles_is_test_user_idx`, `post_comments_parent_idx`, `ai_usage_alerts_unack_idx`, `idx_ai_models_provider_active`.
+**Recommendation from initial review:** Hold. Several are pre-positioned for in-development features (BP-085 budget evaluator, BP-131 deletion grace, tier waitlist tracking).
+**Fix:** Re-evaluate post-GTM. For each, decide: keep (active use coming) or drop (dead).
+**Risk:** Dropping the wrong index could regress query plans on a feature that just hasn't shipped traffic yet.
+**Approach:**
+1. Wait until post-GTM (≥30 days of production traffic).
+2. Re-pull the advisor; drop only what's still unused AND not referenced by uncommitted plans.
+
+#### Items NOT in scope (separately tracked or owner-action)
+- HaveIBeenPwned leaked-password protection — owner one-click toggle in Supabase dashboard (not a BP).
+- `ai_budget_alerts` RLS-on-no-policies — by design (admin-only via service role); dismissing the advisor.
+- `tier_waitlist` `WITH CHECK (true)` insert policy — by design (public waitlist form); dismissing the advisor.
+
+**Acceptance criteria:**
+
+- [ ] `docs/plans/bp-153/` exists with: policies-before.sql snapshot, per-table policy rewrite migrations, pg_net caller audit, post-images bucket policy diff, unused-index decision log.
+- [ ] All 69 `auth_rls_initplan` advisor findings cleared.
+- [ ] `pg_net` is in a non-public schema OR a written decision to keep it in public with rationale.
+- [ ] `post-images` bucket: confirmed listing intent and policy adjusted accordingly OR explicit decision to keep listable with rationale.
+- [ ] Unused-index decisions documented (keep / drop) per index.
+- [ ] No regression in e2e suite against the migration sequence.
+- [ ] Re-run `get_advisors` (security + performance) after merge: only the intentionally-dismissed findings remain.
+
+**Effort:** M–L (each of the four items is small individually; together they need a single coordinated audit + migration sequence + e2e pass)
+
+**Expected ROI:** Medium — RLS initplan rewrite is a real perf win on the hottest tables. Other items are defense-in-depth + cleanup. No user-visible feature delivered.
+
+**Coordination notes:**
+- Best done as its own branch (`bp-153-supabase-hardening`) with a single PR for review traceability.
+- The RLS rewrite is the largest change and should be its own commit within the PR (per-table sub-commits if possible).
+- Run `mcp__e1f4ab27...__get_advisors` (security + performance) before and after to demonstrate the delta.
 
 ---
 
