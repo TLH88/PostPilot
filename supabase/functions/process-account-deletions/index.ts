@@ -124,6 +124,11 @@ async function cleanupStorage(supabase: ReturnType<typeof createClient>, userId:
 }
 
 Deno.serve(async (req) => {
+  // Outermost try/catch — catches anything that escapes the per-row
+  // handlers (env reads, JWT crypto, the initial SELECT, runtime
+  // exceptions). A single 500 was observed on 2026-05-04 with no
+  // structured log; this guarantees the next occurrence is debuggable.
+  try {
   // Verify cron JWT.
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -206,4 +211,15 @@ Deno.serve(async (req) => {
     JSON.stringify({ processed: due.length, succeeded, failures }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
+  } catch (err) {
+    const e = err as Error;
+    log("error", "Unhandled exception in process-account-deletions", {
+      message: e?.message ?? String(err),
+      stack: e?.stack,
+    });
+    return new Response(
+      JSON.stringify({ error: "internal_error", message: e?.message ?? "unknown" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
 });

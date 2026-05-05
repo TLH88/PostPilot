@@ -35,9 +35,18 @@ export async function POST(request: NextRequest) {
   try {
     const force = request.nextUrl.searchParams.get("force") === "1";
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+
+    // Newer @supabase/ssr versions throw `AuthApiError` for malformed /
+    // expired JWT cookies instead of returning `{ user: null }`. Wrap the
+    // call so we surface the same clean 401 the !user branch already uses,
+    // rather than bubbling to the generic 500 handler.
+    let user;
+    try {
+      const result = await supabase.auth.getUser();
+      user = result.data.user;
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -103,7 +112,11 @@ export async function POST(request: NextRequest) {
         .eq("user_id", user.id);
       return NextResponse.json({ valid: true, cached: false });
     } catch (err) {
-      logApiError("api/linkedin/validate userinfo", err);
+      // Don't escalate the first userinfo failure — the refresh-token
+      // fallback below is expected to recover most of these cases. Only
+      // log at warn-level so dashboards aren't noisy with what amounts
+      // to a normal expired-token roll-over.
+      console.warn("[validate] userinfo failed, attempting refresh:", err);
       // First attempt failed. Try a refresh if we have a refresh token,
       // mirroring the resilience we already have in /api/linkedin/status.
       const hasRefresh =

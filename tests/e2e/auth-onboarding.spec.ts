@@ -266,8 +266,12 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
 
     // ── Step 0: Basic Info ────────────────────────────────────────────
     // full_name is REQUIRED. Headline + LinkedIn URL are nice-to-haves.
+    // Step titles render in <CardTitle> (a styled div with
+    // data-slot="card-title" — no heading role), so match by text rather
+    // than role. The page-level <h1>"Welcome to PostPilot"</h1> above
+    // still uses getByRole("heading").
     await expect(
-      page.getByRole("heading", { name: /Let.+s get to know you!/i })
+      page.getByText(/Let.+s get to know you!/i)
     ).toBeVisible();
     await page.getByLabel("Full Name").fill("E2E Onboarding User");
     await page.getByLabel("Professional Headline").fill("Test Headline");
@@ -300,7 +304,7 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // No required fields. We fill resume_text anyway — verifies that
     // optional-field writes also flow through /api/onboarding/step.
     await expect(
-      page.getByRole("heading", { name: /Share your professional journey/i })
+      page.getByText(/Share your professional journey/i)
     ).toBeVisible();
     await page
       .getByLabel("Paste Resume Text")
@@ -331,7 +335,7 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // expertise_areas + industries are REQUIRED. We click two
     // suggestion chips (one of each) plus add a target audience.
     await expect(
-      page.getByRole("heading", { name: /Define your expertise and audience/i })
+      page.getByText(/Define your expertise and audience/i)
     ).toBeVisible();
     // Suggestion chips render as <button> with the label text.
     await page.getByRole("button", { name: "AI/ML", exact: true }).click();
@@ -370,7 +374,7 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // No required fields. Set tone to default + tweak a toggle so we
     // know the form serialized something.
     await expect(
-      page.getByRole("heading", { name: /Craft your unique voice/i })
+      page.getByText(/Craft your unique voice/i)
     ).toBeVisible();
     // Toggle "Use Hashtags" off via its label association — Switch
     // components are <button role="switch"> in shadcn/Base UI; we click
@@ -407,7 +411,7 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // No required fields and no inputs — just a "Complete Setup" button
     // that fires both /step (final step record) and /complete.
     await expect(
-      page.getByRole("heading", { name: /^Content Tools$/i })
+      page.getByText(/^Content Tools$/i)
     ).toBeVisible();
 
     const stepCountBeforeComplete = requestLog.stepPosts.length;
