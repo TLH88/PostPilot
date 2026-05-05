@@ -217,7 +217,7 @@ export function QuotaReachedModal() {
         if (!next) setBody(null);
       }}
     >
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-x-hidden overflow-y-auto">
         {/*
           Hero image slot — swap the gradient block below for an <Image /> tag
           when art is ready. Aspect ratio reserved so the modal layout doesn't
