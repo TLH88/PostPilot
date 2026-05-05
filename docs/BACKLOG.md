@@ -82,7 +82,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 - **BP-136** LinkedIn-OAuth pre-redirect interstitial dialog — P1 / High [UF-002b] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-137** Tutorial row icon = launch button (merge left icon with Start CTA) — P3 / Low [UF-003] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-142** Onboarding integrity gate + server-authoritative wizard — **Done (develop) 2026-05-04** [UF-007]
-- **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — P1 / High (sibling of BP-099)
+- **BP-143** Mobile editor layout (post editor + AI assistant on small screens) — **Spec drafted 2026-05-04** — see [docs/plans/bp-143-mobile-editor.md](plans/bp-143-mobile-editor.md); awaiting owner sign-off before implementation. P1 / High (sibling of BP-099)
 - **BP-149** Tutorial SDK reliability fixes — **Done (develop) 2026-05-04** [UF-008..UF-011]
 - **BP-150** Onboarding first-visit UX polish — **Done (develop) 2026-05-04** [UF-012..UF-014]
 - **BP-144** Unified visual design system — **Closed 2026-05-04 (reference only)** — owner reviewed all 3 v3 finalists, will harvest individual elements over time as separate BPs rather than a coordinated rewrite. Mockups preserved at [docs/plans/bp-144/](plans/bp-144/) — see README there for the rationale and how to use the artifacts going forward.
@@ -4080,7 +4080,7 @@ A central `src/lib/onboarding/required-fields.ts` declares the source of truth. 
 
 ### BP-143: Mobile Editor Layout (Post Editor + AI Assistant on Small Screens)
 
-**Status:** Stub — spec to be written
+**Status:** Spec drafted 2026-05-04 — see [docs/plans/bp-143-mobile-editor.md](plans/bp-143-mobile-editor.md); awaiting owner sign-off before implementation
 **Priority:** P1 / High
 **Source:** Owner — captured 2026-04-27 during BP-099 brainstorm
 **Date Added:** 2026-04-27
