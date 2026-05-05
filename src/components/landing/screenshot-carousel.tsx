@@ -1,0 +1,158 @@
+"use client";
+
+/**
+ * Screenshot carousel for the marketing landing page.
+ * Auto-rotates every `intervalMs` (default 5s), pauses on hover/focus,
+ * respects prefers-reduced-motion, and exposes manual controls (arrows
+ * + dot indicators).
+ *
+ * Sizing is preset-based via the `size` prop. Pick the named bucket that
+ * matches the section width, or pass your own `className` to override.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export interface CarouselSlide {
+  src: string;
+  alt: string;
+  caption: string;
+}
+
+// Tailwind max-width buckets keyed for easy size swaps. Add more if you
+// need finer control — these correspond to standard tailwind tokens.
+const SIZE_CLASSES = {
+  sm: "max-w-2xl",   // ~672px
+  md: "max-w-3xl",   // ~768px
+  lg: "max-w-4xl",   // ~896px
+  xl: "max-w-5xl",   // ~1024px (default)
+  "2xl": "max-w-6xl", // ~1152px
+} as const;
+
+export type CarouselSize = keyof typeof SIZE_CLASSES;
+
+interface ScreenshotCarouselProps {
+  slides: CarouselSlide[];
+  /** Preset width bucket. Default `xl` (max-w-5xl). */
+  size?: CarouselSize;
+  /** Auto-rotate interval. Default 5000 ms. Pass 0 to disable auto-rotate. */
+  intervalMs?: number;
+  /** Override classes — useful for custom max-width or margin tweaks. */
+  className?: string;
+}
+
+export function ScreenshotCarousel({
+  slides,
+  size = "xl",
+  intervalMs = 5000,
+  className,
+}: ScreenshotCarouselProps) {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const total = slides.length;
+  const next = useCallback(() => setActive((i) => (i + 1) % total), [total]);
+  const prev = useCallback(
+    () => setActive((i) => (i - 1 + total) % total),
+    [total],
+  );
+
+  useEffect(() => {
+    if (paused || total <= 1 || intervalMs <= 0) return;
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const id = window.setInterval(next, intervalMs);
+    return () => window.clearInterval(id);
+  }, [paused, next, intervalMs, total]);
+
+  if (total === 0) return null;
+  const slide = slides[active];
+
+  return (
+    <div
+      className={cn("mx-auto w-full", SIZE_CLASSES[size], className)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Product screenshots"
+    >
+      <div className="relative overflow-hidden rounded-xl border bg-card shadow-lg ring-1 ring-foreground/5">
+        <div className="relative aspect-[16/10] w-full bg-muted">
+          {slides.map((s, i) => (
+            <Image
+              key={s.src}
+              src={s.src}
+              alt={s.alt}
+              fill
+              priority={i === 0}
+              sizes="(max-width: 1024px) 100vw, 1024px"
+              className={cn(
+                "object-cover object-top transition-opacity duration-500",
+                i === active ? "opacity-100" : "opacity-0",
+              )}
+            />
+          ))}
+        </div>
+
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={prev}
+              aria-label="Previous slide"
+              className="absolute left-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur transition-colors hover:bg-background"
+            >
+              <ChevronLeft className="size-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              aria-label="Next slide"
+              className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur transition-colors hover:bg-background"
+            >
+              <ChevronRight className="size-5" aria-hidden />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Caption — re-keys on slide change so the fade-in transition replays. */}
+      <p
+        key={active}
+        aria-live="polite"
+        className="mt-4 text-center text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+      >
+        {slide.caption}
+      </p>
+
+      {total > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-2">
+          {slides.map((s, i) => (
+            <button
+              key={s.src}
+              type="button"
+              onClick={() => setActive(i)}
+              aria-label={`Go to slide ${i + 1}`}
+              aria-current={i === active ? "true" : undefined}
+              className={cn(
+                "h-2 rounded-full transition-all",
+                i === active
+                  ? "w-6 bg-primary"
+                  : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50",
+              )}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
