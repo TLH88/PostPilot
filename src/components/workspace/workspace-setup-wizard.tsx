@@ -92,7 +92,7 @@ export function WorkspaceSetupWizard() {
       setActiveWorkspaceId(workspace.id);
 
       toast.success(`Workspace "${brandName.trim()}" created!`);
-      router.push("/dashboard");
+      router.push("/launch-pad");
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : JSON.stringify(error);
       console.error("Workspace creation error:", errMsg);

@@ -6,7 +6,7 @@ import { TEAM_FEATURES_ENABLED, isTeamRoute } from "@/lib/feature-flags";
  *
  * BP-094 / BP-098: When TEAM_FEATURES_ENABLED is false, redirect any request
  * targeting a Team-tier route (e.g., /workspace/*, /notifications, /activity)
- * to /dashboard. This prevents URL-driven access to pages whose UI is hidden
+ * to /launch-pad. This prevents URL-driven access to pages whose UI is hidden
  * by the master feature flag.
  *
  * The check is purely env-based — no user lookup is required, so it stays
@@ -17,7 +17,7 @@ import { TEAM_FEATURES_ENABLED, isTeamRoute } from "@/lib/feature-flags";
 export function middleware(request: NextRequest) {
   if (!TEAM_FEATURES_ENABLED && isTeamRoute(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/launch-pad";
     url.search = ""; // strip any query/hash that referenced the team route
     return NextResponse.redirect(url);
   }

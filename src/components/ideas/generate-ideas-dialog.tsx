@@ -408,7 +408,11 @@ export function GenerateIdeasDialog({
                 const isSaving = savingIndex === index;
 
                 return (
-                  <Card key={index} size="sm">
+                  <Card
+                    key={index}
+                    size="sm"
+                    className="ring-2 ring-primary/40 shadow-lg shadow-primary/20"
+                  >
                     <CardContent className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
@@ -451,7 +455,6 @@ export function GenerateIdeasDialog({
                         </Button>
                       ) : (
                         <Button
-                          variant="outline"
                           size="sm"
                           onClick={() => handleSaveIdea(idea, index)}
                           disabled={isSaving}

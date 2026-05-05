@@ -101,6 +101,7 @@ export function LinkedInConnection() {
       open={dialogOpen}
       onOpenChange={setDialogOpen}
       reason={dialogReason}
+      returnTo="/settings"
     />
   );
 

@@ -100,7 +100,7 @@ export default function WorkspaceMembersPage() {
 
   const loadData = useCallback(async () => {
     if (!workspaceId) {
-      router.push("/dashboard");
+      router.push("/launch-pad");
       return;
     }
 
@@ -118,7 +118,7 @@ export default function WorkspaceMembersPage() {
 
     if (!ws) {
       toast.error("Workspace not found");
-      router.push("/dashboard");
+      router.push("/launch-pad");
       return;
     }
 

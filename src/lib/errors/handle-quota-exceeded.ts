@@ -1,25 +1,20 @@
 /**
- * BP-117 Phase C — client-side handler for 402 quota-exceeded responses
- * emitted by `buildQuotaExceededResponse()` in src/lib/quota.ts.
+ * Client-side handler for 402 quota-exceeded responses emitted by
+ * `buildQuotaExceededResponse()` in src/lib/quota.ts.
  *
- * Reads the structured body and drives a tier-aware toast with the right
- * upgrade CTA:
- *   upgradePath = "byok"         → suggest configuring a personal API key
- *   upgradePath = "higher_tier"  → suggest upgrading to a higher plan
+ * Dispatches a global `postpilot:quota-exceeded` CustomEvent that
+ * `<QuotaReachedModal>` (mounted in app/layout.tsx) listens for and renders
+ * a tier-aware upgrade modal.
  *
  * Usage at a fetch call site:
  *
  *   const res = await fetch("/api/ai/brainstorm", { ... });
- *   if (res.status === 402) {
- *     await handleQuotaExceededResponse(res);
- *     return;
- *   }
- *   if (!res.ok) { ... }
- *
- * Never throws; always consumes the body and surfaces a toast.
+ *   if (await maybeHandleQuotaExceeded(res)) return;
  */
 
 import { toast } from "sonner";
+
+export const QUOTA_EXCEEDED_EVENT = "postpilot:quota-exceeded";
 
 export interface QuotaExceededBody {
   error: string;
@@ -41,22 +36,12 @@ async function readBody(res: Response): Promise<Partial<QuotaExceededBody> | nul
   }
 }
 
-function labelForQuotaType(quotaType: string | undefined): string {
-  switch (quotaType) {
-    case "posts": return "posts";
-    case "brainstorms": return "brainstorms";
-    case "chat_messages": return "AI chats";
-    case "scheduled_posts": return "scheduled posts";
-    case "image_generations": return "image generations";
-    default: return "AI requests";
-  }
-}
-
 export async function handleQuotaExceededResponse(res: Response): Promise<void> {
   const body = await readBody(res);
 
-  // Fall back to a generic message if the route hasn't adopted the
-  // structured body yet.
+  // Fall back to a generic toast if the route hasn't adopted the structured
+  // body yet — without quotaType/used/limit/tier the modal has nothing useful
+  // to render.
   if (!body || body.reason !== "quota_exceeded") {
     toast.error(
       body?.error ??
@@ -65,35 +50,13 @@ export async function handleQuotaExceededResponse(res: Response): Promise<void> 
     return;
   }
 
-  const featureLabel = labelForQuotaType(body.quotaType);
-  const headline = `You've used all your ${featureLabel} this month (${body.used}/${body.limit}).`;
+  if (typeof window === "undefined") return;
 
-  if (body.upgradePath === "byok") {
-    toast.error(headline, {
-      description:
-        "Add your own AI provider key in Settings → AI Model for unlimited usage.",
-      action: {
-        label: "Add key",
-        onClick: () => {
-          if (typeof window !== "undefined") window.location.href = "/settings";
-        },
-      },
-      duration: 8000,
-    });
-    return;
-  }
-
-  // higher_tier — Free / Personal / Team
-  toast.error(headline, {
-    description: "Upgrade your plan to keep creating.",
-    action: {
-      label: "View plans",
-      onClick: () => {
-        if (typeof window !== "undefined") window.location.href = "/pricing";
-      },
-    },
-    duration: 8000,
-  });
+  // Dispatch the global event. <QuotaReachedModal> (mounted in app/layout.tsx)
+  // picks it up and opens the modal.
+  window.dispatchEvent(
+    new CustomEvent(QUOTA_EXCEEDED_EVENT, { detail: body as QuotaExceededBody })
+  );
 }
 
 /**

@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { QuotaReachedModal } from "@/components/quota/quota-reached-modal";
 import "./globals.css";
 
 const inter = Inter({
@@ -48,6 +49,7 @@ export default function RootLayout({
         >
           <TooltipProvider>
             {children}
+            <QuotaReachedModal />
             <Toaster position="bottom-right" />
           </TooltipProvider>
         </ThemeProvider>

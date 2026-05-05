@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { hashed_token } = linkData.properties;
-  const callbackUrl = `/callback?token_hash=${hashed_token}&type=magiclink&next=/dashboard`;
+  const callbackUrl = `/callback?token_hash=${hashed_token}&type=magiclink&next=/launch-pad`;
 
   console.log(JSON.stringify({
     level: "warn",

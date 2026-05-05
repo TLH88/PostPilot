@@ -70,7 +70,11 @@ export function LinkedInStatusBanner() {
         const res = await fetch("/api/linkedin/status");
         if (!res.ok) return;
         const data = await res.json();
-        if (!data.connected && !data.connected_at && pathname === "/dashboard") {
+        const isAutoPromptPage =
+          pathname === "/launch-pad" ||
+          pathname === "/dashboard" ||
+          pathname === "/";
+        if (!data.connected && !data.connected_at && isAutoPromptPage) {
           const hasPrompted = sessionStorage.getItem("linkedin_auto_connect_attempted");
           if (!hasPrompted) {
             sessionStorage.setItem("linkedin_auto_connect_attempted", "true");
@@ -92,6 +96,7 @@ export function LinkedInStatusBanner() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         reason={dialogReason}
+        returnTo={pathname ?? undefined}
       />
     );
   }
@@ -102,6 +107,7 @@ export function LinkedInStatusBanner() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         reason={dialogReason}
+        returnTo={pathname ?? undefined}
       />
     );
   }
@@ -128,6 +134,7 @@ export function LinkedInStatusBanner() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         reason={dialogReason}
+        returnTo={pathname ?? undefined}
       />
     </>
   );

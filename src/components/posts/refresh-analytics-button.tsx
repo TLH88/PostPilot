@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { RefreshCw, AlertCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,6 +98,7 @@ function ScopeNotice({ linkedinConnected }: { linkedinConnected: boolean }) {
   // If they're NOT connected at all, the Connect button is still useful
   // because connecting enables publish-to-LinkedIn even without the
   // analytics scope.
+  const pathname = usePathname();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (linkedinConnected) {
@@ -141,6 +143,7 @@ function ScopeNotice({ linkedinConnected }: { linkedinConnected: boolean }) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         reason="first-time"
+        returnTo={pathname ?? undefined}
       />
     </>
   );
