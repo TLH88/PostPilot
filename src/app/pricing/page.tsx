@@ -485,15 +485,65 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* FAQ */}
-        <section className="border-t bg-muted/30 py-16">
-          <div className="mx-auto max-w-3xl px-6">
+        {/* FAQ — slate-100 base with blue-tone blobs + dot grid for an
+            ambient backdrop. Edge fades wash blob colors back to
+            bg-background at the top + bottom of the section so it doesn't
+            hard-clip against the surrounding sections. */}
+        <section className="relative isolate overflow-hidden bg-slate-100 py-16">
+          {/* Top-right brand-blue blob */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-32 -top-32 -z-10 size-[40rem] rounded-full bg-gradient-to-br from-blue-400/40 via-sky-300/25 to-transparent blur-3xl"
+          />
+          {/* Bottom-left cyan/sky blob */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-32 -left-32 -z-10 size-[36rem] rounded-full bg-gradient-to-tr from-sky-400/35 via-cyan-300/22 to-transparent blur-3xl"
+          />
+          {/* Dot-grid pattern with vignette mask */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.15]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, currentColor 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+              color: "var(--color-muted-foreground, #94a3b8)",
+              maskImage:
+                "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
+            }}
+          />
+          {/* Edge fades — wash the blue back to bg-background at section
+              top / bottom so the colored ambient doesn't hard-clip. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-24"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--color-background) 0%, transparent 100%)",
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+            style={{
+              background:
+                "linear-gradient(to top, var(--color-background) 0%, transparent 100%)",
+            }}
+          />
+
+          <div className="relative z-10 mx-auto max-w-3xl px-6">
             <h2 className="mb-8 text-center text-2xl font-semibold">
               Frequently asked questions
             </h2>
             <div className="space-y-4">
               {FAQ.map((item) => (
-                <div key={item.q} className="rounded-lg border bg-background p-5">
+                <div
+                  key={item.q}
+                  className="rounded-lg border-2 border-primary/40 bg-background p-5 shadow-lg shadow-primary/20"
+                >
                   <h3 className="text-sm font-semibold">{item.q}</h3>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                     {item.a}
