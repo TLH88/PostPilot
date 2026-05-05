@@ -1,34 +1,47 @@
 "use client";
 
 /**
- * Advanced Insights suggestion cards — Hook + Closing for Phase 1.
+ * Advanced Insights suggestion cards.
  *
- * Each card is collapsible. The header always shows the section title and
- * the verdict badge so a user can scan the state at a glance without
- * expanding. Default state is collapsed to keep the chat area roomy;
- * expanded state is persisted per-draft via localStorage so a user who
- * prefers cards-open keeps that preference between visits.
+ * Three sections — Hook, Overall, Closing — each rendered as a collapsible
+ * card. Default state is collapsed to keep the chat area roomy; expanded
+ * state is persisted per-draft via localStorage.
  *
- * Splice logic for an option lives in the host (page.tsx) — we just call
- * `onApplyOption` with the section + option payload.
+ * The model can return null for any section it considers "fine as-is",
+ * in which case that card is not rendered at all. If all three are null
+ * we render a single compact "looks solid" line so the user knows the
+ * review actually ran.
+ *
+ * Hook + Close suggestions are inline-replaceable text — clicking applies
+ * them via `onApplyOption`. Overall suggestions are editorial advice the
+ * writer applies themselves; no apply button.
  */
 
 import { useEffect, useState } from "react";
-import { Sparkles, ArrowRight, Flame, Anchor, ChevronDown } from "lucide-react";
+import {
+  Sparkles,
+  ArrowRight,
+  Flame,
+  Anchor,
+  Lightbulb,
+  ChevronDown,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ReviewResponse } from "@/lib/ai/review-prompts";
 
-type SectionKey = "hook" | "close";
+type SectionKey = "hook" | "overall" | "close";
 
 interface StudioAICardsProps {
   review: ReviewResponse;
   /**
-   * Splice an option's text into the editor. The host decides what
-   * "replace" / "append" actually mean for each section.
+   * Splice an option's text into the editor for hook + close sections.
+   * The host decides what "replace" / "append" actually mean. Not called
+   * for overall — that section is editorial advice, not inline rewrites.
    */
   onApplyOption: (
-    section: SectionKey,
+    section: "hook" | "close",
     option: { text: string; action: "replace" | "append" },
   ) => void;
   /** Used as the localStorage scope for collapsed-state persistence. */
@@ -47,7 +60,11 @@ const VERDICT_TONES: Record<string, { label: string; tone: string }> = {
   missing:  { label: "No closing yet",   tone: "text-red-600 dark:text-red-400 border-red-500/30" },
 };
 
-function readCollapsed(postId: string, section: SectionKey, fallback: boolean): boolean {
+function readCollapsed(
+  postId: string,
+  section: SectionKey,
+  fallback: boolean,
+): boolean {
   if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(`adv-insights:collapsed:${postId}:${section}`);
@@ -59,7 +76,11 @@ function readCollapsed(postId: string, section: SectionKey, fallback: boolean): 
   }
 }
 
-function writeCollapsed(postId: string, section: SectionKey, collapsed: boolean) {
+function writeCollapsed(
+  postId: string,
+  section: SectionKey,
+  collapsed: boolean,
+) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(
@@ -82,7 +103,7 @@ function SectionCard({
   onApplyOption,
 }: {
   postId: string;
-  section: SectionKey;
+  section: "hook" | "close";
   icon: React.ReactNode;
   title: string;
   verdict: string;
@@ -173,12 +194,90 @@ function SectionCard({
   );
 }
 
+/** Editorial-advice card. No inline replacements — just rationale + bullets. */
+function OverallCard({
+  postId,
+  rationale,
+  suggestions,
+}: {
+  postId: string;
+  rationale: string;
+  suggestions: string[];
+}) {
+  const [collapsed, setCollapsed] = useState<boolean>(true);
+
+  useEffect(() => {
+    setCollapsed(readCollapsed(postId, "overall", true));
+  }, [postId]);
+
+  function toggle() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      writeCollapsed(postId, "overall", next);
+      return next;
+    });
+  }
+
+  const count = suggestions.length;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-primary/15 bg-primary/[0.04] ring-1 ring-inset ring-primary/5">
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 transition-colors hover:bg-primary/[0.06]"
+        aria-expanded={!collapsed}
+      >
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+          <Lightbulb className="size-3" />
+          Overall
+          <span className="text-[10px] font-normal text-muted-foreground normal-case tracking-normal">
+            · {count} {count === 1 ? "idea" : "ideas"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+            Some ideas
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-3.5 text-muted-foreground transition-transform",
+              !collapsed && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+
+      {!collapsed && (
+        <div className="border-t border-primary/10 px-3 pt-2 pb-3">
+          <p className="text-[12px] leading-snug text-foreground/80">{rationale}</p>
+          <ul className="mt-2.5 space-y-1.5">
+            {suggestions.map((s, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-1.5 rounded-lg border border-border/60 bg-background/60 px-2 py-1.5 text-[12px] leading-snug text-foreground/85"
+              >
+                <span className="mt-0.5 text-primary" aria-hidden>
+                  •
+                </span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function StudioAICards({
   review,
   onApplyOption,
   postId,
   className,
 }: StudioAICardsProps) {
+  const allEmpty = !review.hook && !review.overall && !review.close;
+
   return (
     <div className={cn("space-y-1.5", className)}>
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -186,27 +285,46 @@ export function StudioAICards({
         Suggestions
       </div>
 
-      <SectionCard
-        postId={postId}
-        section="hook"
-        icon={<Flame className="size-3" />}
-        title="Hook options"
-        verdict={review.hook.verdict}
-        rationale={review.hook.rationale}
-        options={review.hook.options}
-        onApplyOption={onApplyOption}
-      />
+      {allEmpty && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/[0.04] px-3 py-2 text-[12px] text-green-700 dark:text-green-400">
+          <CheckCircle2 className="size-3.5" aria-hidden />
+          Reviewed — your post looks solid as-is.
+        </div>
+      )}
 
-      <SectionCard
-        postId={postId}
-        section="close"
-        icon={<Anchor className="size-3" />}
-        title="Closing options"
-        verdict={review.close.verdict}
-        rationale={review.close.rationale}
-        options={review.close.options}
-        onApplyOption={onApplyOption}
-      />
+      {review.hook && (
+        <SectionCard
+          postId={postId}
+          section="hook"
+          icon={<Flame className="size-3" />}
+          title="Hook options"
+          verdict={review.hook.verdict}
+          rationale={review.hook.rationale}
+          options={review.hook.options}
+          onApplyOption={onApplyOption}
+        />
+      )}
+
+      {review.overall && (
+        <OverallCard
+          postId={postId}
+          rationale={review.overall.rationale}
+          suggestions={review.overall.suggestions}
+        />
+      )}
+
+      {review.close && (
+        <SectionCard
+          postId={postId}
+          section="close"
+          icon={<Anchor className="size-3" />}
+          title="Closing options"
+          verdict={review.close.verdict}
+          rationale={review.close.rationale}
+          options={review.close.options}
+          onApplyOption={onApplyOption}
+        />
+      )}
     </div>
   );
 }
