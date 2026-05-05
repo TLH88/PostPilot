@@ -16,6 +16,7 @@ import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
 import { DevFlagsApplier } from "@/components/dev-flags-applier";
+import { AppBackground } from "@/components/layout/app-background";
 import type { SubscriptionTier } from "@/lib/constants";
 import { validateOnboardingComplete } from "@/lib/onboarding/validate";
 
@@ -89,7 +90,8 @@ export default async function AppLayout({
   return (
     <HelpSidebarProvider>
       <TutorialBridge userId={user.id}>
-      <div className="relative min-h-screen bg-background">
+      <div className="relative isolate min-h-screen bg-background">
+        <AppBackground />
         <DevFlagsApplier />
         <OnboardingGuard onboardingCompleted={onboardingOk} />
         <PastDueChecker />

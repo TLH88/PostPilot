@@ -225,13 +225,12 @@ export default async function DashboardPage() {
     // the binary "Complete Setup" state.
   }
 
-  // BP-150 / UF-014: First-name extraction for the greeting. When full_name
-  // is missing entirely (empty profile), use a first-time greeting instead
-  // of "Welcome back, there!" which read as broken.
-  const firstName = profile?.full_name?.trim().split(/\s+/)[0];
-  const greeting = firstName
-    ? `Welcome back, ${firstName}!`
-    : "Welcome to PostPilot";
+  // First-name resolution mirrors Launch Pad's chain so the greeting reads
+  // the same on both surfaces: full_name first word → email username → "there".
+  const firstName =
+    profile?.full_name?.trim().split(/\s+/)[0] ||
+    user.email?.split("@")[0] ||
+    "there";
   const activeWorkspaceId = await getActiveWorkspaceIdServer();
 
   // Resolve AI access (UX hint — authoritative check still happens in /api/ai/*)
@@ -461,7 +460,11 @@ export default async function DashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {greeting}
+          Welcome back,{" "}
+          <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent dark:from-blue-400 dark:to-cyan-400">
+            {firstName}
+          </span>
+          !
         </h1>
         <p className="text-muted-foreground">
           Let&apos;s make something worth sharing today. We can brainstorm a fresh idea, pick up where a draft left off, or line up the week on your calendar — your call.
@@ -547,7 +550,7 @@ export default async function DashboardPage() {
             icon={FileText}
             iconColor="text-blue-500"
             iconBg="bg-blue-500/15"
-            sectionBg="bg-blue-500/5 dark:bg-blue-500/[0.07]"
+            sectionBg="bg-blue-500/10 dark:bg-blue-500/[0.12]"
             accentBorder="border-l-blue-500"
             title="Recent Drafts"
             tooltip="Posts you've started but haven't scheduled or published yet. Click any card to pick up where you left off."
@@ -563,7 +566,7 @@ export default async function DashboardPage() {
             icon={Calendar}
             iconColor="text-purple-500"
             iconBg="bg-purple-500/15"
-            sectionBg="bg-purple-500/5 dark:bg-purple-500/[0.07]"
+            sectionBg="bg-purple-500/10 dark:bg-purple-500/[0.12]"
             accentBorder="border-l-purple-500"
             title="Recent Scheduled Posts"
             tooltip="Posts you've queued up to publish automatically at a future date and time."
@@ -592,7 +595,7 @@ export default async function DashboardPage() {
             icon={TrendingUp}
             iconColor="text-emerald-500"
             iconBg="bg-emerald-500/15"
-            sectionBg="bg-emerald-500/5 dark:bg-emerald-500/[0.07]"
+            sectionBg="bg-emerald-500/10 dark:bg-emerald-500/[0.12]"
             accentBorder="border-l-emerald-500"
             title="Recently Posted"
             tooltip="Your most recent posts that have gone live on LinkedIn. Click one to review its analytics."
