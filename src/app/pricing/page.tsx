@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import { Send, Check, X, Sparkles, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MarketingFooter } from "@/components/landing/marketing-footer";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -557,18 +558,7 @@ export default function PricingPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Send className="size-3.5 text-primary" />
-            <span>PostPilot</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} PostPilot. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }
