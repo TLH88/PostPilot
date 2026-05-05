@@ -97,8 +97,14 @@ function usePrefersReducedMotion(): boolean {
 
 export function UpgradeAd({ tier, className }: UpgradeAdProps) {
   const slides = useMemo<Slide[]>(() => {
-    if (tier === "free") return [PERSONAL_SLIDE, PROFESSIONAL_SLIDE];
-    // Personal — Pro upsell only (no downsell to Personal itself).
+    // Per owner direction 2026-05-04: both Free AND Personal users see the
+    // 2-slide carousel (Personal pitch + Pro pitch). For a Personal viewer
+    // the Personal slide functions as a tier-benefits reminder rather than
+    // an upsell — same copy in both contexts to keep the carousel content
+    // a single source of truth.
+    if (tier === "free" || tier === "personal") {
+      return [PERSONAL_SLIDE, PROFESSIONAL_SLIDE];
+    }
     return [PROFESSIONAL_SLIDE];
   }, [tier]);
 

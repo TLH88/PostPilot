@@ -414,9 +414,9 @@ export default function PricingPage() {
                 <span className="font-semibold text-foreground/90">* Bring Your Own AI Key (BYOK):</span>{" "}
                 BYOK is used as a fallback once your tier&apos;s system-provided
                 AI credits for the month are exhausted. Up to that point,
-                Professional, Team, and Enterprise users run on PostPilot&apos;s
-                system AI keys — your BYOK keys are reserved and only spent
-                after the included allocation is fully used.
+                Professional users run on PostPilot&apos;s system AI keys —
+                your BYOK keys are reserved and only spent after the
+                included allocation is fully used.
               </li>
               <li>
                 <span className="font-semibold text-foreground/90">* Advanced AI Collaboration:</span>{" "}
