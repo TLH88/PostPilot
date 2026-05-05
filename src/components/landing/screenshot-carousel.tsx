@@ -159,6 +159,54 @@ export function ScreenshotCarousel({
     );
   }
 
+  // Card mode: 3D peek layout — center slide is full-scale, the prev/next
+  // slides peek in from each side at 0.85 scale + slight Y-rotation. The
+  // "opposite" slide (active+2 in a 4-slide ring) parks off-screen right at
+  // opacity 0 as a transition slot. Forward navigation animates smoothly;
+  // backward navigation snaps for that one slot but it's invisible anyway.
+  function visualSlot(i: number): { offset: -1 | 0 | 1 | 2; visible: boolean } {
+    if (total <= 1) return { offset: 0, visible: i === active };
+    const raw = (i - active + total) % total;
+    if (raw === 0) return { offset: 0, visible: true };
+    if (raw === 1) return { offset: 1, visible: true };
+    if (raw === total - 1) return { offset: -1, visible: true };
+    return { offset: 2, visible: false };
+  }
+
+  function slotStyle(offset: -1 | 0 | 1 | 2): React.CSSProperties {
+    if (offset === 0) {
+      return {
+        transform: "translateX(0%) scale(1) rotateY(0deg)",
+        opacity: 1,
+        zIndex: 30,
+        filter: "blur(0)",
+      };
+    }
+    if (offset === 1) {
+      return {
+        transform: "translateX(58%) scale(0.84) rotateY(-14deg)",
+        opacity: 0.4,
+        zIndex: 20,
+        filter: "blur(1px)",
+      };
+    }
+    if (offset === -1) {
+      return {
+        transform: "translateX(-58%) scale(0.84) rotateY(14deg)",
+        opacity: 0.4,
+        zIndex: 20,
+        filter: "blur(1px)",
+      };
+    }
+    // offset === 2 — hidden far slot used as a transition staging area.
+    return {
+      transform: "translateX(90%) scale(0.7) rotateY(-18deg)",
+      opacity: 0,
+      zIndex: 10,
+      filter: "blur(2px)",
+    };
+  }
+
   return (
     <div
       className={cn("mx-auto w-full", SIZE_CLASSES[size], className)}
@@ -170,30 +218,58 @@ export function ScreenshotCarousel({
       aria-roledescription="carousel"
       aria-label="Product screenshots"
     >
-      <div className="relative overflow-hidden rounded-xl border bg-card shadow-lg ring-1 ring-foreground/5">
+      {/* 3D peek stage. perspective lives on this wrapper so the rotated
+          side slides get true depth instead of flat skew. overflow-hidden
+          clips the peeking side slides at the section edges. */}
+      <div
+        className="relative overflow-hidden px-2 py-4"
+        style={{ perspective: "1500px" }}
+      >
         <div
           ref={frameRef}
           className={cn(
-            "relative aspect-[16/10] w-full bg-muted",
+            "relative aspect-[16/10] w-full",
             enableHoverZoom && "cursor-zoom-in",
           )}
           onMouseMove={handleLensMove}
           onMouseLeave={handleLensLeave}
         >
-          {slides.map((s, i) => (
-            <Image
-              key={s.src}
-              src={s.src}
-              alt={s.alt}
-              fill
-              priority={i === 0}
-              sizes="(max-width: 1024px) 100vw, 1024px"
-              className={cn(
-                "object-cover object-top transition-opacity duration-500",
-                i === active ? "opacity-100" : "opacity-0",
-              )}
-            />
-          ))}
+          {slides.map((s, i) => {
+            const slot = visualSlot(i);
+            const style = slotStyle(slot.offset);
+            const isActive = slot.offset === 0;
+            return (
+              <button
+                key={s.src}
+                type="button"
+                aria-hidden={!isActive}
+                aria-label={isActive ? undefined : `Jump to ${s.caption}`}
+                tabIndex={isActive ? -1 : 0}
+                onClick={() => {
+                  if (!isActive) setActive(i);
+                }}
+                className={cn(
+                  "absolute inset-0 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                  !isActive && slot.visible && "cursor-pointer",
+                )}
+                style={{
+                  ...style,
+                  pointerEvents: slot.visible ? "auto" : "none",
+                }}
+              >
+                <div className="relative h-full w-full overflow-hidden rounded-3xl border border-foreground/10 bg-card shadow-2xl ring-1 ring-foreground/5">
+                  <Image
+                    src={s.src}
+                    alt={s.alt}
+                    fill
+                    priority={i === 0}
+                    sizes="(max-width: 1024px) 100vw, 1024px"
+                    className="object-cover object-top"
+                  />
+                </div>
+              </button>
+            );
+          })}
 
           {enableHoverZoom &&
             lensPos &&
@@ -201,7 +277,7 @@ export function ScreenshotCarousel({
             frameSize.h > 0 && (
               <div
                 aria-hidden
-                className="pointer-events-none absolute rounded-full border-2 border-white/85 shadow-2xl ring-1 ring-foreground/30"
+                className="pointer-events-none absolute z-40 rounded-full border-2 border-white/85 shadow-2xl ring-1 ring-foreground/30"
                 style={{
                   width: lensSize,
                   height: lensSize,
@@ -222,7 +298,7 @@ export function ScreenshotCarousel({
               type="button"
               onClick={prev}
               aria-label="Previous slide"
-              className="absolute left-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur transition-colors hover:bg-background"
+              className="absolute left-4 top-1/2 z-50 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-lg ring-1 ring-foreground/15 backdrop-blur transition-colors hover:bg-background"
             >
               <ChevronLeft className="size-5" aria-hidden />
             </button>
@@ -230,7 +306,7 @@ export function ScreenshotCarousel({
               type="button"
               onClick={next}
               aria-label="Next slide"
-              className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur transition-colors hover:bg-background"
+              className="absolute right-4 top-1/2 z-50 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-lg ring-1 ring-foreground/15 backdrop-blur transition-colors hover:bg-background"
             >
               <ChevronRight className="size-5" aria-hidden />
             </button>
@@ -242,7 +318,7 @@ export function ScreenshotCarousel({
       <p
         key={active}
         aria-live="polite"
-        className="mt-4 text-center text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
+        className="mt-6 text-center text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
       >
         {slide.caption}
       </p>
