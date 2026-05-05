@@ -19,22 +19,22 @@ export function AppBackground() {
           mode keeps the deeper 500/600 stops since they blend into navy. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-200/70 via-sky-100/50 to-transparent blur-3xl dark:from-blue-600/35 dark:via-blue-500/25"
+        className="pointer-events-none fixed -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-300/60 via-sky-200/45 to-transparent blur-3xl dark:from-blue-600/35 dark:via-blue-500/25"
       />
       {/* Mid-right secondary blob — fills the right side as the page gets taller */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-200/50 via-cyan-100/40 to-transparent blur-3xl dark:from-sky-500/25 dark:via-cyan-500/15"
+        className="pointer-events-none fixed -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-300/45 via-cyan-200/35 to-transparent blur-3xl dark:from-sky-500/25 dark:via-cyan-500/15"
       />
       {/* Bottom-left gradient blob — anchors the lower half */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-200/55 via-purple-100/40 to-transparent blur-3xl dark:from-indigo-600/35 dark:via-purple-500/20"
+        className="pointer-events-none fixed -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-300/50 via-purple-200/35 to-transparent blur-3xl dark:from-indigo-600/35 dark:via-purple-500/20"
       />
       {/* Bottom-center accent — soft glow to lift the empty area */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-200/40 to-transparent blur-3xl dark:from-violet-500/20"
+        className="pointer-events-none fixed -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-300/35 to-transparent blur-3xl dark:from-violet-500/20"
       />
 
       {/* Full-bleed dot-grid pattern with a soft vignette so it never feels harsh */}
