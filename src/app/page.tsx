@@ -125,32 +125,32 @@ export default function Home() {
           {/* Top-left grey blob — anchors the upper-left corner */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -left-32 -top-40 -z-10 size-[63rem] rounded-full bg-gradient-to-bl from-slate-600/45 via-slate-500/30 to-transparent blur-3xl"
+            className="pointer-events-none absolute -left-32 -top-40 -z-10 size-[63rem] rounded-full bg-gradient-to-bl from-slate-600/20 via-slate-500/12 to-transparent blur-3xl"
           />
           {/* Top-right brand-blue blob */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-400/75 via-sky-300/60 to-transparent blur-3xl"
+            className="pointer-events-none absolute -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-400/35 via-sky-300/25 to-transparent blur-3xl"
           />
           {/* Mid-right sky blob — fills the right side as the page gets taller */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-400/60 via-cyan-300/45 to-transparent blur-3xl"
+            className="pointer-events-none absolute -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-400/28 via-cyan-300/18 to-transparent blur-3xl"
           />
           {/* Bottom-left indigo/purple blob */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-500/65 via-purple-400/55 to-transparent blur-3xl"
+            className="pointer-events-none absolute -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-500/30 via-purple-400/22 to-transparent blur-3xl"
           />
           {/* Bottom-center violet accent */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-500/50 to-transparent blur-3xl"
+            className="pointer-events-none absolute -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-500/22 to-transparent blur-3xl"
           />
           {/* Full-bleed dot-grid pattern with vignette mask */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.25]"
+            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.15]"
             style={{
               backgroundImage:
                 "radial-gradient(circle, currentColor 1px, transparent 1px)",
