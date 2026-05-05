@@ -53,13 +53,13 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 ### EPIC 1 — Subscription Model v2 (P0, pricing pivot)
 **Parent:** BP-115. Rollout order: cost study → copy → gates → trial fix → ads.
 - **BP-115** Subscription Model v2 parent spec — P0 / Critical
-- **BP-116** Pricing page copy + feature table rewrite — P0 / Critical
+- **BP-116** Pricing page copy + feature table rewrite — **Done 2026-04-24** (display layer in `d98a4d6`); **further polish 2026-05-04** (Team/Enterprise cards removed + Personal-tier carousel + footnote copy via BP-045 commits `a26d880`, `ee5dddb`, `4a1c7f6`)
 - **BP-117** Feature-gate refactor for new matrix (supersedes scope of BP-018) — **Done 2026-04-24** (Phases A–D shipped via `9f5ff24`/`b89f8cd`/`ff4f07f`, merged `8760396`)
 - **BP-118** Free-tier trial-expired messaging fix — **Done 2026-04-24**
-- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — Phase 1 Done 2026-04-24; Phase 2 (integration) Backlog — P2 / Medium
+- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — **Phase 1 Done 2026-04-24; Phase 2 Done 2026-05-04** (`<AdSlot>`, `<AdBlockerGate>`, sidebar `UpgradeAd`, dashboard banner, Sponsored cards wired across dashboard/ideas/posts/Launch Pad via commits `743e05a`, `b0d16db`, `b2e3c86`, `881847b`, `4a1c7f6`)
 - **BP-123** Token cost study (pre-GTM action) — **Done 2026-04-24** (deliverable + owner-approved recommendations)
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
-- **BP-125** Pro-tier image-generation BYOK — P1 / High
+- **BP-125** Pro-tier image-generation BYOK — **Done 2026-04-24** (commit `d6cb246` — tier-gated BYOK + image-capable provider check)
 - **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04). Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)
 - **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — **Done (develop) 2026-05-04** [UF-015]
 - *Superseded/absorbed:* BP-018 (folded into BP-117). *Note: BP-045 ad integration is a separate live Backlog item — see EPIC 1 below; it is NOT absorbed into BP-119 (Phase 2 of which still also Backlog).*
@@ -73,7 +73,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 
 ### EPIC 3 — Terminology & Help Content
 - **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — **Done 2026-04-24** (commit `40a18bd`)
-- **BP-120** Help content refresh (Personal rename, paid-feature badges, API key section) — P1 / High
+- **BP-120** Help content refresh (Personal rename, paid-feature badges, API key section) — **Done 2026-04-24** (agent-driven sweep — `HelpPaidBadge`, "Finding & Creating Personal AI Provider API Keys" section, full terminology pass)
 
 ### EPIC 4 — Onboarding & Guidance
 - **BP-084** Tutorial card visual redesign — **Done 2026-05-04 (covered by BP-149)**
@@ -135,15 +135,15 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-153** Supabase server-side hardening sweep (RLS initplan, pg_net schema, post-images bucket, unused-index audit) — P2 / Medium
 
 ### EPIC 10 — Admin & Cost Controls
-- **BP-085** AI usage monitoring, cost analysis & budget enforcement — Phases 1+2 Done; **Phase 3 (budget enforcement) Backlog** — P1 / High
+- **BP-085** AI usage monitoring, cost analysis & budget enforcement — **Done 2026-05-04** (Phases 1+2 shipped 2026-04-15..24; Phase 3 budget enforcement + auto-pause + Team-burn alert + paused-state UX + HMAC-secured cron route shipped via develop commits `c2226cb`, `32bd72c`, `8ed0948`, `e29d73b`, `4ee05a0`, merged `b41939e`)
 - **BP-127** Complete AI route logging coverage (close the BP-085 gap) — **Done 2026-04-24**
 - **BP-128** Brainstorm prompt caching refactor — **Done 2026-04-24** (Anthropic `cache_control` wired)
 
 ### EPIC 11 — Quality & Testing
-- **BP-097** Playwright E2E for Free→Pro happy path — P1 / High
+- **BP-097** Playwright E2E for Free→Pro happy path — **Done 2026-05-04** (Phases 1+2+3 — scaffold, smoke, create-schedule, posted-analytics, auth-onboarding specs + GitHub Actions CI pipeline; final auth-onboarding spec merged via `b2bd3ac`)
 
 ### EPIC 12 — Developer Experience & Tooling
-- **BP-126** Safe local-dev auth bypass (replaces removed `/api/dev/auto-login`) — P1 / High
+- **BP-126** Safe local-dev auth bypass (replaces removed `/api/dev/auto-login`) — **Done 2026-04-24** (multi-gate `/api/dev/local-login` route — uncommitted by design; setup in `docs/dev-setup.md`; verified on localhost by owner)
 
 ### Recommended Execution Order (Sprint Themes)
 
