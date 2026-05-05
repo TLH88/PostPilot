@@ -87,7 +87,7 @@ export default function Home() {
           behind the copy. Tune the overlay opacity / blur below to trade
           off "you can see the carousel" vs "the copy is easy to read". */}
       <main className="flex-1">
-        <section className="relative isolate overflow-hidden">
+        <section className="relative isolate min-h-[800px] overflow-hidden">
           {/* Backdrop: chromeless rotating screenshots */}
           <ScreenshotCarousel
             presentation="bleed"
