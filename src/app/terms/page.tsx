@@ -46,11 +46,15 @@ export default function TermsOfServicePage() {
       <div className="prose prose-sm dark:prose-invert mt-8 max-w-none">
         <h2>1. Acceptance of these Terms</h2>
         <p>
-          By creating an account, signing in, or otherwise using PostPilot
-          (the &ldquo;Service&rdquo;) provided by PostPilot (&ldquo;we,&rdquo;
-          &ldquo;us,&rdquo; or &ldquo;our&rdquo;), you agree to be bound by
-          these Terms of Service (the &ldquo;Terms&rdquo;). If you do not
-          agree, you may not use the Service.
+          PostPilot (the &ldquo;Service&rdquo;) is provided by{" "}
+          <strong>Foundry 88 Labs LLC</strong>, a Washington limited
+          liability company doing business as PostPilot
+          (&ldquo;Foundry 88 Labs,&rdquo; &ldquo;PostPilot,&rdquo;
+          &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;). By
+          creating an account, signing in, or otherwise using the Service,
+          you agree to be bound by these Terms of Service (the
+          &ldquo;Terms&rdquo;). If you do not agree, you may not use the
+          Service.
         </p>
 
         <h2>2. The Service</h2>
