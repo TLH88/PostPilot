@@ -225,13 +225,13 @@ export default async function DashboardPage() {
     // the binary "Complete Setup" state.
   }
 
-  // BP-150 / UF-014: First-name extraction for the greeting. When full_name
-  // is missing entirely (empty profile), use a first-time greeting instead
-  // of "Welcome back, there!" which read as broken.
-  const firstName = profile?.full_name?.trim().split(/\s+/)[0];
-  const greeting = firstName
-    ? `Welcome back, ${firstName}!`
-    : "Welcome to PostPilot";
+  // First-name resolution mirrors Launch Pad's chain so the greeting reads
+  // the same on both surfaces: full_name first word → email username → "there".
+  const firstName =
+    profile?.full_name?.trim().split(/\s+/)[0] ||
+    user.email?.split("@")[0] ||
+    "there";
+  const greeting = `Welcome back, ${firstName}!`;
   const activeWorkspaceId = await getActiveWorkspaceIdServer();
 
   // Resolve AI access (UX hint — authoritative check still happens in /api/ai/*)
