@@ -485,68 +485,53 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* FAQ — diagonal blue gradient backdrop + dot-grid overlay.
-            Edge fades wash the gradient back to bg-background at the
-            top and bottom of the section so it doesn't hard-clip against
-            the surrounding sections. */}
-        <section
-          className="relative isolate overflow-hidden py-16"
-          style={{
-            background: "linear-gradient(135deg, #2774ae 0%, #002E5D 100%)",
-          }}
-        >
-          {/* Dot-grid pattern with vignette mask. White dots so they
-              read against the dark-navy gradient instead of disappearing
-              into it. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.20]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, currentColor 1px, transparent 1px)",
-              backgroundSize: "24px 24px",
-              color: "#ffffff",
-              maskImage:
-                "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
-              WebkitMaskImage:
-                "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
-            }}
-          />
-          {/* Edge fades — wash the blue back to bg-background at section
-              top / bottom so the colored ambient doesn't hard-clip. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-24"
-            style={{
-              background:
-                "linear-gradient(to bottom, var(--color-background) 0%, transparent 100%)",
-            }}
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-            style={{
-              background:
-                "linear-gradient(to top, var(--color-background) 0%, transparent 100%)",
-            }}
-          />
+        {/* FAQ — contained brand panel approach. The page bg stays white;
+            the FAQ content lives inside a single rounded primary-tinted
+            panel with a dot-grid texture. Reads as a deliberate visual
+            object rather than a full-width colored band fighting with
+            the rest of the page's restraint. */}
+        <section className="py-20">
+          <div className="mx-auto max-w-4xl px-6">
+            <div
+              className="relative isolate overflow-hidden rounded-3xl border border-primary/20 px-6 py-12 shadow-2xl shadow-primary/15 sm:px-12 sm:py-16"
+              style={{
+                background:
+                  "linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 8%, white) 0%, color-mix(in oklch, var(--color-primary) 18%, white) 100%)",
+              }}
+            >
+              {/* Dot-grid texture inside the panel — primary-blue dots
+                  on the soft tinted bg, vignette-masked toward center. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle, currentColor 1px, transparent 1px)",
+                  backgroundSize: "24px 24px",
+                  color: "var(--color-primary)",
+                  maskImage:
+                    "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
+                }}
+              />
 
-          <div className="relative z-10 mx-auto max-w-3xl px-6">
-            <h2 className="mb-8 text-center text-2xl font-semibold text-white">
-              Frequently asked questions
-            </h2>
-            <div className="space-y-4">
-              {FAQ.map((item) => (
-                <div
-                  key={item.q}
-                  className="rounded-lg border-2 border-primary/40 bg-background p-5 shadow-lg shadow-primary/20"
-                >
-                  <h3 className="text-sm font-semibold">{item.q}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    {item.a}
-                  </p>
-                </div>
-              ))}
+              <h2 className="mb-8 text-center text-2xl font-semibold sm:text-3xl">
+                Frequently asked questions
+              </h2>
+              <div className="mx-auto max-w-3xl space-y-4">
+                {FAQ.map((item) => (
+                  <div
+                    key={item.q}
+                    className="rounded-lg border-2 border-primary/40 bg-background p-5 shadow-lg shadow-primary/20"
+                  >
+                    <h3 className="text-sm font-semibold">{item.q}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                      {item.a}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
