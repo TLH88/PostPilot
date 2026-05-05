@@ -17,7 +17,7 @@
  *   5. When the queue empties: redirect to /calendar?recovered=N.
  */
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -192,8 +192,24 @@ function PostsRecoveryInner() {
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
 
-  const reconnectedFlag = searchParams.get("reconnected");
-  const initialPostParam = searchParams.get("post");
+  // Capture OAuth round-trip flags once on mount. We rewrite the URL via
+  // `history.replaceState` further down to scrub `?reconnected=1` so a refresh
+  // doesn't re-fire validation; in Next 15+, that rewrite makes
+  // `useSearchParams` re-render with null values, which would otherwise tear
+  // down the in-flight validation fetch through this effect's cleanup and
+  // leave the UI stuck on "Verifying…" indefinitely.
+  const initialFlagsRef = useRef<{
+    reconnected: string | null;
+    post: string | null;
+  } | null>(null);
+  if (initialFlagsRef.current === null) {
+    initialFlagsRef.current = {
+      reconnected: searchParams.get("reconnected"),
+      post: searchParams.get("post"),
+    };
+  }
+  const reconnectedFlag = initialFlagsRef.current.reconnected;
+  const initialPostParam = initialFlagsRef.current.post;
 
   // ── Initial data fetch ─────────────────────────────────────────────────────
   const fetchPosts = useCallback(async () => {
