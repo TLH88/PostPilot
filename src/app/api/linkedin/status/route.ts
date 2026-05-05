@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/encryption";
-import { refreshLinkedInToken } from "@/lib/linkedin-api";
+import { LinkedInApiError, refreshLinkedInToken } from "@/lib/linkedin-api";
 import { logApiError } from "@/lib/api-utils";
 
 export async function GET() {
@@ -89,9 +89,30 @@ export async function GET() {
           // Token successfully refreshed — update response values
           expiresAt = newExpiresAt;
           expired = false;
-        } catch {
-          // Refresh failed — token is truly expired, user must reconnect
-          // Leave expired = true
+        } catch (refreshErr) {
+          // Transient refresh errors (5xx, 429, network) should not flip the
+          // banner to "expired" — leave the prior expiresAt and let the
+          // client treat the connection as still good. Only mark expired
+          // when LinkedIn definitively rejects the refresh token.
+          if (
+            refreshErr instanceof LinkedInApiError &&
+            refreshErr.isTransient
+          ) {
+            console.warn(
+              JSON.stringify({
+                level: "warn",
+                context: "api/linkedin/status refresh",
+                userId: user.id,
+                transient: true,
+                status: refreshErr.status,
+                linkedinError: refreshErr.linkedinError,
+                message: refreshErr.message,
+                timestamp: new Date().toISOString(),
+              })
+            );
+            expired = false;
+          }
+          // Else: leave expired = true so the banner surfaces the disconnect.
         }
       }
     }
