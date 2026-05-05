@@ -2,10 +2,59 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/encryption";
 import {
+  LinkedInApiError,
   getLinkedInMemberId,
   refreshLinkedInToken,
 } from "@/lib/linkedin-api";
 import { logApiError } from "@/lib/api-utils";
+
+/** Structured warn-level log for transient LinkedIn API failures that we
+ * INTENTIONALLY did not escalate to a disconnect. Surfaced separately from
+ * `logApiError` so we can track frequency without alerting on each one. */
+function logTransient(
+  context: string,
+  userId: string,
+  err: unknown
+): void {
+  const isApi = err instanceof LinkedInApiError;
+  console.warn(
+    JSON.stringify({
+      level: "warn",
+      context,
+      userId,
+      transient: true,
+      status: isApi ? err.status : null,
+      linkedinError: isApi ? err.linkedinError : null,
+      message: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    })
+  );
+}
+
+/** Structured warn-level log for an actual disconnect — paired with the
+ * markDisconnected call so the post-mortem is one log entry, not two. */
+function logDisconnect(
+  userId: string,
+  reason: "revoked" | "refresh_failed",
+  underlying: unknown
+): void {
+  const isApi = underlying instanceof LinkedInApiError;
+  console.warn(
+    JSON.stringify({
+      level: "warn",
+      context: "api/linkedin/validate disconnect",
+      userId,
+      reason,
+      status: isApi ? underlying.status : null,
+      linkedinError: isApi ? underlying.linkedinError : null,
+      message:
+        underlying instanceof Error
+          ? underlying.message
+          : String(underlying),
+      timestamp: new Date().toISOString(),
+    })
+  );
+}
 
 /**
  * Validate the stored LinkedIn access token by making a live call to
@@ -112,13 +161,17 @@ export async function POST(request: NextRequest) {
         .eq("user_id", user.id);
       return NextResponse.json({ valid: true, cached: false });
     } catch (err) {
-      // Don't escalate the first userinfo failure — the refresh-token
-      // fallback below is expected to recover most of these cases. Only
-      // log at warn-level so dashboards aren't noisy with what amounts
-      // to a normal expired-token roll-over.
+      // If userinfo failed for a transient reason (5xx, 429, network), do
+      // NOT escalate — leave the connection intact and report cached:true so
+      // the client treats it as still valid. We deliberately don't update
+      // `linkedin_token_validated_at` so the next call will retry promptly.
+      if (err instanceof LinkedInApiError && err.isTransient) {
+        logTransient("api/linkedin/validate userinfo", user.id, err);
+        return NextResponse.json({ valid: true, cached: true });
+      }
+
+      // Real auth failure (401 / non-transient). Try the refresh-token path.
       console.warn("[validate] userinfo failed, attempting refresh:", err);
-      // First attempt failed. Try a refresh if we have a refresh token,
-      // mirroring the resilience we already have in /api/linkedin/status.
       const hasRefresh =
         profile.linkedin_refresh_token_encrypted &&
         profile.linkedin_refresh_token_iv &&
@@ -164,7 +217,18 @@ export async function POST(request: NextRequest) {
             .eq("user_id", user.id);
           return NextResponse.json({ valid: true, cached: false });
         } catch (refreshErr) {
+          // Same triage on the refresh path: only disconnect when LinkedIn
+          // gives a definitive auth failure. A transient refresh blip should
+          // never wipe the user's connection.
+          if (
+            refreshErr instanceof LinkedInApiError &&
+            refreshErr.isTransient
+          ) {
+            logTransient("api/linkedin/validate refresh", user.id, refreshErr);
+            return NextResponse.json({ valid: true, cached: true });
+          }
           logApiError("api/linkedin/validate refresh", refreshErr);
+          logDisconnect(user.id, "refresh_failed", refreshErr);
           await markDisconnected(supabase, user.id);
           return NextResponse.json(
             { valid: false, reason: "refresh_failed" as const },
@@ -173,7 +237,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // No refresh token available — the token is revoked.
+      // No refresh token available — token is revoked.
+      logDisconnect(user.id, "revoked", err);
       await markDisconnected(supabase, user.id);
       return NextResponse.json(
         { valid: false, reason: "revoked" as const },

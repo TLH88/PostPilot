@@ -1,5 +1,61 @@
 // LinkedIn API Client Library for PostPilot
 
+/**
+ * Typed error thrown by LinkedIn API helpers so callers can distinguish
+ * transient failures (5xx, 429, network errors) from definitive auth
+ * failures (401, OAuth `invalid_grant`). The validate/status routes use
+ * this to avoid disconnecting users on transient flakiness.
+ *
+ * `status === 0` indicates a network-level failure (fetch threw before
+ * receiving a response). `linkedinError` is the parsed `error` field from
+ * the OAuth error body when present.
+ */
+export class LinkedInApiError extends Error {
+  readonly status: number;
+  readonly linkedinError: string | null;
+  readonly responseBody: string;
+
+  constructor(
+    message: string,
+    status: number,
+    responseBody: string,
+    linkedinError: string | null = null
+  ) {
+    super(message);
+    this.name = "LinkedInApiError";
+    this.status = status;
+    this.responseBody = responseBody;
+    this.linkedinError = linkedinError;
+  }
+
+  /** True when LinkedIn definitively says the token/refresh-token is bad. */
+  get isAuthFailure(): boolean {
+    if (this.status === 401) return true;
+    if (this.linkedinError === "invalid_grant") return true;
+    if (this.linkedinError === "invalid_token") return true;
+    if (this.linkedinError === "revoked_token") return true;
+    return false;
+  }
+
+  /** True when the error is plausibly transient (5xx, 429, network). */
+  get isTransient(): boolean {
+    if (this.status === 0) return true; // network/fetch error
+    if (this.status === 429) return true;
+    if (this.status >= 500 && this.status < 600) return true;
+    return false;
+  }
+}
+
+function parseLinkedInErrorCode(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown };
+    if (typeof parsed.error === "string") return parsed.error;
+  } catch {
+    // not JSON — return null
+  }
+  return null;
+}
+
 // --- Response Types ---
 
 export interface LinkedInTokenResponse {
@@ -113,13 +169,28 @@ export async function exchangeCodeForTokens(
 export async function getLinkedInMemberId(
   accessToken: string
 ): Promise<string> {
-  const response = await fetch("https://api.linkedin.com/v2/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://api.linkedin.com/v2/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch (err) {
+    // Network-level failure (DNS, fetch threw, etc.) — treat as transient.
+    throw new LinkedInApiError(
+      `LinkedIn userinfo network error: ${err instanceof Error ? err.message : String(err)}`,
+      0,
+      ""
+    );
+  }
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`LinkedIn userinfo request failed: ${error}`);
+    const body = await response.text();
+    throw new LinkedInApiError(
+      `LinkedIn userinfo request failed (${response.status})`,
+      response.status,
+      body,
+      parseLinkedInErrorCode(body)
+    );
   }
 
   const data = await response.json();
@@ -268,18 +339,32 @@ export async function refreshLinkedInToken(
     client_secret: clientSecret,
   });
 
-  const response = await fetch(
-    "https://www.linkedin.com/oauth/v2/accessToken",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-    }
-  );
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://www.linkedin.com/oauth/v2/accessToken",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      }
+    );
+  } catch (err) {
+    throw new LinkedInApiError(
+      `LinkedIn token refresh network error: ${err instanceof Error ? err.message : String(err)}`,
+      0,
+      ""
+    );
+  }
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`LinkedIn token refresh failed: ${error}`);
+    const errBody = await response.text();
+    throw new LinkedInApiError(
+      `LinkedIn token refresh failed (${response.status})`,
+      response.status,
+      errBody,
+      parseLinkedInErrorCode(errBody)
+    );
   }
 
   const data = await response.json();
