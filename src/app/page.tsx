@@ -115,26 +115,46 @@ export default function Home() {
             ]}
             intervalMs={6000}
           />
-          {/* Readability overlay — frosted, slightly transparent. Bump the
-              opacity if copy is hard to read; drop it if you want more
-              imagery showing through. */}
+          {/* No full-page veil. Readability comes from two creative tricks:
+              (a) A soft radial "spotlight" vignette concentrated behind the
+                  copy area only — fades to fully transparent at the section
+                  edges so the carousel reads cleanly there.
+              (b) Theme-aware text-shadow halo on the headline + body so the
+                  letters always have a soft outline against any underlying
+                  screenshot. */}
           <div
             aria-hidden
-            className="absolute inset-0 bg-background/45 backdrop-blur-[2px]"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 55% 65% at 50% 45%, color-mix(in oklch, var(--color-background) 75%, transparent) 0%, color-mix(in oklch, var(--color-background) 30%, transparent) 45%, transparent 75%)",
+            }}
           />
 
           {/* Foreground copy */}
           <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 text-center sm:pt-32">
             <div className="mx-auto max-w-2xl">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/85 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
                 <Send className="size-3.5 text-primary" />
                 AI-Powered LinkedIn Content
               </div>
-              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+              <h1
+                className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl"
+                style={{
+                  textShadow:
+                    "0 2px 12px color-mix(in oklch, var(--color-background) 90%, transparent), 0 1px 2px color-mix(in oklch, var(--color-background) 70%, transparent)",
+                }}
+              >
                 Your AI-powered LinkedIn{" "}
                 <span className="text-primary">content partner</span>
               </h1>
-              <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              <p
+                className="mt-6 text-lg leading-8 text-foreground/80"
+                style={{
+                  textShadow:
+                    "0 1px 8px color-mix(in oklch, var(--color-background) 85%, transparent)",
+                }}
+              >
                 PostPilot helps you brainstorm, draft, and schedule high-performing
                 LinkedIn posts. Spend less time writing and more time building your
                 professional brand.
