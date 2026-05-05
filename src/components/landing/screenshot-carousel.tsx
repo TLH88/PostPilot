@@ -51,6 +51,16 @@ interface ScreenshotCarouselProps {
   lensSize?: number;
   /** Zoom multiplier inside the lens. Default 2.5x. */
   zoom?: number;
+  /**
+   * Visual mode:
+   *   "card" (default) — framed gallery with arrows, dots, caption, lens.
+   *   "bleed"          — chromeless full-size rotator suitable for hero
+   *                      backgrounds; mounts as `absolute inset-0` so the
+   *                      parent must be `relative` (or `isolate`).
+   *                      Skips controls, lens, hover pause, and crossfades
+   *                      slowly so it reads as ambient motion.
+   */
+  presentation?: "card" | "bleed";
 }
 
 export function ScreenshotCarousel({
@@ -61,6 +71,7 @@ export function ScreenshotCarousel({
   enableHoverZoom = true,
   lensSize = 450,
   zoom = 2.5,
+  presentation = "card",
 }: ScreenshotCarouselProps) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -120,6 +131,33 @@ export function ScreenshotCarousel({
 
   if (total === 0) return null;
   const slide = slides[active];
+
+  // Bleed mode: chromeless full-size rotator for hero backgrounds. The
+  // parent supplies positioning (relative + overflow-hidden) and an
+  // overlay above us so the foreground copy stays readable.
+  if (presentation === "bleed") {
+    return (
+      <div
+        aria-hidden
+        className={cn("absolute inset-0 overflow-hidden", className)}
+      >
+        {slides.map((s, i) => (
+          <Image
+            key={s.src}
+            src={s.src}
+            alt=""
+            fill
+            priority={i === 0}
+            sizes="100vw"
+            className={cn(
+              "object-cover transition-opacity duration-1000 ease-in-out",
+              i === active ? "opacity-100" : "opacity-0",
+            )}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
