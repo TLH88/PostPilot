@@ -83,76 +83,36 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Section — carousel screenshots rotate as a softened backdrop
-          behind the copy. Tune the overlay opacity / blur below to trade
-          off "you can see the carousel" vs "the copy is easy to read". */}
+      {/* Hero Section */}
       <main className="flex-1">
-        <section className="relative isolate min-h-[800px] overflow-hidden">
-          {/* Backdrop: chromeless rotating screenshots */}
-          <ScreenshotCarousel
-            presentation="bleed"
-            slides={[
-              {
-                src: "/images/carousel/launch-pad.png",
-                alt: "",
-                caption: "",
-              },
-              {
-                src: "/images/carousel/post-editor.png",
-                alt: "",
-                caption: "",
-              },
-              {
-                src: "/images/carousel/calendar.png",
-                alt: "",
-                caption: "",
-              },
-              {
-                src: "/images/carousel/analytics.png",
-                alt: "",
-                caption: "",
-              },
-            ]}
-            intervalMs={6000}
-          />
-          {/* No global overlay. Copy lives inside a centered frosted-glass
-              card — the carousel shows at full saturation everywhere except
-              behind the card. Tuning knobs:
-                - bg-background/55  → bump toward /70 for more text contrast
-                                      drop toward /40 to see more carousel
-                                      through the card
-                - backdrop-blur-md  → swap to backdrop-blur-lg for stronger
-                                      blur, backdrop-blur-sm for less
-          */}
-          <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 sm:pt-32">
-            <div className="max-w-[50rem] rounded-2xl border border-foreground/10 bg-background/40 px-6 py-10 text-left shadow-2xl shadow-primary/10 backdrop-blur-md sm:px-12 sm:py-14">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
-                <Send className="size-3.5 text-primary" />
-                AI-Powered LinkedIn Content
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Your AI-powered LinkedIn{" "}
-                <span className="text-primary">content partner</span>
-              </h1>
-              <p className="mt-6 text-lg leading-8 text-foreground">
-                PostPilot helps you brainstorm, draft, and schedule high-performing
-                LinkedIn posts. Spend less time writing and more time building your
-                professional brand.
-              </p>
-              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-                <Link
-                  href="/pricing"
-                  className="inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 sm:w-auto"
-                >
-                  Get Started
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground sm:w-auto"
-                >
-                  Sign In
-                </Link>
-              </div>
+        <section className="mx-auto max-w-6xl px-6 pb-20 pt-24 text-center sm:pt-32">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground">
+              <Send className="size-3.5 text-primary" />
+              AI-Powered LinkedIn Content
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+              Your AI-powered LinkedIn{" "}
+              <span className="text-primary">content partner</span>
+            </h1>
+            <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              PostPilot helps you brainstorm, draft, and schedule high-performing
+              LinkedIn posts. Spend less time writing and more time building your
+              professional brand.
+            </p>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link
+                href="/pricing"
+                className="inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 sm:w-auto"
+              >
+                Get Started
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground sm:w-auto"
+              >
+                Sign In
+              </Link>
             </div>
           </div>
         </section>

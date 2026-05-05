@@ -2,19 +2,23 @@
 
 /**
  * Screenshot carousel for the marketing landing page.
- * Auto-rotates every `intervalMs` (default 5s), pauses on hover/focus,
- * respects prefers-reduced-motion, and exposes manual controls (arrows
- * + dot indicators).
  *
- * Sizing is preset-based via the `size` prop. Pick the named bucket that
- * matches the section width, or pass your own `className` to override.
+ * Two presentation modes:
+ *   - "card"  (default) — 3D peek layout: center slide at full scale, prev
+ *                         and next slides peek in from either side at 0.85
+ *                         scale + slight Y-rotation. Captions overlay the
+ *                         active slide as a bottom gradient. Auto-rotates
+ *                         every `intervalMs` (default 5s) with hover-pause,
+ *                         arrows, and dot indicators.
+ *   - "bleed"           — chromeless full-size rotator for hero backgrounds.
  *
- * Hover zoom: when `enableHoverZoom` is on (default), a circular lens
- * follows the cursor and shows the underlying screenshot zoomed in. Use
- * `lensSize` (px diameter) and `zoom` (multiplier) to tune.
+ * Sizing is preset-based via `size` (sm | md | lg | xl | 2xl, default xl).
+ * The size constrains the FRAME (active slide width); the section around it
+ * spans whatever width its parent provides, leaving room for side slides
+ * to peek into.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,20 +49,14 @@ interface ScreenshotCarouselProps {
   intervalMs?: number;
   /** Override classes — useful for custom max-width or margin tweaks. */
   className?: string;
-  /** Show a magnifier lens that follows the cursor. Default true. */
-  enableHoverZoom?: boolean;
-  /** Diameter of the lens in pixels. Default 450. */
-  lensSize?: number;
-  /** Zoom multiplier inside the lens. Default 2.5x. */
-  zoom?: number;
   /**
    * Visual mode:
-   *   "card" (default) — framed gallery with arrows, dots, caption, lens.
+   *   "card" (default) — framed 3D peek layout with arrows, dots, captions.
    *   "bleed"          — chromeless full-size rotator suitable for hero
    *                      backgrounds; mounts as `absolute inset-0` so the
-   *                      parent must be `relative` (or `isolate`).
-   *                      Skips controls, lens, hover pause, and crossfades
-   *                      slowly so it reads as ambient motion.
+   *                      parent must be `relative` (or `isolate`). Skips
+   *                      controls and crossfades slowly so it reads as
+   *                      ambient motion.
    */
   presentation?: "card" | "bleed";
 }
@@ -68,19 +66,10 @@ export function ScreenshotCarousel({
   size = "xl",
   intervalMs = 5000,
   className,
-  enableHoverZoom = true,
-  lensSize = 450,
-  zoom = 2.5,
   presentation = "card",
 }: ScreenshotCarouselProps) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
-  const [frameSize, setFrameSize] = useState<{ w: number; h: number }>({
-    w: 0,
-    h: 0,
-  });
-  const frameRef = useRef<HTMLDivElement>(null);
 
   const total = slides.length;
   const next = useCallback(() => setActive((i) => (i + 1) % total), [total]);
@@ -101,36 +90,7 @@ export function ScreenshotCarousel({
     return () => window.clearInterval(id);
   }, [paused, next, intervalMs, total]);
 
-  // Track the rendered frame size so the lens can compute the zoomed
-  // background-image position correctly even after viewport resize.
-  useEffect(() => {
-    if (!enableHoverZoom) return;
-    const node = frameRef.current;
-    if (!node) return;
-    const update = () => {
-      setFrameSize({ w: node.clientWidth, h: node.clientHeight });
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(node);
-    return () => ro.disconnect();
-  }, [enableHoverZoom]);
-
-  function handleLensMove(e: React.MouseEvent<HTMLDivElement>) {
-    if (!enableHoverZoom) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setLensPos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-  }
-
-  function handleLensLeave() {
-    setLensPos(null);
-  }
-
   if (total === 0) return null;
-  const slide = slides[active];
 
   // Bleed mode: chromeless full-size rotator for hero backgrounds. The
   // parent supplies positioning (relative + overflow-hidden) and an
@@ -230,14 +190,10 @@ export function ScreenshotCarousel({
         style={{ perspective: "1500px" }}
       >
         <div
-          ref={frameRef}
           className={cn(
             "relative mx-auto aspect-[16/10]",
             SIZE_CLASSES[size],
-            enableHoverZoom && "cursor-zoom-in",
           )}
-          onMouseMove={handleLensMove}
-          onMouseLeave={handleLensLeave}
         >
           {slides.map((s, i) => {
             const slot = visualSlot(i);
@@ -297,25 +253,6 @@ export function ScreenshotCarousel({
             );
           })}
 
-          {enableHoverZoom &&
-            lensPos &&
-            frameSize.w > 0 &&
-            frameSize.h > 0 && (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute z-40 rounded-full border-2 border-white/85 shadow-2xl ring-1 ring-foreground/30"
-                style={{
-                  width: lensSize,
-                  height: lensSize,
-                  left: lensPos.x - lensSize / 2,
-                  top: lensPos.y - lensSize / 2,
-                  backgroundImage: `url(${slide.src})`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundSize: `${frameSize.w * zoom}px ${frameSize.h * zoom}px`,
-                  backgroundPosition: `${-(lensPos.x * zoom - lensSize / 2)}px ${-(lensPos.y * zoom - lensSize / 2)}px`,
-                }}
-              />
-            )}
         </div>
 
         {total > 1 && (
