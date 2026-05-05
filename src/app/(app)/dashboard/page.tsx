@@ -231,7 +231,6 @@ export default async function DashboardPage() {
     profile?.full_name?.trim().split(/\s+/)[0] ||
     user.email?.split("@")[0] ||
     "there";
-  const greeting = `Welcome back, ${firstName}!`;
   const activeWorkspaceId = await getActiveWorkspaceIdServer();
 
   // Resolve AI access (UX hint — authoritative check still happens in /api/ai/*)
@@ -461,7 +460,11 @@ export default async function DashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {greeting}
+          Welcome back,{" "}
+          <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent dark:from-blue-400 dark:to-cyan-400">
+            {firstName}
+          </span>
+          !
         </h1>
         <p className="text-muted-foreground">
           Let&apos;s make something worth sharing today. We can brainstorm a fresh idea, pick up where a draft left off, or line up the week on your calendar — your call.
