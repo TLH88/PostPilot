@@ -184,23 +184,23 @@ export function ScreenshotCarousel({
     }
     if (offset === 1) {
       return {
-        transform: "translateX(58%) scale(0.84) rotateY(-14deg)",
-        opacity: 0.4,
+        transform: "translateX(80%) scale(0.86) rotateY(-14deg)",
+        opacity: 0.55,
         zIndex: 20,
         filter: "blur(1px)",
       };
     }
     if (offset === -1) {
       return {
-        transform: "translateX(-58%) scale(0.84) rotateY(14deg)",
-        opacity: 0.4,
+        transform: "translateX(-80%) scale(0.86) rotateY(14deg)",
+        opacity: 0.55,
         zIndex: 20,
         filter: "blur(1px)",
       };
     }
     // offset === 2 — hidden far slot used as a transition staging area.
     return {
-      transform: "translateX(90%) scale(0.7) rotateY(-18deg)",
+      transform: "translateX(120%) scale(0.7) rotateY(-18deg)",
       opacity: 0,
       zIndex: 10,
       filter: "blur(2px)",
@@ -249,7 +249,10 @@ export function ScreenshotCarousel({
                   if (!isActive) setActive(i);
                 }}
                 className={cn(
-                  "absolute inset-0 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                  // Each slide is 70% of the stage width, baseline-centered
+                  // (left:15% / right:15%). Side slides translate beyond
+                  // the center to peek out either edge — see slotStyle.
+                  "absolute left-[15%] top-0 h-full w-[70%] transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
                   !isActive && slot.visible && "cursor-pointer",
                 )}
                 style={{
