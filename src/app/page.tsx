@@ -167,22 +167,26 @@ export default function Home() {
               {
                 src: "/images/carousel/launch-pad.png",
                 alt: "PostPilot Launch Pad: daily focus screen with quick actions",
-                caption: "Launch Pad: Stop wondering where to start. See exactly what to work on next.",
+                title: "Launch Pad",
+                caption: "Stop wondering where to start. See exactly what to work on next.",
               },
               {
                 src: "/images/carousel/post-editor.png",
                 alt: "PostPilot post editor with AI strategist sidebar",
-                caption: "Post Editor: Draft polished, on-trend posts with an AI strategist who knows your voice.",
+                title: "Post Editor",
+                caption: "Draft polished, on-trend posts with an AI strategist who knows your voice.",
               },
               {
                 src: "/images/carousel/calendar.png",
                 alt: "PostPilot content calendar: monthly view of scheduled posts",
-                caption: "Content Calendar: Stay organized and consistent. Never miss a posting window again.",
+                title: "Content Calendar",
+                caption: "Stay organized and consistent. Never miss a posting window again.",
               },
               {
                 src: "/images/carousel/analytics.png",
                 alt: "PostPilot analytics dashboard: engagement, impressions, content pillars",
-                caption: "Analytics: Get a deep view into the hooks, topics, and formats that actually move your audience.",
+                title: "Analytics",
+                caption: "Get a deep view into the hooks, topics, and formats that actually move your audience.",
               },
             ]}
           />

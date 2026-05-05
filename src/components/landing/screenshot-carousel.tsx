@@ -26,6 +26,9 @@ import { cn } from "@/lib/utils";
 export interface CarouselSlide {
   src: string;
   alt: string;
+  /** Page name shown as the card title in primary blue (e.g. "Launch Pad"). */
+  title: string;
+  /** Body copy below the divider. */
   caption: string;
 }
 
@@ -230,20 +233,6 @@ export function ScreenshotCarousel({
                     sizes="(max-width: 1024px) 100vw, 1024px"
                     className="object-cover object-top"
                   />
-                  {/* Caption — glass panel inset from the slide's bottom
-                      edge. Theme-aware bg so it reads in light & dark mode
-                      against any screenshot, not just dark imagery. */}
-                  {isActive && (
-                    <div
-                      key={`caption-${active}`}
-                      aria-live="polite"
-                      className="pointer-events-none absolute inset-x-6 bottom-6 rounded-2xl border border-foreground/10 bg-background/80 px-6 py-4 shadow-xl backdrop-blur-lg motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:inset-x-12 sm:bottom-10 sm:px-8 sm:py-5"
-                    >
-                      <p className="text-balance text-center text-xl font-semibold leading-snug text-foreground sm:text-2xl">
-                        {s.caption}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </button>
             );
@@ -273,8 +262,26 @@ export function ScreenshotCarousel({
         )}
       </div>
 
+      {/* Caption card — sits below the stage, overlapping the slide's
+          bottom edge slightly via negative margin-top. Re-keys on active
+          so it fades and slides in fresh on each rotation. */}
+      <div className="relative -mt-12 flex justify-center px-6 sm:-mt-16">
+        <div
+          key={`card-${active}`}
+          className="relative w-full max-w-lg rounded-2xl border border-foreground/10 bg-card px-6 py-5 shadow-2xl ring-1 ring-foreground/5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:px-8 sm:py-6"
+        >
+          <h3 className="text-lg font-bold tracking-tight text-primary sm:text-xl">
+            {slides[active].title}
+          </h3>
+          <div aria-hidden className="my-3 h-px bg-foreground/10" />
+          <p className="text-balance text-sm leading-relaxed text-foreground sm:text-base">
+            {slides[active].caption}
+          </p>
+        </div>
+      </div>
+
       {total > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-8 flex items-center justify-center gap-2">
           {slides.map((s, i) => (
             <button
               key={s.src}
