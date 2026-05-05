@@ -122,18 +122,11 @@ export default function Home() {
             Section is `relative isolate overflow-hidden` so the blobs
             extending past corners get clipped at section bounds.
 
-            The base background gradient fades from page bg-background at
-            the top edge, into solid slate-200 across the middle, and back
-            to bg-background at the bottom edge — so the section feels
-            like an ambient swell rather than a hard color band. Border-t
-            is dropped since the fade itself supplies the transition. */}
-        <section
-          className="relative isolate overflow-hidden py-20"
-          style={{
-            background:
-              "linear-gradient(to bottom, var(--color-background) 0%, #E2E8F0 18%, #E2E8F0 82%, var(--color-background) 100%)",
-          }}
-        >
+            Top + bottom fade overlays (further down) wash the blob/grid
+            colors out to bg-background at the edges so the section
+            doesn't read as a hard color band against the surrounding
+            sections. */}
+        <section className="relative isolate overflow-hidden bg-slate-200 py-20">
           {/* Top-left grey blob — anchors the upper-left corner */}
           <div
             aria-hidden="true"
@@ -174,8 +167,29 @@ export default function Home() {
                 "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
             }}
           />
+          {/* Edge-fade overlays — wash the blob + grid colors back to
+              page bg-background at the very top and bottom of the
+              section so the colored ambient doesn't hard-clip against
+              the surrounding sections. Sit above the blobs/grid (default
+              z-0) but below the content wrapper (z-10). */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-32"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--color-background) 0%, transparent 100%)",
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-32"
+            style={{
+              background:
+                "linear-gradient(to top, var(--color-background) 0%, transparent 100%)",
+            }}
+          />
 
-          <div className="mx-auto max-w-6xl px-6">
+          <div className="relative z-10 mx-auto max-w-6xl px-6">
             <div className="mx-auto mb-12 max-w-2xl text-center">
               <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                 Everything you need to grow on LinkedIn
