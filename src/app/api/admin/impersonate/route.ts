@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, verifyAdmin } from "@/lib/supabase/admin";
+import {
+  STASH_COOKIE_NAME,
+  STASH_TTL_MS,
+  signStash,
+} from "@/lib/admin/impersonation-stash";
 
 export async function POST(request: NextRequest) {
   const admin = await verifyAdmin();
@@ -47,5 +52,13 @@ export async function POST(request: NextRequest) {
     timestamp: new Date().toISOString(),
   }));
 
-  return NextResponse.json({ callbackUrl, email: user.email });
+  const response = NextResponse.json({ callbackUrl, email: user.email });
+  response.cookies.set(STASH_COOKIE_NAME, signStash(admin.email!), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: Math.floor(STASH_TTL_MS / 1000),
+    path: "/",
+  });
+  return response;
 }

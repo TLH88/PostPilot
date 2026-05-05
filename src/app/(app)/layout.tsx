@@ -10,6 +10,7 @@ import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner
 import { PausedBanner } from "@/components/budget/paused-banner";
 import { PausedModal } from "@/components/budget/paused-modal";
 import { AdBlockerGate } from "@/components/ads/ad-blocker-gate";
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { ThemePersistence } from "@/components/theme-persistence";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
@@ -106,6 +107,7 @@ export default async function AppLayout({
         <div className="lg:pl-16">
           <TopBar userName={userName} userTier={userTier} />
           <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+            <ImpersonationBanner />
             <PausedBanner paused={isPaused} reason={pausedReason} />
             <LinkedInStatusBanner />
             {children}
