@@ -268,13 +268,13 @@ export function ScreenshotCarousel({
       <div className="relative -mt-12 flex justify-center px-6 sm:-mt-16">
         <div
           key={`card-${active}`}
-          className="relative w-full max-w-lg rounded-2xl border border-foreground/10 bg-card px-6 py-5 shadow-2xl ring-1 ring-foreground/5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:px-8 sm:py-6"
+          className="relative w-full max-w-[38rem] rounded-2xl border border-foreground/10 bg-card px-6 py-5 shadow-2xl ring-1 ring-foreground/5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:px-8 sm:py-6"
         >
-          <h3 className="text-lg font-bold tracking-tight text-primary sm:text-xl">
+          <h3 className="text-center text-lg font-bold tracking-tight text-primary sm:text-xl">
             {slides[active].title}
           </h3>
           <div aria-hidden className="my-3 h-px bg-foreground/10" />
-          <p className="text-balance text-sm leading-relaxed text-foreground sm:text-base">
+          <p className="text-sm leading-relaxed text-foreground sm:text-base">
             {slides[active].caption}
           </p>
         </div>
