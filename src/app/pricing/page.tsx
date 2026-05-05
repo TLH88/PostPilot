@@ -13,18 +13,22 @@ import { TIER_FEATURES, SUBSCRIPTION_TIERS, TRIAL_COOLDOWN_DAYS, type Subscripti
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { WaitlistDialog } from "@/components/pricing/waitlist-dialog";
 
-const TIER_ORDER: SubscriptionTier[] = ["free", "personal", "professional", "team"];
-const ALL_TIERS: SubscriptionTier[] = ["free", "personal", "professional", "team", "enterprise"];
+// Owner direction 2026-05-04: Team and Enterprise tiers removed from
+// the pricing page entirely until those products ship. The tiers still
+// exist in the constants (so existing Team accounts and feature gating
+// keep working) — they just don't appear in the pricing surface for
+// new subscribers. Restore by adding "team" / "enterprise" back to
+// TIER_ORDER + ALL_TIERS and re-mounting the Enterprise card + waitlist
+// dialog when those products are GA.
+const TIER_ORDER: SubscriptionTier[] = ["free", "personal", "professional"];
+const ALL_TIERS: SubscriptionTier[] = ["free", "personal", "professional"];
 const TRIABLE_TIERS = new Set(["personal", "professional"]);
 
 const TIER_STYLE: Record<string, { highlight: boolean; badge?: string; border: string }> = {
   free: { highlight: false, border: "border-border" },
   personal: { highlight: true, badge: "Most Popular", border: "border-primary" },
   professional: { highlight: false, border: "border-border" },
-  team: { highlight: false, border: "border-border" },
-  enterprise: { highlight: false, border: "border-border" },
 };
 
 // Annual = monthly × 12 × 0.85 (15% discount)
@@ -32,20 +36,18 @@ const ANNUAL_PRICES: Record<string, string | null> = {
   free: null,
   personal: "$204/yr",
   professional: "$510/yr",
-  team: "$1,020/yr",
-  enterprise: null,
 };
 
-const TIER_RANK: Record<string, number> = { free: 0, personal: 1, professional: 2, team: 3, enterprise: 4 };
+const TIER_RANK: Record<string, number> = { free: 0, personal: 1, professional: 2 };
 
 const FAQ = [
   {
     q: "What is BYOK (Bring Your Own Key)?",
-    a: "BYOK means bringing your own AI provider API key (OpenAI, Anthropic, Google, or Perplexity). On the Professional and Team plans, connecting a key unlocks unlimited AI usage and full model choice — you control costs and your data stays between you and your provider. Free and Personal plans use PostPilot's built-in AI with tier-specific monthly quotas.",
+    a: "BYOK means bringing your own AI provider API key (OpenAI, Anthropic, Google, or Perplexity). On the Professional plan, BYOK kicks in as a fallback once your monthly system AI allocation is exhausted, so you can keep working without interruption — and your data stays between you and your provider. Free and Personal plans use PostPilot's built-in AI with tier-specific monthly quotas.",
   },
   {
     q: "Which AI providers are supported?",
-    a: "PostPilot supports Anthropic (Claude), OpenAI (GPT and image models), Google (Gemini), and Perplexity (Sonar). Professional and Team subscribers with BYOK can switch providers any time from Settings. Free and Personal tiers run on PostPilot's built-in models.",
+    a: "PostPilot supports Anthropic (Claude), OpenAI (GPT and image models), Google (Gemini), and Perplexity (Sonar). Professional subscribers with BYOK can switch providers any time from Settings. Free and Personal tiers run on PostPilot's built-in models.",
   },
   {
     q: "Can I switch plans anytime?",
@@ -74,7 +76,6 @@ export default function PricingPage() {
   const router = useRouter();
   const [userState, setUserState] = useState<UserState | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
-  const [waitlistTier, setWaitlistTier] = useState<"team" | "enterprise" | null>(null);
 
   useEffect(() => {
     const previousTheme = theme;
@@ -132,12 +133,6 @@ export default function PricingPage() {
         return { label: "Current Plan", action: () => {}, variant: "disabled" };
       }
       return { label: "Get Started", action: () => router.push("/signup"), variant: "primary" };
-    }
-
-    // BP-130: Team — Coming Soon, waitlist signup. Stripe billing for the
-    // 5-seat-min / $100 + $6/user model is deferred to a future BP.
-    if (tierKey === "team") {
-      return { label: "Join Waitlist", action: () => setWaitlistTier("team"), variant: "primary" };
     }
 
     // Not logged in
@@ -299,7 +294,7 @@ export default function PricingPage() {
 
         {/* Pricing Cards */}
         <section className="mx-auto max-w-7xl px-6 pb-20">
-          <div className="grid gap-6 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-3">
             {TIER_ORDER.map((tierKey) => {
               const tier = SUBSCRIPTION_TIERS[tierKey];
               const style = TIER_STYLE[tierKey];
@@ -323,14 +318,6 @@ export default function PricingPage() {
                       </Badge>
                     </div>
                   )}
-                  {/* BP-130: Coming Soon badge for tiers that aren't yet GA. */}
-                  {tierKey === "team" && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-amber-500 text-white px-3 py-0.5 text-xs">
-                        Coming Soon
-                      </Badge>
-                    </div>
-                  )}
                   <CardHeader className="text-center pb-2">
                     <h3 className="text-lg font-semibold">{tier.label}</h3>
                     <div className="mt-2">
@@ -350,13 +337,6 @@ export default function PricingPage() {
                         <>
                           <span className="text-4xl font-bold">$50</span>
                           <span className="text-muted-foreground">/mo</span>
-                        </>
-                      )}
-                      {tierKey === "team" && (
-                        <>
-                          <span className="text-4xl font-bold">$100</span>
-                          <span className="text-muted-foreground">/mo</span>
-                          <p className="text-sm text-muted-foreground mt-0.5">+ $6 per user</p>
                         </>
                       )}
                     </div>
@@ -398,32 +378,9 @@ export default function PricingPage() {
             })}
           </div>
 
-          {/* Enterprise card */}
-          <div className="mt-8 mx-auto max-w-2xl">
-            <Card className="relative flex flex-col overflow-visible">
-              {/* BP-130: Coming Soon — Enterprise also deferred at GTM launch. */}
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-amber-500 text-white px-3 py-0.5 text-xs">
-                  Coming Soon
-                </Badge>
-              </div>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Enterprise</h3>
-                  <span className="text-lg font-bold text-muted-foreground">Custom Pricing</span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">150+ users — everything in Team with dedicated support, custom integrations, SSO, and SLA guarantees</p>
-              </CardHeader>
-              <CardContent>
-                <button
-                  onClick={() => setWaitlistTier("enterprise")}
-                  className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Contact Sales
-                </button>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Enterprise card removed 2026-05-04 (owner direction) — Team
+              + Enterprise tiers don't ship for some time. Restore from
+              git history when they're GA. */}
 
           {/*
             Asterisk key — clarifies the two starred features above
@@ -455,12 +412,8 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* BP-130: Waitlist dialog (Team + Enterprise) */}
-        <WaitlistDialog
-          open={waitlistTier !== null}
-          onOpenChange={(o) => !o && setWaitlistTier(null)}
-          tier={waitlistTier ?? "team"}
-        />
+        {/* Waitlist dialog removed alongside Team + Enterprise cards
+            (2026-05-04 owner direction). Restore when those tiers ship. */}
 
         {/* Feature Comparison Table (desktop) */}
         <section className="border-t bg-muted/30 py-16">
