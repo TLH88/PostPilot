@@ -86,14 +86,14 @@ export default function Home() {
       {/* Hero Section */}
       <main className="flex-1">
         <section className="mx-auto max-w-6xl px-6 pb-20 pt-24 text-center sm:pt-32">
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground">
               <Send className="size-3.5 text-primary" />
               AI-Powered LinkedIn Content
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               Your AI-powered LinkedIn{" "}
-              <span className="text-primary">content partner</span>
+              <span className="whitespace-nowrap text-primary">content partner</span>
             </h1>
             <p className="mt-6 text-lg leading-8 text-muted-foreground">
               PostPilot helps you brainstorm, draft, and schedule high-performing
