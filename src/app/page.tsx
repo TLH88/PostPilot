@@ -120,8 +120,20 @@ export default function Home() {
         {/* Features Section — ambient backdrop matches the in-app shell:
             slate-200 base + four corner gradient blobs + dot-grid pattern.
             Section is `relative isolate overflow-hidden` so the blobs
-            extending past corners get clipped at section bounds. */}
-        <section className="relative isolate overflow-hidden border-t bg-slate-200 py-20">
+            extending past corners get clipped at section bounds.
+
+            The base background gradient fades from page bg-background at
+            the top edge, into solid slate-200 across the middle, and back
+            to bg-background at the bottom edge — so the section feels
+            like an ambient swell rather than a hard color band. Border-t
+            is dropped since the fade itself supplies the transition. */}
+        <section
+          className="relative isolate overflow-hidden py-20"
+          style={{
+            background:
+              "linear-gradient(to bottom, var(--color-background) 0%, #E2E8F0 18%, #E2E8F0 82%, var(--color-background) 100%)",
+          }}
+        >
           {/* Top-left grey blob — anchors the upper-left corner */}
           <div
             aria-hidden="true"
@@ -194,8 +206,10 @@ export default function Home() {
         {/* Product screenshots — see-it-in-action carousel.
             Section spans the full page width so the 3D peek layout has
             wing-space on either side of the centered frame for prev/next
-            slide previews to extend into. */}
-        <section className="border-t py-20">
+            slide previews to extend into. No top border — the features
+            section above fades to bg-background at its bottom edge, so
+            the transition is already seamless. */}
+        <section className="py-20">
           <div className="mx-auto mb-12 max-w-4xl px-6 text-center">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               See PostPilot in action
