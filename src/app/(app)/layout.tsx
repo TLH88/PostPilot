@@ -90,7 +90,7 @@ export default async function AppLayout({
   return (
     <HelpSidebarProvider>
       <TutorialBridge userId={user.id}>
-      <div className="relative isolate min-h-screen bg-background">
+      <div className="relative isolate min-h-screen bg-slate-200 dark:bg-background">
         <AppBackground />
         <DevFlagsApplier />
         <OnboardingGuard onboardingCompleted={onboardingOk} />

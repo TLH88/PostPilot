@@ -13,25 +13,35 @@
 export function AppBackground() {
   return (
     <>
-      {/* Top-right gradient blob — strong brand blue */}
+      {/* Top-left grey blob — anchors the upper-left corner with a slate
+          shadow that contrasts the colored blobs on the other three corners.
+          Light-mode only: dark mode already feels balanced without it. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-500/40 via-cyan-400/30 to-transparent blur-3xl dark:from-blue-600/35 dark:via-blue-500/25"
+        className="pointer-events-none fixed -left-32 -top-40 -z-10 size-[63rem] rounded-full bg-gradient-to-bl from-slate-600/45 via-slate-500/30 to-transparent blur-3xl dark:hidden"
+      />
+      {/* Top-right gradient blob — strong brand blue.
+          Light mode uses pastel 200-stops so the blob reads as a soft sky
+          tint rather than a saturated splotch on a near-white page. Dark
+          mode keeps the deeper 500/600 stops since they blend into navy. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -right-32 -top-40 -z-10 size-[42rem] rounded-full bg-gradient-to-br from-blue-400/75 via-sky-300/60 to-transparent blur-3xl dark:from-blue-600/35 dark:via-blue-500/25"
       />
       {/* Mid-right secondary blob — fills the right side as the page gets taller */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-400/30 via-cyan-300/20 to-transparent blur-3xl dark:from-sky-500/25 dark:via-cyan-500/15"
+        className="pointer-events-none fixed -right-48 top-1/2 -z-10 size-[38rem] -translate-y-1/4 rounded-full bg-gradient-to-l from-sky-400/60 via-cyan-300/45 to-transparent blur-3xl dark:from-sky-500/25 dark:via-cyan-500/15"
       />
       {/* Bottom-left gradient blob — anchors the lower half */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-500/35 via-purple-400/25 to-transparent blur-3xl dark:from-indigo-600/35 dark:via-purple-500/20"
+        className="pointer-events-none fixed -bottom-40 -left-32 -z-10 size-[42rem] rounded-full bg-gradient-to-tr from-indigo-500/65 via-purple-400/55 to-transparent blur-3xl dark:from-indigo-600/35 dark:via-purple-500/20"
       />
       {/* Bottom-center accent — soft glow to lift the empty area */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-400/20 to-transparent blur-3xl dark:from-violet-500/20"
+        className="pointer-events-none fixed -bottom-24 left-1/3 -z-10 size-[28rem] rounded-full bg-gradient-to-t from-violet-500/50 to-transparent blur-3xl dark:from-violet-500/20"
       />
 
       {/* Full-bleed dot-grid pattern with a soft vignette so it never feels harsh */}
