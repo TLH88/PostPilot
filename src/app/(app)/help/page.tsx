@@ -2,6 +2,7 @@ import { HelpCircle, ExternalLink, AlertTriangle, CreditCard, BarChart3, Lightbu
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { TutorialRestartSection, RunTutorialButton } from "@/components/tutorial/tutorial-restart-section";
 import { Badge } from "@/components/ui/badge";
+import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
 
 type PaidTier = "personal" | "professional" | "team";
 
@@ -601,7 +602,7 @@ export default function HelpPage() {
           <h2 className="text-lg font-semibold">Content Tools</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Build a library of reusable content and leverage templates to speed up your writing.
+          Build a library of reusable content to speed up your writing.
         </p>
       </div>
 
@@ -660,39 +661,43 @@ export default function HelpPage() {
         </Tip>
       </CollapsibleCard>
 
-      <CollapsibleCard
-        title="Post Templates"
-        description="Use built-in templates or save your own post structures"
-        defaultOpen={false}
-      >
-        <HelpPaidBadge tier="professional" />
-        <p id="templates" className="text-sm text-foreground/80 mb-3">
-          Templates give you a head start on common post formats so you don&apos;t have to start
-          from a blank page every time.
-        </p>
+      {/* Post Templates help section — suppressed until GTM. Restore the
+          full <CollapsibleCard> block when POST_TEMPLATES_ENABLED flips. */}
+      {POST_TEMPLATES_ENABLED && (
+        <CollapsibleCard
+          title="Post Templates"
+          description="Use built-in templates or save your own post structures"
+          defaultOpen={false}
+        >
+          <HelpPaidBadge tier="professional" />
+          <p id="templates" className="text-sm text-foreground/80 mb-3">
+            Templates give you a head start on common post formats so you don&apos;t have to start
+            from a blank page every time.
+          </p>
 
-        <h4 className="text-sm font-semibold">Using templates</h4>
-        <StepList>
-          <li>
-            When creating a new post, you&apos;ll see a <strong>template picker</strong> with
-            built-in formats like Listicles, Story Posts, Hot Takes, and more.
-          </li>
-          <li>
-            Click a template to pre-fill your post editor with a proven structure. Replace the
-            placeholder text with your own content.
-          </li>
-          <li>
-            To <strong>save your own template</strong>, write a post you want to reuse as a
-            structure, then use the <strong>&quot;Save as Template&quot;</strong> option from the
-            editor menu.
-          </li>
-        </StepList>
+          <h4 className="text-sm font-semibold">Using templates</h4>
+          <StepList>
+            <li>
+              When creating a new post, you&apos;ll see a <strong>template picker</strong> with
+              built-in formats like Listicles, Story Posts, Hot Takes, and more.
+            </li>
+            <li>
+              Click a template to pre-fill your post editor with a proven structure. Replace the
+              placeholder text with your own content.
+            </li>
+            <li>
+              To <strong>save your own template</strong>, write a post you want to reuse as a
+              structure, then use the <strong>&quot;Save as Template&quot;</strong> option from the
+              editor menu.
+            </li>
+          </StepList>
 
-        <Tip>
-          Templates preserve the structure but not the specific content, so you can reuse the same
-          format across different topics.
-        </Tip>
-      </CollapsibleCard>
+          <Tip>
+            Templates preserve the structure but not the specific content, so you can reuse the same
+            format across different topics.
+          </Tip>
+        </CollapsibleCard>
+      )}
 
       {/* ─── AI Assistant ─── */}
       <div className="space-y-2 pt-4">

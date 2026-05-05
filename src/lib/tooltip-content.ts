@@ -55,7 +55,10 @@ export const EDITOR_TOOLTIPS = {
   // Version management
   saveVersion: { text: "Save the current state as a named version you can return to later" },
   saveAsNewPost: { text: "Create a separate standalone post from the current content" },
-  saveAsTemplate: { text: "Save this post's structure as a reusable template", helpUrl: "/help#templates" },
+  // saveAsTemplate suppressed until POST_TEMPLATES_ENABLED flips post-GTM.
+  // Surface that consumes this is gated by the same flag in posts/[id]/page.tsx
+  // — no code path currently reaches this entry, but keeping the (unused)
+  // tooltip text out of the bundle keeps the marketing surface consistent.
   // AI chat
   showAI: { text: "Open the AI Assistant panel to get help drafting, refining, or improving your post", helpUrl: "/help#ai-assistant" },
   hideAI: { text: "Close the AI Assistant panel" },

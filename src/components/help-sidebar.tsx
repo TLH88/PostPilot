@@ -258,22 +258,11 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
       </>
     ),
   },
-  "templates": {
-    title: "Post Templates",
-    description: "Use built-in templates or save your own post structures",
-    tier: "professional",
-    content: (
-      <>
-        <p>Templates give you a head start on common post formats so you don&apos;t have to start from a blank page.</p>
-        <ol className="list-decimal pl-5 space-y-1">
-          <li>When creating a new post, use the template picker to choose a built-in format</li>
-          <li>Replace the placeholder text with your own content</li>
-          <li>Save your own templates using "Save as Template" in the editor</li>
-        </ol>
-        <p className="text-xs text-muted-foreground">Built-in templates: Story Arc, Hot Take, How-To Guide, Listicle, Question Post, Framework, Lessons Learned, Myth Buster</p>
-      </>
-    ),
-  },
+  // "templates" entry suppressed until POST_TEMPLATES_ENABLED flips
+  // post-GTM. The contextual help framework loads entries by key from
+  // this map, so omitting the entry is sufficient — no caller currently
+  // requests `key === "templates"` since the only surfaces that did
+  // (post editor, onboarding, help page) are themselves flag-gated.
   "ai-assistant": {
     title: "AI Assistant",
     description: "Draft, refine, and improve posts with AI-powered help",

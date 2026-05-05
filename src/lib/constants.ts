@@ -208,13 +208,18 @@ export const TIER_FEATURES = [
   { key: "content_library", name: "Content Library", free: false, personal: false, professional: true, team: true, enterprise: true },
   { key: "hook_analysis", name: "AI Hook Analysis", free: false, personal: true, professional: true, team: true, enterprise: true },
   // Advanced AI Collaboration — added to Pro 2026-05-04 per owner direction.
-  // Replaces Post Templates as the Pro-tier headline AI feature.
-  { key: "ai_collaboration", name: "Advanced AI Collaboration", free: false, personal: false, professional: true, team: true, enterprise: true },
-  // Post Templates moved from Pro → Team-only 2026-05-04 per owner direction.
-  // Pro tier no longer advertises Templates; pricing matrix updated accordingly.
-  { key: "templates", name: "Post Templates", free: false, personal: false, professional: false, team: true, enterprise: true },
+  // Asterisk in name links to the footnote on the pricing page clarifying
+  // that this feature requires BYOK to be configured (BYOK keys are the
+  // only credentials the collaboration agent runs against).
+  { key: "ai_collaboration", name: "Advanced AI Collaboration*", free: false, personal: false, professional: true, team: true, enterprise: true },
+  // Post Templates entirely suppressed until GTM (POST_TEMPLATES_ENABLED in
+  // src/lib/feature-flags.ts). Row removed from TIER_FEATURES so the
+  // pricing page + per-tier card render no longer reference it. Restore
+  // this entry when the flag flips post-GTM.
   { key: "calendar", name: "Content Calendar", free: "View only", personal: true, professional: true, team: true, enterprise: true },
-  { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, personal: false, professional: true, team: true, enterprise: true },
+  // Asterisk → footnote on pricing page (system credits used first; BYOK
+  // is the fallback once the per-tier system allocation is exhausted).
+  { key: "byok", name: "Bring Your Own AI Key (BYOK)*", free: false, personal: false, professional: true, team: true, enterprise: true },
   { key: "ai_models", name: "AI Models", free: "System", personal: "System", professional: "All", team: "All", enterprise: "All" },
   { key: "enhance", name: "AI Enhancement & Hashtags", free: true, personal: true, professional: true, team: true, enterprise: true },
   { key: "support", name: "Support", free: "Community", personal: "Email", professional: "Priority", team: "Priority", enterprise: "Dedicated" },
@@ -228,8 +233,10 @@ export const TIER_FEATURES = [
 export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   content_library: "professional",
   hook_analysis: "personal",
-  // Templates: Pro → Team minimum (2026-05-04 owner direction).
-  templates: "team",
+  // Post Templates entirely suppressed until GTM — gate is now the
+  // POST_TEMPLATES_ENABLED feature flag, not a tier check. Removed from
+  // GATED_FEATURES so callers don't accidentally re-surface the feature
+  // by gating on tier alone. Restore this entry when the flag flips.
   // Advanced AI Collaboration — Pro+ (new headline feature, 2026-05-04).
   ai_collaboration: "professional",
   image_generation: "personal",

@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { type AIProvider } from "@/lib/ai/providers";
 import { useModels } from "@/lib/ai/use-models";
 import { APIKeyHelpDrawer } from "@/components/ai-help/api-key-help-drawer";
+import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
 
 const STEPS = [
   { label: "Basic Info", icon: User },
@@ -1338,30 +1339,35 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              {/* Post Templates */}
-              <div className="rounded-lg border p-4 space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <span className="flex size-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
-                    <Pen className="size-4" />
-                  </span>
-                  Post Templates
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Start your posts with proven structures instead of a blank page. Choose from 8 built-in templates or save your own.
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {["Story Arc", "Hot Take", "How-To Guide", "Listicle", "Question Post", "Framework", "Lessons Learned", "Myth Buster"].map((t) => (
-                    <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
-                  ))}
+              {/* Post Templates — suppressed until GTM (POST_TEMPLATES_ENABLED).
+                  When the flag flips post-GTM, restore this block + reword
+                  the tip below to mention Templates again. */}
+              {POST_TEMPLATES_ENABLED && (
+                <div className="rounded-lg border p-4 space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+                      <Pen className="size-4" />
+                    </span>
+                    Post Templates
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Start your posts with proven structures instead of a blank page. Choose from 8 built-in templates or save your own.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Story Arc", "Hot Take", "How-To Guide", "Listicle", "Question Post", "Framework", "Lessons Learned", "Myth Buster"].map((t) => (
+                      <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    When creating a new post, click &quot;Use Template&quot; to pick a structure. You can also save any post as a template from the editor.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  When creating a new post, click &quot;Use Template&quot; to pick a structure. You can also save any post as a template from the editor.
-                </p>
-              </div>
+              )}
 
               <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Tip:</strong> You can access the Content Library and Templates anytime from the sidebar and post editor. No need to memorize anything now.
+                  <strong>Tip:</strong> You can access the Content Library
+                  {POST_TEMPLATES_ENABLED && " and Templates"} anytime from the sidebar and post editor. No need to memorize anything now.
                 </p>
               </div>
             </CardContent>

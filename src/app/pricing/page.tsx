@@ -424,6 +424,35 @@ export default function PricingPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/*
+            Asterisk key — clarifies the two starred features above
+            (Bring Your Own AI Key and Advanced AI Collaboration).
+            Sits between the pricing cards and the full feature
+            comparison table per owner direction 2026-05-04.
+          */}
+          <div className="mt-10 mx-auto max-w-3xl rounded-md border bg-muted/30 px-5 py-4 text-xs text-muted-foreground">
+            <p className="mb-2 font-semibold uppercase tracking-wider text-foreground/80">
+              Footnotes
+            </p>
+            <ul className="space-y-1.5 leading-relaxed">
+              <li>
+                <span className="font-semibold text-foreground/90">* Bring Your Own AI Key (BYOK):</span>{" "}
+                BYOK is used as a fallback once your tier&apos;s system-provided
+                AI credits for the month are exhausted. Up to that point,
+                Professional, Team, and Enterprise users run on PostPilot&apos;s
+                system AI keys — your BYOK keys are reserved and only spent
+                after the included allocation is fully used.
+              </li>
+              <li>
+                <span className="font-semibold text-foreground/90">* Advanced AI Collaboration:</span>{" "}
+                Requires BYOK to be configured. This feature only operates
+                against user-provided BYOK keys — it does not run on the
+                system AI allocation. Configure your BYOK keys in Settings to
+                enable.
+              </li>
+            </ul>
+          </div>
         </section>
 
         {/* BP-130: Waitlist dialog (Team + Enterprise) */}

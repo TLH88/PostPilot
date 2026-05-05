@@ -25,6 +25,22 @@ export const TEAM_FEATURES_ENABLED =
   process.env.NEXT_PUBLIC_TEAM_FEATURES_ENABLED === "true";
 
 /**
+ * Post Templates feature flag.
+ *
+ * Owner direction 2026-05-04: Post Templates are entirely suppressed
+ * until GTM. The feature lives in code (template picker, save-as-template
+ * dialog, library section, help docs) but is gated off everywhere via
+ * this flag. Re-enable post-GTM by flipping to `true`. No env var — this
+ * is a temporary product decision, not a per-environment toggle.
+ *
+ * NOTE: BP-028 "enhancement templates" (the Enhance dropdown's add-hook,
+ * story-driven, etc. options under `src/lib/ai/enhancement-templates.ts`
+ * and `/api/ai/enhance`) are a SEPARATE concept from Post Templates.
+ * They remain enabled and untouched by this flag.
+ */
+export const POST_TEMPLATES_ENABLED = false;
+
+/**
  * Feature keys (from GATED_FEATURES in constants.ts) that are part of the
  * Team-tier collaboration suite. When TEAM_FEATURES_ENABLED is false,
  * hasFeature() returns false for any key in this list, regardless of the

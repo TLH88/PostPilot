@@ -74,6 +74,7 @@ import { InsertFromLibrary } from "@/components/library/insert-from-library";
 import { SaveToLibraryDialog } from "@/components/library/save-to-library-dialog";
 import { TemplatePicker } from "@/components/posts/template-picker";
 import { SaveAsTemplateDialog } from "@/components/posts/save-as-template-dialog";
+import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
 import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
 import { ImageUpload } from "@/components/posts/image-upload";
 import { ImageViewer } from "@/components/posts/image-viewer";
@@ -2353,18 +2354,20 @@ export default function PostWorkspacePage() {
                       </span>
                     </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!hasFeature(userTier, "templates") || !content.trim()}>
-                    <Tag className="size-3.5 mr-2 mt-0.5 shrink-0" />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center gap-2">
+                  {/* Post Templates suppressed until GTM — POST_TEMPLATES_ENABLED
+                      gates the menu item here, the dialog mount below, and
+                      every other Templates surface. */}
+                  {POST_TEMPLATES_ENABLED && (
+                    <DropdownMenuItem onClick={() => setSaveAsTemplateOpen(true)} disabled={!content.trim()}>
+                      <Tag className="size-3.5 mr-2 mt-0.5 shrink-0" />
+                      <div className="flex flex-col flex-1">
                         <span>Save as Template</span>
-                        {!hasFeature(userTier, "templates") && <span className="ml-auto text-[10px] text-muted-foreground">Personal+</span>}
+                        <span className="text-[10px] text-muted-foreground leading-tight">
+                          Reuse this structure as a starting point for future posts
+                        </span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground leading-tight">
-                        Reuse this structure as a starting point for future posts
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
+                    </DropdownMenuItem>
+                  )}
                   {versions.length > 0 && (
                     <>
                       <DropdownMenuSeparator />
@@ -2785,13 +2788,15 @@ export default function PostWorkspacePage() {
         contentPillars={profile?.content_pillars ?? []}
       />
 
-      {/* Save as Template dialog */}
-      <SaveAsTemplateDialog
-        open={saveAsTemplateOpen}
-        onOpenChange={setSaveAsTemplateOpen}
-        content={content}
-        contentPillar={contentPillars[0] ?? null}
-      />
+      {/* Save as Template dialog — gated by POST_TEMPLATES_ENABLED. */}
+      {POST_TEMPLATES_ENABLED && (
+        <SaveAsTemplateDialog
+          open={saveAsTemplateOpen}
+          onOpenChange={setSaveAsTemplateOpen}
+          content={content}
+          contentPillar={contentPillars[0] ?? null}
+        />
+      )}
 
       {/* Discard blank post dialog */}
       <Dialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
