@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getProviderApiKey } from "@/lib/ai/get-user-ai-client";
 import { logApiError } from "@/lib/api-utils";
-import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
-import type { AISource } from "@/lib/ai/get-user-ai-client";
+import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
-import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
+import { resolveImageProvider } from "@/lib/ai/resolve-ai";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
 
@@ -97,44 +95,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get API key for the selected provider — look up image keys first
-    // (key_type='image' in ai_provider_keys), then fall back to text keys
-    // so users with only a text key configured can still generate images.
-    // `source` tells us whether the resolved key is BYOK or a system key —
-    // BYOK users bypass the system-key image quota (v2, BP-117 Phase B).
-    let apiKey: string;
-    let source: AISource;
-    try {
-      const result = await getProviderApiKey(provider, "image");
-      apiKey = result.apiKey;
-      source = result.source;
-      console.log(`[Image Gen] Using image-type key for ${provider}`);
-    } catch {
-      try {
-        const result = await getProviderApiKey(provider, "text");
-        apiKey = result.apiKey;
-        source = result.source;
-        console.log(`[Image Gen] Falling back to text-type key for ${provider}`);
-      } catch {
-        return NextResponse.json(
-          { error: `No API key configured for ${provider}. Please add it in Settings.` },
-          { status: 400 }
-        );
-      }
+    // BP-045 follow-up: system-first with BYOK image-key fallback.
+    // resolveImageProvider runs the system-path quota + budget checks and
+    // returns either the system env key (when allowed) or a BYOK image
+    // key (when system is blocked but the user has BYOK configured).
+    // Pause on budget no longer locks BYOK-configured Pro+ image users.
+    const imgResult = await resolveImageProvider(provider);
+    if (!imgResult.ok) {
+      return NextResponse.json(imgResult.block.body, {
+        status: imgResult.block.status,
+      });
     }
-
-    // Quota check — only enforced when running on a system key; BYOK bypass.
-    const bypass = source === "byok";
-    const quota = await checkQuota(user.id, "image_generations", { bypass });
-    if (!quota.allowed) {
-      return buildQuotaExceededResponse(quota, "image_generations");
-    }
-
-    // BP-085 Phase 3: per-user $ budget gate.
-    const budget = await checkBudget(user.id);
-    if (!budget.ok) {
-      return NextResponse.json(buildBudgetExceededBody(budget), { status: 402 });
-    }
+    const { apiKey, source, isFallback } = imgResult.resolution;
+    console.log(
+      `[Image Gen] ${provider} via ${source}${isFallback ? " (fallback)" : ""}`,
+    );
     const hook = post.content?.slice(0, 210) ?? "";
     const selectedStyle = artStyle || ART_STYLES[0];
     const format = imageFormat || "landscape";
@@ -338,14 +313,18 @@ export async function POST(request: NextRequest) {
       logApiError("api/ai/generate-image (version insert)", versionError);
     }
 
-    await incrementQuota(user.id, "image_generations", { bypass });
+    // System counters only advance for system-path traffic — BYOK
+    // fallback (`isFallback === true`) doesn't consume system quota.
+    if (!isFallback) {
+      await incrementQuota(user.id, "image_generations");
+    }
 
     logAiUsage({
       userId: user.id,
       route: "generate-image",
       provider,
       model: imageModel ?? "unknown",
-      source: "byok",
+      source,
       success: true,
       imageCount: 1,
       latencyMs: Date.now() - startTime,

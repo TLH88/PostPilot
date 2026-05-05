@@ -312,3 +312,209 @@ export async function resolveAi(
     block: { status: 402, body: { error: "AI access blocked" } },
   };
 }
+
+// ─── Image generation: same system-first / BYOK-fallback semantics ───────
+// Image gen has its own shape (separate `image_ai_*` columns + image-typed
+// rows in `ai_provider_keys`, no gateway pass-through, providers pinned to
+// openai/google), so it gets its own resolver function. The decision flow
+// mirrors `resolveAi` but the key plumbing is image-specific.
+
+export interface ImageProviderResolution {
+  apiKey: string;
+  source: "system_key" | "byok";
+  isFallback: boolean;
+  fallbackReason?: FallbackReason;
+}
+
+/**
+ * Look up a BYOK image key for the given provider. Order of preference:
+ *   1. `ai_provider_keys` where key_type='image'
+ *   2. `ai_provider_keys` where key_type='text' (text keys also work for
+ *      image gen on providers that don't separate them)
+ *   3. Legacy `user_profiles.image_ai_*` columns when image_ai_provider matches
+ *   4. Legacy `user_profiles.ai_*` columns when ai_provider matches
+ *
+ * Returns null when no BYOK key is configured or the user is ineligible
+ * (tier or force_ai_gateway).
+ */
+async function resolveBYOKImageKey(
+  profile: UserProfile,
+  forProvider: AIProvider,
+): Promise<string | null> {
+  const tier = (profile.subscription_tier as SubscriptionTier) ?? "free";
+  if (!hasFeature(tier, "byok_image_keys")) return null;
+  const gatewayAvailable =
+    !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
+  if (profile.force_ai_gateway && gatewayAvailable) return null;
+
+  const supabase = await createClient();
+
+  // 1. Image-typed row in ai_provider_keys.
+  const imgKey = await supabase
+    .from("ai_provider_keys")
+    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+    .eq("user_id", profile.user_id)
+    .eq("provider", forProvider)
+    .eq("key_type", "image")
+    .single();
+  if (imgKey.data) {
+    return decrypt({
+      ciphertext: imgKey.data.api_key_encrypted,
+      iv: imgKey.data.api_key_iv,
+      authTag: imgKey.data.api_key_auth_tag,
+    });
+  }
+
+  // 2. Text-typed row in ai_provider_keys (cross-use).
+  const textKey = await supabase
+    .from("ai_provider_keys")
+    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+    .eq("user_id", profile.user_id)
+    .eq("provider", forProvider)
+    .eq("key_type", "text")
+    .single();
+  if (textKey.data) {
+    return decrypt({
+      ciphertext: textKey.data.api_key_encrypted,
+      iv: textKey.data.api_key_iv,
+      authTag: textKey.data.api_key_auth_tag,
+    });
+  }
+
+  // 3. Legacy single-slot image columns.
+  if (
+    profile.image_ai_provider === forProvider &&
+    profile.image_ai_api_key_encrypted &&
+    profile.image_ai_api_key_iv &&
+    profile.image_ai_api_key_auth_tag
+  ) {
+    return decrypt({
+      ciphertext: profile.image_ai_api_key_encrypted,
+      iv: profile.image_ai_api_key_iv,
+      authTag: profile.image_ai_api_key_auth_tag,
+    });
+  }
+
+  // 4. Legacy single-slot text columns (cross-use).
+  if (
+    profile.ai_provider === forProvider &&
+    profile.ai_api_key_encrypted &&
+    profile.ai_api_key_iv &&
+    profile.ai_api_key_auth_tag
+  ) {
+    return decrypt({
+      ciphertext: profile.ai_api_key_encrypted,
+      iv: profile.ai_api_key_iv,
+      authTag: profile.ai_api_key_auth_tag,
+    });
+  }
+
+  return null;
+}
+
+/**
+ * Image-gen analogue of `resolveAi`. Caller passes the resolved provider
+ * (image-gen is provider-pinned per-request).
+ *
+ * Decision flow:
+ *   1. Run quota + budget against the system path.
+ *   2. If both allow, hand back the system env key for that provider.
+ *   3. If either gate blocks, fall through to a BYOK image key when one
+ *      is configured (and the user is eligible). Annotate the result so
+ *      the route knows to skip `incrementQuota`.
+ *   4. Otherwise return a 402 block.
+ */
+export async function resolveImageProvider(
+  provider: AIProvider,
+): Promise<
+  | { ok: true; resolution: ImageProviderResolution }
+  | { ok: false; block: AiBlock }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { ok: false, block: { status: 401, body: { error: "Unauthorized" } } };
+  }
+
+  const { data: profileRow } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+  if (!profileRow) {
+    return {
+      ok: false,
+      block: { status: 400, body: { error: "Profile not found" } },
+    };
+  }
+  const profile = profileRow as UserProfile;
+
+  const quota = await checkQuota(user.id, "image_generations");
+  const budget = await checkBudget(user.id);
+  const systemKey = SYSTEM_AI_KEYS[provider];
+
+  if (quota.allowed && budget.ok && systemKey && hasActiveSystemAccess(profile)) {
+    return {
+      ok: true,
+      resolution: { apiKey: systemKey, source: "system_key", isFallback: false },
+    };
+  }
+
+  // System blocked or unavailable — try BYOK fallback.
+  const fallbackReason: FallbackReason = !quota.allowed
+    ? "quota_exhausted"
+    : !budget.ok
+      ? budget.reason === "paused"
+        ? "budget_paused"
+        : "budget_over_limit"
+      : "quota_exhausted";
+
+  const byokKey = await resolveBYOKImageKey(profile, provider);
+  if (byokKey) {
+    return {
+      ok: true,
+      resolution: {
+        apiKey: byokKey,
+        source: "byok",
+        isFallback: true,
+        fallbackReason,
+      },
+    };
+  }
+
+  // No BYOK fallback — surface the reason.
+  if (!quota.allowed) {
+    const quotaResp = buildQuotaExceededResponse(quota, "image_generations");
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await quotaResp.json()) as Record<string, unknown>;
+    } catch (err) {
+      logApiError("resolveImageProvider:parse-quota-body", err);
+      body = { error: "Image quota exceeded" };
+    }
+    return { ok: false, block: { status: quotaResp.status, body } };
+  }
+  if (!budget.ok) {
+    return {
+      ok: false,
+      block: {
+        status: 402,
+        body: buildBudgetExceededBody(budget) as unknown as Record<string, unknown>,
+      },
+    };
+  }
+  // System key missing AND no BYOK — the only path is to ask the user to
+  // configure their own provider.
+  return {
+    ok: false,
+    block: {
+      status: 400,
+      body: {
+        error: `No API key configured for ${provider}. Please add it in Settings.`,
+      },
+    },
+  };
+}
