@@ -547,7 +547,7 @@ export default async function DashboardPage() {
             icon={FileText}
             iconColor="text-blue-500"
             iconBg="bg-blue-500/15"
-            sectionBg="bg-blue-500/5 dark:bg-blue-500/[0.07]"
+            sectionBg="bg-blue-500/10 dark:bg-blue-500/[0.12]"
             accentBorder="border-l-blue-500"
             title="Recent Drafts"
             tooltip="Posts you've started but haven't scheduled or published yet. Click any card to pick up where you left off."
@@ -563,7 +563,7 @@ export default async function DashboardPage() {
             icon={Calendar}
             iconColor="text-purple-500"
             iconBg="bg-purple-500/15"
-            sectionBg="bg-purple-500/5 dark:bg-purple-500/[0.07]"
+            sectionBg="bg-purple-500/10 dark:bg-purple-500/[0.12]"
             accentBorder="border-l-purple-500"
             title="Recent Scheduled Posts"
             tooltip="Posts you've queued up to publish automatically at a future date and time."
@@ -592,7 +592,7 @@ export default async function DashboardPage() {
             icon={TrendingUp}
             iconColor="text-emerald-500"
             iconBg="bg-emerald-500/15"
-            sectionBg="bg-emerald-500/5 dark:bg-emerald-500/[0.07]"
+            sectionBg="bg-emerald-500/10 dark:bg-emerald-500/[0.12]"
             accentBorder="border-l-emerald-500"
             title="Recently Posted"
             tooltip="Your most recent posts that have gone live on LinkedIn. Click one to review its analytics."
