@@ -44,12 +44,15 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { NewPostButton } from "@/components/posts/new-post-button";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { cn } from "@/lib/utils";
 import { MobileTabBar } from "@/components/launch-pad/mobile-tab-bar";
 import { MobileFab } from "@/components/launch-pad/mobile-fab";
+import type { SubscriptionTier } from "@/lib/constants";
 
 interface MobileLaunchPadProps {
   userName: string;
+  tier: SubscriptionTier;
 }
 
 /** Mirrors the desktop `LaunchPadHome` greeting bucket so the two
@@ -61,7 +64,7 @@ function computeTimeGreeting(): string {
   return "Good evening";
 }
 
-export function MobileLaunchPad({ userName }: MobileLaunchPadProps) {
+export function MobileLaunchPad({ userName, tier }: MobileLaunchPadProps) {
   const firstName = userName.trim().split(/\s+/)[0] || "there";
 
   // "Welcome" is a stable SSR/hydration-safe fallback; the real
@@ -172,6 +175,12 @@ export function MobileLaunchPad({ userName }: MobileLaunchPadProps) {
               </Link>
             </CardContent>
           </Card>
+
+          {/* BP-045 — Mobile Launch Pad ad surface (primary). Shown for
+              Free + Personal tiers only; AdSlot returns null for Pro+.
+              Sits at the bottom of the card stack, above the FAB +
+              tab-bar gutter (`pb-32` reserved on the parent). */}
+          <AdSlot tier={tier} placement="launch-pad" className="mt-2" />
         </div>
       </div>
 

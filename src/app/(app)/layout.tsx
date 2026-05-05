@@ -9,6 +9,7 @@ import { ReleaseNotesModal } from "@/components/layout/release-notes-modal";
 import { LinkedInStatusBanner } from "@/components/layout/linkedin-status-banner";
 import { PausedBanner } from "@/components/budget/paused-banner";
 import { PausedModal } from "@/components/budget/paused-modal";
+import { AdBlockerGate } from "@/components/ads/ad-blocker-gate";
 import { HelpSidebarProvider } from "@/components/help-sidebar";
 import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
@@ -72,6 +73,12 @@ export default async function AppLayout({
   const pausedAt = budget?.paused_at ?? null;
   const pausedReason = budget?.paused_reason ?? null;
 
+  // BP-045: ad-blocker hard-gate applies only to ad-supported tiers
+  // (Free + Personal). Pro / Team / Enterprise are ad-free and never
+  // see the gate. We pass the determination to the gate component as
+  // a prop so the detection runs only when we actually need it.
+  const adSupportedTier = userTier === "free" || userTier === "personal";
+
   return (
     <HelpSidebarProvider>
       <TutorialBridge userId={user.id}>
@@ -83,6 +90,7 @@ export default async function AppLayout({
         <LinkedInTokenValidator />
         <ReleaseNotesModal />
         <PausedModal userId={user.id} paused={isPaused} pausedAt={pausedAt} />
+        {adSupportedTier && <AdBlockerGate />}
         {/* Sidebar - hidden on mobile */}
         <Sidebar userName={userName} userTier={userTier} />
 

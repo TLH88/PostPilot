@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LaunchPadHome } from "@/components/launch-pad/launch-pad-home";
 import { MobileLaunchPad } from "@/components/launch-pad/mobile-launch-pad";
+import type { SubscriptionTier } from "@/lib/constants";
 
 /**
  * BP-099 — Launch Pad route.
@@ -39,23 +40,24 @@ export default async function LaunchPadPage() {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("full_name")
+    .select("full_name, subscription_tier")
     .eq("user_id", user.id)
     .maybeSingle();
 
   const userName =
     profile?.full_name?.trim() || user.email?.split("@")[0] || "there";
+  const tier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
 
   return (
     <>
       {/* Mobile shell — only rendered visually below `md` (768px). */}
       <div className="md:hidden">
-        <MobileLaunchPad userName={userName} />
+        <MobileLaunchPad userName={userName} tier={tier} />
       </div>
 
       {/* Desktop launcher — unchanged from Phase 1, gated to `md` and up. */}
       <div className="hidden md:block">
-        <LaunchPadHome userName={userName} />
+        <LaunchPadHome userName={userName} tier={tier} />
       </div>
     </>
   );

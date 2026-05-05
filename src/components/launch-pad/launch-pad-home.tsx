@@ -36,10 +36,13 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { NewPostButton } from "@/components/posts/new-post-button";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { cn } from "@/lib/utils";
+import type { SubscriptionTier } from "@/lib/constants";
 
 interface LaunchPadHomeProps {
   userName: string;
+  tier: SubscriptionTier;
 }
 
 /**
@@ -57,7 +60,7 @@ function computeTimeGreeting(): string {
   return "Good evening";
 }
 
-export function LaunchPadHome({ userName }: LaunchPadHomeProps) {
+export function LaunchPadHome({ userName, tier }: LaunchPadHomeProps) {
   const firstName = userName.trim().split(/\s+/)[0] || "there";
 
   // "Welcome" is a stable fallback during initial hydration;
@@ -67,6 +70,8 @@ export function LaunchPadHome({ userName }: LaunchPadHomeProps) {
   // client-only data (theme, time).
   const [greeting, setGreeting] = useState<string>("Welcome");
   useEffect(() => {
+    // One-shot client-only data (matches mobile-launch-pad + notifications-bell pattern).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGreeting(computeTimeGreeting());
   }, []);
 
@@ -215,6 +220,14 @@ export function LaunchPadHome({ userName }: LaunchPadHomeProps) {
               </Link>
             </CardContent>
           </Card>
+        </div>
+
+        {/* BP-045 — Launch Pad ad surface (primary). Renders only for
+            Free + Personal tiers; AdSlot returns null for Pro+. The slot
+            sits below the editorial card row so it never displaces the
+            primary actions. */}
+        <div className="mx-auto mt-12 w-full max-w-3xl">
+          <AdSlot tier={tier} placement="launch-pad" />
         </div>
       </div>
     </div>
