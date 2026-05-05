@@ -53,6 +53,7 @@ import { type AIProvider } from "@/lib/ai/providers";
 import { useModels } from "@/lib/ai/use-models";
 import { APIKeyHelpDrawer } from "@/components/ai-help/api-key-help-drawer";
 import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
+import { ThemePickerCard } from "@/components/onboarding/theme-picker-card";
 
 const STEPS = [
   { label: "Basic Info", icon: User },
@@ -1305,6 +1306,10 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Theme picker — small UI preference, set early so the rest of
+                  onboarding (and the app) renders in their chosen mode. */}
+              <ThemePickerCard />
+
               {/* Content Library */}
               <div className="rounded-lg border p-4 space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
