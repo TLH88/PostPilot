@@ -164,10 +164,24 @@ export default function TermsOfServicePage() {
           constitutes acceptance of the new Terms.
         </p>
 
-        <h2>12. Governing Law</h2>
+        <h2>12. Governing Law and Venue</h2>
         <p>
-          <em>TODO — to be completed during legal review with the
-          appropriate jurisdiction.</em>
+          These Terms, and any dispute arising out of or relating to these
+          Terms or the Service, are governed by the laws of the State of
+          Washington, without regard to its conflict-of-law principles. The
+          parties agree that any such dispute shall be brought exclusively
+          in the state or federal courts located in Clark County,
+          Washington, and consent to the personal jurisdiction and venue of
+          those courts and waive any objection based on inconvenient forum.
+        </p>
+        <p>
+          For users residing in Oregon, the parties may, by mutual written
+          agreement, instead bring such action in the state or federal
+          courts located in Multnomah County, Oregon. PostPilot is operated
+          from and serves the greater Washington and Oregon (Pacific
+          Northwest) region; nothing in this section prevents either party
+          from seeking injunctive or other equitable relief in any court of
+          competent jurisdiction.
         </p>
 
         <h2>13. Contact</h2>
