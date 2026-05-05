@@ -188,45 +188,45 @@ export default function Home() {
         </section>
 
         {/* Product screenshots — see-it-in-action carousel.
-            Size prop controls width: sm | md | lg | xl | 2xl. Swap as
-            placement evolves. */}
+            Section spans the full page width so the 3D peek layout has
+            wing-space on either side of the centered frame for prev/next
+            slide previews to extend into. Size prop controls the frame's
+            max-width, not the section's. */}
         <section className="border-t py-20">
-          <div className="mx-auto max-w-6xl px-6">
-            <div className="mx-auto mb-12 max-w-2xl text-center">
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                See PostPilot in action
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                From the first idea on the launch pad to a published
-                calendar — here&apos;s the workflow.
-              </p>
-            </div>
-            <ScreenshotCarousel
-              size="xl"
-              slides={[
-                {
-                  src: "/images/carousel/launch-pad.png",
-                  alt: "PostPilot Launch Pad — daily focus screen with quick actions",
-                  caption: "Launch Pad — Start every session with intention.",
-                },
-                {
-                  src: "/images/carousel/post-editor.png",
-                  alt: "PostPilot post editor with AI strategist sidebar",
-                  caption: "Post Editor — Write with an AI strategist alongside you.",
-                },
-                {
-                  src: "/images/carousel/calendar.png",
-                  alt: "PostPilot content calendar — monthly view of scheduled posts",
-                  caption: "Content Calendar — See your week and month at a glance.",
-                },
-                {
-                  src: "/images/carousel/analytics.png",
-                  alt: "PostPilot analytics dashboard — engagement, impressions, content pillars",
-                  caption: "Analytics — Track what resonates and double down on what works.",
-                },
-              ]}
-            />
+          <div className="mx-auto mb-12 max-w-2xl px-6 text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              See PostPilot in action
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              From the first idea on the launch pad to a published
+              calendar — here&apos;s the workflow.
+            </p>
           </div>
+          <ScreenshotCarousel
+            size="xl"
+            slides={[
+              {
+                src: "/images/carousel/launch-pad.png",
+                alt: "PostPilot Launch Pad — daily focus screen with quick actions",
+                caption: "Launch Pad — Start every session with intention.",
+              },
+              {
+                src: "/images/carousel/post-editor.png",
+                alt: "PostPilot post editor with AI strategist sidebar",
+                caption: "Post Editor — Write with an AI strategist alongside you.",
+              },
+              {
+                src: "/images/carousel/calendar.png",
+                alt: "PostPilot content calendar — monthly view of scheduled posts",
+                caption: "Content Calendar — See your week and month at a glance.",
+              },
+              {
+                src: "/images/carousel/analytics.png",
+                alt: "PostPilot analytics dashboard — engagement, impressions, content pillars",
+                caption: "Analytics — Track what resonates and double down on what works.",
+              },
+            ]}
+          />
         </section>
 
         {/* AI Provider Logos */}

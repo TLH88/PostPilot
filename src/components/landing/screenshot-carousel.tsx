@@ -184,23 +184,24 @@ export function ScreenshotCarousel({
     }
     if (offset === 1) {
       return {
-        transform: "translateX(80%) scale(0.86) rotateY(-14deg)",
-        opacity: 0.55,
+        transform: "translateX(90%) scale(0.85) rotateY(-14deg)",
+        opacity: 0.7,
         zIndex: 20,
         filter: "blur(1px)",
       };
     }
     if (offset === -1) {
       return {
-        transform: "translateX(-80%) scale(0.86) rotateY(14deg)",
-        opacity: 0.55,
+        transform: "translateX(-90%) scale(0.85) rotateY(14deg)",
+        opacity: 0.7,
         zIndex: 20,
         filter: "blur(1px)",
       };
     }
-    // offset === 2 — hidden far slot used as a transition staging area.
+    // offset === 2 — hidden far slot used as a transition staging area,
+    // parked well off-stage so it never accidentally re-appears.
     return {
-      transform: "translateX(120%) scale(0.7) rotateY(-18deg)",
+      transform: "translateX(180%) scale(0.7) rotateY(-18deg)",
       opacity: 0,
       zIndex: 10,
       filter: "blur(2px)",
@@ -209,7 +210,7 @@ export function ScreenshotCarousel({
 
   return (
     <div
-      className={cn("mx-auto w-full", SIZE_CLASSES[size], className)}
+      className={cn("w-full", className)}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -218,17 +219,21 @@ export function ScreenshotCarousel({
       aria-roledescription="carousel"
       aria-label="Product screenshots"
     >
-      {/* 3D peek stage. perspective lives on this wrapper so the rotated
-          side slides get true depth instead of flat skew. overflow-hidden
-          clips the peeking side slides at the section edges. */}
+      {/* 3D peek stage spans the FULL parent width, with overflow-hidden so
+          side slides extending past the centered frame's edges get clipped
+          at the section bounds (not the frame bounds). The frame inside
+          carries the size= max-width and centers — the active slide fills
+          the frame at scale(1); side slides translate beyond it into the
+          empty wing space. */}
       <div
-        className="relative overflow-hidden px-2 py-4"
+        className="relative overflow-hidden py-4"
         style={{ perspective: "1500px" }}
       >
         <div
           ref={frameRef}
           className={cn(
-            "relative aspect-[16/10] w-full",
+            "relative mx-auto aspect-[16/10]",
+            SIZE_CLASSES[size],
             enableHoverZoom && "cursor-zoom-in",
           )}
           onMouseMove={handleLensMove}
@@ -249,10 +254,10 @@ export function ScreenshotCarousel({
                   if (!isActive) setActive(i);
                 }}
                 className={cn(
-                  // Each slide is 70% of the stage width, baseline-centered
-                  // (left:15% / right:15%). Side slides translate beyond
-                  // the center to peek out either edge — see slotStyle.
-                  "absolute left-[15%] top-0 h-full w-[70%] transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+                  // Slides fill the frame (inset-0). Side slides translate
+                  // beyond the frame edge into the section's wing space —
+                  // see slotStyle for offsets.
+                  "absolute inset-0 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
                   !isActive && slot.visible && "cursor-pointer",
                 )}
                 style={{
@@ -269,6 +274,24 @@ export function ScreenshotCarousel({
                     sizes="(max-width: 1024px) 100vw, 1024px"
                     className="object-cover object-top"
                   />
+                  {/* Caption overlay — only on the active slide. Soft
+                      bottom gradient so the white text reads against any
+                      screenshot. Re-keys on active so it fades in fresh. */}
+                  {isActive && (
+                    <div
+                      key={`caption-${active}`}
+                      aria-live="polite"
+                      className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-8 pt-20 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:px-10 sm:pb-10"
+                      style={{
+                        background:
+                          "linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 45%, transparent 100%)",
+                      }}
+                    >
+                      <p className="text-xl font-semibold leading-snug text-white drop-shadow sm:text-2xl">
+                        {s.caption}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </button>
             );
@@ -301,7 +324,7 @@ export function ScreenshotCarousel({
               type="button"
               onClick={prev}
               aria-label="Previous slide"
-              className="absolute left-4 top-1/2 z-50 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-lg ring-1 ring-foreground/15 backdrop-blur transition-colors hover:bg-background"
+              className="absolute left-4 top-1/2 z-50 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-lg ring-1 ring-foreground/15 backdrop-blur transition-colors hover:bg-background sm:left-8"
             >
               <ChevronLeft className="size-5" aria-hidden />
             </button>
@@ -309,22 +332,13 @@ export function ScreenshotCarousel({
               type="button"
               onClick={next}
               aria-label="Next slide"
-              className="absolute right-4 top-1/2 z-50 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-lg ring-1 ring-foreground/15 backdrop-blur transition-colors hover:bg-background"
+              className="absolute right-4 top-1/2 z-50 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-lg ring-1 ring-foreground/15 backdrop-blur transition-colors hover:bg-background sm:right-8"
             >
               <ChevronRight className="size-5" aria-hidden />
             </button>
           </>
         )}
       </div>
-
-      {/* Caption — re-keys on slide change so the fade-in transition replays. */}
-      <p
-        key={active}
-        aria-live="polite"
-        className="mt-6 text-center text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"
-      >
-        {slide.caption}
-      </p>
 
       {total > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
