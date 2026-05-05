@@ -489,7 +489,7 @@ export default function PricingPage() {
             Edge fades wash the gradient back to bg-background at the
             top and bottom of the section so it doesn't hard-clip against
             the surrounding sections. */}
-        <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-400 via-sky-300 to-cyan-400 py-16">
+        <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 py-16">
           {/* Dot-grid pattern with vignette mask */}
           <div
             aria-hidden="true"
