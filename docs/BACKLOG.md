@@ -106,9 +106,9 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-033** Content pillar ROI dashboard — P3 / Low
 
 ### EPIC 7 — AI Enhancements
-- **BP-026** Trending topics for brainstorming — Fixed (develop) 2026-04-27
+- **BP-026** Trending topics for brainstorming — **Done (main) 2026-04-27** (merge `4ffe791`)
 - **BP-027** Voice consistency validation — P3 / Low
-- **BP-028** Guided enhancement workflows — Fixed (develop) 2026-04-27
+- **BP-028** Guided enhancement workflows — **Done (main) 2026-04-27** (merge `33162f1`; Base UI Menu.Group hotfix `7c2ead0`)
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
 - **BP-140** Personal reference photos for AI image generation — **Deferred (post-GTM) 2026-05-04** — out of GTM critical path per owner. Design preserved, full entry at [docs/plans/POST-GTM-FUTURE-FEATURES.md](plans/POST-GTM-FUTURE-FEATURES.md) [UF-006]
@@ -116,9 +116,9 @@ All Team items deferred until Free→Pro viability is validated.
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-152** Investigate RSC prefetch 503s on first dashboard load — P2 / Medium (Sprint 3 of QA-remediation, investigate-only) [UF-016]
 - **BP-100** Scheduled posts drop images — **Done 2026-04-22 (Edge Function v16, commit `45d36f2`); production-verified by owner 2026-05-04**
-- **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
-- **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
-- **BP-133** Require title before post draft creation — P2 / Medium — **Fixed (develop) 2026-04-26**
+- **BP-110** Cancel in-progress image generation — P2 / Medium — **Done (main) 2026-04-27** (merge `29795d3`)
+- **BP-112** `Button` outline variant footgun — P3 / Low — **Done (main) 2026-04-26** (merge `7d02a25`)
+- **BP-133** Require title before post draft creation — P2 / Medium — **Done (main) 2026-04-26** (merge `ebce720`)
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
@@ -129,6 +129,7 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — **Done 2026-04-25** (`has_library_access` helper + `content_library_builtin_rls_tier_gated` policy applied)
+- **BP-111** Proactive LinkedIn token validation at login — **Done 2026-04-23** (validates token on session resume; surfaces disconnected state via global `LinkedInStatusBanner`)
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — **Done 2026-04-26** (dashboard toggle activated; verified end-to-end via live signup attempt — 403 returned with the expected rejection message)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
@@ -1579,8 +1580,8 @@ Create an interactive guided tutorial that walks new users through onboarding, s
 
 ### BP-036: Emoji Picker in Post Editor
 
-**Status:** Backlog
-**Priority:** P2 / Medium
+**Status:** **Done (shipped pre-2026-04-22 in commit `ff01faf`; 250+ emojis, 9 categories, search; component at `src/components/posts/emoji-picker.tsx`, wired into the editor toolbar via `<EditorToolbar>`)**
+**Priority:** ~~P2 / Medium~~ — Done
 **Re-prioritized:** 2026-04-16 — small win, high visibility. LinkedIn posts use emojis heavily. Ship in Sprint 4.
 **Source:** Owner request
 **Date Added:** 2026-04-02
@@ -1645,8 +1646,8 @@ Users need the ability to manually change a post's status, particularly to mark 
 
 ### BP-045: Third-Party Ad Integration (Free + Personal Tiers)
 
-**Status:** Backlog
-**Priority:** P2 / Medium
+**Status:** **Scaffolding Done 2026-05-04** — `<AdSlot>` (third-party AdSense), `<AdBlockerGate>` (hard-gate Free + Personal), `<UpgradeAd>` (first-party tier-aware Pro upsell carousel), Sponsored cards, sidebar + dashboard + Launch Pad wiring all shipped via develop commits `743e05a`, `b0d16db`, `b2e3c86`, `881847b`, `4a1c7f6`. **Remaining:** flip live by setting `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` env var (placeholder mode until then); confirm AdSense publisher account approval before activation.
+**Priority:** P3 / Low (env-var flip — owner action) · Originally P2 / Medium
 **Re-prioritized:** 2026-05-04 — owner expanded scope to cover both Free **and** Personal tiers (was Free-only); Launch Pad designated as the primary ad surface alongside the original sidebar/dashboard/between-content placements. Un-deferred from Revenue-tier and re-tied to the Subscription Model v2 ad strategy (BP-119).
 **Source:** Owner request (originally 2026-04-04); scope expanded 2026-05-04
 **Date Added:** 2026-04-04 · **Scope expanded:** 2026-05-04
@@ -2730,8 +2731,11 @@ interface TutorialStep {
 
 ### BP-085: AI Usage Monitoring, Cost Analysis & Budget Enforcement (Admin Portal)
 
-**Status:** Phases 1+2 Done — `ai_usage_events` data capture + admin KPI page live (per BP-127 audit 2026-04-24, all 7 AI routes call `logAiUsage()`). Phase 3 (budget enforcement + auto-pause + Team system-key burn alert at $30/mo) remains Backlog. BP-127 (complete logging) + BP-128 (brainstorm prompt caching) shipped 2026-04-24 as follow-ups under this umbrella.
-**Priority:** P1 / High (Phase 3 only)
+**Status:** **Done 2026-05-04** — all three phases shipped.
+- Phases 1+2 (2026-04-15..24): `ai_usage_events` data capture + admin KPI page; BP-127 audit confirmed all 7 AI routes call `logAiUsage()`.
+- Phase 3 (2026-05-04): budget enforcement + auto-pause + Team system-key burn alert + paused-state UX. Shipped via develop commits `c2226cb`, `32bd72c`, `8ed0948`, `e29d73b`, `4ee05a0`; merged `b41939e`. Implementation: `src/lib/ai/budget-check.ts`, `src/lib/ai/budget-evaluator.ts`, `src/app/api/admin/budgets/{route,pause,threshold,alerts/[userId],run-evaluator}/route.ts`, `src/components/budget/{paused-banner,paused-modal}.tsx`, `src/app/admin/budgets/page.tsx`, `src/lib/admin/notify-admins.ts`. Cron route HMAC-secured via `PG_CRON_JWT_SECRET` (same pattern as `process-account-deletions` + `publish-scheduled-posts`).
+- Follow-ups already shipped under this umbrella: BP-127 (complete AI route logging) + BP-128 (Anthropic `cache_control` for brainstorm prompts).
+**Priority:** ~~P1 / High (Phase 3 only)~~ — Done
 **Re-prioritized:** 2026-04-16 — confirmed P1. We're providing managed AI access (BP-054) to alpha users. Without cost telemetry, runaway usage could quietly bleed the business. Scope down to Phase 1 (data capture) + minimal admin KPI page. Defer the budget enforcement and upsell intelligence layers.
 **Source:** Owner — need visibility into AI spend, abuse detection, and upsell opportunities
 **Date Added:** 2026-04-11
@@ -3630,8 +3634,11 @@ This is a Phase T4 enhancement per ROADMAP. Listed here as a tracked deferred it
 
 ### BP-097: Playwright E2E for Free→Pro Happy Path
 
-**Status:** Phases 1 + 3 Done (CI pipeline proven green end-to-end via run 24886136028 on 2026-04-24). Phase 2 partially shipped 2026-04-24: create-schedule + posted-analytics specs + seeder fixture + AI-route stubbing + cleanup helpers. **auth-onboarding.spec.ts deliberately deferred** — the 6-step multi-page onboarding form deserves its own focused session of selector work.
-**Priority:** P1 / High
+**Status:** **Done 2026-05-04** — all three phases shipped end-to-end.
+- Phases 1 + 3 (2026-04-24): scaffold, smoke spec, GitHub Actions pipeline (`.github/workflows/e2e.yml`), Vercel preview URL polling, magic-link helper, idempotent test-user seeder. CI proven green via run 24886136028.
+- Phase 2 (2026-04-24..05-04): create-schedule + posted-analytics specs shipped 2026-04-24; auth-onboarding.spec.ts (6-step wizard walkthrough) merged via `b2bd3ac` 2026-05-04. Brittle `getByRole("heading", …)` lookups against `<CardTitle>` divs were fixed 2026-05-05 (commit `8ac6adf`) when shadcn's slot-based primitives caused them to silently break.
+- Active spec set: `tests/e2e/{smoke,create-schedule,posted-analytics,auth-onboarding}.spec.ts` + helpers + global setup. CI runs on every push to develop and PR to develop/main.
+**Priority:** ~~P1 / High~~ — Done
 **Re-prioritized:** 2026-04-16 — re-scoped from Team-collaboration E2E to Free→Pro happy path. The Team test waits behind BP-098.
 **Source:** [2026-04-16 Review] — Lead synthesis improvement opportunity I4 (re-scoped)
 **Date Added:** 2026-04-16
@@ -4654,8 +4661,10 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 
 ### BP-119: Ad Placement Evaluation + Integration (Free + Personal Tiers)
 
-**Status:** Phase 1 Done (2026-04-24 — evaluation memo shipped). Phase 2 (integration) still Backlog; pending owner sign-off on memo decisions.
-**Priority:** P2 / Medium for Phase 1 (evaluation — complete); Phase 2 (integration) stays P2 until we're ready to monetize Free tier post-GTM
+**Status:** **Done 2026-05-04** — both phases shipped.
+- Phase 1 (2026-04-24): evaluation memo at `docs/ad-strategy/2026-04-ad-placement-evaluation.md`.
+- Phase 2 (2026-04-24..05-04): integration shipped via develop commits `743e05a`, `b0d16db`, `b2e3c86`, `881847b`, `4a1c7f6`. Components: `<AdSlot>` (third-party AdSense), `<AdBlockerGate>` (hard-gate for Free + Personal — Pro+ never sees it), `<UpgradeAd>` (first-party tier-aware Pro upsell carousel — Free sees alternating Personal+Pro slides; Personal sees static Pro). Wiring: sidebar (gated by `userTier === free|personal`), dashboard banner, Sponsored cards across ideas/posts/Launch Pad. AdBlockerGate gating respects tier (Pro/Team/Enterprise are ad-free).
+**Priority:** ~~P2 / Medium~~ — Done
 **Source:** Owner pricing pivot 2026-04-24; scope formalized 2026-04-24 into evaluation + integration phases per owner request
 **Date Added:** 2026-04-24 · **Phase 1 Completed:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1)
