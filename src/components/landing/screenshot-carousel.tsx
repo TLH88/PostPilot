@@ -8,9 +8,13 @@
  *
  * Sizing is preset-based via the `size` prop. Pick the named bucket that
  * matches the section width, or pass your own `className` to override.
+ *
+ * Hover zoom: when `enableHoverZoom` is on (default), a circular lens
+ * follows the cursor and shows the underlying screenshot zoomed in. Use
+ * `lensSize` (px diameter) and `zoom` (multiplier) to tune.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,6 +45,12 @@ interface ScreenshotCarouselProps {
   intervalMs?: number;
   /** Override classes — useful for custom max-width or margin tweaks. */
   className?: string;
+  /** Show a magnifier lens that follows the cursor. Default true. */
+  enableHoverZoom?: boolean;
+  /** Diameter of the lens in pixels. Default 220. */
+  lensSize?: number;
+  /** Zoom multiplier inside the lens. Default 2.5x. */
+  zoom?: number;
 }
 
 export function ScreenshotCarousel({
@@ -48,9 +58,18 @@ export function ScreenshotCarousel({
   size = "xl",
   intervalMs = 5000,
   className,
+  enableHoverZoom = true,
+  lensSize = 220,
+  zoom = 2.5,
 }: ScreenshotCarouselProps) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
+  const [frameSize, setFrameSize] = useState<{ w: number; h: number }>({
+    w: 0,
+    h: 0,
+  });
+  const frameRef = useRef<HTMLDivElement>(null);
 
   const total = slides.length;
   const next = useCallback(() => setActive((i) => (i + 1) % total), [total]);
@@ -71,6 +90,34 @@ export function ScreenshotCarousel({
     return () => window.clearInterval(id);
   }, [paused, next, intervalMs, total]);
 
+  // Track the rendered frame size so the lens can compute the zoomed
+  // background-image position correctly even after viewport resize.
+  useEffect(() => {
+    if (!enableHoverZoom) return;
+    const node = frameRef.current;
+    if (!node) return;
+    const update = () => {
+      setFrameSize({ w: node.clientWidth, h: node.clientHeight });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [enableHoverZoom]);
+
+  function handleLensMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!enableHoverZoom) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setLensPos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  }
+
+  function handleLensLeave() {
+    setLensPos(null);
+  }
+
   if (total === 0) return null;
   const slide = slides[active];
 
@@ -86,7 +133,15 @@ export function ScreenshotCarousel({
       aria-label="Product screenshots"
     >
       <div className="relative overflow-hidden rounded-xl border bg-card shadow-lg ring-1 ring-foreground/5">
-        <div className="relative aspect-[16/10] w-full bg-muted">
+        <div
+          ref={frameRef}
+          className={cn(
+            "relative aspect-[16/10] w-full bg-muted",
+            enableHoverZoom && "cursor-zoom-in",
+          )}
+          onMouseMove={handleLensMove}
+          onMouseLeave={handleLensLeave}
+        >
           {slides.map((s, i) => (
             <Image
               key={s.src}
@@ -101,6 +156,26 @@ export function ScreenshotCarousel({
               )}
             />
           ))}
+
+          {enableHoverZoom &&
+            lensPos &&
+            frameSize.w > 0 &&
+            frameSize.h > 0 && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute rounded-full border-2 border-white/85 shadow-2xl ring-1 ring-foreground/30"
+                style={{
+                  width: lensSize,
+                  height: lensSize,
+                  left: lensPos.x - lensSize / 2,
+                  top: lensPos.y - lensSize / 2,
+                  backgroundImage: `url(${slide.src})`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundSize: `${frameSize.w * zoom}px ${frameSize.h * zoom}px`,
+                  backgroundPosition: `${-(lensPos.x * zoom - lensSize / 2)}px ${-(lensPos.y * zoom - lensSize / 2)}px`,
+                }}
+              />
+            )}
         </div>
 
         {total > 1 && (
