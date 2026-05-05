@@ -15,6 +15,7 @@ import { POST_STATUSES, type SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { PostActions } from "@/components/posts/post-actions";
+import { SponsoredCard } from "@/components/ads/sponsored-card";
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -324,6 +325,18 @@ export default async function PostsPage() {
             <EmptyState />
           ) : (
             <div id="tour-posts-cards" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/*
+                BP-045 — Top-row, far-right Sponsored card. Free-tier only
+                (SponsoredCard self-gates). With `lg:col-start-3 lg:row-start-1`
+                + `md:col-start-2 md:row-start-1` it lands in the rightmost
+                cell of the first row on tablet/desktop layouts; auto-
+                placement of the post cards then fills the remaining slots.
+              */}
+              <SponsoredCard
+                tier={userTier}
+                placement="between-content"
+                className="md:col-start-2 md:row-start-1 lg:col-start-3"
+              />
               {inWorkPosts.map((post) => (
                 <PostCard key={post.id} post={post} userTier={userTier} />
               ))}

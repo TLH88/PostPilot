@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId, applyWorkspaceFilter } from "@/lib/workspace";
 import { logActivity } from "@/lib/activity";
-import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority } from "@/lib/constants";
+import { IDEA_STATUSES, IDEA_PRIORITIES, type IdeaPriority, type SubscriptionTier } from "@/lib/constants";
+import { SponsoredCard } from "@/components/ads/sponsored-card";
 import type { Idea } from "@/types";
 import { TagInput } from "@/components/ui/tag-input";
 import { CreateIdeaDialog } from "@/components/ideas/create-idea-dialog";
@@ -273,6 +274,10 @@ export default function IdeasPage() {
   const [loading, setLoading] = useState(true);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [contentPillars, setContentPillars] = useState<string[]>([]);
+  // BP-045: tier drives whether the SponsoredCard renders in the grid.
+  // Default to "free" until the profile fetch resolves so the most-
+  // common case (free user sees ad) doesn't flash an empty state.
+  const [userTier, setUserTier] = useState<SubscriptionTier>("free");
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("open");
@@ -343,13 +348,17 @@ export default function IdeasPage() {
         ideasQuery,
         supabase
           .from("user_profiles")
-          .select("content_pillars")
+          .select("content_pillars, subscription_tier")
           .eq("user_id", user.id)
           .single(),
       ]);
 
       setIdeas((ideasResult.data as Idea[]) ?? []);
       setContentPillars(profileResult.data?.content_pillars ?? []);
+      const tierValue = profileResult.data?.subscription_tier;
+      if (typeof tierValue === "string") {
+        setUserTier(tierValue as SubscriptionTier);
+      }
       setLoading(false);
     }
 
@@ -943,6 +952,16 @@ export default function IdeasPage() {
         )
       ) : (
         <div id="tour-idea-card" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/*
+            BP-045 — Top-row, far-right Sponsored card. Free-tier only
+            (SponsoredCard self-gates). Grid-placement classes pin it to
+            the rightmost cell of the first row on tablet/desktop.
+          */}
+          <SponsoredCard
+            tier={userTier}
+            placement="between-content"
+            className="md:col-start-2 md:row-start-1 lg:col-start-3"
+          />
           {sortedIdeas.map((idea) => {
             const status =
               IDEA_STATUSES[idea.status as keyof typeof IDEA_STATUSES];

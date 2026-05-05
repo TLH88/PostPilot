@@ -30,7 +30,8 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { POST_STATUSES } from "@/lib/constants";
+import { POST_STATUSES, type SubscriptionTier } from "@/lib/constants";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { ContentPillarBalance } from "@/components/dashboard/content-pillar-balance";
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { ActivityFeed } from "@/components/activity/activity-feed";
@@ -201,10 +202,11 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "full_name, onboarding_completed, ai_provider, ai_model, ai_api_key_encrypted, force_ai_gateway, managed_ai_access, managed_ai_expires_at, account_status, trial_ends_at"
+      "full_name, onboarding_completed, ai_provider, ai_model, ai_api_key_encrypted, force_ai_gateway, managed_ai_access, managed_ai_expires_at, account_status, trial_ends_at, subscription_tier"
     )
     .eq("user_id", user.id)
     .single();
+  const userTier = (profile?.subscription_tier as SubscriptionTier) ?? "free";
 
   // Best-effort onboarding step fetch — separate query so this degrades
   // gracefully if the column hasn't been migrated yet.
@@ -570,6 +572,19 @@ export default async function DashboardPage() {
             viewAllLabel="View all scheduled"
             emptyTitle="Nothing on the schedule"
             emptyBody="Line up a draft for a future date and it'll show up here."
+          />
+
+          {/*
+            BP-045 — Dashboard banner ad. Free-tier only (AdSlot self-
+            gates: Personal sees nothing here because "Limited" density
+            is restricted to launch-pad in v1; Pro+ never see ads).
+            Sits between Recent Scheduled Posts and Recently Posted per
+            owner direction 2026-05-04.
+          */}
+          <AdSlot
+            tier={userTier}
+            placement="dashboard"
+            className="my-2"
           />
 
           {/* Recently Posted */}

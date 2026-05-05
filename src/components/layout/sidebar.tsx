@@ -28,6 +28,7 @@ import { hasFeature } from "@/lib/feature-gate";
 import { TEAM_FEATURES_ENABLED } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { UpgradeAd } from "@/components/ads/upgrade-ad";
 
 const iconMap: Record<string, LucideIcon> = {
   Rocket,
@@ -121,6 +122,18 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/*
+        BP-045 — Pro upgrade promotional unit. First-party content
+        (no AdSense), so ad-blockers don't affect it. Shown to the two
+        ad-supported tiers (Free + Personal); Pro / Team / Enterprise
+        never see it.
+      */}
+      {(userTier === "free" || userTier === "personal") && (
+        <div className="px-3 pb-2">
+          <UpgradeAd />
+        </div>
+      )}
 
       <Separator />
 
