@@ -208,7 +208,7 @@ export default function PricingPage() {
       }
 
       toast.success(`Your ${tier.charAt(0).toUpperCase() + tier.slice(1)} trial has started! You have ${data.days} days of full access.`);
-      router.push("/dashboard");
+      router.push("/launch-pad");
     } catch {
       toast.error("Failed to start trial");
     } finally {
@@ -271,10 +271,10 @@ export default function PricingPage() {
             <ThemeToggle />
             {userState?.loggedIn ? (
               <Link
-                href="/dashboard"
+                href="/launch-pad"
                 className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
               >
-                Dashboard
+                Open App
               </Link>
             ) : (
               <>

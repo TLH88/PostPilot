@@ -7,7 +7,17 @@ import { logApiError } from "@/lib/api-utils";
 // BP-145: same allowlist as src/app/api/linkedin/connect/route.ts. We re-validate
 // here in case the cookie was tampered with — the cookie is httpOnly + signed
 // by the browser to our domain, but defense-in-depth on a redirect target is cheap.
-const RETURN_TO_ALLOWLIST = ["/posts/recovery", "/posts", "/calendar", "/dashboard", "/settings"];
+const RETURN_TO_ALLOWLIST = [
+  "/posts/recovery",
+  "/posts",
+  "/calendar",
+  "/dashboard",
+  "/launch-pad",
+  "/ideas",
+  "/help",
+  "/settings",
+  "/workspace",
+];
 
 function isSafeReturnTo(value: string): boolean {
   if (!value.startsWith("/") || value.startsWith("//")) return false;
@@ -149,8 +159,13 @@ export async function GET(request: NextRequest) {
       return clearOauthCookies(NextResponse.redirect(target));
     }
 
-    settingsUrl.searchParams.set("linkedin", "connected");
-    return clearOauthCookies(NextResponse.redirect(settingsUrl));
+    // No recovery context — the OAuth round-trip wasn't initiated from a
+    // banner click on a specific page. Land on Launch Pad (the standard
+    // post-action destination) with a flash flag so the user sees the
+    // success state.
+    const launchPadUrl = new URL("/launch-pad", origin);
+    launchPadUrl.searchParams.set("linkedin", "connected");
+    return clearOauthCookies(NextResponse.redirect(launchPadUrl));
   } catch (error) {
     logApiError("api/linkedin/callback", error);
     if (recoveryCtx) {

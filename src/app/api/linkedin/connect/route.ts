@@ -4,8 +4,20 @@ import { logApiError } from "@/lib/api-utils";
 
 // BP-145: Allowlist of return_to prefixes for the OAuth round-trip. Anything
 // not on this list is rejected to prevent open-redirect via the
-// linkedin_recovery_context cookie.
-const RETURN_TO_ALLOWLIST = ["/posts/recovery", "/posts", "/calendar", "/dashboard", "/settings"];
+// linkedin_recovery_context cookie. Covers all user-facing app routes so a
+// reconnect from any page returns the user to where they were — see also
+// the matching list in src/app/api/linkedin/callback/route.ts.
+const RETURN_TO_ALLOWLIST = [
+  "/posts/recovery",
+  "/posts",
+  "/calendar",
+  "/dashboard",
+  "/launch-pad",
+  "/ideas",
+  "/help",
+  "/settings",
+  "/workspace",
+];
 
 function isSafeReturnTo(value: string | null): value is string {
   if (!value) return false;

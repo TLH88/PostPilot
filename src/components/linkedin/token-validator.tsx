@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LinkedInConnectDialog } from "./connect-dialog";
 
@@ -28,6 +28,7 @@ const FOCUS_REVALIDATE_MIN_MS = 5 * 60 * 1000; // 5 minutes
  */
 export function LinkedInTokenValidator() {
   const router = useRouter();
+  const pathname = usePathname();
   const [dialogOpen, setDialogOpen] = useState(false);
   const lastFocusValidateRef = useRef<number>(0);
 
@@ -93,6 +94,7 @@ export function LinkedInTokenValidator() {
       open={dialogOpen}
       onOpenChange={setDialogOpen}
       reason="revoked"
+      returnTo={pathname ?? undefined}
     />
   );
 }

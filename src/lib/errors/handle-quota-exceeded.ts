@@ -1,25 +1,21 @@
 /**
- * BP-117 Phase C — client-side handler for 402 quota-exceeded responses
- * emitted by `buildQuotaExceededResponse()` in src/lib/quota.ts.
+ * Client-side handler for 402 quota-exceeded responses emitted by
+ * `buildQuotaExceededResponse()` in src/lib/quota.ts.
  *
- * Reads the structured body and drives a tier-aware toast with the right
- * upgrade CTA:
- *   upgradePath = "byok"         → suggest configuring a personal API key
- *   upgradePath = "higher_tier"  → suggest upgrading to a higher plan
+ * Dispatches a global `postpilot:quota-exceeded` CustomEvent that
+ * `<QuotaReachedModal>` (mounted in app/layout.tsx) listens for and renders
+ * a tier-aware upgrade modal. Falls back to a toast if no modal is mounted
+ * (defensive — e.g. an admin route that doesn't include the provider).
  *
  * Usage at a fetch call site:
  *
  *   const res = await fetch("/api/ai/brainstorm", { ... });
- *   if (res.status === 402) {
- *     await handleQuotaExceededResponse(res);
- *     return;
- *   }
- *   if (!res.ok) { ... }
- *
- * Never throws; always consumes the body and surfaces a toast.
+ *   if (await maybeHandleQuotaExceeded(res)) return;
  */
 
 import { toast } from "sonner";
+
+export const QUOTA_EXCEEDED_EVENT = "postpilot:quota-exceeded";
 
 export interface QuotaExceededBody {
   error: string;
@@ -52,6 +48,28 @@ function labelForQuotaType(quotaType: string | undefined): string {
   }
 }
 
+/** Fallback toast for environments where the modal provider isn't mounted. */
+function toastFallback(body: QuotaExceededBody) {
+  const featureLabel = labelForQuotaType(body.quotaType);
+  const headline = `You've used all your ${featureLabel} this month (${body.used}/${body.limit}).`;
+  toast.error(headline, {
+    description:
+      body.upgradePath === "byok"
+        ? "Add your own AI provider key in Settings → AI Model for unlimited usage."
+        : "Upgrade your plan to keep creating.",
+    action: {
+      label: body.upgradePath === "byok" ? "Add key" : "View plans",
+      onClick: () => {
+        if (typeof window !== "undefined") {
+          window.location.href =
+            body.upgradePath === "byok" ? "/settings" : "/pricing";
+        }
+      },
+    },
+    duration: 8000,
+  });
+}
+
 export async function handleQuotaExceededResponse(res: Response): Promise<void> {
   const body = await readBody(res);
 
@@ -65,35 +83,26 @@ export async function handleQuotaExceededResponse(res: Response): Promise<void> 
     return;
   }
 
-  const featureLabel = labelForQuotaType(body.quotaType);
-  const headline = `You've used all your ${featureLabel} this month (${body.used}/${body.limit}).`;
+  if (typeof window === "undefined") return;
 
-  if (body.upgradePath === "byok") {
-    toast.error(headline, {
-      description:
-        "Add your own AI provider key in Settings → AI Model for unlimited usage.",
-      action: {
-        label: "Add key",
-        onClick: () => {
-          if (typeof window !== "undefined") window.location.href = "/settings";
-        },
-      },
-      duration: 8000,
-    });
-    return;
-  }
-
-  // higher_tier — Free / Personal / Team
-  toast.error(headline, {
-    description: "Upgrade your plan to keep creating.",
-    action: {
-      label: "View plans",
-      onClick: () => {
-        if (typeof window !== "undefined") window.location.href = "/pricing";
-      },
-    },
-    duration: 8000,
+  // Dispatch the modal event. If nothing's listening (rare — modal is mounted
+  // in app/layout.tsx), fall back to the legacy toast so the user still gets
+  // a signal. We detect "nothing listening" via a one-shot boolean flipped by
+  // the modal's listener through a synchronous follow-up event.
+  const detail = body as QuotaExceededBody;
+  let handled = false;
+  const ackHandler = () => {
+    handled = true;
+  };
+  window.addEventListener("postpilot:quota-exceeded:ack", ackHandler, {
+    once: true,
   });
+  window.dispatchEvent(
+    new CustomEvent(QUOTA_EXCEEDED_EVENT, { detail })
+  );
+  // Listener acks synchronously inside the dispatch tick, so by here we know.
+  window.removeEventListener("postpilot:quota-exceeded:ack", ackHandler);
+  if (!handled) toastFallback(detail);
 }
 
 /**
