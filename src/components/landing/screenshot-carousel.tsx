@@ -47,7 +47,7 @@ interface ScreenshotCarouselProps {
   className?: string;
   /** Show a magnifier lens that follows the cursor. Default true. */
   enableHoverZoom?: boolean;
-  /** Diameter of the lens in pixels. Default 220. */
+  /** Diameter of the lens in pixels. Default 450. */
   lensSize?: number;
   /** Zoom multiplier inside the lens. Default 2.5x. */
   zoom?: number;
@@ -59,7 +59,7 @@ export function ScreenshotCarousel({
   intervalMs = 5000,
   className,
   enableHoverZoom = true,
-  lensSize = 220,
+  lensSize = 450,
   zoom = 2.5,
 }: ScreenshotCarouselProps) {
   const [active, setActive] = useState(0);
