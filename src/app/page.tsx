@@ -125,7 +125,7 @@ export default function Home() {
                                       blur, backdrop-blur-sm for less
           */}
           <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 sm:pt-32">
-            <div className="mx-auto max-w-2xl rounded-2xl border border-foreground/10 bg-background/55 px-6 py-10 text-center shadow-2xl shadow-primary/10 backdrop-blur-md sm:px-12 sm:py-14">
+            <div className="max-w-2xl rounded-2xl border border-foreground/10 bg-background/40 px-6 py-10 text-left shadow-2xl shadow-primary/10 backdrop-blur-md sm:px-12 sm:py-14">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
                 <Send className="size-3.5 text-primary" />
                 AI-Powered LinkedIn Content
@@ -134,12 +134,12 @@ export default function Home() {
                 Your AI-powered LinkedIn{" "}
                 <span className="text-primary">content partner</span>
               </h1>
-              <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              <p className="mt-6 text-lg leading-8 text-foreground">
                 PostPilot helps you brainstorm, draft, and schedule high-performing
                 LinkedIn posts. Spend less time writing and more time building your
                 professional brand.
               </p>
-              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <Link
                   href="/pricing"
                   className="inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 sm:w-auto"
