@@ -74,19 +74,21 @@ export function WorkspaceSwitcher() {
           render={
             <Button
               variant="outline"
-              className="w-full justify-between gap-2 text-xs h-8"
+              className="w-full justify-between gap-2 text-xs h-8 px-2"
             />
           }
         >
-          <span className="flex items-center gap-1.5 truncate">
+          <span className="flex min-w-0 items-center gap-1.5">
             {isPersonal ? (
               <User className="size-3 shrink-0" />
             ) : (
               <Building2 className="size-3 shrink-0" />
             )}
-            {displayName}
+            <span className="truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100">
+              {displayName}
+            </span>
           </span>
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuGroup>

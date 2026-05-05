@@ -60,8 +60,8 @@ export const EDITOR_TOOLTIPS = {
   // — no code path currently reaches this entry, but keeping the (unused)
   // tooltip text out of the bundle keeps the marketing surface consistent.
   // AI chat
-  showAI: { text: "Open the AI Assistant panel to get help drafting, refining, or improving your post", helpUrl: "/help#ai-assistant" },
-  hideAI: { text: "Close the AI Assistant panel" },
+  showAI: { text: "Open the Post Pilot AI panel to get help drafting, refining, or improving your post", helpUrl: "/help#ai-assistant" },
+  hideAI: { text: "Close the Post Pilot AI panel" },
   applyToEditor: { text: "Replace the editor content with this AI-generated draft" },
   // Status actions
   schedule: { text: "Set a date and time for this post to be automatically published to LinkedIn", helpUrl: "/help#scheduling" },

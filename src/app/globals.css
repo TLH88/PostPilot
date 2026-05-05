@@ -185,6 +185,39 @@
   box-shadow: none !important;
 }
 
+/* Studio AI — animated reading-bar sweep used while a draft review is
+   in flight. Lifted from the BP-144 finalist mockup. */
+@keyframes ai-scan {
+  0%   { transform: translateX(-100%); opacity: 0.5; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+.ai-reading-bar {
+  position: relative;
+  overflow: hidden;
+}
+.ai-reading-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--primary) 25%, transparent),
+    transparent
+  );
+  animation: ai-scan 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Studio AI — subtle pulsing dot for the "current activity" indicator. */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2.2s ease-in-out infinite;
+}
+
 /* Infinite scrolling marquee */
 @keyframes marquee-scroll {
   0% {

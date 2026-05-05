@@ -76,41 +76,45 @@ export default function HelpPage() {
         </p>
       </div>
 
-      {/* Security note */}
-      <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <p className="text-sm text-amber-900 dark:text-amber-200">
-          Never share your API keys publicly or commit them to version control. PostPilot encrypts
-          your key with AES-256-GCM and only uses it server-side.
-        </p>
-      </div>
-
       {/* ─── Guided Tours ─── */}
-      <div className="space-y-2 pt-2">
-        <div className="flex items-center gap-2">
-          <Play className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold">Guided Tours</h2>
+      <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Play className="size-5 text-primary" />
+            <h2 className="text-lg font-semibold">Guided Tours</h2>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Interactive walkthroughs that show you how each part of PostPilot works.
+            Restart any tour at any time.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Interactive walkthroughs that show you how each part of PostPilot works.
-          Restart any tour at any time.
-        </p>
-      </div>
-      <TutorialRestartSection />
+        <TutorialRestartSection />
+      </section>
 
       {/* ─── Finding & Creating Personal AI Provider API Keys ─── */}
-      <div className="space-y-2 pt-4">
-        <div className="flex items-center gap-2">
-          <KeyRound className="size-5 text-primary" />
-          <h2 id="api-keys" className="text-lg font-semibold">Finding &amp; Creating Personal AI Provider API Keys</h2>
+      <section id="api-keys" className="space-y-4 rounded-xl border bg-muted/30 p-5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <KeyRound className="size-5 text-primary" />
+            <h2 className="text-lg font-semibold">Finding &amp; Creating Personal AI Provider API Keys</h2>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            On the Professional plan you can bring your own API key (BYOK) for each supported AI
+            provider. The guides below walk you through creating, accessing, and billing keys for
+            OpenAI, Anthropic, Google, and Perplexity. Personal-plan users don&apos;t need to follow
+            these steps — you&apos;re on PostPilot&apos;s managed system keys.
+          </p>
+
+          {/* Security note — kept next to the BYOK guides where it's most
+              relevant. */}
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              Never share your API keys publicly or commit them to version control. PostPilot encrypts
+              your key with AES-256-GCM and only uses it server-side.
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          On the Professional plan you can bring your own API key (BYOK) for each supported AI
-          provider. The guides below walk you through creating, accessing, and billing keys for
-          OpenAI, Anthropic, Google, and Perplexity. Personal-plan users don&apos;t need to follow
-          these steps — you&apos;re on PostPilot&apos;s managed system keys.
-        </p>
-      </div>
 
       {/* ─── Anthropic ─── */}
       <CollapsibleCard
@@ -350,13 +354,16 @@ export default function HelpPage() {
         </Tip>
       </CollapsibleCard>
 
+      </section>
+
       {/* ─── LinkedIn Analytics Import ─── */}
-      <div className="space-y-2 pt-4">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold">Importing Analytics</h2>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+      <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="size-5 text-primary" />
+            <h2 className="text-lg font-semibold">Importing Analytics</h2>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
           PostPilot can import your LinkedIn post performance data so you can track engagement
           and identify your best-performing content.
         </p>
@@ -437,8 +444,11 @@ export default function HelpPage() {
         </Tip>
       </CollapsibleCard>
 
+      </section>
+
       {/* ─── Getting Started ─── */}
-      <div className="space-y-2 pt-4">
+      <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Lightbulb className="size-5 text-primary" />
           <h2 id="getting-started" className="text-lg font-semibold">Getting Started</h2>
@@ -528,7 +538,7 @@ export default function HelpPage() {
             copies, or save as a reusable template.
           </li>
           <li>
-            Click <strong>&quot;Show AI&quot;</strong> to open the AI Assistant panel. The AI has
+            Click <strong>&quot;Show AI&quot;</strong> to open the Post Pilot AI panel. The AI has
             full context of your post (title, content, status, hashtags, content pillar) and can
             help you draft, refine, or improve your writing.
           </li>
@@ -595,8 +605,11 @@ export default function HelpPage() {
         </Tip>
       </CollapsibleCard>
 
+      </section>
+
       {/* ─── Content Tools ─── */}
-      <div className="space-y-2 pt-4">
+      <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <BookOpen className="size-5 text-primary" />
           <h2 className="text-lg font-semibold">Content Tools</h2>
@@ -699,20 +712,23 @@ export default function HelpPage() {
         </CollapsibleCard>
       )}
 
-      {/* ─── AI Assistant ─── */}
-      <div className="space-y-2 pt-4">
+      </section>
+
+      {/* ─── Post Pilot AI ─── */}
+      <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Bot className="size-5 text-primary" />
-          <h2 id="ai-assistant" className="text-lg font-semibold">AI Assistant</h2>
+          <h2 id="ai-assistant" className="text-lg font-semibold">Post Pilot AI</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          The AI Assistant helps you draft, refine, and improve your LinkedIn posts using your
+          Post Pilot AI helps you draft, refine, and improve your LinkedIn posts using your
           personal voice and style.
         </p>
       </div>
 
       <CollapsibleCard
-        title="Using the AI Assistant"
+        title="Using Post Pilot AI"
         description="Voice profiles, quick suggestions, and applying AI drafts"
         defaultOpen={false}
       >
@@ -754,8 +770,11 @@ export default function HelpPage() {
         </Tip>
       </CollapsibleCard>
 
+      </section>
+
       {/* ─── Scheduling & Calendar ─── */}
-      <div className="space-y-2 pt-4">
+      <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <CalendarDays className="size-5 text-primary" />
           <h2 id="scheduling" className="text-lg font-semibold">Scheduling &amp; Calendar</h2>
@@ -817,6 +836,7 @@ export default function HelpPage() {
           as &quot;Past Due&quot; on the Posts page so you can quickly republish or reschedule them.
         </Tip>
       </CollapsibleCard>
+      </section>
     </div>
   );
 }

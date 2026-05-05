@@ -23,6 +23,8 @@ import {
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void;
+  /** Render as an icon-only button (toolbar style). Default false. */
+  iconOnly?: boolean;
 }
 
 interface EmojiDef {
@@ -391,7 +393,7 @@ const ALL_ENTRIES = (() => {
   );
 })();
 
-export function EmojiPicker({ onSelect }: EmojiPickerProps) {
+export function EmojiPicker({ onSelect, iconOnly = false }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("recent");
@@ -432,10 +434,16 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button variant="outline" size="xs" className="gap-1" />}
+        render={
+          iconOnly ? (
+            <Button variant="ghost" size="icon" type="button" className="size-10 rounded-md" />
+          ) : (
+            <Button variant="outline" size="xs" className="gap-1" type="button" />
+          )
+        }
       >
-        <Smile className="size-3" />
-        Emoji
+        <Smile className={iconOnly ? "size-5" : "size-3"} />
+        {!iconOnly && "Emoji"}
       </PopoverTrigger>
       <PopoverContent align="start" className="!p-0 !gap-0 w-[320px]">
         {/* Search bar */}

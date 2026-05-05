@@ -210,6 +210,116 @@ export async function getUserAIClient(
 }
 
 /**
+ * Resolve a BYOK-only AI client. Used by Advanced Insights and any other
+ * feature that MUST bill the user's own provider account regardless of
+ * the system-AI toggles.
+ *
+ * Differences from `getUserAIClient`:
+ *  - Ignores `force_ai_gateway` (Advanced Insights never routes through
+ *    the gateway, even when the user has the system-AI slider on).
+ *  - Never falls back to the system key. If no BYOK key is on file, the
+ *    function throws `BYOK_REQUIRED` so the caller can return a 402 with
+ *    a structured "configure your key" payload.
+ *  - Still enforces the tier gate (`byok_ai_keys`).
+ *
+ * Throws Error with `.code` set to one of:
+ *   - `UNAUTHORIZED`   — no signed-in user
+ *   - `NO_PROFILE`     — profile row missing
+ *   - `TIER_GATE`      — tier doesn't allow BYOK
+ *   - `BYOK_REQUIRED`  — tier OK, but no BYOK key on file for the provider
+ */
+export class ByokResolutionError extends Error {
+  code: "UNAUTHORIZED" | "NO_PROFILE" | "TIER_GATE" | "BYOK_REQUIRED";
+  constructor(
+    code: "UNAUTHORIZED" | "NO_PROFILE" | "TIER_GATE" | "BYOK_REQUIRED",
+    message: string,
+  ) {
+    super(message);
+    this.code = code;
+  }
+}
+
+export async function getByokAIClient(
+  forProvider?: AIProvider,
+): Promise<UserAIContext> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new ByokResolutionError("UNAUTHORIZED", "Unauthorized");
+  }
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+  if (!profile) {
+    throw new ByokResolutionError("NO_PROFILE", "Please complete your profile first");
+  }
+  const userProfile = profile as UserProfile;
+
+  // Tier gate — Advanced Insights is Pro+/Team/Enterprise only.
+  const tier = (userProfile.subscription_tier as SubscriptionTier) ?? "free";
+  if (!hasFeature(tier, "byok_ai_keys")) {
+    throw new ByokResolutionError("TIER_GATE", "Pro plan or above required");
+  }
+
+  // Look up the BYOK key. Note we DO NOT consult `force_ai_gateway` here —
+  // Advanced Insights always uses BYOK when configured, regardless of the
+  // user's "use system AI" preference.
+  const candidateProvider = forProvider || (userProfile.ai_provider as AIProvider);
+
+  const { data: providerKey } = await supabase
+    .from("ai_provider_keys")
+    .select("api_key_encrypted, api_key_iv, api_key_auth_tag")
+    .eq("user_id", user.id)
+    .eq("provider", candidateProvider)
+    .single();
+
+  let apiKey: string | null = null;
+  if (providerKey) {
+    apiKey = decrypt({
+      ciphertext: providerKey.api_key_encrypted,
+      iv: providerKey.api_key_iv,
+      authTag: providerKey.api_key_auth_tag,
+    });
+  } else if (
+    userProfile.ai_api_key_encrypted &&
+    userProfile.ai_api_key_iv &&
+    userProfile.ai_api_key_auth_tag &&
+    userProfile.ai_provider === candidateProvider
+  ) {
+    // Legacy single-slot key on user_profiles
+    apiKey = decrypt({
+      ciphertext: userProfile.ai_api_key_encrypted,
+      iv: userProfile.ai_api_key_iv,
+      authTag: userProfile.ai_api_key_auth_tag,
+    });
+  }
+
+  if (!apiKey) {
+    throw new ByokResolutionError(
+      "BYOK_REQUIRED",
+      `No API key configured for ${candidateProvider}.`,
+    );
+  }
+
+  const byokModel = userProfile.ai_model || getDefaultModel(candidateProvider);
+  const client = createAIClient(candidateProvider, apiKey, byokModel);
+  return {
+    client,
+    profile: userProfile,
+    source: "byok",
+    provider: candidateProvider,
+    model: byokModel,
+  };
+}
+
+/**
  * Get the decrypted API key for a specific provider.
  * Useful for image generation and other non-chat uses.
  *

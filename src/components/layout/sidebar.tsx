@@ -19,7 +19,6 @@ import {
   Rocket,
   type LucideIcon,
 } from "lucide-react";
-import { NewPostButton } from "@/components/posts/new-post-button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NAV_ITEMS, SUBSCRIPTION_TIERS, TIER_BADGE_COLORS, type SubscriptionTier } from "@/lib/constants";
@@ -64,12 +63,16 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
     router.push("/login");
   }
 
+  // Collapsible sidebar: collapsed to icon rail (w-16) by default, expands to
+  // w-64 on hover. Group context is named `nav` so descendants can opt into
+  // the expanded state (`group-hover/nav:`) without colliding with the
+  // separately-named `group` on the profile row (sign-out reveal).
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
+    <aside className="group/nav fixed inset-y-0 left-0 z-30 hidden w-16 flex-col overflow-hidden border-r bg-sidebar transition-[width] duration-200 ease-out hover:w-64 lg:flex">
       {/* Brand */}
       <div className="flex h-14 items-center gap-2 px-5">
-        <Send className="size-5 text-primary" />
-        <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
+        <Send className="size-5 shrink-0 text-primary" />
+        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-sidebar-foreground opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100">
           PostPilot
         </span>
       </div>
@@ -78,14 +81,6 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
 
       {/* Workspace Switcher — only when Team features are enabled */}
       {TEAM_FEATURES_ENABLED && <WorkspaceSwitcher />}
-
-      {/* New Post Button */}
-      <div className="px-3 pt-4 pb-2">
-        <NewPostButton
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
-          label="New Post"
-        />
-      </div>
 
       {/* Navigation */}
       <nav id="tour-sidebar-nav" className="flex-1 space-y-1 px-3 py-2">
@@ -114,9 +109,11 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
               )}
             >
               {Icon && <Icon className="size-4 shrink-0" />}
-              {item.label}
+              <span className="whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100">
+                {item.label}
+              </span>
               {isGated && (
-                <Lock className="size-3 ml-auto text-muted-foreground" />
+                <Lock className="size-3 ml-auto shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100" />
               )}
             </Link>
           );
@@ -127,10 +124,10 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
         BP-045 — Pro upgrade promotional unit. First-party content
         (no AdSense), so ad-blockers don't affect it. Shown to the two
         ad-supported tiers (Free + Personal); Pro / Team / Enterprise
-        never see it.
+        never see it. Hidden in the collapsed rail (text-heavy).
       */}
       {(userTier === "free" || userTier === "personal") && (
-        <div className="px-3 pb-2">
+        <div className="hidden px-3 pb-2 group-hover/nav:block">
           <UpgradeAd tier={userTier} />
         </div>
       )}
@@ -150,7 +147,9 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
             )}
           >
             <Settings className="size-4 shrink-0" />
-            Settings
+            <span className="whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100">
+              Settings
+            </span>
           </Link>
           <Link
             href="/help"
@@ -162,7 +161,9 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
             )}
           >
             <HelpCircle className="size-4 shrink-0" />
-            Help
+            <span className="whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100">
+              Help
+            </span>
           </Link>
         </div>
 
@@ -179,14 +180,14 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
               : "hover:bg-sidebar-accent"
           )}
         >
-          <Avatar className="size-8">
+          <Avatar className="size-8 shrink-0">
             <AvatarFallback className="bg-blue-600 text-white text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
-            <span className="text-sm font-medium text-sidebar-foreground truncate block">
+          <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/nav:opacity-100">
+            <span className="block truncate text-sm font-medium text-sidebar-foreground">
               {userName}
             </span>
-            <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5", TIER_BADGE_COLORS[userTier] ?? TIER_BADGE_COLORS.free)}>
+            <span className={cn("mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium", TIER_BADGE_COLORS[userTier] ?? TIER_BADGE_COLORS.free)}>
               {SUBSCRIPTION_TIERS[userTier]?.label ?? "Free"}
             </span>
           </div>
