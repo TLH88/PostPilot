@@ -7,9 +7,20 @@ import { logApiError } from "@/lib/api-utils";
 export async function GET() {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+
+    // Newer @supabase/ssr versions throw `AuthApiError` for malformed /
+    // expired JWT cookies instead of returning `{ user: null }`. Wrap the
+    // call so we surface the same clean 401 the !user branch already uses,
+    // rather than bubbling to the generic 500 handler. (Same pattern as
+    // /api/linkedin/validate; matches the only failure mode that survived
+    // the data audit on 2026-05-05.)
+    let user;
+    try {
+      const result = await supabase.auth.getUser();
+      user = result.data.user;
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

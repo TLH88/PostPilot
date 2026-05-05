@@ -23,7 +23,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      {/* suppressHydrationWarning on <body> matches the one on <html>:
+          some browser extensions (Grammarly, Dark Reader, password
+          managers) inject inline styles/attributes here before React
+          hydrates, which trips React's mismatch warning even though
+          hydration itself is unaffected. */}
+      <body
+        className={`${inter.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

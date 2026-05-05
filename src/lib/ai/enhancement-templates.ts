@@ -15,6 +15,12 @@ export const ENHANCEMENT_TEMPLATE_KEYS = [
   "add_social_proof",
   "improve_cta",
   "tighten",
+  "expand",
+  "rewrite",
+  "add_closing",
+  "make_personal",
+  "add_emojis",
+  "make_engaging",
 ] as const;
 
 export type EnhancementTemplateKey = (typeof ENHANCEMENT_TEMPLATE_KEYS)[number];
@@ -61,6 +67,48 @@ export const ENHANCEMENT_TEMPLATES: Record<EnhancementTemplateKey, EnhancementTe
     subtext: "Cut filler words and make it ~15-20% shorter",
     prompt:
       "Tighten this LinkedIn post by removing filler words, redundant phrases, and weak qualifiers. Preserve every concrete fact and the author's voice. Return the same content approximately 15-20% shorter.",
+  },
+  expand: {
+    key: "expand",
+    label: "Expand",
+    subtext: "Add depth to existing points",
+    prompt:
+      "Expand this LinkedIn post by deepening the existing points — add a concrete example, brief anecdote, or supporting detail to one or two of the strongest moments. Do not introduce new claims or restructure the post. Aim for ~25-40% longer while preserving the user's voice and the original arc.",
+  },
+  rewrite: {
+    key: "rewrite",
+    label: "Rewrite",
+    subtext: "Fresh take, same ideas",
+    prompt:
+      "Rewrite this LinkedIn post from scratch using the same ideas, the same arc, and the same key facts — but with fresh phrasing, sentence structure, and pacing. The result should feel like a new draft, not a light edit. Match the user's voice and content pillars; keep the same approximate length.",
+  },
+  add_closing: {
+    key: "add_closing",
+    label: "Add Closing",
+    subtext: "Wrap up — no reader ask",
+    prompt:
+      "Rewrite (or add, if missing) the closing of this LinkedIn post as a logical conclusion to what's been written — a final reflection, takeaway, or quiet landing that ties the threads together. Do NOT ask the reader to do anything: no questions, no calls to engage, no CTAs. That's a separate operation. Match the user's voice. Keep it to 1-2 sentences.",
+  },
+  make_personal: {
+    key: "make_personal",
+    label: "Make it Personal",
+    subtext: "Strengthen 'I' voice and specific moments",
+    prompt:
+      "Make this LinkedIn post more personal. Strengthen the use of 'I' statements, anchor it in a specific moment or experience, and where appropriate add a touch of candid reflection. Do not invent biographical details — only sharpen what's already implied or could authentically be the user's experience based on their profile and voice samples. Preserve the user's voice and the post's structure.",
+  },
+  add_emojis: {
+    key: "add_emojis",
+    label: "Add Emojis",
+    subtext: "Sparingly, on-brand",
+    prompt:
+      "Add emojis to this LinkedIn post in a way that feels natural and on-brand — used to mark transitions, emphasize a beat, or highlight a list item. Use them sparingly (typically 3-6 across the post, not more — never one per line). Do not change any of the actual text content. If the creator profile indicates they don't use emojis, return the original unchanged.",
+  },
+  make_engaging: {
+    key: "make_engaging",
+    label: "Make it Engaging",
+    subtext: "Tighter pacing, sharper angle",
+    prompt:
+      "Make this LinkedIn post more engaging without significantly changing its substance or length. Tighten openings, vary sentence rhythm, surface the most interesting angle earlier, and trim anything that delays the payoff. Preserve every concrete fact and the user's voice. Goal: a draft a reader can't put down — not louder, just better-paced.",
   },
 };
 

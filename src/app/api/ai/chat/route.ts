@@ -6,6 +6,7 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { ChatInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
+import { buildEmDashRule } from "@/lib/em-dash";
 import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 import { resolveAi } from "@/lib/ai/resolve-ai";
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount, recentEdits } = parsed.data;
+    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount, recentEdits, allowEmDashes } = parsed.data;
 
     // BP-045 follow-up: system-first with BYOK fallback.
     const result = await resolveAi({ feature: "chat_messages" });
@@ -60,6 +61,8 @@ export async function POST(request: NextRequest) {
       }
       additionalContext = `The creator is working on a LinkedIn post. Here's the current state:\n${parts.join("\n")}`;
     }
+    additionalContext = (additionalContext ?? "") + buildEmDashRule(allowEmDashes);
+    if (!additionalContext) additionalContext = undefined;
 
     const systemPrompt = buildSystemPrompt(
       BASE_PERSONALITY,

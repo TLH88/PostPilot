@@ -53,13 +53,13 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 ### EPIC 1 — Subscription Model v2 (P0, pricing pivot)
 **Parent:** BP-115. Rollout order: cost study → copy → gates → trial fix → ads.
 - **BP-115** Subscription Model v2 parent spec — P0 / Critical
-- **BP-116** Pricing page copy + feature table rewrite — P0 / Critical
+- **BP-116** Pricing page copy + feature table rewrite — **Done 2026-04-24** (display layer in `d98a4d6`); **further polish 2026-05-04** (Team/Enterprise cards removed + Personal-tier carousel + footnote copy via BP-045 commits `a26d880`, `ee5dddb`, `4a1c7f6`)
 - **BP-117** Feature-gate refactor for new matrix (supersedes scope of BP-018) — **Done 2026-04-24** (Phases A–D shipped via `9f5ff24`/`b89f8cd`/`ff4f07f`, merged `8760396`)
 - **BP-118** Free-tier trial-expired messaging fix — **Done 2026-04-24**
-- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — Phase 1 Done 2026-04-24; Phase 2 (integration) Backlog — P2 / Medium
+- **BP-119** Personal limited-ads + Free ad strategy (un-defers BP-045) — **Phase 1 Done 2026-04-24; Phase 2 Done 2026-05-04** (`<AdSlot>`, `<AdBlockerGate>`, sidebar `UpgradeAd`, dashboard banner, Sponsored cards wired across dashboard/ideas/posts/Launch Pad via commits `743e05a`, `b0d16db`, `b2e3c86`, `881847b`, `4a1c7f6`)
 - **BP-123** Token cost study (pre-GTM action) — **Done 2026-04-24** (deliverable + owner-approved recommendations)
 - **BP-124** Credit-pack purchase exploration (spec only) — P3 / Low
-- **BP-125** Pro-tier image-generation BYOK — P1 / High
+- **BP-125** Pro-tier image-generation BYOK — **Done 2026-04-24** (commit `d6cb246` — tier-gated BYOK + image-capable provider check)
 - **BP-135** Onboarding tier-gate for AI Setup step (skip BYOK for Free/Personal) — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04). Verified working live 2026-05-04 after BP-142 architectural fix landed (root cause was no profile row at signup, not the BP-135 predicate logic)
 - **BP-151** Reconcile `managed_ai_access` default with "Powered by Claude" badge — **Done (develop) 2026-05-04** [UF-015]
 - *Superseded/absorbed:* BP-018 (folded into BP-117). *Note: BP-045 ad integration is a separate live Backlog item — see EPIC 1 below; it is NOT absorbed into BP-119 (Phase 2 of which still also Backlog).*
@@ -73,7 +73,7 @@ Active (non-Done, non-Superseded) backlog items are grouped under numbered EPICs
 
 ### EPIC 3 — Terminology & Help Content
 - **BP-114** Full tier rename Creator → Personal (**extended 2026-04-24**: also covers Creator Profile → User Profile) — **Done 2026-04-24** (commit `40a18bd`)
-- **BP-120** Help content refresh (Personal rename, paid-feature badges, API key section) — P1 / High
+- **BP-120** Help content refresh (Personal rename, paid-feature badges, API key section) — **Done 2026-04-24** (agent-driven sweep — `HelpPaidBadge`, "Finding & Creating Personal AI Provider API Keys" section, full terminology pass)
 
 ### EPIC 4 — Onboarding & Guidance
 - **BP-084** Tutorial card visual redesign — **Done 2026-05-04 (covered by BP-149)**
@@ -106,9 +106,9 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-033** Content pillar ROI dashboard — P3 / Low
 
 ### EPIC 7 — AI Enhancements
-- **BP-026** Trending topics for brainstorming — Fixed (develop) 2026-04-27
+- **BP-026** Trending topics for brainstorming — **Done (main) 2026-04-27** (merge `4ffe791`)
 - **BP-027** Voice consistency validation — P3 / Low
-- **BP-028** Guided enhancement workflows — Fixed (develop) 2026-04-27
+- **BP-028** Guided enhancement workflows — **Done (main) 2026-04-27** (merge `33162f1`; Base UI Menu.Group hotfix `7c2ead0`)
 - **BP-031** Bulk operations — P3 / Low
 - **BP-032** A/B testing for hooks — P3 / Low
 - **BP-140** Personal reference photos for AI image generation — **Deferred (post-GTM) 2026-05-04** — out of GTM critical path per owner. Design preserved, full entry at [docs/plans/POST-GTM-FUTURE-FEATURES.md](plans/POST-GTM-FUTURE-FEATURES.md) [UF-006]
@@ -116,9 +116,9 @@ All Team items deferred until Free→Pro viability is validated.
 ### EPIC 8 — Reliability & Bug Fixes
 - **BP-152** Investigate RSC prefetch 503s on first dashboard load — P2 / Medium (Sprint 3 of QA-remediation, investigate-only) [UF-016]
 - **BP-100** Scheduled posts drop images — **Done 2026-04-22 (Edge Function v16, commit `45d36f2`); production-verified by owner 2026-05-04**
-- **BP-110** Cancel in-progress image generation — P2 / Medium — **Fixed (develop) 2026-04-27**
-- **BP-112** `Button` outline variant footgun — P3 / Low — **Fixed (develop) 2026-04-26**
-- **BP-133** Require title before post draft creation — P2 / Medium — **Fixed (develop) 2026-04-26**
+- **BP-110** Cancel in-progress image generation — P2 / Medium — **Done (main) 2026-04-27** (merge `29795d3`)
+- **BP-112** `Button` outline variant footgun — P3 / Low — **Done (main) 2026-04-26** (merge `7d02a25`)
+- **BP-133** Require title before post draft creation — P2 / Medium — **Done (main) 2026-04-26** (merge `ebce720`)
 - **BP-134** AI chat reads stale editor content after manual edits — P2 / Medium [UF-001] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-138** Edit & Republish CTA on posted view + duplicate-prevention copy — P2 / Medium [UF-004, owner Q open] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
 - **BP-139** Persistent save indicator with relative timestamp — P2 / Medium [UF-005] — **Done (main) 2026-04-26** (via merge `7f194cc` 2026-05-04)
@@ -129,20 +129,22 @@ All Team items deferred until Free→Pro viability is validated.
 - **BP-088** Authorization audit on team-feature API routes (Free/Pro-scoped) — P0 / Critical
 - **BP-095** Observability — kill silent failures + workspace filter audit — P0 / High
 - **BP-113** Server-side RLS gating for `content_library` built-in items — **Done 2026-04-25** (`has_library_access` helper + `content_library_builtin_rls_tier_gated` policy applied)
+- **BP-111** Proactive LinkedIn token validation at login — **Done 2026-04-23** (validates token on session resume; surfaces disconnected state via global `LinkedInStatusBanner`)
 - **BP-129** Supabase Auth Hook — enforce LinkedIn-OIDC-only signup — **Done 2026-04-26** (dashboard toggle activated; verified end-to-end via live signup attempt — 403 returned with the expected rejection message)
 - **BP-131** Account deletion (admin + user self-serve) — **Done 2026-04-24**
 - **BP-132** Email-based re-auth confirmation for self-delete — P2 / Medium (gated on email infra)
+- **BP-153** Supabase server-side hardening sweep (RLS initplan, pg_net schema, post-images bucket, unused-index audit) — P2 / Medium
 
 ### EPIC 10 — Admin & Cost Controls
-- **BP-085** AI usage monitoring, cost analysis & budget enforcement — Phases 1+2 Done; **Phase 3 (budget enforcement) Backlog** — P1 / High
+- **BP-085** AI usage monitoring, cost analysis & budget enforcement — **Done 2026-05-04** (Phases 1+2 shipped 2026-04-15..24; Phase 3 budget enforcement + auto-pause + Team-burn alert + paused-state UX + HMAC-secured cron route shipped via develop commits `c2226cb`, `32bd72c`, `8ed0948`, `e29d73b`, `4ee05a0`, merged `b41939e`)
 - **BP-127** Complete AI route logging coverage (close the BP-085 gap) — **Done 2026-04-24**
 - **BP-128** Brainstorm prompt caching refactor — **Done 2026-04-24** (Anthropic `cache_control` wired)
 
 ### EPIC 11 — Quality & Testing
-- **BP-097** Playwright E2E for Free→Pro happy path — P1 / High
+- **BP-097** Playwright E2E for Free→Pro happy path — **Done 2026-05-04** (Phases 1+2+3 — scaffold, smoke, create-schedule, posted-analytics, auth-onboarding specs + GitHub Actions CI pipeline; final auth-onboarding spec merged via `b2bd3ac`)
 
 ### EPIC 12 — Developer Experience & Tooling
-- **BP-126** Safe local-dev auth bypass (replaces removed `/api/dev/auto-login`) — P1 / High
+- **BP-126** Safe local-dev auth bypass (replaces removed `/api/dev/auto-login`) — **Done 2026-04-24** (multi-gate `/api/dev/local-login` route — uncommitted by design; setup in `docs/dev-setup.md`; verified on localhost by owner)
 
 ### Recommended Execution Order (Sprint Themes)
 
@@ -1578,8 +1580,8 @@ Create an interactive guided tutorial that walks new users through onboarding, s
 
 ### BP-036: Emoji Picker in Post Editor
 
-**Status:** Backlog
-**Priority:** P2 / Medium
+**Status:** **Done (shipped pre-2026-04-22 in commit `ff01faf`; 250+ emojis, 9 categories, search; component at `src/components/posts/emoji-picker.tsx`, wired into the editor toolbar via `<EditorToolbar>`)**
+**Priority:** ~~P2 / Medium~~ — Done
 **Re-prioritized:** 2026-04-16 — small win, high visibility. LinkedIn posts use emojis heavily. Ship in Sprint 4.
 **Source:** Owner request
 **Date Added:** 2026-04-02
@@ -1644,8 +1646,8 @@ Users need the ability to manually change a post's status, particularly to mark 
 
 ### BP-045: Third-Party Ad Integration (Free + Personal Tiers)
 
-**Status:** Backlog
-**Priority:** P2 / Medium
+**Status:** **Scaffolding Done 2026-05-04** — `<AdSlot>` (third-party AdSense), `<AdBlockerGate>` (hard-gate Free + Personal), `<UpgradeAd>` (first-party tier-aware Pro upsell carousel), Sponsored cards, sidebar + dashboard + Launch Pad wiring all shipped via develop commits `743e05a`, `b0d16db`, `b2e3c86`, `881847b`, `4a1c7f6`. **Remaining:** flip live by setting `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` env var (placeholder mode until then); confirm AdSense publisher account approval before activation.
+**Priority:** P3 / Low (env-var flip — owner action) · Originally P2 / Medium
 **Re-prioritized:** 2026-05-04 — owner expanded scope to cover both Free **and** Personal tiers (was Free-only); Launch Pad designated as the primary ad surface alongside the original sidebar/dashboard/between-content placements. Un-deferred from Revenue-tier and re-tied to the Subscription Model v2 ad strategy (BP-119).
 **Source:** Owner request (originally 2026-04-04); scope expanded 2026-05-04
 **Date Added:** 2026-04-04 · **Scope expanded:** 2026-05-04
@@ -2729,8 +2731,11 @@ interface TutorialStep {
 
 ### BP-085: AI Usage Monitoring, Cost Analysis & Budget Enforcement (Admin Portal)
 
-**Status:** Phases 1+2 Done — `ai_usage_events` data capture + admin KPI page live (per BP-127 audit 2026-04-24, all 7 AI routes call `logAiUsage()`). Phase 3 (budget enforcement + auto-pause + Team system-key burn alert at $30/mo) remains Backlog. BP-127 (complete logging) + BP-128 (brainstorm prompt caching) shipped 2026-04-24 as follow-ups under this umbrella.
-**Priority:** P1 / High (Phase 3 only)
+**Status:** **Done 2026-05-04** — all three phases shipped.
+- Phases 1+2 (2026-04-15..24): `ai_usage_events` data capture + admin KPI page; BP-127 audit confirmed all 7 AI routes call `logAiUsage()`.
+- Phase 3 (2026-05-04): budget enforcement + auto-pause + Team system-key burn alert + paused-state UX. Shipped via develop commits `c2226cb`, `32bd72c`, `8ed0948`, `e29d73b`, `4ee05a0`; merged `b41939e`. Implementation: `src/lib/ai/budget-check.ts`, `src/lib/ai/budget-evaluator.ts`, `src/app/api/admin/budgets/{route,pause,threshold,alerts/[userId],run-evaluator}/route.ts`, `src/components/budget/{paused-banner,paused-modal}.tsx`, `src/app/admin/budgets/page.tsx`, `src/lib/admin/notify-admins.ts`. Cron route HMAC-secured via `PG_CRON_JWT_SECRET` (same pattern as `process-account-deletions` + `publish-scheduled-posts`).
+- Follow-ups already shipped under this umbrella: BP-127 (complete AI route logging) + BP-128 (Anthropic `cache_control` for brainstorm prompts).
+**Priority:** ~~P1 / High (Phase 3 only)~~ — Done
 **Re-prioritized:** 2026-04-16 — confirmed P1. We're providing managed AI access (BP-054) to alpha users. Without cost telemetry, runaway usage could quietly bleed the business. Scope down to Phase 1 (data capture) + minimal admin KPI page. Defer the budget enforcement and upsell intelligence layers.
 **Source:** Owner — need visibility into AI spend, abuse detection, and upsell opportunities
 **Date Added:** 2026-04-11
@@ -3629,8 +3634,11 @@ This is a Phase T4 enhancement per ROADMAP. Listed here as a tracked deferred it
 
 ### BP-097: Playwright E2E for Free→Pro Happy Path
 
-**Status:** Phases 1 + 3 Done (CI pipeline proven green end-to-end via run 24886136028 on 2026-04-24). Phase 2 partially shipped 2026-04-24: create-schedule + posted-analytics specs + seeder fixture + AI-route stubbing + cleanup helpers. **auth-onboarding.spec.ts deliberately deferred** — the 6-step multi-page onboarding form deserves its own focused session of selector work.
-**Priority:** P1 / High
+**Status:** **Done 2026-05-04** — all three phases shipped end-to-end.
+- Phases 1 + 3 (2026-04-24): scaffold, smoke spec, GitHub Actions pipeline (`.github/workflows/e2e.yml`), Vercel preview URL polling, magic-link helper, idempotent test-user seeder. CI proven green via run 24886136028.
+- Phase 2 (2026-04-24..05-04): create-schedule + posted-analytics specs shipped 2026-04-24; auth-onboarding.spec.ts (6-step wizard walkthrough) merged via `b2bd3ac` 2026-05-04. Brittle `getByRole("heading", …)` lookups against `<CardTitle>` divs were fixed 2026-05-05 (commit `8ac6adf`) when shadcn's slot-based primitives caused them to silently break.
+- Active spec set: `tests/e2e/{smoke,create-schedule,posted-analytics,auth-onboarding}.spec.ts` + helpers + global setup. CI runs on every push to develop and PR to develop/main.
+**Priority:** ~~P1 / High~~ — Done
 **Re-prioritized:** 2026-04-16 — re-scoped from Team-collaboration E2E to Free→Pro happy path. The Team test waits behind BP-098.
 **Source:** [2026-04-16 Review] — Lead synthesis improvement opportunity I4 (re-scoped)
 **Date Added:** 2026-04-16
@@ -4653,8 +4661,10 @@ Other tools that need a mobile UX (image picker / generator, schedule picker, ho
 
 ### BP-119: Ad Placement Evaluation + Integration (Free + Personal Tiers)
 
-**Status:** Phase 1 Done (2026-04-24 — evaluation memo shipped). Phase 2 (integration) still Backlog; pending owner sign-off on memo decisions.
-**Priority:** P2 / Medium for Phase 1 (evaluation — complete); Phase 2 (integration) stays P2 until we're ready to monetize Free tier post-GTM
+**Status:** **Done 2026-05-04** — both phases shipped.
+- Phase 1 (2026-04-24): evaluation memo at `docs/ad-strategy/2026-04-ad-placement-evaluation.md`.
+- Phase 2 (2026-04-24..05-04): integration shipped via develop commits `743e05a`, `b0d16db`, `b2e3c86`, `881847b`, `4a1c7f6`. Components: `<AdSlot>` (third-party AdSense), `<AdBlockerGate>` (hard-gate for Free + Personal — Pro+ never sees it), `<UpgradeAd>` (first-party tier-aware Pro upsell carousel — Free sees alternating Personal+Pro slides; Personal sees static Pro). Wiring: sidebar (gated by `userTier === free|personal`), dashboard banner, Sponsored cards across ideas/posts/Launch Pad. AdBlockerGate gating respects tier (Pro/Team/Enterprise are ad-free).
+**Priority:** ~~P2 / Medium~~ — Done
 **Source:** Owner pricing pivot 2026-04-24; scope formalized 2026-04-24 into evaluation + integration phases per owner request
 **Date Added:** 2026-04-24 · **Phase 1 Completed:** 2026-04-24
 **EPIC:** Subscription Model v2 (EPIC 1)
@@ -5158,6 +5168,88 @@ The reverse (disabling the Email provider) breaks `admin.generateLink` and takes
 - [ ] Rejected signup attempts surface in Supabase logs.
 
 **Effort:** S–M · **Expected ROI:** Low-Medium (closes a small existing gap cleanly, codifies "LinkedIn-only" at the auth layer rather than just in UI)
+
+---
+
+### BP-153: Supabase Server-Side Hardening Sweep
+
+**Status:** Backlog — opened 2026-05-05 from log/advisor scan
+**Priority:** P2 / Medium (no user-visible bug; performance + defense-in-depth)
+**Source:** Supabase advisor scan + log review run on 2026-05-05 after the develop e2e workflow brought existing log noise into focus
+**EPIC:** Security, Authorization & Observability (EPIC 9) — also touches EPIC 8 (Reliability)
+
+**Why this is one BP rather than four small ones:**
+The four items below all touch live Supabase server state (RLS policies, schema permissions, storage policies, indexes). They each require careful audits of callers before applying, and several can be batched into single migrations to reduce the number of cutover windows. Bundling them keeps the QA pass coherent — one branch, one set of regression tests, one migration sequence.
+
+**Out of scope for this BP** (already shipped 2026-05-05 as safe-auto-fixes):
+- Function `search_path` lockdown on 4 SECURITY DEFINER functions
+- `REVOKE EXECUTE ... FROM PUBLIC, anon` on 4 SECURITY DEFINER helpers
+- 24 missing FK indexes (`add_missing_fk_indexes` migration)
+- `process-account-deletions` outer try/catch (edge function v3)
+- `/api/linkedin/{validate,status}` `getUser()` try/catch + log-level downgrade
+
+**The four items in scope:**
+
+#### 1. RLS `auth_rls_initplan` rewrites — biggest perf win
+**Finding:** 69 RLS policies across `posts`, `workspaces`, `workspace_members`, `ideas`, and others call `auth.uid()` / `auth.jwt()` un-wrapped. Postgres re-evaluates the function for every row scanned.
+**Fix:** Wrap each call in `(select auth.uid())` so the planner caches the value once per query. Pure perf change, semantics identical when written correctly.
+**Risk:** High blast radius — these gate multi-tenant data access. Each `DROP POLICY` + `CREATE POLICY` pair must preserve the original logic exactly. Worth a security review pass per table before applying.
+**Approach:**
+1. Generate a "before" snapshot: `SELECT schemaname, tablename, policyname, qual, with_check FROM pg_policies WHERE schemaname='public'` → commit to `docs/plans/bp-153/policies-before.sql`.
+2. For each policy, write the rewritten version. Group by table so each migration touches one table at a time (rollback is easier if one table breaks).
+3. After applying, regenerate the snapshot and diff. The only differences should be the `auth.uid()` → `(select auth.uid())` wrappers.
+4. Run the full e2e suite against a Supabase branch before merging to main.
+
+#### 2. `pg_net` extension schema move
+**Finding:** Advisor flags `pg_net` installed in `public`. Recommended location is its own `extensions` schema (or similar).
+**Fix:** `ALTER EXTENSION pg_net SET SCHEMA extensions;` (create the schema first if needed).
+**Risk:** Anything that calls `net.http_post(...)` via the default search_path will fail until callers qualify with `extensions.net.http_post(...)` or `extensions` is added to the role search_path.
+**Approach:**
+1. Grep all migrations + edge functions for `net.http_`, `net.http_post`, `net.http_get`. Build a caller list.
+2. Decide between (a) qualify callers, or (b) add `extensions` to the search_path of relevant roles. Owner picks.
+3. Apply move + caller updates in the same migration window.
+
+#### 3. `post-images` public bucket SELECT policy
+**Finding:** Bucket `post-images` has a SELECT policy granting the `public` role broad access, which means `anon` can LIST the bucket (not just GET-by-key).
+**Fix:** Replace with a policy that allows public GET-by-key but disallows LIST. The "list-by-prefix" pattern requires the request to know the path; CDN-style image URLs don't need LIST.
+**Risk:** Broken image renders on the LinkedIn preview, post editor, and any other surface that displays user-generated images. Need to confirm with owner: are post images intended to be publicly enumerable?
+**Approach:**
+1. Confirm with owner that LIST is not intended (default assumption: not).
+2. Drop the broad SELECT policy; add a tightened one. Test image renders on the editor + LinkedIn preview + dashboard before merging.
+
+#### 4. Unused-index audit (13 indexes flagged)
+**Finding:** 13 indexes have zero recorded usage:
+`idx_ideas_status`, `idx_content_library_type`, `ai_usage_events_provider_created_idx`, `ai_usage_events_error_idx`, `ai_usage_events_gen_id_idx`, `tier_waitlist_*_idx` (3), `account_deletions_pending_grace_idx`, `user_profiles_is_test_user_idx`, `post_comments_parent_idx`, `ai_usage_alerts_unack_idx`, `idx_ai_models_provider_active`.
+**Recommendation from initial review:** Hold. Several are pre-positioned for in-development features (BP-085 budget evaluator, BP-131 deletion grace, tier waitlist tracking).
+**Fix:** Re-evaluate post-GTM. For each, decide: keep (active use coming) or drop (dead).
+**Risk:** Dropping the wrong index could regress query plans on a feature that just hasn't shipped traffic yet.
+**Approach:**
+1. Wait until post-GTM (≥30 days of production traffic).
+2. Re-pull the advisor; drop only what's still unused AND not referenced by uncommitted plans.
+
+#### Items NOT in scope (separately tracked or owner-action)
+- HaveIBeenPwned leaked-password protection — owner one-click toggle in Supabase dashboard (not a BP).
+- `ai_budget_alerts` RLS-on-no-policies — by design (admin-only via service role); dismissing the advisor.
+- `tier_waitlist` `WITH CHECK (true)` insert policy — by design (public waitlist form); dismissing the advisor.
+
+**Acceptance criteria:**
+
+- [ ] `docs/plans/bp-153/` exists with: policies-before.sql snapshot, per-table policy rewrite migrations, pg_net caller audit, post-images bucket policy diff, unused-index decision log.
+- [ ] All 69 `auth_rls_initplan` advisor findings cleared.
+- [ ] `pg_net` is in a non-public schema OR a written decision to keep it in public with rationale.
+- [ ] `post-images` bucket: confirmed listing intent and policy adjusted accordingly OR explicit decision to keep listable with rationale.
+- [ ] Unused-index decisions documented (keep / drop) per index.
+- [ ] No regression in e2e suite against the migration sequence.
+- [ ] Re-run `get_advisors` (security + performance) after merge: only the intentionally-dismissed findings remain.
+
+**Effort:** M–L (each of the four items is small individually; together they need a single coordinated audit + migration sequence + e2e pass)
+
+**Expected ROI:** Medium — RLS initplan rewrite is a real perf win on the hottest tables. Other items are defense-in-depth + cleanup. No user-visible feature delivered.
+
+**Coordination notes:**
+- Best done as its own branch (`bp-153-supabase-hardening`) with a single PR for review traceability.
+- The RLS rewrite is the largest change and should be its own commit within the PR (per-table sub-commits if possible).
+- Run `mcp__e1f4ab27...__get_advisors` (security + performance) before and after to demonstrate the delta.
 
 ---
 

@@ -8,33 +8,26 @@ import {
   Archive,
   ArrowLeft,
   BarChart3,
-  BookOpen,
   Bot,
   Check,
   ChevronDown,
   Cloud,
-  ClipboardCopy,
   FilePlus2,
   Zap,
   Eye,
   Hash,
   ImagePlus,
   Lightbulb,
-  List,
   Loader2,
   MessageCircle,
   PanelRightClose,
   PanelRightOpen,
-  Pilcrow,
   Save,
   Send,
   Sparkles,
   Tag,
   Trash2,
   X,
-  Menu,
-  MoreHorizontal,
-  Wand2,
   ExternalLink,
   AlertTriangle,
   AlertCircle,
@@ -69,10 +62,7 @@ import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { MarkPostedDialog } from "@/components/posts/mark-posted-dialog";
-import { EmojiPicker } from "@/components/posts/emoji-picker";
-import { InsertFromLibrary } from "@/components/library/insert-from-library";
 import { SaveToLibraryDialog } from "@/components/library/save-to-library-dialog";
-import { TemplatePicker } from "@/components/posts/template-picker";
 import { SaveAsTemplateDialog } from "@/components/posts/save-as-template-dialog";
 import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
 import { PublishPreviewDialog } from "@/components/posts/publish-preview-dialog";
@@ -86,15 +76,22 @@ import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import { EDITOR_TOOLTIPS } from "@/lib/tooltip-content";
 import { classifyPillar } from "@/lib/classify-pillar";
 import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { PROVIDER_DISPLAY_NAMES, type AIProvider } from "@/lib/ai/providers";
 import { toast } from "sonner";
 import { GenerateIdeasDialog } from "@/components/ideas/generate-ideas-dialog";
-import { PostProgressBar } from "@/components/posts/post-progress-bar";
+import { PostStatusPipeline } from "@/components/posts/post-status-pipeline";
+import { EditorToolbar } from "@/components/posts/editor-toolbar";
+import { PostActions } from "@/components/posts/post-actions";
+import { SlashCommandMenu, type SlashCommandMenuHandle } from "@/components/posts/slash-command-menu";
+import { detectSlashAtCaret, type SlashCommand } from "@/lib/slash-commands";
+import { StudioAIStatusPill, StudioAIMuteToggle } from "@/components/posts/studio-ai-status-pill";
+import { StudioAICards } from "@/components/posts/studio-ai-cards";
+import { useDraftReview } from "@/lib/ai/use-draft-review";
+import { useEmDashAllowed } from "@/lib/use-em-dash";
+import { Switch } from "@/components/ui/switch";
 import { AssignPost } from "@/components/posts/assign-post";
 import { CommentsPanel } from "@/components/posts/comments-panel";
 import { ActivityFeed } from "@/components/activity/activity-feed";
@@ -111,13 +108,10 @@ import {
 import type { Post, PostVersion, AIMessage, AIConversation, UserProfile } from "@/types";
 
 // ─── Quick suggestion chips for the AI chat ───────────────────────────────────
-const QUICK_SUGGESTIONS = [
-  "Add a hook",
-  "Make it shorter",
-  "Make it personal",
-  "Add a CTA",
-  "Make it more engaging",
-] as const;
+// Slash-command hints displayed under the chat input. Not interactive —
+// just a visual cue that the chat accepts the same slash commands as the
+// editor. Trimmed to 3 examples to keep the hint line compact.
+const CHAT_SLASH_HINTS = ["/hook", "/shorten", "/personal"] as const;
 
 // ─── Character counter color helper ───────────────────────────────────────────
 function charCountColor(count: number): string {
@@ -195,6 +189,17 @@ export default function PostWorkspacePage() {
   const [chatStreaming, setChatStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Studio AI Phase 1 — silent Develop-into-Post handoff state. The AI
+  // generates the initial draft via /api/ai/draft (not the chat path);
+  // the chat shows a single non-bubble system row instead of a message.
+  const [draftingFromIdea, setDraftingFromIdea] = useState(false);
+  const [chatSystemEvent, setChatSystemEvent] = useState<string | null>(null);
+
+  // Em-dash preference — when off, every AI request body carries
+  // allowEmDashes:false and the server appends a suppression rule to
+  // the system prompt.
+  const [emDashAllowed, setEmDashAllowed] = useEmDashAllowed();
 
   // Content snapshot at the moment of the last chat send. The next message
   // diffs against this so the AI sees what the user edited between turns.
@@ -358,9 +363,22 @@ export default function PostWorkspacePage() {
 
       setPost(p);
       setTitle(p.title ?? "");
-      setContent(p.content ?? "");
-      lastAiSnapshotRef.current = p.content ?? "";
-      setHashtags(p.hashtags ?? []);
+      // Migrate any legacy hashtags array into the body text on first load —
+      // hashtags now live inline at the end of the post content. The hashtags
+      // column stays in the schema for backward-compat but is no longer
+      // populated from this UI.
+      const legacyTags = (p.hashtags ?? []).map((t) =>
+        t.startsWith("#") ? t : `#${t}`,
+      );
+      const baseContent = p.content ?? "";
+      const tagLine = legacyTags.join(" ");
+      const initialContent =
+        legacyTags.length > 0 && tagLine && !baseContent.includes(tagLine)
+          ? `${baseContent.trimEnd()}\n\n${tagLine}`
+          : baseContent;
+      setContent(initialContent);
+      lastAiSnapshotRef.current = initialContent;
+      setHashtags([]);
       setStatus(p.status);
       setContentPillarsState(p.content_pillars ?? []);
       setImageUrl(p.image_url ?? null);
@@ -497,18 +515,16 @@ export default function PostWorkspacePage() {
 
     if (fromIdea === "true" && title && !content) {
       ideaAutoTriggered.current = true;
-      // Auto-open chat and trigger draft generation
+      // Studio AI Phase 1 — silent handoff. Open the panel, kick off draft
+      // generation directly against /api/ai/draft, and let
+      // silentDraftFromIdea apply the result into the editor when ready.
       setPanelView("ai");
-      const prompt = ideaDescription
-        ? `I am writing a LinkedIn post based on this idea: "${title}". Here's the idea description: ${ideaDescription}. Write me a compelling first draft. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`
-        : `I am writing a LinkedIn post on the topic of "${title}". Write me a quick starter draft to get the ball rolling. Be sure to use my tone and voice. DO NOT ask any questions yet. Output ONLY the post content.`;
-
-      sendChatMessage(prompt, `Draft a post about "${title}"`);
+      void silentDraftFromIdea(title, ideaDescription);
       // Clean URL params
       window.history.replaceState({}, "", `/posts/${postId}`);
     } else if (!fromIdea && !content && chatMessages.length === 0) {
       ideaAutoTriggered.current = true;
-      toast("Your AI Assistant is ready to help. Ask it to draft, brainstorm, or refine your post anytime.", {
+      toast("Post Pilot AI is ready to help. Ask it to draft, brainstorm, or refine your post anytime.", {
         duration: 6000,
       });
     }
@@ -681,6 +697,47 @@ export default function PostWorkspacePage() {
     scheduleAutoSave(title, value, hashtags);
   }
 
+  // ── Slash command state (shared between editor textarea and chat input) ─
+  type SlashTarget = "editor" | "chat";
+  const [slashState, setSlashState] = useState<{
+    open: boolean;
+    query: string;
+    anchor: { top: number; left: number } | null;
+    target: SlashTarget;
+    slashIndex: number;
+  }>({ open: false, query: "", anchor: null, target: "editor", slashIndex: -1 });
+  const slashMenuRef = useRef<SlashCommandMenuHandle>(null);
+
+  /** Re-evaluate whether a slash command is in progress at the caret. */
+  function updateSlashFromInput(
+    el: HTMLTextAreaElement | HTMLInputElement,
+    text: string,
+    target: SlashTarget,
+  ) {
+    const detection = detectSlashAtCaret(text, el.selectionStart ?? 0);
+    if (!detection) {
+      setSlashState((s) => (s.open ? { ...s, open: false } : s));
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    setSlashState({
+      open: true,
+      query: detection.query,
+      slashIndex: detection.slashIndex,
+      // Editor anchors below the caret line (use textarea bottom as fallback);
+      // chat input anchors above (placeAbove handled by the menu).
+      anchor:
+        target === "chat"
+          ? { top: rect.top, left: rect.left + 8 }
+          : { top: rect.bottom, left: rect.left + 8 },
+      target,
+    });
+  }
+
+  function closeSlashMenu() {
+    setSlashState((s) => ({ ...s, open: false }));
+  }
+
   // ── Formatting helpers ────────────────────────────────────────────────────
   function insertAtCursor(text: string) {
     const textarea = textareaRef.current;
@@ -821,12 +878,9 @@ export default function PostWorkspacePage() {
   }
 
   // ── Hashtag management ────────────────────────────────────────────────────
-  function removeHashtag(tag: string) {
-    const updated = hashtags.filter((h) => h !== tag);
-    setHashtags(updated);
-    scheduleAutoSave(title, content, updated);
-  }
-
+  // Hashtags are now appended to the body text (matches how the AI chat has
+  // always inserted them via applyAIContent). The legacy `hashtags` array on
+  // the post stays empty going forward; loadPost migrates any prior values.
   async function suggestHashtags() {
     // BP-134: read the textarea directly so we hashtag against the user's
     // latest edits, not stale React state from before the autosave debounce.
@@ -857,14 +911,22 @@ export default function PostWorkspacePage() {
         : Array.isArray(data)
           ? data
           : [];
+      if (suggested.length === 0) return;
 
-      // Merge without duplicates, respecting max
-      const merged = [...new Set([...hashtags, ...suggested])].slice(
-        0,
-        LINKEDIN.MAX_HASHTAGS
-      );
-      setHashtags(merged);
-      scheduleAutoSave(title, content, merged);
+      const tagLine = suggested
+        .map((t) => (t.startsWith("#") ? t : `#${t}`))
+        .join(" ");
+
+      // Append at the end of the body unless the exact same line is already
+      // there. Two newlines for visual separation matches the LinkedIn norm.
+      if (liveContent.includes(tagLine)) return;
+      const newContent = `${liveContent.trimEnd()}\n\n${tagLine}`;
+      if (newContent.length > LINKEDIN.MAX_POST_LENGTH) {
+        toast.error("Hashtags would exceed the post length limit.");
+        return;
+      }
+      setContent(newContent);
+      scheduleAutoSave(title, newContent, []);
     } catch (err) {
       console.error("Hashtag suggestion error:", err);
       toast.error("Failed to suggest hashtags", {
@@ -1013,7 +1075,7 @@ export default function PostWorkspacePage() {
       const res = await fetch("/api/ai/analyze-hook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: liveContent }),
+        body: JSON.stringify({ content: liveContent, allowEmDashes: emDashAllowed }),
       });
       if (await maybeHandleQuotaExceeded(res)) {
         setAnalyzingHook(false);
@@ -1063,6 +1125,7 @@ export default function PostWorkspacePage() {
           // on the server, but we still send a placeholder to satisfy Zod.
           instruction: templateKey,
           template: templateKey,
+          allowEmDashes: emDashAllowed,
         }),
       });
 
@@ -1146,27 +1209,43 @@ export default function PostWorkspacePage() {
     setPublishPreviewOpen(true);
   }
 
-  async function copyPostToClipboard() {
-    const hashtagText = hashtags.length > 0
-      ? "\n\n" + hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")
-      : "";
-    const titlePrefix =
-      title && title !== "Untitled Post" ? `${title}\n\n` : "";
-    const fullText = titlePrefix + content + hashtagText;
-    try {
-      await navigator.clipboard.writeText(fullText);
-    } catch {
-      // Fallback for non-HTTPS or denied clipboard permission
-      const textarea = document.createElement("textarea");
-      textarea.value = fullText;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
+  /**
+   * Slash-command selection handler — strips the typed `/<query>` from the
+   * source input and fires the matching action (enhance template or
+   * hashtag suggest).
+   */
+  async function handleSlashSelect(cmd: SlashCommand) {
+    const target = slashState.target;
+    const slashIndex = slashState.slashIndex;
+    const query = slashState.query;
+
+    if (target === "editor") {
+      // Strip the literal "/<query>" from the editor content.
+      const removeLen = 1 + query.length;
+      const before = content.slice(0, slashIndex);
+      const after = content.slice(slashIndex + removeLen);
+      const cleaned = before + after;
+      setContent(cleaned);
+      scheduleAutoSave(title, cleaned, hashtags);
+      requestAnimationFrame(() => {
+        const ta = textareaRef.current;
+        if (ta) {
+          const pos = before.length;
+          ta.selectionStart = pos;
+          ta.selectionEnd = pos;
+          ta.focus();
+        }
+      });
+    } else {
+      setChatInput("");
     }
-    toast.success("Post copied to clipboard — ready to paste into LinkedIn!");
+    closeSlashMenu();
+
+    if (cmd.kind === "enhance" && cmd.template) {
+      await runEnhancement(cmd.template);
+    } else if (cmd.kind === "hashtags") {
+      await suggestHashtags();
+    }
   }
 
   // ── Delete post ─────────────────────────────────────────────────────────
@@ -1394,6 +1473,7 @@ export default function PostWorkspacePage() {
           hashtags: hashtags,
           characterCount: content.length,
           recentEdits: recentEdits || undefined,
+          allowEmDashes: emDashAllowed,
         }),
       });
 
@@ -1523,6 +1603,88 @@ export default function PostWorkspacePage() {
     }
   }
 
+  /**
+   * Studio AI Phase 1 — silent Develop-into-Post handoff.
+   *
+   * Calls /api/ai/draft directly (bypassing the chat path), accumulates
+   * the streamed response, and pushes it into the editor via
+   * `applyAIContent`. The chat shows only a small system row instead of
+   * a visible AI message bubble.
+   */
+  async function silentDraftFromIdea(ideaTitle: string, ideaDescription: string | null) {
+    setDraftingFromIdea(true);
+    setChatSystemEvent(null);
+    try {
+      const response = await fetch("/api/ai/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ideaTitle,
+          ideaDescription: ideaDescription ?? undefined,
+          allowEmDashes: emDashAllowed,
+        }),
+      });
+
+      if (await maybeHandleQuotaExceeded(response)) {
+        // Quota gate already toasted the user; surface a chat note too.
+        setChatSystemEvent("Couldn't draft from your idea — AI quota reached.");
+        return;
+      }
+      if (!response.ok || !response.body) {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.error || "Couldn't draft from your idea.", {
+          description: errData.action,
+          duration: 8000,
+        });
+        setChatSystemEvent("Couldn't draft from your idea — try asking in the chat.");
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) accumulated += parsed.text;
+          } catch {
+            /* skip malformed SSE chunk */
+          }
+        }
+      }
+
+      // Some providers return JSON wrapped: { content: "..." }
+      let drafted = accumulated;
+      try {
+        const parsed = JSON.parse(accumulated);
+        if (parsed.content) drafted = parsed.content;
+      } catch {
+        /* not JSON — use raw */
+      }
+
+      drafted = drafted.trim();
+      if (!drafted) {
+        setChatSystemEvent("Couldn't draft from your idea — try asking in the chat.");
+        return;
+      }
+
+      applyAIContent(drafted);
+      setChatSystemEvent("Drafted from your idea — edit anything you'd like.");
+    } catch (err) {
+      console.error("Silent draft handoff failed:", err);
+      setChatSystemEvent("Couldn't draft from your idea — try asking in the chat.");
+    } finally {
+      setDraftingFromIdea(false);
+    }
+  }
+
   function applyAIContent(messageContent: string) {
     // Strip common AI preamble patterns before applying to editor
     let cleaned = messageContent;
@@ -1549,6 +1711,55 @@ export default function PostWorkspacePage() {
     scheduleAutoSave(title, cleaned, hashtags);
   }
 
+  // ── Studio AI (Phase 1) ──────────────────────────────────────────────────
+  // Ambient draft review when the AI panel is open. Hook owns the trigger
+  // logic + cache + rate limit + mute. We surface its state into the panel
+  // header (StudioAIStatusPill) and render its output as cards above the
+  // chat thread.
+  const studio = useDraftReview({
+    postId,
+    content,
+    title,
+    contentPillar: contentPillars[0],
+    panelOpen: panelView === "ai",
+    allowEmDashes: emDashAllowed,
+  });
+  const studioState = draftingFromIdea
+    ? "drafting"
+    : studio.state;
+  const studioExcerpt = (content || "").trim().slice(0, 120);
+
+  /**
+   * Splice a Studio AI suggestion into the editor. Hook options always
+   * replace the first paragraph; close options replace the last
+   * paragraph (action="replace") or append to the end (action="append").
+   */
+  function applyStudioOption(
+    section: "hook" | "close",
+    option: { text: string; action: "replace" | "append" },
+  ) {
+    const live = textareaRef.current?.value ?? content;
+    let next = live;
+    if (option.action === "append") {
+      next = live.trimEnd().length === 0 ? option.text : `${live.trimEnd()}\n\n${option.text}`;
+    } else if (section === "hook") {
+      const idx = live.indexOf("\n\n");
+      next = idx === -1 ? option.text : `${option.text}${live.slice(idx)}`;
+    } else {
+      // close, replace last paragraph
+      const idx = live.lastIndexOf("\n\n");
+      next = idx === -1 ? option.text : `${live.slice(0, idx)}\n\n${option.text}`;
+    }
+    if (next.length > LINKEDIN.MAX_POST_LENGTH) {
+      toast.error("That option would exceed the post length limit.");
+      return;
+    }
+    setContent(next);
+    scheduleAutoSave(title, next, hashtags);
+    lastAiSnapshotRef.current = next;
+    toast.success(`${section === "hook" ? "Hook" : "Closing"} applied`);
+  }
+
   // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -1560,12 +1771,15 @@ export default function PostWorkspacePage() {
 
   if (!post) return null;
 
-  const statusConfig = POST_STATUSES[status];
   const charCount = content.length;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col">
+    <div className="flex h-[calc(100vh-7rem)] gap-4">
+      {/* Left column — header, status pipeline, banners, and the scrolling
+          editor body. The Post Pilot AI panel is a sibling at the root
+          level so it can extend the full page height. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Top toolbar */}
       <div className="flex items-center justify-between border-b pb-3 mb-4">
         <div className="flex items-center gap-3">
@@ -1576,9 +1790,7 @@ export default function PostWorkspacePage() {
           >
             <ArrowLeft className="size-4" />
           </Button>
-          <Badge variant="secondary" className={cn("shrink-0", statusConfig.color)}>
-            {statusConfig.label}
-          </Badge>
+          {/* Status badge removed — now shown by the inline status pipeline. */}
           {sourceIdea && (
             <Link
               href={`/ideas?highlight=${sourceIdea.id}`}
@@ -1620,116 +1832,27 @@ export default function PostWorkspacePage() {
             ) : null}
           </div>
 
-          {/* Content pillar badges — editable only for posted posts */}
-          {contentPillars.length > 0 && status !== "posted" && (
-            <div className="flex flex-wrap gap-1">
-              {contentPillars.map((pillar) => (
-                <Badge key={pillar} variant="outline" className="gap-1 text-xs">
-                  <Tag className="size-3" />
-                  {pillar}
-                </Badge>
-              ))}
-            </div>
-          )}
-          {status === "posted" && (profile?.content_pillars?.length ?? 0) > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:bg-accent transition-colors"
-                  />
-                }
-              >
-                <Tag className="size-3" />
-                {contentPillars.length > 0 ? contentPillars.join(", ") : "Assign pillar"}
-                <ChevronDown className="size-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Content Pillars</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {profile!.content_pillars.map((pillar) => (
-                    <DropdownMenuItem
-                      key={pillar}
-                      onClick={() => toggleContentPillar(pillar)}
-                    >
-                      {contentPillars.includes(pillar) && (
-                        <Check className="size-3.5 mr-1.5" />
-                      )}
-                      {pillar}
-                    </DropdownMenuItem>
-                  ))}
-                  {contentPillars.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => updateContentPillars([])}>
-                        <X className="size-3.5 mr-1.5" />
-                        Remove all pillars
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* Content pillars moved out of the top header — they now render
+              below the post-length indicator, right-aligned. */}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* LinkedIn Preview Toggle — opens same publish preview dialog */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setPublishPreviewOpen(true)}
-          >
-            <Eye className="size-3.5" />
-            Preview
-          </Button>
-
-          {/* Right panel toggle */}
-          <TooltipWrapper tooltip={chatOpen ? EDITOR_TOOLTIPS.hideAI : EDITOR_TOOLTIPS.showAI}>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={togglePanel}
-              className="lg:hidden"
-            >
-              {chatOpen ? (
-                <PanelRightClose className="size-4" />
-              ) : (
-                <PanelRightOpen className="size-4" />
-              )}
-            </Button>
-          </TooltipWrapper>
-          <TooltipWrapper tooltip={chatOpen ? EDITOR_TOOLTIPS.hideAI : EDITOR_TOOLTIPS.showAI}>
-            <Button
-              id="tour-ai-panel"
-              variant="outline"
-              size="sm"
-              onClick={togglePanel}
-              className="hidden gap-1.5 lg:inline-flex"
-            >
-              {chatOpen ? (
-                <PanelRightClose className="size-3.5" />
-              ) : (
-                <PanelRightOpen className="size-3.5" />
-              )}
-              {chatOpen ? "Hide Panel" : "Show Panel"}
-            </Button>
-          </TooltipWrapper>
-        </div>
+        {/* Top-right header strip kept intentionally light — Preview, Schedule,
+            and the AI Chat panel toggle now live in the editor's bottom row
+            and toolbar respectively. */}
+        <div className="flex items-center gap-2" />
       </div>
 
-      {/* Post progress bar */}
-      <div id="tour-progress-bar">
-      <PostProgressBar
-        status={status}
-        userTier={profile?.subscription_tier as SubscriptionTier ?? userTier}
-        scheduledFor={lastScheduledDate}
-        scheduledAt={scheduledAtDate}
-        createdAt={post?.created_at ? new Date(post.created_at) : null}
-        postedAt={post?.posted_at ? new Date(post.posted_at) : null}
-      />
+      {/* Compact status pipeline (replaces the old full-width progress bar). */}
+      <div id="tour-progress-bar" className="flex items-center gap-3 pb-1">
+        <PostStatusPipeline
+          status={status}
+          userTier={profile?.subscription_tier as SubscriptionTier ?? userTier}
+          scheduledFor={lastScheduledDate}
+          scheduledAt={scheduledAtDate}
+          createdAt={post?.created_at ? new Date(post.created_at) : null}
+          postedAt={post?.posted_at ? new Date(post.posted_at) : null}
+          sourceIdeaTitle={sourceIdea?.title ?? null}
+        />
       </div>
 
       {/* Warning banner when editing a published post via ?edit=true */}
@@ -1878,15 +2001,10 @@ export default function PostWorkspacePage() {
         </div>
       )}
 
-      {/* Main two-panel layout */}
-      <div className="flex flex-1 gap-4 overflow-hidden">
-        {/* ─── Left Panel: Editor ─────────────────────────────────────────── */}
-        <div
-          className={cn(
-            "flex flex-col overflow-y-auto min-h-0",
-            chatOpen ? "w-full lg:w-[60%]" : "w-full"
-          )}
-        >
+      {/* Editor body — scrolling region inside the left column. Width is
+          set on the parent (left column flex-1); the AI panel takes its
+          fixed % alongside. */}
+      <div className="flex flex-1 flex-col overflow-y-auto min-h-0">
           <div className="flex flex-1 flex-col space-y-4">
             {/* Post title */}
             <input
@@ -1909,10 +2027,23 @@ export default function PostWorkspacePage() {
                   <textarea
                     ref={textareaRef}
                     value={content}
-                    onChange={(e) => handleContentChange(e.target.value)}
-                    onKeyDown={handleTextareaKeyDown}
-                    onMouseUp={handleSelectionChange}
-                    onKeyUp={handleSelectionChange}
+                    onChange={(e) => {
+                      handleContentChange(e.target.value);
+                      updateSlashFromInput(e.target, e.target.value, "editor");
+                    }}
+                    onKeyDown={(e) => {
+                      if (slashState.open && slashMenuRef.current?.handleKey(e)) return;
+                      handleTextareaKeyDown(e);
+                    }}
+                    onMouseUp={(e) => {
+                      handleSelectionChange(e);
+                      updateSlashFromInput(e.currentTarget, e.currentTarget.value, "editor");
+                    }}
+                    onKeyUp={(e) => {
+                      handleSelectionChange(e);
+                      updateSlashFromInput(e.currentTarget, e.currentTarget.value, "editor");
+                    }}
+                    onBlur={closeSlashMenu}
                     placeholder="Start writing your LinkedIn post..."
                     className="min-h-[100px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
                   />
@@ -1921,43 +2052,77 @@ export default function PostWorkspacePage() {
                 <textarea
                   ref={textareaRef}
                   value={content}
-                  onChange={(e) => handleContentChange(e.target.value)}
-                  onKeyDown={handleTextareaKeyDown}
-                  onMouseUp={handleSelectionChange}
-                  onKeyUp={handleSelectionChange}
+                  onChange={(e) => {
+                    handleContentChange(e.target.value);
+                    updateSlashFromInput(e.target, e.target.value, "editor");
+                  }}
+                  onKeyDown={(e) => {
+                    if (slashState.open && slashMenuRef.current?.handleKey(e)) return;
+                    handleTextareaKeyDown(e);
+                  }}
+                  onMouseUp={(e) => {
+                    handleSelectionChange(e);
+                    updateSlashFromInput(e.currentTarget, e.currentTarget.value, "editor");
+                  }}
+                  onKeyUp={(e) => {
+                    handleSelectionChange(e);
+                    updateSlashFromInput(e.currentTarget, e.currentTarget.value, "editor");
+                  }}
+                  onBlur={closeSlashMenu}
                   placeholder="Start writing your LinkedIn post..."
                   className="min-h-[300px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
                 />
               )}
             </div>
 
-            {/* Character counter */}
-            <div className="flex items-center justify-between text-xs">
-              <span className={cn("font-medium tabular-nums", charCountColor(charCount))}>
-                {charCount} / {LINKEDIN.MAX_POST_LENGTH}
-              </span>
-              {charCount > 0 && (
-                <span className="text-muted-foreground">
-                  First {LINKEDIN.HOOK_VISIBLE_LENGTH} chars visible before &quot;see
-                  more&quot;
-                  {charCount > LINKEDIN.HOOK_VISIBLE_LENGTH && (
-                    <span className="ml-1 text-yellow-600">
-                      (hook ends at char {LINKEDIN.HOOK_VISIBLE_LENGTH})
-                    </span>
-                  )}
-                </span>
-              )}
+            {/* Single icon-only editor toolbar — centered, larger touch
+                targets. Sits directly under the editor, above the post-length
+                indicator. */}
+            <div className="flex justify-center">
+              <EditorToolbar
+                onInsertEmoji={(emoji) => insertAtCursor(emoji)}
+                onInsertBulletList={() => insertAtCursor("\n• ")}
+                onInsertNumberedList={() => insertAtCursor("\n1. ")}
+                onSuggestHashtags={suggestHashtags}
+                hashtagsBusy={suggestingHashtags}
+                hashtagsDisabled={!content.trim()}
+                hashtagsDisabledReason="Write some content first"
+                onSaveToLibrary={() => setSaveToLibraryOpen(true)}
+                saveToLibraryDisabled={!hasFeature(userTier, "content_library") || !content.trim()}
+                saveToLibraryDisabledReason={
+                  !hasFeature(userTier, "content_library")
+                    ? "Personal plan or above required"
+                    : "Write some content first"
+                }
+                onRunEnhancement={runEnhancement}
+                enhancing={enhancing}
+                enhancingTemplate={enhancingTemplate}
+                enhanceDisabled={!content.trim()}
+                enhanceDisabledReason="Write some content first"
+                onToggleAIChat={togglePanel}
+                aiChatOpen={chatOpen}
+              />
             </div>
 
-            {/* Hook line indicator bar */}
-            {charCount > 0 && (
-              <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary/30 transition-all"
-                  style={{
-                    width: `${Math.min((charCount / LINKEDIN.MAX_POST_LENGTH) * 100, 100)}%`,
-                  }}
-                />
+            {/* Post length indicator
+                Bar first, with a small caption that names what it shows.
+                The yellow tick marks the hook truncation point on LinkedIn. */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Post length</span>
+                <span className="text-muted-foreground/70 normal-case font-normal tracking-normal text-[11px]">
+                  Yellow line = hook cutoff at {LINKEDIN.HOOK_VISIBLE_LENGTH} chars
+                </span>
+              </div>
+              <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
+                {charCount > 0 && (
+                  <div
+                    className="h-full rounded-full bg-primary/40 transition-all"
+                    style={{
+                      width: `${Math.min((charCount / LINKEDIN.MAX_POST_LENGTH) * 100, 100)}%`,
+                    }}
+                  />
+                )}
                 <div
                   className="absolute top-0 h-full w-px bg-yellow-500"
                   style={{
@@ -1965,7 +2130,73 @@ export default function PostWorkspacePage() {
                   }}
                 />
               </div>
-            )}
+              <div className="flex items-center justify-between text-xs">
+                <span className={cn("font-medium tabular-nums", charCountColor(charCount))}>
+                  {charCount} / {LINKEDIN.MAX_POST_LENGTH} chars
+                </span>
+                {charCount > LINKEDIN.HOOK_VISIBLE_LENGTH && (
+                  <span className="text-yellow-600 dark:text-yellow-500">
+                    Hook ends at char {LINKEDIN.HOOK_VISIBLE_LENGTH}
+                  </span>
+                )}
+              </div>
+
+              {/* Content pillars — moved out of the top header per spec. */}
+              {(contentPillars.length > 0 || (status === "posted" && (profile?.content_pillars?.length ?? 0) > 0)) && (
+                <div className="flex justify-end">
+                  {status === "posted" && (profile?.content_pillars?.length ?? 0) > 0 ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:bg-accent transition-colors"
+                          />
+                        }
+                      >
+                        <Tag className="size-3" />
+                        {contentPillars.length > 0 ? contentPillars.join(", ") : "Assign pillar"}
+                        <ChevronDown className="size-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-auto whitespace-nowrap">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel>Content Pillars</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {profile!.content_pillars.map((pillar) => (
+                            <DropdownMenuItem
+                              key={pillar}
+                              onClick={() => toggleContentPillar(pillar)}
+                            >
+                              {contentPillars.includes(pillar) && (
+                                <Check className="size-3.5 mr-1.5" />
+                              )}
+                              {pillar}
+                            </DropdownMenuItem>
+                          ))}
+                          {contentPillars.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => updateContentPillars([])}>
+                                <X className="size-3.5 mr-1.5" />
+                                Remove all pillars
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {contentPillars.map((pillar) => (
+                        <Badge key={pillar} variant="outline" className="gap-1 text-xs">
+                          <Tag className="size-3" />
+                          {pillar}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Hook analysis card */}
             {hookAnalysis && (
@@ -2000,112 +2231,17 @@ export default function PostWorkspacePage() {
               </div>
             )}
 
-            {/* Formatting helpers */}
-            <div id="tour-formatting-toolbar" className="flex items-center gap-2">
-              <EmojiPicker onSelect={(emoji) => insertAtCursor(emoji)} />
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button variant="outline" size="xs" className="gap-1" />
-                  }
-                >
-                  <Menu className="size-3" />
-                  Format
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-auto whitespace-nowrap">
-                  <DropdownMenuItem
-                    onClick={analyzeHook}
-                    disabled={!hasFeature(userTier, "hook_analysis") || analyzingHook || !content.trim() || content.length < 20}
-                  >
-                    <Zap className="size-3.5 mr-2" />
-                    {analyzingHook ? "Analyzing..." : "Analyze Hook"}
-                    {!hasFeature(userTier, "hook_analysis") && <span className="ml-auto text-[10px] text-muted-foreground">Personal+</span>}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertAtCursor("\n")}>
-                    <Pilcrow className="size-3.5 mr-2" />
-                    Line Break
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => insertAtCursor("\n\u2022 ")}>
-                    <List className="size-3.5 mr-2" />
-                    Bullet Point
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setSaveToLibraryOpen(true)}
-                    disabled={!hasFeature(userTier, "content_library") || !content.trim()}
-                  >
-                    <BookOpen className="size-3.5 mr-2" />
-                    Save to Library
-                    {!hasFeature(userTier, "content_library") && <span className="ml-auto text-[10px] text-muted-foreground">Personal+</span>}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={copyPostToClipboard}
-                    disabled={!content.trim()}
-                  >
-                    <ClipboardCopy className="size-3.5 mr-2" />
-                    Copy Post
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <TooltipWrapper tooltip={EDITOR_TOOLTIPS.insertFromLibrary}>
-                <InsertFromLibrary onInsert={(text) => insertAtCursor(text)} />
-              </TooltipWrapper>
-
-              {/* BP-028: Guided Enhancement dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="gap-1"
-                      disabled={enhancing || !content.trim()}
-                    />
-                  }
-                >
-                  {enhancing ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Wand2 className="size-3" />
-                  )}
-                  Enhance
-                  <ChevronDown className="size-3" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-72 whitespace-normal">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Guided Enhancements</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {ENHANCEMENT_TEMPLATE_LIST.map((tmpl) => (
-                      <DropdownMenuItem
-                        key={tmpl.key}
-                        onClick={() => runEnhancement(tmpl.key)}
-                        disabled={enhancing}
-                      >
-                        <Wand2
-                          className={cn(
-                            "size-3.5 mr-2 mt-0.5 shrink-0",
-                            enhancingTemplate === tmpl.key && "animate-spin"
-                          )}
-                        />
-                        <div className="flex flex-col">
-                          <span>{tmpl.label}</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight">
-                            {tmpl.subtext}
-                          </span>
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
             <Separator />
 
-            {/* Post Image */}
-            <div id="tour-image-section" className="space-y-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <ImagePlus className="size-3.5" />
+            {/* Post Image — distinct visual treatment so it stands out from
+                the rest of the editor body. Subtle primary-tinted gradient
+                surface; primary CTA is the AI-generate button. */}
+            <div
+              id="tour-image-section"
+              className="space-y-2 rounded-xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] to-primary/[0.02] p-3 ring-1 ring-inset ring-primary/5"
+            >
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+                <ImagePlus className="size-4" />
                 Post Image
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -2120,7 +2256,6 @@ export default function PostWorkspacePage() {
                   <TooltipTrigger
                     render={
                       <Button
-                        variant="outline"
                         size="sm"
                         className="gap-1.5"
                         onClick={() => setGenerateImageOpen(true)}
@@ -2161,167 +2296,14 @@ export default function PostWorkspacePage() {
 
             <Separator />
 
-            {/* Hashtags section */}
-            <div id="tour-hashtags" className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-sm font-medium">
-                  <Hash className="size-3.5" />
-                  Hashtags
-                  <span className="text-xs text-muted-foreground">
-                    ({hashtags.length}/{LINKEDIN.MAX_HASHTAGS})
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="gap-1"
-                  onClick={suggestHashtags}
-                  disabled={suggestingHashtags || !content.trim()}
-                >
-                  {suggestingHashtags ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-3" />
-                  )}
-                  Suggest Hashtags
-                </Button>
-              </div>
+            {/* Hashtags now live inline at the end of the body text. The
+                # toolbar icon and /hashtags slash command append directly. */}
 
-              <div className="flex flex-wrap gap-1.5">
-                {hashtags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="secondary"
-                    className="gap-1 pr-1"
-                  >
-                    {tag.startsWith('#') ? tag : `#${tag}`}
-                    <button
-                      onClick={() => removeHashtag(tag)}
-                      className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
-                    >
-                      <X className="size-2.5" />
-                    </button>
-                  </Badge>
-                ))}
-                {hashtags.length === 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    No hashtags yet. Click &quot;Suggest Hashtags&quot; to generate some.
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Status bar + Version management — dropdown menus */}
+            {/* Bottom action row — Versions on the far left, then on the
+                right: Submit-for-Review (when applicable), 3-dot Actions
+                menu, Preview, Schedule. Mirrors the new mockup. */}
             <div className="flex items-center gap-2 pb-2">
-              {/* Status Actions dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={<Button id="tour-actions-menu" variant="outline" size="sm" className="gap-1.5" />}
-                >
-                  <MoreHorizontal className="size-3.5" />
-                  Actions
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-80 whitespace-normal">
-                  {/* BP-037: Sub-text under each action so users know exactly
-                      what each does — especially which ones publish to LinkedIn. */}
-
-                  {/* Post to LinkedIn */}
-                  <DropdownMenuItem onClick={handleShareOnLinkedIn} disabled={publishing || status === "posted" || status === "archived"}>
-                    <LinkedInIcon className="size-3.5 mr-2 mt-0.5 shrink-0 text-[#0A66C2]" />
-                    <div className="flex flex-col">
-                      <span>Post to LinkedIn</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">
-                        Publish immediately to your LinkedIn account
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  {/* Schedule Post */}
-                  <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)} disabled={status === "archived"}>
-                    <CalendarClock className="size-3.5 mr-2 mt-0.5 shrink-0" />
-                    <div className="flex flex-col">
-                      <span>Schedule Post</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">
-                        Publish automatically at a chosen date and time
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  {/* Manually Posted */}
-                  <DropdownMenuItem onClick={() => setMarkPostedOpen(true)} disabled={status === "posted" || status === "archived"}>
-                    <Check className="size-3.5 mr-2 mt-0.5 shrink-0" />
-                    <div className="flex flex-col">
-                      <span>Manually Posted</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">
-                        Mark as posted if you shared it outside PostPilot
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  {/* View on LinkedIn */}
-                  <DropdownMenuItem
-                    onClick={() => post?.linkedin_post_url && window.open(post.linkedin_post_url, "_blank")}
-                    disabled={!post?.linkedin_post_url}
-                  >
-                    <ExternalLink className="size-3.5 mr-2 mt-0.5 shrink-0" />
-                    <div className="flex flex-col">
-                      <span>View on LinkedIn</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">
-                        Open the live post in a new tab
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  {/* Revert to Draft — shown for non-draft statuses.
-                      BP-138: hidden when in republish flow (?republish=1)
-                      because the post was just auto-flipped to draft on
-                      entry; this menu item would be a no-op. */}
-                  {status !== "draft" && status !== "archived" && searchParams.get("republish") !== "1" && (
-                    <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                      <FileEdit className="size-3.5 mr-2" />
-                      Revert to Draft
-                    </DropdownMenuItem>
-                  )}
-
-                  {/* Revert to Review — Team/Enterprise only, shown for scheduled/past_due/posted */}
-                  {hasFeature(userTier, "review_status") && ["scheduled", "past_due", "posted"].includes(status) && (
-                    <DropdownMenuItem onClick={() => updateStatus("review")}>
-                      <Eye className="size-3.5 mr-2" />
-                      Revert to Review
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuSeparator />
-
-                  {/* Archive / Restore */}
-                  {status !== "archived" ? (
-                    <DropdownMenuItem onClick={() => updateStatus("archived")}>
-                      <Archive className="size-3.5 mr-2" />
-                      Archive
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => updateStatus("draft")}>
-                      <FileEdit className="size-3.5 mr-2" />
-                      Restore to Draft
-                    </DropdownMenuItem>
-                  )}
-
-                  {/* Delete */}
-                  <DropdownMenuItem
-                    onClick={() => setDeleteDialogOpen(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="size-3.5 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Version management dropdown */}
+              {/* Versions dropdown — far left */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={<Button id="tour-versions-menu" variant="outline" size="sm" className="gap-1.5" />}
@@ -2421,30 +2403,68 @@ export default function PostWorkspacePage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Submit for Review — right-aligned, Team/Enterprise + workspace only */}
-              {post?.workspace_id && hasFeature(userTier, "workspaces") && status === "draft" && post.approval_status !== "pending" && (
+              {/* Right-side cluster — pushes everything below to the right */}
+              <div className="ml-auto flex items-center gap-2">
+                {/* Submit for Review — Team/Enterprise + workspace only */}
+                {post?.workspace_id && hasFeature(userTier, "workspaces") && status === "draft" && post.approval_status !== "pending" && (
+                  <Button
+                    onClick={() => setReviewerDialogOpen(true)}
+                    size="sm"
+                    className="gap-1.5"
+                  >
+                    <Send className="size-3.5" />
+                    Submit for Review
+                  </Button>
+                )}
+
+                {/* 3-dot Actions — Post Now / View on LinkedIn / Posted Manually / Archive / Delete */}
+                <PostActions
+                  postId={postId}
+                  status={status}
+                  title={title}
+                  variant="editor"
+                  userTier={userTier}
+                  linkedinPostUrl={post?.linkedin_post_url}
+                  onPostNow={handleShareOnLinkedIn}
+                />
+
+                {/* Preview */}
                 <Button
-                  onClick={() => setReviewerDialogOpen(true)}
+                  variant="outline"
                   size="sm"
-                  className="gap-1.5 ml-auto"
+                  className="gap-1.5"
+                  onClick={() => setPublishPreviewOpen(true)}
                 >
-                  <Send className="size-3.5" />
-                  Submit for Review
+                  <Eye className="size-3.5" />
+                  Preview
                 </Button>
-              )}
+
+                {/* Schedule */}
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setScheduleDialogOpen(true)}
+                  disabled={status === "archived"}
+                >
+                  <CalendarClock className="size-3.5" />
+                  Schedule
+                </Button>
+              </div>
             </div>
 
             {/* Engagement Analytics moved to below progress bar */}
           </div>
         </div>
+      </div>
 
-        {/* ─── Right Panel: AI Chat ───────────────────────────────────────── */}
+        {/* ─── Right Panel: Post Pilot AI ─── runs from the page top
+            because it's a sibling of the entire left column. */}
         {chatOpen && (
           <div className={cn(
             "flex flex-col overflow-hidden min-h-0",
             isMobile
               ? "fixed inset-0 z-50 bg-background p-4"
-              : "w-full border-l pl-4 lg:w-[40%]"
+              : "w-full rounded-l-xl border-l border-primary/20 bg-primary/5 px-4 py-3 ring-1 ring-inset ring-primary/10 lg:w-[30%] xl:w-[25%]"
           )}>
             {/* Panel tab header — only Team+ users in workspace see Comments/Activity tabs */}
             {post?.workspace_id && hasFeature(userTier, "workspaces") ? (
@@ -2461,7 +2481,7 @@ export default function PostWorkspacePage() {
                       )}
                     >
                       <Bot className="size-3.5" />
-                      AI Assistant
+                      Post Pilot AI
                     </button>
                     <button
                       onClick={() => setPanelViewPersisted("comments")}
@@ -2500,34 +2520,56 @@ export default function PostWorkspacePage() {
                 <Separator />
               </>
             ) : (
-              /* Single AI header for non-team users */
+              /* Single Post Pilot AI header for non-team users */
               <>
-                <div className="flex items-center justify-between pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-7 items-center justify-center rounded-full bg-primary/10">
-                      <Bot className="size-4 text-primary" />
+                <div className="space-y-2 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
+                        <Bot className="size-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-primary">
+                          Post Pilot AI
+                          {profile?.ai_provider && (
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                              ({PROVIDER_DISPLAY_NAMES[profile.ai_provider as AIProvider]})
+                            </span>
+                          )}
+                        </p>
+                        <p className="max-w-[200px] truncate text-xs text-muted-foreground">
+                          Discussing: {title || "Untitled Post"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">
-                        AI Assistant
-                        {profile?.ai_provider && (
-                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                            ({PROVIDER_DISPLAY_NAMES[profile.ai_provider as AIProvider]})
-                          </span>
-                        )}
-                      </p>
-                      <p className="max-w-[200px] truncate text-xs text-muted-foreground">
-                        Discussing: {title || "Untitled Post"}
-                      </p>
+                    <div className="flex items-center gap-1.5">
+                      {/* Studio AI mute toggle — only shown once Studio AI
+                          is reachable (i.e. no gate AND not currently
+                          drafting from idea). */}
+                      {!studio.gate && !draftingFromIdea && (
+                        <StudioAIMuteToggle
+                          paused={studio.muted}
+                          onToggle={studio.toggleMuted}
+                        />
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setPanelView(null)}
+                      >
+                        <X className="size-4" />
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setPanelView(null)}
-                  >
-                    <X className="size-4" />
-                  </Button>
+
+                  {/* Studio AI status — pulsing dot + state label, plus an
+                      animated reading bar while a review is in flight. */}
+                  {!studio.gate && (
+                    <StudioAIStatusPill
+                      state={studioState}
+                      excerpt={studioExcerpt}
+                    />
+                  )}
                 </div>
                 <Separator />
               </>
@@ -2554,17 +2596,55 @@ export default function PostWorkspacePage() {
             {/* AI Assistant tab content — only shown when panelView is "ai" */}
             {panelView === "ai" && (
             <>
+            {/* Studio AI surfaces — gate message OR suggestion cards. Sit
+                above the chat thread so the user sees them first. */}
+            {studio.gate ? (
+              <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+                <p className="font-semibold text-primary">
+                  {studio.gate === "tier_gate" ? "Advanced Insights is a Pro feature" : "Add your AI key to unlock Advanced Insights"}
+                </p>
+                {studio.gateMessage && (
+                  <p className="mt-1 text-muted-foreground">{studio.gateMessage}</p>
+                )}
+                <Link
+                  href={studio.gate === "tier_gate" ? "/pricing" : "/settings"}
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  {studio.gate === "tier_gate" ? "See plans →" : "Open Settings →"}
+                </Link>
+              </div>
+            ) : studio.review ? (
+              <div className="mb-3">
+                <StudioAICards
+                  postId={postId}
+                  review={studio.review}
+                  onApplyOption={applyStudioOption}
+                />
+              </div>
+            ) : null}
+
             {/* Chat messages area */}
             <ScrollArea id="tour-ai-chat-area" className="flex-1 min-h-0 py-3">
               <div className="space-y-4 pr-2">
-                {chatMessages.length === 0 && (
+                {/* Single non-bubble system row (e.g. "Drafted from your
+                    idea") — sits above any chat bubbles and never
+                    re-enters the conversation history. */}
+                {chatSystemEvent && (
+                  <div className="flex items-center justify-center">
+                    <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-0.5 text-[10px] italic text-muted-foreground">
+                      ✨ {chatSystemEvent}
+                    </span>
+                  </div>
+                )}
+
+                {chatMessages.length === 0 && !chatSystemEvent && (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="flex size-12 items-center justify-center rounded-full bg-muted">
                       <MessageCircle className="size-5 text-muted-foreground" />
                     </div>
                     <p className="mt-3 text-sm font-medium">Start a conversation</p>
                     <p className="mt-1 max-w-[240px] text-xs text-muted-foreground">
-                      Ask the AI to help refine your post, suggest hooks, or improve
+                      Ask Post Pilot AI to help refine your post, suggest hooks, or improve
                       your writing.
                     </p>
                   </div>
@@ -2653,32 +2733,25 @@ export default function PostWorkspacePage() {
 
             <Separator />
 
-            {/* Quick suggestion chips */}
-            <div className="flex flex-wrap gap-1.5 py-2">
-              {QUICK_SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => sendChatMessage(suggestion)}
-                  disabled={chatStreaming}
-                  className="rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-2.5 py-1 text-xs font-semibold text-white shadow-md transition-all hover:from-blue-700 hover:to-blue-600 disabled:opacity-50"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-
             {/* Chat input */}
             <div className="flex items-end gap-2 pb-1">
               <textarea
                 value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
+                onChange={(e) => {
+                  setChatInput(e.target.value);
+                  updateSlashFromInput(e.target, e.target.value, "chat");
+                }}
                 onKeyDown={(e) => {
+                  if (slashState.open && slashMenuRef.current?.handleKey(e)) return;
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     sendChatMessage(chatInput);
                   }
                 }}
-                placeholder="Ask the AI anything..."
+                onMouseUp={(e) => updateSlashFromInput(e.currentTarget, e.currentTarget.value, "chat")}
+                onKeyUp={(e) => updateSlashFromInput(e.currentTarget, e.currentTarget.value, "chat")}
+                onBlur={closeSlashMenu}
+                placeholder="Ask Post Pilot AI anything, or type / for commands…"
                 rows={1}
                 className="field-sizing-content min-h-[36px] max-h-[120px] flex-1 resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
@@ -2694,11 +2767,45 @@ export default function PostWorkspacePage() {
                 )}
               </Button>
             </div>
+
+            {/* Footer row under the chat input — slash hint on the left,
+                em-dash preference toggle on the right. */}
+            <div className="flex items-center justify-between gap-3 pt-1.5 pb-1">
+              {/* Slash-command hint */}
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] text-muted-foreground/80">
+                <span>Try</span>
+                {CHAT_SLASH_HINTS.map((hint) => (
+                  <code
+                    key={hint}
+                    className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground/70"
+                  >
+                    {hint}
+                  </code>
+                ))}
+                <span>· type / for more</span>
+              </div>
+
+              {/* Em-dash toggle */}
+              <label
+                className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground/80"
+                title={
+                  emDashAllowed
+                    ? "AI may use em-dashes (—). Toggle off to forbid them."
+                    : "AI is instructed to avoid em-dashes (—)."
+                }
+              >
+                <span className="font-mono">em-dash</span>
+                <Switch
+                  checked={emDashAllowed}
+                  onCheckedChange={setEmDashAllowed}
+                  className="h-4 w-7"
+                />
+              </label>
+            </div>
             </>
             )}
           </div>
         )}
-      </div>
 
       {/* Schedule dialog */}
       <ScheduleDialog
@@ -2932,6 +3039,18 @@ export default function PostWorkspacePage() {
         onOpenChange={setBrainstormOpen}
         initialTopic={brainstormTopic}
         contentPillars={profile?.content_pillars ?? []}
+      />
+
+      {/* Slash-command autocomplete — anchored to whichever input opened it.
+          Editor anchors below the textarea; chat anchors above the input. */}
+      <SlashCommandMenu
+        ref={slashMenuRef}
+        open={slashState.open}
+        query={slashState.query}
+        anchor={slashState.anchor}
+        placeAbove={slashState.target === "chat"}
+        onSelect={handleSlashSelect}
+        onClose={closeSlashMenu}
       />
     </div>
   );

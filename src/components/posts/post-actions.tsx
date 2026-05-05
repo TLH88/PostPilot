@@ -43,9 +43,12 @@ interface PostActionsProps {
   postId: string;
   status: string;
   title?: string | null;
-  variant?: "dropdown" | "footer";
+  variant?: "dropdown" | "footer" | "editor";
   userTier?: SubscriptionTier;
   scheduledFor?: string | null;
+  /** LinkedIn post URL — required for the "View on LinkedIn" item in the
+   *  editor variant. Falls back to hiding that item when missing. */
+  linkedinPostUrl?: string | null;
   onReschedule?: () => void;
   onPostNow?: () => void;
 }
@@ -70,6 +73,7 @@ export function PostActions({
   variant = "dropdown",
   userTier = "free",
   scheduledFor,
+  linkedinPostUrl,
   onReschedule,
   onPostNow,
 }: PostActionsProps) {
@@ -111,6 +115,132 @@ export function PostActions({
     setDeleteDialogOpen(false);
     setDeleting(false);
     router.refresh();
+  }
+
+  // Editor variant — bottom-row action menu in the post editor. Lean set
+  // (5 items): Post Now, View on LinkedIn (when published), Posted Manually,
+  // Archive/Restore, Delete. Schedule has its own button next door so it's
+  // intentionally absent. Same dialogs as the other variants.
+  if (variant === "editor") {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              />
+            }
+          >
+            <MoreVertical className="size-3.5" />
+            Actions
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-48"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (onPostNow) { onPostNow(); } else { router.push(`/posts/${postId}?action=publish`); }
+              }}
+              disabled={status === "posted" || status === "archived"}
+            >
+              <Send className="size-4" /> Post Now
+            </DropdownMenuItem>
+
+            {status === "posted" && linkedinPostUrl && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  window.open(linkedinPostUrl, "_blank", "noopener,noreferrer");
+                }}
+              >
+                <ExternalLink className="size-4" /> View on LinkedIn
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuItem
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setManuallyPostedConfirmOpen(true); }}
+              disabled={status === "posted" || status === "archived"}
+            >
+              <Check className="size-4" /> Posted Manually
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {status !== "archived" ? (
+              <DropdownMenuItem onClick={(e) => handleStatusChange(e, "archived")}>
+                <Archive className="size-4" /> Archive
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={(e) => handleStatusChange(e, "draft")}>
+                <RotateCcw className="size-4" /> Restore to Draft
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true); }}
+            >
+              <Trash2 className="size-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Delete confirmation dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-[400px]" onClick={(e) => e.stopPropagation()}>
+            <DialogHeader>
+              <DialogTitle>Delete post?</DialogTitle>
+              <DialogDescription>
+                This will permanently delete this post and all its versions. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete permanently"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Manually Posted confirmation dialog */}
+        <Dialog open={manuallyPostedConfirmOpen} onOpenChange={setManuallyPostedConfirmOpen}>
+          <DialogContent className="sm:max-w-[440px]" onClick={(e) => e.stopPropagation()}>
+            <DialogHeader>
+              <DialogTitle>Mark as Posted Manually?</DialogTitle>
+              <DialogDescription>
+                This means you have already copied and posted this content to LinkedIn on your own, without using PostPilot&apos;s direct publishing feature. The post will be marked as &quot;Posted to LinkedIn&quot; in your workflow.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => setManuallyPostedConfirmOpen(false)}>Cancel</Button>
+              <Button onClick={() => {
+                setManuallyPostedConfirmOpen(false);
+                setMarkPostedOpen(true);
+              }}>
+                Yes, I posted it manually
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Mark as Posted dialog (URL input) */}
+        <MarkPostedDialog
+          open={markPostedOpen}
+          onOpenChange={setMarkPostedOpen}
+          postId={postId}
+          postTitle={title}
+          onSuccess={() => router.refresh()}
+        />
+      </>
+    );
   }
 
   // Footer variant now uses the same dropdown as the default variant

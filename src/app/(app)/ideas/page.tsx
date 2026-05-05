@@ -10,6 +10,7 @@ import { SponsoredCard } from "@/components/ads/sponsored-card";
 import type { Idea } from "@/types";
 import { TagInput } from "@/components/ui/tag-input";
 import { CreateIdeaDialog } from "@/components/ideas/create-idea-dialog";
+import { KanbanBoard } from "@/components/ideas/kanban-board";
 import {
   Card,
   CardContent,
@@ -46,6 +47,8 @@ import {
   Plus,
   X,
   Check,
+  LayoutGrid,
+  List as ListIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { toUserMessage } from "@/lib/errors/to-user-message";
@@ -310,6 +313,22 @@ export default function IdeasPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [developingId, setDevelopingId] = useState<string | null>(null);
+
+  // View toggle (kanban / list) — persisted per device. Default = kanban.
+  type ViewMode = "kanban" | "list";
+  const [viewMode, setViewModeState] = useState<ViewMode>("kanban");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem("pp:ideas-view");
+      if (saved === "kanban" || saved === "list") setViewModeState(saved);
+    } catch { /* swallow */ }
+  }, []);
+  const setViewMode = useCallback((m: ViewMode) => {
+    setViewModeState(m);
+    if (typeof window === "undefined") return;
+    try { localStorage.setItem("pp:ideas-view", m); } catch { /* swallow */ }
+  }, []);
 
   // BP-099: Launch Pad's "Brainstorm" card sends users to /ideas?open=generate
   // so they land directly in the AI Idea Generator with no extra click. Honor
@@ -630,7 +649,35 @@ export default function IdeasPage() {
             Capture and organize content ideas. Click &quot;Generate Ideas&quot; to brainstorm with AI, or add your own manually.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-center">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center">
+          {/* View toggle — kanban (default) / list. Persists per device. */}
+          <div className="inline-flex rounded-md border border-input p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("kanban")}
+              title="Kanban view"
+              className={`inline-flex size-7 items-center justify-center rounded transition-colors ${
+                viewMode === "kanban"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LayoutGrid className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              title="List view"
+              className={`inline-flex size-7 items-center justify-center rounded transition-colors ${
+                viewMode === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ListIcon className="size-3.5" />
+            </button>
+          </div>
+
           <Button
             variant="outline"
             onClick={() => setCreateOpen(true)}
@@ -646,6 +693,21 @@ export default function IdeasPage() {
           </TooltipWrapper>
         </div>
       </div>
+
+      {/* Kanban view — replaces the list view + filter bar when active. */}
+      {viewMode === "kanban" && (
+        <KanbanBoard
+          ideas={ideas}
+          pillars={contentPillars}
+          userTier={userTier}
+          onAddIdea={() => setCreateOpen(true)}
+          onEditIdea={(idea) => setEditingIdea(idea)}
+          setIdeas={setIdeas}
+        />
+      )}
+
+      {viewMode === "list" && (
+        <>
 
       {/* Idea Process Flow */}
       <div id="tour-idea-process-flow">
@@ -1101,6 +1163,8 @@ export default function IdeasPage() {
             );
           })}
         </div>
+      )}
+        </>
       )}
 
       {/* Generate Ideas Dialog */}

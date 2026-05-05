@@ -6,6 +6,7 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { HookAnalysisInputSchema, HookAnalysisResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
+import { buildEmDashRule } from "@/lib/em-dash";
 import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 import { resolveAi } from "@/lib/ai/resolve-ai";
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { content } = parsed.data;
+    const { content, allowEmDashes } = parsed.data;
 
     // BP-045 follow-up: system-first with BYOK fallback.
     const result = await resolveAi({ feature: "chat_messages" });
@@ -34,11 +35,13 @@ export async function POST(request: NextRequest) {
     const { client, profile, source, provider, model, isFallback } = result.resolution;
     activeProvider = provider;
 
+    const emDashRule = buildEmDashRule(allowEmDashes);
     const systemPrompt = buildSystemPrompt(
       BASE_PERSONALITY,
       buildCreatorContext(profile),
       HOOK_ANALYSIS_INSTRUCTIONS,
-      GUARDRAILS
+      GUARDRAILS,
+      emDashRule || undefined,
     );
 
     const hook = content.slice(0, 210);

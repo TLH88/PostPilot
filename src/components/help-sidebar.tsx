@@ -264,13 +264,13 @@ const HELP_ARTICLES: Record<string, { title: string; description: string; conten
   // requests `key === "templates"` since the only surfaces that did
   // (post editor, onboarding, help page) are themselves flag-gated.
   "ai-assistant": {
-    title: "AI Assistant",
-    description: "Draft, refine, and improve posts with AI-powered help",
+    title: "Post Pilot AI",
+    description: "Draft, refine, and improve posts with Post Pilot AI",
     content: (
       <>
-        <p>The AI Assistant uses your User Profile to generate content that matches your voice and style. It has full context of your current post including title, content, status, hashtags, and content pillar.</p>
-        <p><strong>Auto-drafting:</strong> When you develop an idea from the Idea Bank, the AI automatically generates an initial draft for you.</p>
-        <p><strong>Quick suggestions:</strong> Use the chips (Add a hook, Make it shorter, etc.) for instant improvements.</p>
+        <p>Post Pilot AI uses your User Profile to generate content that matches your voice and style. It has full context of your current post including title, content, status, hashtags, and content pillar.</p>
+        <p><strong>Auto-drafting:</strong> When you develop an idea from the Idea Bank, Post Pilot AI automatically generates an initial draft for you.</p>
+        <p><strong>Slash commands:</strong> Type <code>/</code> in the editor or chat to run instant actions (<code>/hook</code>, <code>/shorten</code>, <code>/personal</code>, …).</p>
         <p><strong>Free-form chat:</strong> Type any instruction for more specific requests.</p>
         <p><strong>Apply to Editor:</strong> Click this button on any AI response to replace your editor content with the AI draft. Your previous version is auto-saved.</p>
       </>

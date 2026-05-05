@@ -101,8 +101,9 @@ export default async function AppLayout({
         {/* Sidebar - hidden on mobile */}
         <Sidebar userName={userName} userTier={userTier} />
 
-        {/* Main content area */}
-        <div className="lg:pl-64">
+        {/* Main content area — offset only by the collapsed rail width
+            (w-16). The sidebar expands as a hover overlay above content. */}
+        <div className="lg:pl-16">
           <TopBar userName={userName} userTier={userTier} />
           <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
             <PausedBanner paused={isPaused} reason={pausedReason} />

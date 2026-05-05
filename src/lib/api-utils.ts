@@ -9,6 +9,7 @@ export const DraftInputSchema = z.object({
   topic: z.string().optional(),
   instructions: z.string().optional(),
   currentDraft: z.string().optional(),
+  allowEmDashes: z.boolean().optional(),
 });
 
 export const ChatInputSchema = z.object({
@@ -28,6 +29,7 @@ export const ChatInputSchema = z.object({
   wordCount: z.number().optional(),
   characterCount: z.number().optional(),
   recentEdits: z.string().optional(),
+  allowEmDashes: z.boolean().optional(),
 });
 
 export const BrainstormInputSchema = z.object({
@@ -43,6 +45,7 @@ export const EnhanceInputSchema = z.object({
   // BP-028: optional template key. When present, the route uses the pre-built
   // prompt for that template. When absent, falls back to the generic instruction.
   template: z.enum(ENHANCEMENT_TEMPLATE_KEYS).optional(),
+  allowEmDashes: z.boolean().optional(),
 });
 
 export const HashtagsInputSchema = z.object({
@@ -52,6 +55,7 @@ export const HashtagsInputSchema = z.object({
 
 export const HookAnalysisInputSchema = z.object({
   content: z.string().min(1, "Post content is required"),
+  allowEmDashes: z.boolean().optional(),
 });
 
 // ─── Zod schemas for AI response validation ──────────────────────────────────
