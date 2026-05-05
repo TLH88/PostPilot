@@ -40,6 +40,23 @@ const ANNUAL_PRICES: Record<string, string | null> = {
 
 const TIER_RANK: Record<string, number> = { free: 0, personal: 1, professional: 2 };
 
+/**
+ * Feature rows that exist in TIER_FEATURES but should NOT render on the
+ * pricing surface — they're Team / Enterprise-only and Tony pulled those
+ * tiers from the page (2026-05-04). Showing them as ✗ across every visible
+ * tier just adds noise. Backend feature gating still uses these rows; only
+ * the marketing surface filters them out.
+ */
+const PRICING_HIDDEN_FEATURE_KEYS = new Set([
+  "workspaces",
+  "team_members",
+  "brand_onboarding",
+]);
+
+const PRICING_VISIBLE_FEATURES = TIER_FEATURES.filter(
+  (f) => !PRICING_HIDDEN_FEATURE_KEYS.has(f.key),
+);
+
 const FAQ = [
   {
     q: "What is BYOK (Bring Your Own Key)?",
@@ -212,7 +229,7 @@ export default function PricingPage() {
    * Booleans render as icon-only; quantitative/string values render with
    * a ✓ icon AND the value text on the right.
    */
-  function renderCardRow(feature: typeof TIER_FEATURES[number], tierKey: SubscriptionTier) {
+  function renderCardRow(feature: typeof PRICING_VISIBLE_FEATURES[number], tierKey: SubscriptionTier) {
     const val = feature[tierKey as keyof typeof feature];
     const available = val !== false;
     const hasValueText = typeof val === "string";
@@ -362,7 +379,7 @@ export default function PricingPage() {
 
                     {/* Feature list */}
                     <div className="flex-1 space-y-3">
-                      {TIER_FEATURES.map((feature) => renderCardRow(feature, tierKey))}
+                      {PRICING_VISIBLE_FEATURES.map((feature) => renderCardRow(feature, tierKey))}
                     </div>
 
                     {tierKey === "professional" && (
@@ -434,7 +451,7 @@ export default function PricingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {TIER_FEATURES.map((feature) => (
+                  {PRICING_VISIBLE_FEATURES.map((feature) => (
                     <tr key={feature.key} className="border-b last:border-0">
                       <td className="py-3 pr-4 text-muted-foreground">{feature.name}</td>
                       {ALL_TIERS.map((t) => (

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserAIClient } from "@/lib/ai/get-user-ai-client";
 import {
   BASE_PERSONALITY,
   GUARDRAILS,
@@ -7,9 +6,9 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { HookAnalysisInputSchema, HookAnalysisResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
-import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
+import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
-import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
+import { resolveAi } from "@/lib/ai/resolve-ai";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
@@ -27,21 +26,13 @@ export async function POST(request: NextRequest) {
 
     const { content } = parsed.data;
 
-    const { client, profile, source, provider, model } = await getUserAIClient();
+    // BP-045 follow-up: system-first with BYOK fallback.
+    const result = await resolveAi({ feature: "chat_messages" });
+    if (!result.ok) {
+      return NextResponse.json(result.block.body, { status: result.block.status });
+    }
+    const { client, profile, source, provider, model, isFallback } = result.resolution;
     activeProvider = provider;
-
-    // Quota check — BYOK users bypass the system-key cap.
-    const bypass = source === "byok";
-    const quota = await checkQuota(profile.user_id, "chat_messages", { bypass });
-    if (!quota.allowed) {
-      return buildQuotaExceededResponse(quota, "chat_messages");
-    }
-
-    // BP-085 Phase 3: per-user $ budget gate.
-    const budget = await checkBudget(profile.user_id);
-    if (!budget.ok) {
-      return NextResponse.json(buildBudgetExceededBody(budget), { status: 402 });
-    }
 
     const systemPrompt = buildSystemPrompt(
       BASE_PERSONALITY,
@@ -83,7 +74,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await incrementQuota(profile.user_id, "chat_messages", { bypass });
+    if (!isFallback) {
+      await incrementQuota(profile.user_id, "chat_messages");
+    }
 
     logAiUsage({
       userId: profile.user_id,

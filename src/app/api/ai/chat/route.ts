@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { getUserAIClient } from "@/lib/ai/get-user-ai-client";
 import {
   BASE_PERSONALITY,
   GUARDRAILS,
@@ -7,9 +6,9 @@ import {
 } from "@/lib/ai/prompts";
 import { buildCreatorContext, buildSystemPrompt } from "@/lib/ai/context-builder";
 import { ChatInputSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
-import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
+import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
-import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
+import { resolveAi } from "@/lib/ai/resolve-ai";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
@@ -27,27 +26,22 @@ export async function POST(request: NextRequest) {
 
     const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount, recentEdits } = parsed.data;
 
-    const { client, profile, source, provider, model } = await getUserAIClient();
-    activeProvider = provider;
-
-    // Quota check — BYOK users bypass the system-key cap.
-    const bypass = source === "byok";
-    const quota = await checkQuota(profile.user_id, "chat_messages", { bypass });
-    if (!quota.allowed) {
-      return buildQuotaExceededResponse(quota, "chat_messages");
-    }
-
-    // BP-085 Phase 3: per-user $ budget gate (additive to BP-117 quota).
-    const budget = await checkBudget(profile.user_id);
-    if (!budget.ok) {
-      return new Response(JSON.stringify(buildBudgetExceededBody(budget)), {
-        status: 402,
+    // BP-045 follow-up: system-first with BYOK fallback.
+    const result = await resolveAi({ feature: "chat_messages" });
+    if (!result.ok) {
+      return new Response(JSON.stringify(result.block.body), {
+        status: result.block.status,
         headers: { "Content-Type": "application/json" },
       });
     }
+    const { client, profile, source, provider, model, isFallback } = result.resolution;
+    activeProvider = provider;
 
-    // Increment quota before streaming (optimistic; no-op for BYOK)
-    await incrementQuota(profile.user_id, "chat_messages", { bypass });
+    // Increment quota before streaming (optimistic). System counters
+    // only advance for system-path traffic — BYOK fallback skips this.
+    if (!isFallback) {
+      await incrementQuota(profile.user_id, "chat_messages");
+    }
 
     // Build system prompt with optional post context
     let additionalContext: string | undefined;

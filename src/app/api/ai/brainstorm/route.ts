@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserAIClient } from "@/lib/ai/get-user-ai-client";
 import {
   BASE_PERSONALITY,
   GUARDRAILS,
@@ -8,9 +7,9 @@ import {
 import { buildCreatorContext, buildSystemPromptWithCacheBoundary } from "@/lib/ai/context-builder";
 import { BrainstormInputSchema, BrainstormResponseSchema, logApiError, humanizeAIError } from "@/lib/api-utils";
 import { createClient } from "@/lib/supabase/server";
-import { checkQuota, incrementQuota, buildQuotaExceededResponse } from "@/lib/quota";
+import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
-import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
+import { resolveAi } from "@/lib/ai/resolve-ai";
 
 export async function POST(request: NextRequest) {
   let activeProvider: string | undefined;
@@ -28,21 +27,16 @@ export async function POST(request: NextRequest) {
 
     const { topic, contentPillar, count, trending } = parsed.data;
 
-    const { client, profile, source, provider, model } = await getUserAIClient();
+    // BP-045 follow-up: system-first with BYOK fallback. `resolveAi`
+    // runs checkQuota + checkBudget against the system path; falls back
+    // to BYOK when the user has it configured (Pro+ only) and force_ai_gateway
+    // is off; otherwise returns a 402 block.
+    const result = await resolveAi({ feature: "brainstorms" });
+    if (!result.ok) {
+      return NextResponse.json(result.block.body, { status: result.block.status });
+    }
+    const { client, profile, source, provider, model, isFallback } = result.resolution;
     activeProvider = provider;
-
-    // Quota check — BYOK users bypass the system-key cap.
-    const bypass = source === "byok";
-    const quota = await checkQuota(profile.user_id, "brainstorms", { bypass });
-    if (!quota.allowed) {
-      return buildQuotaExceededResponse(quota, "brainstorms");
-    }
-
-    // BP-085 Phase 3: per-user $ budget gate (additive to BP-117 quota).
-    const budget = await checkBudget(profile.user_id);
-    if (!budget.ok) {
-      return NextResponse.json(buildBudgetExceededBody(budget), { status: 402 });
-    }
 
     // Fetch recent posts and ideas for history context
     const supabase = await createClient();
@@ -186,7 +180,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Increment quota after successful brainstorm (skipped for BYOK)
-    await incrementQuota(profile.user_id, "brainstorms", { bypass });
+    // System counters only advance for system-path traffic. BYOK
+    // fallback (`isFallback === true`) doesn't consume system quota.
+    if (!isFallback) {
+      await incrementQuota(profile.user_id, "brainstorms");
+    }
 
     logAiUsage({
       userId: profile.user_id,
