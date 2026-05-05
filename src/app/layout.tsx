@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -10,10 +11,17 @@ const inter = Inter({
   variable: "--font-sans",
 });
 
+const ADSENSE_PUBLISHER_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? "";
+
 export const metadata: Metadata = {
   title: "PostPilot - AI LinkedIn Content Partner",
   description:
     "Create engaging LinkedIn posts with AI-powered brainstorming, drafting, and scheduling.",
+  ...(ADSENSE_PUBLISHER_ID && {
+    other: {
+      "google-adsense-account": ADSENSE_PUBLISHER_ID,
+    },
+  }),
 };
 
 export default function RootLayout({
@@ -43,6 +51,15 @@ export default function RootLayout({
             <Toaster position="bottom-right" />
           </TooltipProvider>
         </ThemeProvider>
+        {ADSENSE_PUBLISHER_ID && (
+          <Script
+            id="adsbygoogle-init"
+            async
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`}
+            crossOrigin="anonymous"
+          />
+        )}
       </body>
     </html>
   );
