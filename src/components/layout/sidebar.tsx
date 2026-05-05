@@ -131,7 +131,7 @@ export function Sidebar({ userName, userTier = "free" }: SidebarProps) {
       */}
       {(userTier === "free" || userTier === "personal") && (
         <div className="px-3 pb-2">
-          <UpgradeAd />
+          <UpgradeAd tier={userTier} />
         </div>
       )}
 

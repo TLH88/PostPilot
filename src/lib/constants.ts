@@ -207,7 +207,12 @@ export const TIER_FEATURES = [
   { key: "brand_onboarding", name: "Brand Onboarding", free: false, personal: false, professional: false, team: true, enterprise: true },
   { key: "content_library", name: "Content Library", free: false, personal: false, professional: true, team: true, enterprise: true },
   { key: "hook_analysis", name: "AI Hook Analysis", free: false, personal: true, professional: true, team: true, enterprise: true },
-  { key: "templates", name: "Post Templates", free: false, personal: false, professional: true, team: true, enterprise: true },
+  // Advanced AI Collaboration — added to Pro 2026-05-04 per owner direction.
+  // Replaces Post Templates as the Pro-tier headline AI feature.
+  { key: "ai_collaboration", name: "Advanced AI Collaboration", free: false, personal: false, professional: true, team: true, enterprise: true },
+  // Post Templates moved from Pro → Team-only 2026-05-04 per owner direction.
+  // Pro tier no longer advertises Templates; pricing matrix updated accordingly.
+  { key: "templates", name: "Post Templates", free: false, personal: false, professional: false, team: true, enterprise: true },
   { key: "calendar", name: "Content Calendar", free: "View only", personal: true, professional: true, team: true, enterprise: true },
   { key: "byok", name: "Bring Your Own AI Key (BYOK)", free: false, personal: false, professional: true, team: true, enterprise: true },
   { key: "ai_models", name: "AI Models", free: "System", personal: "System", professional: "All", team: "All", enterprise: "All" },
@@ -223,7 +228,10 @@ export const TIER_FEATURES = [
 export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   content_library: "professional",
   hook_analysis: "personal",
-  templates: "professional",
+  // Templates: Pro → Team minimum (2026-05-04 owner direction).
+  templates: "team",
+  // Advanced AI Collaboration — Pro+ (new headline feature, 2026-05-04).
+  ai_collaboration: "professional",
   image_generation: "personal",
   analytics: "personal",
   byok_ai_keys: "professional",
