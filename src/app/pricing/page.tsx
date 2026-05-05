@@ -485,30 +485,30 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* FAQ — contained brand panel approach. The page bg stays white;
-            the FAQ content lives inside a single rounded primary-tinted
-            panel with a dot-grid texture. Reads as a deliberate visual
-            object rather than a full-width colored band fighting with
-            the rest of the page's restraint. */}
+        {/* FAQ — contained dark-navy brand panel. Primary blue at the
+            top-left fades to a deep navy (primary 50% mixed with black)
+            at the bottom-right. Page bg stays white; the panel reads as
+            a confident dark moment with the white FAQ cards popping
+            off it. */}
         <section className="py-20">
           <div className="mx-auto max-w-4xl px-6">
             <div
-              className="relative isolate overflow-hidden rounded-3xl border border-primary/20 px-6 py-12 shadow-2xl shadow-primary/15 sm:px-12 sm:py-16"
+              className="relative isolate overflow-hidden rounded-3xl border border-white/10 px-6 py-12 shadow-2xl shadow-primary/30 sm:px-12 sm:py-16"
               style={{
                 background:
-                  "linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 25%, white) 0%, color-mix(in oklch, var(--color-primary) 45%, white) 100%)",
+                  "linear-gradient(135deg, var(--color-primary) 0%, color-mix(in oklch, var(--color-primary) 50%, black) 100%)",
               }}
             >
-              {/* Dot-grid texture inside the panel — primary-blue dots
-                  on the soft tinted bg, vignette-masked toward center. */}
+              {/* Dot-grid texture — white dots so they read against the
+                  dark gradient as a faint star-field. */}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
+                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.20]"
                 style={{
                   backgroundImage:
                     "radial-gradient(circle, currentColor 1px, transparent 1px)",
                   backgroundSize: "24px 24px",
-                  color: "var(--color-primary)",
+                  color: "#ffffff",
                   maskImage:
                     "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
                   WebkitMaskImage:
@@ -516,7 +516,7 @@ export default function PricingPage() {
                 }}
               />
 
-              <h2 className="mb-8 text-center text-2xl font-semibold sm:text-3xl">
+              <h2 className="mb-8 text-center text-2xl font-semibold text-white sm:text-3xl">
                 Frequently asked questions
               </h2>
               <div className="mx-auto max-w-3xl space-y-4">
