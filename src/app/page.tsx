@@ -125,7 +125,7 @@ export default function Home() {
                                       blur, backdrop-blur-sm for less
           */}
           <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-24 sm:pt-32">
-            <div className="max-w-2xl rounded-2xl border border-foreground/10 bg-background/40 px-6 py-10 text-left shadow-2xl shadow-primary/10 backdrop-blur-md sm:px-12 sm:py-14">
+            <div className="max-w-[50rem] rounded-2xl border border-foreground/10 bg-background/40 px-6 py-10 text-left shadow-2xl shadow-primary/10 backdrop-blur-md sm:px-12 sm:py-14">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur">
                 <Send className="size-3.5 text-primary" />
                 AI-Powered LinkedIn Content
