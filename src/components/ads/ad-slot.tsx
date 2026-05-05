@@ -23,8 +23,15 @@
  * (`dashboard`, `sidebar`, `between-content`) are gated to Free-only.
  */
 
+import { useEffect, useRef } from "react";
 import { TIER_FEATURES, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
 
 export type AdPlacement =
   | "launch-pad"
@@ -93,8 +100,48 @@ export function AdSlot({ tier, placement, className }: AdSlotProps) {
     );
   }
 
-  // Real AdSense markup. Loads `adsbygoogle.js` once via the global hook
-  // injected in `<head>` (TBD — see ToS clause + AdSense activation BP).
+  return (
+    <AdSenseUnit
+      publisherId={ADSENSE_PUBLISHER_ID}
+      slotId={slotIdFor(placement, density)}
+      placement={placement}
+      density={density}
+      size={size}
+      className={className}
+    />
+  );
+}
+
+interface AdSenseUnitProps {
+  publisherId: string;
+  slotId: string;
+  placement: AdPlacement;
+  density: "Full" | "Limited";
+  size: { h: number; minW: number };
+  className?: string;
+}
+
+function AdSenseUnit({
+  publisherId,
+  slotId,
+  placement,
+  density,
+  size,
+  className,
+}: AdSenseUnitProps) {
+  const pushed = useRef(false);
+
+  useEffect(() => {
+    if (pushed.current) return;
+    pushed.current = true;
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch {
+      // adsbygoogle.js failed to load (ad blocker, network) — handled
+      // separately by ad-blocker-gate / ad-blocker-modal.
+    }
+  }, []);
+
   return (
     <ins
       className={cn("adsbygoogle block", className)}
@@ -103,8 +150,8 @@ export function AdSlot({ tier, placement, className }: AdSlotProps) {
         minHeight: size.h,
         minWidth: size.minW,
       }}
-      data-ad-client={ADSENSE_PUBLISHER_ID}
-      data-ad-slot={slotIdFor(placement, density)}
+      data-ad-client={publisherId}
+      data-ad-slot={slotId}
       data-ad-format="auto"
       data-full-width-responsive="true"
       data-ad-density={density.toLowerCase()}
