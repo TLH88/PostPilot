@@ -485,21 +485,11 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* FAQ — slate-100 base with blue-tone blobs + dot grid for an
-            ambient backdrop. Edge fades wash blob colors back to
-            bg-background at the top + bottom of the section so it doesn't
-            hard-clip against the surrounding sections. */}
-        <section className="relative isolate overflow-hidden bg-slate-100 py-16">
-          {/* Top-right brand-blue blob */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-32 -top-32 -z-10 size-[40rem] rounded-full bg-gradient-to-br from-blue-400/40 via-sky-300/25 to-transparent blur-3xl"
-          />
-          {/* Bottom-left cyan/sky blob */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -bottom-32 -left-32 -z-10 size-[36rem] rounded-full bg-gradient-to-tr from-sky-400/35 via-cyan-300/22 to-transparent blur-3xl"
-          />
+        {/* FAQ — diagonal blue gradient backdrop + dot-grid overlay.
+            Edge fades wash the gradient back to bg-background at the
+            top and bottom of the section so it doesn't hard-clip against
+            the surrounding sections. */}
+        <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-200 via-sky-100 to-cyan-200 py-16">
           {/* Dot-grid pattern with vignette mask */}
           <div
             aria-hidden="true"
