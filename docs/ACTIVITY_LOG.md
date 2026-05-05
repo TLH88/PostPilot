@@ -4,6 +4,83 @@
 
 ---
 
+## 2026-05-05: Editor revamp + Advanced Insights Phase 1 + ops hardening sweep — develop → main merged
+
+Two-day batch landed on main as merge `ffd64f2`. Five develop commits rolled up: editor product work, the first phase of Advanced Insights, two LinkedIn-route hotfixes, server-side hardening migrations, an edge function redeploy, and a major backlog re-sync after the index drifted out of sync with shipped reality.
+
+### Product surface — editor revamp (`e22159f`)
+
+Owner-driven UX overhaul of the post editor and adjacent surfaces:
+
+- **Toolbar consolidation.** Replaced the cluster of separate buttons (Emoji / Format / Library / Enhance / Show-Hide AI) with a single icon-only `<EditorToolbar>` — emoji, bullet list, numbered list, hashtags, Save to Library, AI Enhance, AI Chat toggle. Centered above the post-length indicator.
+- **Status pipeline.** Replaced the giant blue progress bar with a compact `<PostStatusPipeline>` row: `● IDEA — ● DRAFT — ○ SCHEDULED — ○ PUBLISHED` with green=complete, blue+pulse=current, gray=incomplete. Includes "Idea" stage when post originated from an idea.
+- **Slash commands.** 12 commands (`/hook`, `/expand`, `/shorten`, `/rewrite`, `/closing`, `/story`, `/social`, `/cta`, `/personal`, `/emojis`, `/engaging`, `/hashtags`) work in both the editor textarea AND the AI chat input via shared `<SlashCommandMenu>` autocomplete. New `/closing` template explicitly disjoint from `/cta` ("logical conclusion, no reader ask"). 6 new enhancement templates added.
+- **Em-dash toggle.** Below the chat input, right-aligned. When off, all 5 AI routes (chat, draft, enhance, analyze-hook, review-draft) get a system-prompt suppression rule appended. Persisted per device via localStorage. Module split into server-safe `em-dash.ts` + client `use-em-dash.ts` after a hydration-error build break.
+- **Bottom row rebuild.** Versions on far left; right cluster has Submit-for-Review (when applicable) → 3-dot Actions (Post Now / View on LinkedIn / Posted Manually / Archive / Delete) → Preview → Schedule.
+- **Hashtag flow change.** Moved from a separate `hashtags` array column to inline body text. Legacy hashtags array auto-migrated on post load; `/hashtags` slash command and `#` toolbar icon both append to the body.
+- **AI panel extended top-to-bottom.** Restructured the page layout so the Post Pilot AI panel is a sibling of the entire left column (not nested inside it), running from the page header to the bottom row. Resized to `lg:w-[30%] xl:w-[25%]` for a 75/25 desktop split.
+- **Help page restructured** into 7 bordered, lightly-tinted sections so topics read as discrete blocks. Anchor IDs hoisted to the section element for cleaner deep-link scrolling.
+- **Sidebar collapsible.** Default `w-16` icon rail, expands to `w-64` on hover via CSS-only group selector. New Post button removed from sidebar (still on dashboard, posts, launch-pad, mobile).
+- **Ideas page kanban view.** New 4-column board (Ideas / Drafting / Ready / Published) feeding from both `ideas` and `posts` tables. Multi-select pillar filter with deterministic per-pillar color assignment + solid-fill active state. Per-column tinting (blue / amber / emerald / slate). View toggle (kanban / list, persisted in localStorage); existing list view preserved.
+
+### Advanced Insights Phase 1 (`e22159f`)
+
+Branded as "Post Pilot Advanced Insights" in user-facing copy; internal codename stays `studio-ai-*`. Strict Pro+/BYOK gating: built `getByokAIClient()` resolver that ignores the `force_ai_gateway` toggle so Advanced Insights uses BYOK whenever a key is configured, even when the user has the system-AI slider on for everyday chat.
+
+- **`/api/ai/review-draft`** endpoint — strict JSON response (Hook + Closing verdict + rationale + 2 options each). In-memory content-hash cache per process (200 entries, 30 min TTL). 402 with structured `code` payload for tier_gate / byok_required.
+- **`<StudioAICards>`** above chat — collapsible per section, persisted per draft via localStorage.
+- **`<StudioAIStatusPill>`** in panel header — pulsing primary dot + state label + animated `ai-scan` reading bar (lifted from BP-144 finalist mockup).
+- **`useDraftReview` hook** — initial review on panel open, 10s idle re-review on ≥40-char edits, 30s rate limit, 20-per-day cap (localStorage), per-draft mute.
+- **Silent Develop-into-Post handoff** — bypasses chat path, applies draft directly via `applyAIContent`, single non-bubble system row in chat.
+- **Post Pilot AI rename** across panel header, toasts, tooltips, help page, tutorial copy. Panel container gets primary tint (`bg-primary/5` + ring) so it stands out as its own page region.
+
+### Operations + log scan + safe corrective actions (`8ac6adf`, `4f3541c`)
+
+Owner-prompted scan of Vercel + Supabase logs after the e2e workflow surfaced a brittle test. Four investigation agents in parallel produced reports; safe-auto-fixes applied immediately, NEEDS-APPROVAL items surfaced.
+
+- **e2e auth-onboarding spec fix** — 5 step-title `getByRole("heading", …)` lookups switched to `getByText` after shadcn/ui's `CardTitle` quietly became a `<div data-slot="card-title">` with no heading role. The spec failed identically on 4 prior develop commits before mine; not a regression I introduced.
+- **`/api/linkedin/validate` hardening** — wrapped `supabase.auth.getUser()` in try/catch (newer `@supabase/ssr` throws `AuthApiError` on bad JWT instead of returning `{user:null}`); downgraded first userinfo failure from `logApiError` to `console.warn` since the refresh fallback recovers most.
+- **`/api/linkedin/status` hardening** — same `getUser()` try/catch fix. Identified after a SQL audit (zero duplicate `user_profiles`, zero orphan `auth.users`, zero `linkedin_connected_at`-but-no-token rows) showed the only remaining failure mode for the observed 5x 500s on 2026-05-04 was the same uncaught `getUser()` throw.
+- **`process-account-deletions` edge function** — wrapped the `Deno.serve` body in an outer try/catch that logs error + stack and returns a structured 500. The single observed 500 had no error body in the function logs; next occurrence will be debuggable. Deployed as v3 (was v2).
+
+### Supabase server-side hardening (no repo changes — applied via MCP)
+
+Two migrations applied directly. Both purely additive / hardening with no behavior change:
+
+- `security_advisor_hardening` — `SET search_path = public, pg_temp` on 4 SECURITY DEFINER functions (`is_workspace_member`, `get_workspace_role`, `hook_linkedin_only_signup`, `update_updated_at`); `REVOKE EXECUTE FROM PUBLIC, anon` on the SECURITY DEFINER helpers (`is_workspace_member`, `get_workspace_role`, `has_library_access`, `prune_auto_post_versions`).
+- `add_missing_fk_indexes` — 24 `CREATE INDEX IF NOT EXISTS` on previously unindexed FK columns flagged by the perf advisor. Highest-leverage: `posts.idea_id`, `posts.assigned_by`, `workspace_members.user_id`, `workspaces.owner_id`.
+
+### Filed for later (BP-153)
+
+Bundled the four bigger Supabase items that need careful caller audit before applying:
+1. 69 `auth_rls_initplan` policy rewrites (perf win on hot tables)
+2. `pg_net` extension schema move (needs caller grep)
+3. `post-images` public bucket SELECT policy tightening (intent confirm)
+4. 13 unused-index audit (hold for post-GTM)
+
+### Backlog re-sync
+
+Owner caught that the backlog had drifted out of sync. Two-pass agent verification flipped status on 13 BPs that had shipped but were still flagged in-progress / Backlog / "Fixed (develop)":
+
+- **First pass** (owner-prompted, 7 BPs): BP-085, BP-097, BP-116, BP-119, BP-120, BP-125, BP-126 — all DONE; updated EPIC index lines + 3 deep entries (BP-085 Phase 3, BP-097 auth-onboarding, BP-119 Phase 2).
+- **Second pass** (broader sweep, 6 more BPs): BP-026, BP-028, BP-110, BP-112, BP-133 (all merged to main weeks ago, index still said "Fixed (develop)"); BP-036 (emoji picker — silently shipped, deep entry still Backlog); BP-045 (third-party ads — scaffolding shipped, awaiting AdSense publisher ID env var to flip live).
+- Added BP-111 (proactive LinkedIn token validation) to EPIC 9 index — done 2026-04-23 but never indexed.
+
+### Owner action items still open
+
+- **HaveIBeenPwned leaked-password protection** — one-click toggle in Supabase dashboard. Defense-in-depth even though PostPilot is LinkedIn-OIDC-only.
+- **`/api/linkedin/status` `.single()` → `.maybeSingle()`** — flagged NEEDS-APPROVAL since UI may rely on the 500 for reconnect prompts. Initial SQL audit didn't find a victim, so the `getUser()` try/catch was likely sufficient; revisit if 500s recur.
+- **BP-153** — filed for the 4 larger Supabase items above.
+
+### Final state
+
+- **main** is at `ffd64f2` (merge of develop), production deploy in flight.
+- **develop** is at `62ef25b`, in sync with main after the merge.
+- **CI E2E** went green on develop after the heading-assertion fix; expect main's E2E to be green for the same reason.
+- **Backlog** is now in sync with shipped reality across both EPIC index and deep entries.
+
+---
+
 ## 2026-05-04: QA-remediation 4-sprint plan shipped to develop — BP-149 + BP-142 + BP-150 + BP-151 + BP-152
 
 Owner asked for a fresh QA pass on the new-user onboarding + tutorial experiences against production. Two parallel agents on prod (`mypostpilot.app`) walked end-to-end as fresh `e2e+...` users; combined they exposed **10 distinct defects** across two surfaces. Owner approved a 4-sprint remediation plan covering all of them. End state: develop is now `e8b09d7`, **9 commits ahead of main** (Sprints 1+2+3 + the docs commit), all green.

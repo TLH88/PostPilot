@@ -109,18 +109,23 @@ All items done and deployed.
 - [ ] Content pillar ROI — which pillars drive the most engagement
 
 ### AI Enhancements
-- [ ] Trending topics integration — RSS feeds from industry blogs/news injected into brainstorm context
-- [ ] Voice consistency validation — compare generated text against voice samples, show tone score
-- [ ] Hook analysis endpoint improvements — dedicated analysis with strength rating + improvement suggestions
-- [ ] Guided enhancement workflows — replace generic "Enhance" with templates: "Add hook", "Make it story-driven", "Add social proof", "Improve CTA"
+- [x] Trending topics integration — RSS feeds from industry blogs/news injected into brainstorm context (BP-026, 2026-04-27)
+- [ ] Voice consistency validation — compare generated text against voice samples, show tone score (queued for Advanced Insights Phase 4)
+- [x] Hook analysis endpoint — dedicated analysis with strength rating + improvement suggestions (shipped via `/api/ai/analyze-hook`)
+- [x] Guided enhancement workflows — replace generic "Enhance" with templates (BP-028 shipped 5; expanded to 11 templates 2026-05-05): Add Hook, Story-Driven, Social Proof, Improve CTA, Tighten, Expand, Rewrite, Add Closing, Make Personal, Add Emojis, Make Engaging
+- [x] **Slash commands** in editor + chat (2026-05-05) — 12 commands invoke enhancement templates inline (`/hook`, `/expand`, `/shorten`, `/rewrite`, `/closing`, `/story`, `/social`, `/cta`, `/personal`, `/emojis`, `/engaging`, `/hashtags`)
+- [x] **Em-dash preference toggle** (2026-05-05) — users can opt the AI out of em-dashes; preference rides on every AI request
 
 ---
 
 ## Phase 3: Pro Tier Features
 
-*Premium features for the $49/mo tier.*
+*Premium features for the $50/mo tier.*
 
-- [ ] Image generation — DALL-E 3 via existing OpenAI BYOK keys (~$0.04-0.08/image, zero cost to us)
+- [x] Image generation — DALL-E 3 via OpenAI BYOK keys (BP-125, 2026-04-24; tier-gated + image-capable provider check)
+- [x] **Post Pilot Advanced Insights — Phase 1** (2026-05-05) — Pro+/BYOK-only proactive draft review. `/api/ai/review-draft` endpoint returns Hook + Closing verdicts + rationale + 2 insertable options each. Studio AI cards above the chat (collapsible, persisted), pulsing status pill in panel header with animated reading bar, silent Develop-into-Post handoff. Ambient triggering (initial review on panel open, 10s idle re-review on ≥40-char edits, 30s rate limit, 20-per-day cap, per-draft mute).
+- [ ] **Advanced Insights Phase 2** — body-anchor "Go deeper here" cards (paragraph-level critique with insertable rewrites)
+- [ ] **Advanced Insights Phase 3** — voice-alignment card (compares draft against `voice_samples` + `linkedin_about` + `writing_tone`; drift score + targeted rewrites for off-voice lines)
 - [ ] Approval workflows — draft review/approve chain for teams
 - [ ] Bulk operations — batch brainstorm, batch schedule, batch archive
 - [ ] A/B testing for hooks/CTAs — generate multiple versions, track which performs better
