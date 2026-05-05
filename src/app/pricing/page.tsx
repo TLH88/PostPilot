@@ -496,7 +496,7 @@ export default function PricingPage() {
               className="relative isolate overflow-hidden rounded-3xl border border-primary/20 px-6 py-12 shadow-2xl shadow-primary/15 sm:px-12 sm:py-16"
               style={{
                 background:
-                  "linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 8%, white) 0%, color-mix(in oklch, var(--color-primary) 18%, white) 100%)",
+                  "linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 25%, white) 0%, color-mix(in oklch, var(--color-primary) 45%, white) 100%)",
               }}
             >
               {/* Dot-grid texture inside the panel — primary-blue dots
