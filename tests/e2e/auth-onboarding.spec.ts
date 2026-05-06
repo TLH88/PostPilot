@@ -449,8 +449,16 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // Post-onboarding entry-point sanity check. Launch Pad surfaces at
     // least one of: "Generate New Ideas" (Brainstorm card) or
     // "Create a Post". Either passing satisfies the spec.
+    //
+    // Note: the launch-pad page renders BOTH a mobile shell
+    // (`md:hidden`) and a desktop shell (`hidden md:block`). At the
+    // default Playwright viewport (1280) the mobile shell is
+    // display:none, but it still appears first in DOM order, so a plain
+    // `.first()` would grab the hidden mobile copy and the visibility
+    // assertion would fail. Filter to visible matches before .first().
     const launchPadEntryPoint = page
       .getByText(/Generate New Ideas|Create a Post|Brainstorm/i)
+      .filter({ visible: true })
       .first();
     await expect(launchPadEntryPoint).toBeVisible({ timeout: 15_000 });
 
