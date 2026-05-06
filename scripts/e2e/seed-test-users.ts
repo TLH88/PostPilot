@@ -106,6 +106,15 @@ async function upsertTestUser(tier: Tier): Promise<{ id: string; email: string }
     // Mark tests as fully onboarded so specs can skip the intro flow.
     onboarding_completed: true,
     onboarding_current_step: 99,
+    // BP-142 integrity gate: layout-level validateOnboardingComplete() also
+    // requires expertise_areas + industries to be non-empty arrays. Without
+    // these, even with onboarding_completed=true, the (app) layout treats the
+    // profile as incomplete and redirects to /onboarding — which broke the
+    // smoke + auth-onboarding E2E specs starting around the BP-142 ship.
+    // Keep these in sync with REQUIRED_FIELDS_FOR_COMPLETE in
+    // src/lib/onboarding/required-fields.ts.
+    expertise_areas: ["Software Engineering", "Product Management"],
+    industries: ["Technology", "SaaS"],
     // Mark LinkedIn as connected with fake-but-structurally-valid values.
     // Any real LinkedIn API call will fail at decrypt, which is the guardrail.
     linkedin_connected_at: now,
