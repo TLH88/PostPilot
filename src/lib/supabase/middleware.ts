@@ -42,8 +42,19 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login (except for public routes)
-  const publicRoutes = ["/", "/login", "/signup", "/callback", "/pricing"];
+  // Redirect unauthenticated users to login (except for public routes).
+  // Legal pages (/terms, /privacy) are publicly accessible — visitors must
+  // be able to read both before deciding to sign up, and the marketing
+  // footer links to them.
+  const publicRoutes = [
+    "/",
+    "/login",
+    "/signup",
+    "/callback",
+    "/pricing",
+    "/terms",
+    "/privacy",
+  ];
   const isPublicRoute = publicRoutes.some(
     (route) => request.nextUrl.pathname === route
   );

@@ -119,9 +119,12 @@ export async function POST(request: NextRequest) {
 
     // ── Cache check ──────────────────────────────────────────────────────────
     // Cache key includes the em-dash flag — flipping the toggle should not
-    // serve a stale review that obeyed the previous setting.
+    // serve a stale review that obeyed the previous setting. The trailing
+    // version stamp invalidates the cache when the prompt/schema changes
+    // shape (so a hot deploy doesn't serve old-shape responses to the new
+    // UI). Bump on schema changes.
     const contentHash = hashContent(content);
-    const cacheKey = `${profile.user_id}:${postId}:${contentHash}:${allowEmDashes === false ? "no-em" : "em-ok"}`;
+    const cacheKey = `${profile.user_id}:${postId}:${contentHash}:${allowEmDashes === false ? "no-em" : "em-ok"}:v2`;
     const cached = reviewCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
       return new Response(
@@ -160,7 +163,7 @@ export async function POST(request: NextRequest) {
             "Review this draft and return the JSON object. Output only JSON.",
         },
       ],
-      maxTokens: 1500,
+      maxTokens: 2000,
     });
 
     let parsedJson: unknown;

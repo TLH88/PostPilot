@@ -198,7 +198,11 @@ export function useDraftReview({
       }
 
       const data = (await res.json()) as ReviewResponse & { contentHash: string };
-      setReview({ hook: data.hook, close: data.close });
+      setReview({
+        hook: data.hook,
+        overall: data.overall,
+        close: data.close,
+      });
       setReviewedHash(data.contentHash);
       lastReviewedContentRef.current = content;
       setState("idle");

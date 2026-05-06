@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import { Send, Check, X, Sparkles, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MarketingFooter } from "@/components/landing/marketing-footer";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -485,21 +486,53 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* FAQ */}
-        <section className="border-t bg-muted/30 py-16">
-          <div className="mx-auto max-w-3xl px-6">
-            <h2 className="mb-8 text-center text-2xl font-semibold">
-              Frequently asked questions
-            </h2>
-            <div className="space-y-4">
-              {FAQ.map((item) => (
-                <div key={item.q} className="rounded-lg border bg-background p-5">
-                  <h3 className="text-sm font-semibold">{item.q}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    {item.a}
-                  </p>
-                </div>
-              ))}
+        {/* FAQ — contained dark-navy brand panel. Primary blue at the
+            top-left fades to a deep navy (primary 50% mixed with black)
+            at the bottom-right. Page bg stays white; the panel reads as
+            a confident dark moment with the white FAQ cards popping
+            off it. */}
+        <section className="py-20">
+          <div className="mx-auto max-w-4xl px-6">
+            <div
+              className="relative isolate overflow-hidden rounded-3xl border border-white/10 px-6 py-12 shadow-2xl shadow-primary/30 sm:px-12 sm:py-16"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--color-primary) 0%, color-mix(in oklch, var(--color-primary) 50%, black) 100%)",
+              }}
+            >
+              {/* Dot-grid texture — white dots so they read against the
+                  dark gradient as a faint star-field. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.20]"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle, currentColor 1px, transparent 1px)",
+                  backgroundSize: "24px 24px",
+                  color: "#ffffff",
+                  maskImage:
+                    "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse 80% 100% at 50% 50%, black 40%, transparent 90%)",
+                }}
+              />
+
+              <h2 className="mb-8 text-center text-2xl font-semibold text-white sm:text-3xl">
+                Frequently asked questions
+              </h2>
+              <div className="mx-auto max-w-3xl space-y-4">
+                {FAQ.map((item) => (
+                  <div
+                    key={item.q}
+                    className="rounded-lg border-2 border-primary/40 bg-background p-5 shadow-lg shadow-primary/20"
+                  >
+                    <h3 className="text-sm font-semibold">{item.q}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                      {item.a}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -525,18 +558,7 @@ export default function PricingPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Send className="size-3.5 text-primary" />
-            <span>PostPilot</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} PostPilot. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

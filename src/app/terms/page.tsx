@@ -7,16 +7,13 @@ export const metadata = {
 };
 
 /**
- * BP-045 — Terms of Service.
- *
- * **DRAFT — pending legal review.** This page exists to (a) give the
- * BP-045 ad-blocker hard-gate modal a real document to link to, and
- * (b) lock in the ad-clause language the owner specifically asked for.
- * Sections marked TODO are placeholders that need attorney review and
- * proper jurisdiction-specific language before public launch.
+ * Terms of Service for PostPilot, operated by Foundry 88 Labs LLC.
+ * Originally drafted under BP-045 to support the Free / Personal tier
+ * ad experience; now extended with entity identification (section 1)
+ * and Clark County, WA / PNW governing law + venue (section 12).
  */
 export default function TermsOfServicePage() {
-  const lastUpdated = "2026-05-04";
+  const lastUpdated = "2026-05-05";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 lg:px-6">
@@ -30,27 +27,20 @@ export default function TermsOfServicePage() {
         <p className="text-sm text-muted-foreground">
           Last updated: {lastUpdated}
         </p>
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
-          <p className="font-medium text-amber-900 dark:text-amber-100">
-            Draft pending legal review.
-          </p>
-          <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
-            This document is a v1 draft to support the launch of PostPilot&apos;s
-            Free and Personal tier ad experience. It will be replaced with an
-            attorney-reviewed version before general availability. Sections
-            marked &ldquo;TODO&rdquo; require legal completion.
-          </p>
-        </div>
       </div>
 
       <div className="prose prose-sm dark:prose-invert mt-8 max-w-none">
         <h2>1. Acceptance of these Terms</h2>
         <p>
-          By creating an account, signing in, or otherwise using PostPilot
-          (the &ldquo;Service&rdquo;) provided by PostPilot (&ldquo;we,&rdquo;
-          &ldquo;us,&rdquo; or &ldquo;our&rdquo;), you agree to be bound by
-          these Terms of Service (the &ldquo;Terms&rdquo;). If you do not
-          agree, you may not use the Service.
+          PostPilot (the &ldquo;Service&rdquo;) is provided by{" "}
+          <strong>Foundry 88 Labs LLC</strong>, a Washington limited
+          liability company doing business as PostPilot
+          (&ldquo;Foundry 88 Labs,&rdquo; &ldquo;PostPilot,&rdquo;
+          &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;). By
+          creating an account, signing in, or otherwise using the Service,
+          you agree to be bound by these Terms of Service (the
+          &ldquo;Terms&rdquo;). If you do not agree, you may not use the
+          Service.
         </p>
 
         <h2>2. The Service</h2>
@@ -164,10 +154,24 @@ export default function TermsOfServicePage() {
           constitutes acceptance of the new Terms.
         </p>
 
-        <h2>12. Governing Law</h2>
+        <h2>12. Governing Law and Venue</h2>
         <p>
-          <em>TODO — to be completed during legal review with the
-          appropriate jurisdiction.</em>
+          These Terms, and any dispute arising out of or relating to these
+          Terms or the Service, are governed by the laws of the State of
+          Washington, without regard to its conflict-of-law principles. The
+          parties agree that any such dispute shall be brought exclusively
+          in the state or federal courts located in Clark County,
+          Washington, and consent to the personal jurisdiction and venue of
+          those courts and waive any objection based on inconvenient forum.
+        </p>
+        <p>
+          For users residing in Oregon, the parties may, by mutual written
+          agreement, instead bring such action in the state or federal
+          courts located in Multnomah County, Oregon. PostPilot is operated
+          from and serves the greater Washington and Oregon (Pacific
+          Northwest) region; nothing in this section prevents either party
+          from seeking injunctive or other equitable relief in any court of
+          competent jurisdiction.
         </p>
 
         <h2>13. Contact</h2>
