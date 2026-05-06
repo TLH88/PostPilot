@@ -410,8 +410,11 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // ── Step 5: Content Tools (last visible step for free tier) ───────
     // No required fields and no inputs — just a "Complete Setup" button
     // that fires both /step (final step record) and /complete.
+    // Scope to the card title since "Content Tools" also appears in the
+    // step indicator (Playwright strict mode would otherwise reject the
+    // ambiguous match).
     await expect(
-      page.getByText(/^Content Tools$/i)
+      page.locator('[data-slot="card-title"]', { hasText: /^Content Tools$/i })
     ).toBeVisible();
 
     const stepCountBeforeComplete = requestLog.stepPosts.length;
