@@ -136,7 +136,7 @@ export function PostActions({
             }
           >
             <MoreVertical className="size-3.5" />
-            Actions
+            <span className="sr-only md:not-sr-only">Actions</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"

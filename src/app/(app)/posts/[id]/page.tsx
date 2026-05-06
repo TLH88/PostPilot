@@ -2309,7 +2309,7 @@ export default function PostWorkspacePage() {
                   render={<Button id="tour-versions-menu" variant="outline" size="sm" className="gap-1.5" />}
                 >
                   <Save className="size-3.5" />
-                  Versions
+                  <span className="sr-only md:not-sr-only">Versions</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-80 whitespace-normal">
                   {/* BP-037: Sub-text under each version action so users know
@@ -2413,7 +2413,7 @@ export default function PostWorkspacePage() {
                     className="gap-1.5"
                   >
                     <Send className="size-3.5" />
-                    Submit for Review
+                    <span className="sr-only md:not-sr-only">Submit for Review</span>
                   </Button>
                 )}
 
@@ -2436,7 +2436,7 @@ export default function PostWorkspacePage() {
                   onClick={() => setPublishPreviewOpen(true)}
                 >
                   <Eye className="size-3.5" />
-                  Preview
+                  <span className="sr-only md:not-sr-only">Preview</span>
                 </Button>
 
                 {/* Schedule */}
@@ -2447,7 +2447,7 @@ export default function PostWorkspacePage() {
                   disabled={status === "archived"}
                 >
                   <CalendarClock className="size-3.5" />
-                  Schedule
+                  <span className="sr-only md:not-sr-only">Schedule</span>
                 </Button>
               </div>
             </div>
