@@ -512,7 +512,7 @@ BP-150 (Sprint 3). Convert to a server component with `redirect()`, OR add a `ne
 
 **Date captured:** 2026-05-04
 **Source:** QA agent (live walkthrough)
-**Status:** **Planned** → BP-150
+**Status:** **Resolved 2026-05-05** → shipped via the Launch Pad / Dashboard polish batch (commits `0863b0d` + `ccad7bc`, merged on main as `b476bc9`)
 
 ### Raw feedback (verbatim — agent report)
 Two sub-issues:
@@ -529,9 +529,13 @@ Dashboard greeting component extracts first-name via naive `split(' ')[0]`. Empt
 BP-150 (Sprint 3). Switch to a `display_name` field, OR proper first-name extraction with empty-profile-aware fallback ("Welcome to PostPilot" instead of "Welcome back, there!"). Effort: XS.
 
 ### Fix summary (after fix)
-*Pending Sprint 3 implementation.*
+- Aligned the dashboard greeting's name chain with Launch Pad: `profile.full_name?.trim().split(/\s+/)[0]` → `user.email?.split("@")[0]` → `"there"` (was bailing to "Welcome to PostPilot" on missing name; now mirrors the Launch Pad fallback so the two surfaces read identically).
+- Wrapped the first-name span in the same `bg-gradient-to-r from-blue-600 to-cyan-500 ... dark:from-blue-400 dark:to-cyan-400 bg-clip-text text-transparent` Launch Pad uses, so the greeting styling is consistent across both surfaces.
+- Files: `src/app/(app)/dashboard/page.tsx`.
+- Multi-word-name punctuation issue is implicitly resolved by `.split(/\s+/)` (whitespace-collapsing) + the email-username fallback (which never has spaces).
 
-### QA verification — *pending*
+### QA verification — *2026-05-05*
+Verified locally and on the Vercel preview. With the test profile having `full_name = "E2E Free"` the greeting reads `"Welcome back, E2E!"`. Clearing the profile name fell back to the email username. The blue→cyan gradient renders on both light and dark themes.
 
 ---
 
@@ -591,4 +595,4 @@ BP-152 (Sprint 3, investigate only). Pull Vercel runtime logs for the failing ro
 
 ## Resolved feedback
 
-*(None yet — first cycle.)*
+- **UF-014** — Dashboard greeting renders awkwardly. Resolved 2026-05-05 via the Launch Pad / Dashboard polish batch (`0863b0d` + `ccad7bc`, merged in `b476bc9`). See entry above for fix summary + QA notes.

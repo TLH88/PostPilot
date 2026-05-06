@@ -1,6 +1,8 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-04-24 (Subscription Model v2 pricing pivot: BYOK gated to Pro+, Personal on system keys. Added BP-115–BP-126 under a new EPIC grouping scheme. BP-114 extended to cover Creator Profile → User Profile rename. Extensive impact on BP-018, BP-045, BP-054.)
+> Last updated: 2026-05-06 (Marketing site polish, Foundry 88 Labs LLC legal identification + GDPR/CCPA privacy policy, Advanced Insights Phase 2, Quota-reached modal replaces toast, App-wide ambient background, E2E pipeline rescue. Added BP-154 → BP-162. UF-014 resolved via Launch Pad / Dashboard polish.)
+>
+> Previous: 2026-04-24 (Subscription Model v2 pricing pivot: BYOK gated to Pro+, Personal on system keys. Added BP-115–BP-126 under a new EPIC grouping scheme. BP-114 extended to cover Creator Profile → User Profile rename. Extensive impact on BP-018, BP-045, BP-054.)
 >
 > **2026-04-24 (SUBSCRIPTION MODEL v2):** Reversed the "BYOK is default across all paid tiers" decision. New model:
 > - Free ($0): system keys, strict quotas, full ads
@@ -5253,6 +5255,187 @@ The four items below all touch live Supabase server state (RLS policies, schema 
 
 ---
 
+### BP-154: Quota-Reached Modal (Replaces Toast for All Quota-Exceeded Responses) — DONE 2026-05-05
+
+**Status:** Done — shipped 2026-05-05 (commits across `b476bc9` merge)
+**Priority:** P1 / High (UX gap on the upgrade conversion path)
+**Source:** Owner observation 2026-05-05 — the previous sonner-toast pattern was easy to dismiss and offered no in-place plan comparison
+**EPIC:** EPIC 7 — Subscription, Pricing & Billing (BP-117 follow-on)
+
+Before: hitting any monthly cap (posts / brainstorms / chat / scheduled / image gen) surfaced a small bottom-right sonner toast with a single "View plans" / "Add key" action button. After: a centered tier-aware upgrade modal that owns the full interaction.
+
+**Behavior:**
+- Free tier users see Personal + Professional cards side by side; Personal users see Professional only; Pro users hitting the system-key ceiling (`upgradePath: "byok"`) see a "Bring your own AI key" card pointing to `/settings`.
+- The category the user just hit is highlighted on each plan card — primary-tinted background, ringed border, ⚡ Zap icon. All five quota lines shown for context.
+- Plan cards mirror the visual family of the sidebar `<UpgradeAd>` (Personal = blue→cyan gradient; Pro = purple→blue with "Best value" badge).
+- Hero-image slot reserved at the top for the in-progress mascot to drop in later.
+
+**Implementation:**
+- New `<QuotaReachedModal>` mounted globally in `app/layout.tsx`. Listens for a `postpilot:quota-exceeded` CustomEvent.
+- `src/lib/errors/handle-quota-exceeded.ts` rewired: `handleQuotaExceededResponse` dispatches the event instead of calling `toast.error`. No prop drilling needed for fetch sites that already use `maybeHandleQuotaExceeded(res)`.
+- `normalizeTier()` resolves the server's display label (`"Free"` / `"Personal"` / `"Professional"`) back to the internal `SubscriptionTier` key the modal needs.
+
+**Bugs caught + fixed in the same batch:**
+- Initial implementation had a synthetic ack-handshake "fallback" that fired the legacy toast when the modal listener didn't ack on the same tick. In practice HMR sometimes hadn't picked up new code and the fallback masked the real bug. Removed the ack mechanism entirely.
+- Full-bleed hero placeholder used `-mx-6` which triggered a horizontal scrollbar via CSS overflow promotion. Added `overflow-x-hidden` to the dialog content.
+
+**Acceptance criteria (all met):**
+- [x] Hitting a monthly cap on Free / Personal opens the modal (not the toast).
+- [x] The category the user just hit is highlighted on every plan card.
+- [x] Pro users hitting the system-key ceiling see the BYOK card path.
+- [x] Modal dismissable by Esc / X close; clicking "Upgrade to <Tier>" routes to `/pricing`.
+- [x] No regression to the existing `maybeHandleQuotaExceeded` callsites (`generate-ideas-dialog.tsx`, `posts/[id]/page.tsx`, `generate-image-dialog.tsx`).
+
+---
+
+### BP-155: LinkedIn Recovery "Verifying…" Stuck-State Fix (Next 16 useSearchParams + history.replaceState) — DONE 2026-05-05
+
+**Status:** Done — shipped 2026-05-05 (commit `7860361`, merged in `b476bc9`)
+**Priority:** P1 / Critical (recovery flow was unrecoverable for affected users)
+**Source:** Owner reproduction 2026-05-05 — reconnected LinkedIn after a token-revocation event, recovery modal never advanced past "Verifying…"
+**EPIC:** EPIC 8 — Reliability & Failure Recovery (BP-145 follow-on)
+
+After a successful OAuth round-trip, the recovery page mounted with `?reconnected=1`, kicked off `/api/linkedin/validate?force=1`, and a sibling effect immediately scrubbed the param via `history.replaceState`. In Next 15+, `useSearchParams` reflects `replaceState` calls, so the validation effect's deps changed mid-flight, ran its cleanup (`cancelled = true`), and the new run early-exited before issuing a fresh fetch. When the original fetch resolved it saw `cancelled === true` and bailed without setting state — button stuck on "Verifying…" forever.
+
+**Fix:** Capture both round-trip flags (`reconnected`, `post`) into a `useRef` on first render so they stay stable for the component's lifetime. The URL strip still runs (so a refresh doesn't re-fire validation), but the in-flight fetch is no longer torn down.
+
+**Files:** `src/app/(app)/posts/recovery/page.tsx`.
+
+---
+
+### BP-156: Launch Pad as Default Post-Login Destination (BP-099 Follow-On) — DONE 2026-05-05
+
+**Status:** Done — shipped 2026-05-05 (commit `a3c69ef`, merged in `b476bc9`)
+**Priority:** P2 / Medium (consistency cleanup)
+**Source:** Owner observation 2026-05-05 — several entry points still routed to `/dashboard` after BP-099 made Launch Pad the canonical post-login surface
+**EPIC:** EPIC 4 — Onboarding & Guidance
+
+**Updated:** `admin/layout.tsx` (Back to App), `lib/supabase/middleware.ts` (authed-user redirect), top-level `middleware.ts` (disabled-team-feature redirect), `workspace-setup-wizard` (creation success), pricing page (trial-started + logged-in CTA, relabeled "Open App"), `workspace/members` (missing-workspace fallback), `admin/impersonate` (magic-link `next` param), dev local-login.
+
+**LinkedIn reconnect — return to origin:**
+- `LinkedInConnectDialog` accepts `returnTo={pathname}` from the status banner, token validator, refresh-analytics button, and settings page (settings explicitly returns to `/settings`).
+- Auto-prompt scope expanded from `/dashboard` only to `/launch-pad`, `/dashboard`, `/`.
+- `RETURN_TO_ALLOWLIST` in connect + callback routes widened to cover all user-facing app routes (`/launch-pad`, `/ideas`, `/help`, `/workspace`).
+- Callback default fallback (no recovery context, success) → `/launch-pad` instead of `/settings`. Error path still goes to `/settings` for troubleshooting.
+
+---
+
+### BP-157: Marketing Site Polish — Screenshot Carousel + Ambient Sections + UVP Copy + Shared Footer — DONE 2026-05-06
+
+**Status:** Done — shipped 2026-05-05 → 2026-05-06 (many commits, merged in `21972e8`)
+**Priority:** P1 / High (pre-GTM polish)
+**Source:** Owner-driven session
+**EPIC:** EPIC 11 — Marketing Site (new — first significant pre-GTM polish pass)
+
+**Sections touched:**
+
+1. **Screenshot carousel** — `<ScreenshotCarousel>` in `src/components/landing/screenshot-carousel.tsx`. 3D peek layout (center slide at scale(1), prev/next at scale(0.85) + 14° Y-rotation + 70% opacity + 1px blur), 8s auto-rotate with hover-pause, prefers-reduced-motion aware, manual chevrons + dot indicators. Click-to-jump on side previews. Caption design landed on a blue-titled card *below* the slide (overlap via `-mt-12 sm:-mt-16`) with centered title + divider + centered body, `max-w-[50rem]`. Bleed mode also exists in the same component (chromeless full-size rotator) but isn't currently mounted.
+
+2. **Carousel images** — placed at `docs/images/carousel/` (originals) + `public/images/carousel/` (Next-served runtime copies): `launch-pad.png`, `post-editor.png`, `calendar.png`, `analytics.png`.
+
+3. **Features section ambient backdrop** — replaced `bg-muted/30` with the same slate-200 + corner-blobs + dot-grid pattern from the (app) shell. Colors washed out (every blob's opacity halved). Added top + bottom edge-fade overlays (`bg-background → transparent` gradients, 128px tall) so the colored swell visibly fades to white at section edges. Border-t dropped.
+
+4. **Hero polish** — original simple centered hero preserved (after experimenting with carousel-as-hero-background and reverting). Hero container widened `max-w-2xl` → `max-w-3xl`; "content partner" colored span got `whitespace-nowrap` so "partner" never orphans on its own line.
+
+5. **Shared footer** — extracted `<MarketingFooter>` component (`src/components/landing/marketing-footer.tsx`). 12-col grid: brand block + Product / Legal / Contact link columns, Foundry 88 Labs LLC copyright + attribution. Mounted on landing + pricing.
+
+6. **UVP-pushing copy** — section subtitle and per-slide captions rewritten to push the four UVP pillars one per slide (Launch Pad = simplifies tedium, Post Editor = on-trend, Calendar = organized, Analytics = deep performance insight). Em-dashes scrubbed; replaced with colons.
+
+**Acceptance criteria (all met):**
+- [x] Logged-out visitor on `/` sees the carousel and feature cards above the fold without horizontal scroll on viewports 1280–1920px.
+- [x] Carousel is keyboard-accessible (chevron arrows + dot indicators + side-slide click).
+- [x] Hero copy "Your AI-powered LinkedIn content partner" never orphans "partner" on its own line.
+- [x] Footer mounts on `/` and `/pricing` from the same component file.
+
+---
+
+### BP-158: Pricing FAQ Visual Treatment (Contained Brand Panel) — DONE 2026-05-06
+
+**Status:** Done — shipped 2026-05-06 (commits `911efa1` … `3cd7fe2`, merged in `21972e8`)
+**Priority:** P3 / Low (visual polish)
+**Source:** Owner-driven iteration
+**EPIC:** EPIC 11 — Marketing Site
+
+Multi-iteration arrival on the final treatment. Tried full-width band designs (light gradient, dark blue gradient, pure brand blue, uiGradients "Dark Blue Gradient") before pivoting to a contained brand panel: single rounded-3xl panel inside a plain section, primary→primary-mixed-with-50%-black gradient, white star-field dot grid, white heading, white-bg primary-glowing FAQ cards inside. Reads as a deliberate visual object rather than a full-width band fighting the rest of the pricing page's restraint.
+
+---
+
+### BP-159: Foundry 88 Labs LLC Legal Identification + GDPR/CCPA Privacy Policy + Public Legal Routes — DONE 2026-05-06
+
+**Status:** Done — shipped 2026-05-06 (commits `6d5391b`, `3af87ee`, `315a84f`, `f63e718`, merged in `21972e8`)
+**Priority:** P0 / Critical (pre-GTM legal foundation)
+**Source:** Owner direction — LLC was established; product needs to identify the contracting entity and ship a privacy policy before public launch
+**EPIC:** EPIC 11 — Marketing Site (legal sub-area)
+
+**Terms of Service:**
+- Section 1 now identifies `Foundry 88 Labs LLC, a Washington limited liability company doing business as PostPilot`. Aliases (Foundry 88 Labs / PostPilot / we / us / our) defined once so every existing reference downstream automatically resolves to the LLC.
+- Section 12 — filled the previous TODO. Governing law: State of Washington. Primary venue: Clark County, WA. Alternate venue for OR residents (mutual written agreement): Multnomah County, OR. Standard injunctive-relief carve-out. Section heading expanded "Governing Law" → "Governing Law and Venue".
+- Draft-pending-review banner removed from page header.
+
+**New `/privacy` page** — 16 sections covering GDPR / UK GDPR / CCPA / CPRA / general best-practice disclosures. Tailored to PostPilot's actual data flows (LinkedIn OAuth, Vercel hosting, Supabase, Anthropic / OpenAI / OpenRouter, Stripe, Google AdSense). Includes the §1798.140 categories table, retention schedule, children's privacy gate (under 16), SCC / UK Addendum reference for international transfers, AdSense + industry opt-out links.
+
+**Middleware allowlist:** `/terms` + `/privacy` added to `publicRoutes` in `src/lib/supabase/middleware.ts` so logged-out visitors hitting the footer links land on the actual legal pages instead of being bounced to `/login`.
+
+**Standard caveat:** boilerplate-derived language addresses the headline GDPR/CCPA requirements; worth at least a one-time pass with a privacy-savvy attorney before meaningful EU traffic.
+
+---
+
+### BP-160: Studio AI Advanced Insights Phase 2 — Overall Editorial Section + Selective Suggestions — DONE 2026-05-06
+
+**Status:** Done — shipped 2026-05-06 (commit `f9b7471`, merged in `21972e8`)
+**Priority:** P1 / High (Pro-tier value driver)
+**Source:** Owner observation — Phase 1 only suggested hooks/closes; ignored full post body and intent
+**EPIC:** EPIC 5 — AI Features (Phase 1 was the original BP-129 family work)
+
+Phase 1 was intentionally scoped to hook + close only. Phase 2 expands the review:
+
+- **Schema rewrite** — all three sections (`hook` / `overall` / `close`) are now nullable in `ReviewResponseSchema`. AI defaults to `null` and only populates a section when changes would meaningfully strengthen the post.
+- **New `overall` section** — ONE sentence rationale (names what the post is about, what the writer is going for, and what's holding it back) + 1-3 specific actionable suggestions. Free-form advice the writer applies themselves; no inline-replace action.
+- Hook + close suggestion arrays clamped to 1-2 (was 1-3) for compactness.
+- Prompt explicitly tells the model to be selective and not to repeat advice across sections.
+- **UI** — new `<OverallCard>` with the same collapsed-by-default + persisted-per-draft state pattern, lightbulb icon, "Some ideas · N" header badge, bullet list when expanded. Each section only renders if its review key is non-null. "Reviewed — your post looks solid as-is" green hint shown when all three are null.
+- **Plumbing** — API route cache key bumped to `:v2` so old-shape cached responses don't get served to the new UI on hot deploys. `maxTokens` 1500 → 2000. `useDraftReview` hook plumbs through the new field.
+
+**Files:** `src/lib/ai/review-prompts.ts`, `src/components/posts/studio-ai-cards.tsx`, `src/app/api/ai/review-draft/route.ts`, `src/lib/ai/use-draft-review.ts`.
+
+---
+
+### BP-161: E2E Pipeline Rescue (Seed + Spec Strict-Mode + Body Race + Hidden Mobile Shell) — DONE 2026-05-06
+
+**Status:** Done — shipped 2026-05-06 (commits `ab0ecad`, `cdea75a`, `fab6717`, `89fbcff`, merged in `6734505`)
+**Priority:** P1 / Critical (CI was red on every push for 20+ commits)
+**Source:** Owner observation 2026-05-06 — GitHub notification "deploy errored out" (actually the post-deploy E2E suite that runs Playwright against the Vercel preview)
+**EPIC:** EPIC 9 — Security, Authorization & Observability (CI/test-infra sub-area)
+
+Four independent issues, all in the same batch:
+
+1. **Seed: `expertise_areas` + `industries` were missing.** `scripts/e2e/seed-test-users.ts` set `onboarding_completed: true` but didn't write the two array fields the BP-142 layout integrity check requires. Test users got bounced to `/onboarding` regardless of the flag, breaking smoke + auth-onboarding specs. Added both arrays to the upsert payload with a forwarding comment to `src/lib/onboarding/required-fields.ts` so the next schema change is easier to keep in sync.
+
+2. **Strict-mode duplicate text.** `tests/e2e/auth-onboarding.spec.ts:413` asserted `getByText(/^Content Tools$/i)` was visible at step 5, but "Content Tools" appears twice (step indicator span + card title div). Scoped to `[data-slot="card-title"]`.
+
+3. **Body-parse race.** Same spec read `.json()` off the `/api/onboarding/complete` response, but the wizard's `window.location.href` redirect to `/launch-pad` fired before the body could be read, surfacing as `Protocol error: No resource with given identifier`. Dropped the body parse — the existing `waitForURL(/\/launch-pad/)` proves completion succeeded.
+
+4. **Hidden mobile shell.** `/launch-pad` renders both a mobile shell (`md:hidden`) and a desktop shell (`hidden md:block`). Mobile shell is first in DOM order, so `getByText(...).first()` grabbed the `display:none` mobile copy and `toBeVisible()` failed. Added `.filter({ visible: true })` before `.first()`.
+
+**Final E2E run:** `25410614029` — ✓ 13 passed (26.6s).
+
+---
+
+### BP-162: App-Wide Ambient Background — Lift Launch Pad's Atmosphere Into the (app) Shell — DONE 2026-05-05
+
+**Status:** Done — shipped 2026-05-05 (commit `7c390a6`, merged in `b476bc9`)
+**Priority:** P3 / Low (visual continuity)
+**Source:** Owner direction — make every signed-in page feel like the same "PostPilot atmosphere" instead of Launch Pad being an outlier
+**EPIC:** EPIC 4 — Onboarding & Guidance (UI/UX sub-area)
+
+Extracted Launch Pad's gradient blobs + dot grid pattern into a shared `<AppBackground>` component (`src/components/layout/app-background.tsx`) mounted in the (app) layout. Switched blobs from `absolute` (per-page, scrolls with content) to `fixed` (viewport-anchored, stable atmosphere). Wrapped the (app) shell in `isolate` so the negative z-index stays contained.
+
+Iterated extensively on light-mode color values — final landing: slate-200 base layer + 400-stop blue/sky/cyan blobs at moderate opacity + 500-lead indigo / violet bottom blobs for warmth + a 50%-larger top-left **slate grey** blob (light-mode only via `dark:hidden`) anchoring the upper-left corner. Dark mode stops untouched throughout.
+
+LaunchPadHome stripped of its now-duplicate background plumbing.
+
+---
+
 ## Completed Items
 
 - **BP-001:** Release Notes Modal for Users (2026-03-16)
@@ -5341,3 +5524,12 @@ The four items below all touch live Supabase server state (RLS policies, schema 
 - **BP-109:** Shared EmptyState Component + CTA Migration (2026-04-22)
 - **BP-103:** Contextual Onboarding CTA (2026-04-23 — migration applied)
 - **BP-111:** Proactive LinkedIn Token Validation at Login (2026-04-23)
+- **BP-154:** Quota-Reached Modal — Replaces Toast for All Quota-Exceeded Responses (2026-05-05)
+- **BP-155:** LinkedIn Recovery "Verifying…" Stuck-State Fix — Next 16 useSearchParams + history.replaceState (2026-05-05)
+- **BP-156:** Launch Pad as Default Post-Login Destination — BP-099 follow-on (2026-05-05)
+- **BP-162:** App-Wide Ambient Background — Lift Launch Pad's atmosphere into the (app) shell (2026-05-05)
+- **BP-157:** Marketing Site Polish — Screenshot carousel + ambient sections + UVP copy + shared footer (2026-05-06)
+- **BP-158:** Pricing FAQ Visual Treatment — Contained brand panel (2026-05-06)
+- **BP-159:** Foundry 88 Labs LLC Legal Identification + GDPR/CCPA Privacy Policy + Public Legal Routes (2026-05-06)
+- **BP-160:** Studio AI Advanced Insights Phase 2 — Overall editorial section + selective suggestions (2026-05-06)
+- **BP-161:** E2E Pipeline Rescue — Seed + spec strict-mode + body race + hidden mobile shell (2026-05-06)
