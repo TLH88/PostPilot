@@ -4,6 +4,166 @@
 
 ---
 
+## 2026-05-05 → 2026-05-06: Marketing site, legal pages, Advanced Insights Phase 2, E2E pipeline rescue — develop → main merged twice
+
+Long working session that spanned an evening + early-morning push. Three develop → main merges rolled up: a sizable in-app polish + quota-modal batch (`b476bc9`), a marketing-site / legal / Advanced Insights Phase 2 batch (`21972e8`), and the E2E pipeline rescue follow-up (`6734505`). 47 commits total.
+
+### Quota-reached modal — replaces toast with tier-aware upgrade prompt (BP-154)
+
+Free / Personal users hitting a monthly cap previously got a sonner toast in the bottom-right corner. Replaced with a centered modal that owns the whole interaction:
+
+- New `<QuotaReachedModal>` mounted globally in `app/layout.tsx`, listens for a `postpilot:quota-exceeded` CustomEvent dispatched by `handleQuotaExceededResponse` in `src/lib/errors/handle-quota-exceeded.ts`. No prop drilling — fetch sites that already call `maybeHandleQuotaExceeded(res)` get the modal automatically.
+- Tier-aware: **Free** sees Personal + Professional cards side by side; **Personal** sees Professional only; **Pro** hitting the system-key ceiling (`upgradePath: "byok"`) sees a "Bring your own AI key" card pointing to `/settings`.
+- The category the user just hit is highlighted on each plan card — primary-tinted background, ringed border, ⚡ Zap icon. All five quota lines (posts / brainstorms / chat_messages / image_generations / scheduled_posts) shown for context.
+- "Best value" badge on the Pro card; blue→cyan gradient on the Personal card; purple→blue on the Pro card. Mirrors the visual family of the sidebar `<UpgradeAd>`.
+- Reserved a hero-image slot at the top of the modal so the in-progress mascot can drop in later without a layout change.
+- **Fixed during the same batch:**
+  - Initial implementation had a synthetic ack-handshake "fallback" that fired the legacy toast when the modal listener didn't ack on the same tick. In practice HMR sometimes hadn't picked up new code and the fallback masked the real bug. Removed the ack mechanism entirely — modal is mounted in root layout, listener is always there, no need to second-guess.
+  - Server's `buildQuotaExceededResponse` ships the display label (`"Free"` / `"Personal"` / `"Professional"`), not the internal key. Modal compared `tier === "free"` which never matched. Added `normalizeTier()` to resolve label → key.
+  - Full-bleed hero placeholder used `-mx-6` which triggered a horizontal scrollbar via CSS overflow promotion. Added `overflow-x-hidden` to the dialog content.
+
+### LinkedIn recovery "Verifying…" stuck state — BP-145 follow-on (BP-155)
+
+After a successful LinkedIn OAuth round-trip, the recovery page mounted with `?reconnected=1`, kicked off `/api/linkedin/validate?force=1`, and then a sibling effect scrubbed the param via `history.replaceState`. In Next 15+, `useSearchParams` reflects `replaceState` calls, so the validation effect's deps changed mid-flight, ran its cleanup (`cancelled = true`), and the new run early-exited. When the fetch finally resolved it saw `cancelled === true` and bailed without setting state — button stuck on "Verifying…" forever.
+
+Fix: capture both round-trip flags into a `useRef` on first render so they stay stable for the component's lifetime (`src/app/(app)/posts/recovery/page.tsx`). The URL strip still runs (so a refresh doesn't re-fire validation), but the in-flight fetch is no longer torn down.
+
+### Launch Pad as default post-login destination — BP-099 follow-on (BP-156)
+
+Several entry points still routed authenticated users to `/dashboard`. Updated all of them to land on `/launch-pad`:
+
+- `admin/layout.tsx` Back-to-App link
+- `lib/supabase/middleware.ts` authed-user redirect away from `/login` / `/signup`
+- Top-level `middleware.ts` disabled-team-feature redirect
+- `workspace-setup-wizard` post-creation success
+- `pricing` page trial-started redirect AND logged-in CTA (relabeled "Open App")
+- `workspace/members` missing-workspace fallback
+- `admin/impersonate` magic-link `next` param
+- Dev local-login default
+
+LinkedIn reconnect now returns to the page where Reconnect was clicked rather than always landing on `/settings`. Allowlist in `connect` + `callback` routes widened to cover all user-facing app routes (`/launch-pad`, `/ideas`, `/help`, `/workspace`, etc.). Callback default fallback (no recovery context, success) → `/launch-pad` instead of `/settings`. Error path still goes to `/settings` for troubleshooting.
+
+### App-wide ambient background (BP-162)
+
+Lifted Launch Pad's ambient gradient blobs + dot grid pattern into a shared `<AppBackground>` component (`src/components/layout/app-background.tsx`) mounted in the (app) layout. Every signed-in page now inherits the same atmosphere — strong continuity from one screen to the next instead of Launch Pad feeling like an outlier.
+
+Iterated extensively on the light-mode color values:
+
+1. Original (lifted from Launch Pad) — too splotchy on near-white bg
+2. Pastel 200-stops — too washed out, "fog" feel
+3. 300-stops — still washed
+4. 400-stops at original opacity — getting closer
+5. **Slate-200 base layer** + 400-stops at higher opacity — landed
+6. Bottom blobs stepped to 500-lead (indigo-500 / violet-500) for more pink/purple punch
+7. Added a top-left **slate grey** blob (light-mode only via `dark:hidden`), 50% larger than the others, anchoring the upper-left corner so the four-color layout reads symmetric
+
+Switched blobs from `absolute` (per-page, scrolls with content) to `fixed` (viewport-anchored, stable atmosphere). Wrapped the (app) shell wrapper in `isolate` so the negative z-index stays contained.
+
+### Dashboard polish (UF-014 resolution + section tint bump)
+
+- **Greeting name chain matches Launch Pad** — full_name first word → email username → "there" (was bailing to "Welcome to PostPilot" on missing name).
+- **First name uses the same blue→cyan gradient** as Launch Pad (`bg-gradient-to-r from-blue-600 to-cyan-500 ... dark:from-blue-400 dark:to-cyan-400 bg-clip-text text-transparent`).
+- **Recent Drafts / Scheduled / Posted section tints** bumped 5%/7% → 10%/12% (light/dark) so each section reads as a distinct surface against the new ambient backdrop.
+
+### Sidebar nav active-state highlight
+
+Replaced the solid `bg-sidebar-accent` chip on active items with `bg-primary/20 text-primary font-semibold` — soft theme-blue highlight that reads clearly in both light and dark mode without weighing down the rail. Applied to both desktop sidebar and mobile drawer (main items, Settings, Help). Hover state on inactive items left as-is.
+
+### Marketing landing page (BP-157)
+
+Largest visual surface area touched in the session.
+
+**Screenshot carousel** — `<ScreenshotCarousel>` in `src/components/landing/screenshot-carousel.tsx`:
+
+- **3D peek layout** (inspired by 21st.dev/feature-carousel): center slide at scale(1), prev/next slides peek in from each side at scale(0.85) + 14° Y-rotation + 70% opacity + 1px blur. The 4th slide parks off-stage at the right (translateX 180%, opacity 0) as a transition slot.
+- 8s auto-rotate with hover-pause, prefers-reduced-motion aware, manual chevron arrows + dot indicators.
+- Click-to-jump on side slide previews.
+- **Caption design iterated heavily**: gradient overlay → glass panel → frosted card → final landing on a blue-titled card *below* the slide that overlaps the slide's bottom edge (`-mt-12 sm:-mt-16`). Card has a centered title in primary blue, a divider, and centered body copy. Width tuned to `max-w-[50rem]` so the longest caption sits on a single line at desktop width.
+- **Bleed mode** also exists in the same component (chromeless full-size rotator for hero backgrounds) but isn't currently mounted.
+- Magnifier-lens hover-zoom feature was built and removed once the 3D peek made the active slide large enough on its own.
+
+**Carousel images placed at:**
+- `docs/images/carousel/` (source-of-truth originals)
+- `public/images/carousel/` (Next-served runtime copies)
+Filenames: `launch-pad.png`, `post-editor.png`, `calendar.png`, `analytics.png`.
+
+**Section structure:**
+- Carousel section spans full page width (no `max-w-6xl` constraint) so the 3D peek has wing-space outside the framed center for prev/next previews to extend into.
+- Captions tuned to push UVP one pillar per slide (Launch Pad = simplifies tedium, Post Editor = on-trend, Calendar = organized, Analytics = deep performance insight). All em-dashes scrubbed; replaced with colons.
+
+**Features section ambient backdrop:**
+
+Replaced `bg-muted/30` on the "Everything you need to grow on LinkedIn" section with the same slate-200 + corner-blobs + dot-grid pattern from the (app) shell. Then washed out the colors substantially (every blob's opacity halved) so the colored ambient sits as background atmosphere rather than competing with the feature cards. Added top + bottom edge-fade overlays (`bg-background → transparent` gradients, 128px tall, layered above blobs but below content via `z-10` on the content wrapper) so the colored swell visibly fades to white at section edges instead of hard-clipping against the surrounding sections. Border-t dropped — the fade does the transition work.
+
+**Hero section:**
+Experimented with carousel-as-hero-background (frosted-glass card / radial spotlight / various overlays) but reverted to the original simple centered hero. The carousel works better as a discrete section than as ambient backdrop. Hero container widened `max-w-2xl` → `max-w-3xl` and the colored "content partner" span got `whitespace-nowrap` so "partner" can never orphan onto its own line.
+
+**Pricing FAQ panel (BP-158):**
+Iterated through several full-width band designs (light gradient, dark blue gradient, pure brand blue, uiGradients "Dark Blue Gradient") before pivoting to a contained brand panel — single rounded-3xl panel inside a plain section, primary→primary-mixed-with-50%-black gradient, white star-field dot grid, white heading, white-bg primary-glowing FAQ cards inside. Reads as a deliberate visual object rather than a full-width band fighting the rest of the pricing page's restraint.
+
+**Footer (BP-157 / BP-162):**
+Extracted shared `<MarketingFooter>` component (`src/components/landing/marketing-footer.tsx`) — 12-col grid: brand block + Product / Legal / Contact link columns, Foundry 88 Labs LLC copyright + "PostPilot is a product of" attribution. Mounted on landing + pricing pages. Single source of truth for future edits.
+
+### Legal pages — Foundry 88 Labs LLC + GDPR/CCPA privacy policy (BP-159)
+
+LLC was established by the owner mid-session. Documents updated to reflect:
+
+- **Terms of Service Section 1** now identifies `Foundry 88 Labs LLC, a Washington limited liability company doing business as PostPilot`. The parenthetical aliases (Foundry 88 Labs / PostPilot / we / us / our) are defined once so every existing reference downstream (sections 2, 5, 6, 8, 10, 11) automatically resolves to the LLC. No body text edits needed.
+- **Terms Section 12** — filled in the previous TODO placeholder. Governing law: State of Washington. Primary venue: state or federal courts in Clark County, WA. Alternate venue for OR residents (by mutual written agreement): state or federal courts in Multnomah County, OR. Standard carve-out preserving the right to seek injunctive / equitable relief in any court of competent jurisdiction. Section heading expanded "Governing Law" → "Governing Law and Venue".
+- **Draft-pending-review banner removed** from the Terms page header (per owner direction; standard caveat that production-grade legal review is still recommended).
+- **New `/privacy` page** — comprehensive policy compliant with GDPR / UK GDPR / CCPA / CPRA. Tailored to PostPilot's actual data flows: LinkedIn OAuth, Vercel hosting, Supabase auth/storage, Anthropic / OpenAI / OpenRouter AI providers (system + BYOK), Stripe payments, Google AdSense on ad-supported tiers. Sections: introduction, controller identity (Foundry 88 Labs LLC, Clark County WA), information collected (provided / automatic / third-party), use purposes, GDPR legal bases (contract / legitimate interests / consent / legal obligation), how we share, cookies (with AdSense + industry opt-out links), international transfers (SCCs / UK Addendum), GDPR rights, CCPA/CPRA rights including the §1798.140 categories table, retention schedule, children's privacy (under 16), security, third-party links, change notice, contact (privacy@mypostpilot.app, security@mypostpilot.app).
+- **Middleware allowlist** updated (`src/lib/supabase/middleware.ts`): `/terms` and `/privacy` added to `publicRoutes` so logged-out visitors hitting the footer links land on the actual legal pages instead of being bounced to `/login`.
+
+Standard caveat that applies to any boilerplate-derived legal doc applies: language is conventional and addresses the headline GDPR/CCPA requirements, but worth at least a one-time pass with a privacy-savvy attorney before meaningful EU traffic.
+
+### Brainstorm UI tweaks
+
+- Idea cards in the AI Idea Generator dialog: brighter blue ring + soft primary-tinted glow (`ring-2 ring-primary/40 shadow-lg shadow-primary/20`).
+- "Save to Idea Bank" button: dropped `variant="outline"` so it falls back to the default primary (blue) variant.
+
+### Studio AI Advanced Insights Phase 2 — overall section + selective suggestions (BP-160)
+
+Owner reported that Advanced Insights only suggested hooks and closes, ignoring the post body. Phase 1 was intentionally scoped that way (the docstring even called it out). Phase 2 expands the review:
+
+- **Schema rewrite** in `src/lib/ai/review-prompts.ts`. All three sections (`hook` / `overall` / `close`) are now nullable. AI defaults to `null` and only populates a section when changes would meaningfully strengthen the post.
+- **New `overall` section** holds an editorial breakdown: ONE sentence rationale that names what the post is about, what the writer is going for, and what's holding it back, then 1-3 specific actionable suggestions ("Cut the third paragraph; it repeats the second's point", "Move the personal story before the framework so it earns the lesson"). Free-form advice the writer applies themselves — no inline-replace action.
+- Hook + close suggestion arrays clamped to 1-2 (was 1-3) for compactness.
+- Prompt explicitly tells the model to be selective and not to repeat advice across sections.
+- **UI** (`src/components/posts/studio-ai-cards.tsx`): new `<OverallCard>` with the same collapsed-by-default + persisted-per-draft state pattern, lightbulb icon, "Some ideas · N" header badge, bullet list when expanded. Each section only renders if its review key is non-null. "Reviewed — your post looks solid as-is" green hint shown when all three are null so users still know the review actually ran.
+- **Plumbing**: API route cache key bumped to `:v2` so old-shape cached responses don't get served to the new UI on hot deploys. `maxTokens` 1500 → 2000 to accommodate the third section. `useDraftReview` hook plumbs through the new `overall` field.
+
+### Post editor image preview — show full image (no crop)
+
+Switched the post-image preview from `object-cover` (which clipped portrait or unusually-tall images to a center band) to `object-contain bg-muted/30`. The image now scales to fit fully within the same 192px-tall preview area; portrait images leave a soft muted bg on either side, landscape images render at their natural reduced height. Section size unchanged.
+
+### E2E pipeline rescue (BP-161)
+
+GitHub Actions Playwright workflow had been red on every push for 20+ commits going back to before the session. Four independent issues, all fixed in a tight follow-up batch after the main merge:
+
+1. **Seed: `expertise_areas` + `industries` were missing.** The seeder set `onboarding_completed: true` but didn't write the two array fields the BP-142 layout integrity check requires. Test users got bounced to `/onboarding` regardless of the flag, breaking smoke + auth-onboarding specs. Added both arrays to the upsert payload with a forwarding comment to `src/lib/onboarding/required-fields.ts`.
+2. **Strict-mode duplicate text.** `auth-onboarding.spec.ts:413` asserted `getByText(/^Content Tools$/i)` was visible at step 5, but "Content Tools" appears twice on the page (step indicator span + card title div). Scoped to `[data-slot="card-title"]` to satisfy Playwright strict mode.
+3. **Body-parse race.** Same spec read `.json()` off the `/api/onboarding/complete` response, but the wizard's `window.location.href` redirect to `/launch-pad` fired before the body could be read, surfacing as `Protocol error: No resource with given identifier`. Dropped the body parse — the existing `waitForURL(/\/launch-pad/)` assertion proves completion succeeded.
+4. **Hidden mobile shell.** `/launch-pad` renders both a mobile shell (`md:hidden`) and a desktop shell (`hidden md:block`). Mobile shell is first in DOM order, so `getByText(...).first()` grabbed the `display:none` mobile copy and `toBeVisible()` failed. Added `.filter({ visible: true })` before `.first()`.
+
+**Final E2E run:** `25410614029` — ✓ 13 passed (26.6s).
+
+### Marketing-side consultation (no code)
+
+- Wrote two image-gen prompts for a forthcoming PostPilot mascot ("stylized stick-figure pilot"). Iterated to a final monochromatic linework version with explicit "drawn with 3D-aware construction underneath" guardrails to keep it from skewing flat in side profiles.
+
+### Merges + commits
+
+- `b476bc9` — first develop → main merge (in-app polish + quota modal batch)
+- `21972e8` — second merge (marketing site, legal, Advanced Insights Phase 2)
+- `6734505` — third merge (E2E pipeline rescue follow-up)
+- 47 commits total this session.
+
+### Memory updates this session
+
+- Added `feedback_iterative_visual_holds.md` — workflow note: hold pushes during iterative visual tweaks until owner confirms; functional fixes still push normally. Established 2026-05-05 after an early gradient-tuning sequence where each iteration auto-pushed.
+
+---
+
 ## 2026-05-05: Editor revamp + Advanced Insights Phase 1 + ops hardening sweep — develop → main merged
 
 Two-day batch landed on main as merge `ffd64f2`. Five develop commits rolled up: editor product work, the first phase of Advanced Insights, two LinkedIn-route hotfixes, server-side hardening migrations, an edge function redeploy, and a major backlog re-sync after the index drifted out of sync with shipped reality.
