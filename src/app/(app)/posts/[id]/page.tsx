@@ -58,6 +58,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
@@ -118,6 +124,61 @@ function charCountColor(count: number): string {
   if (count > 2900) return "text-red-600";
   if (count >= 2500) return "text-yellow-600";
   return "text-green-600";
+}
+
+/**
+ * Conditional wrapper for the AI / Comments / Activity right-panel content.
+ *
+ * On mobile (<lg per `isMobile`) the panel renders inside a bottom-sheet
+ * that slides up over the editor — the editor stays visible behind a scrim
+ * so summoning the AI no longer feels like leaving the page. Owner direction
+ * 2026-05-06: Path A from BP-143 §3 (shadcn Sheet now; vaul drag-snap is a
+ * follow-up if the basic slide-up isn't good enough).
+ *
+ * On desktop the panel keeps its existing inline column placement —
+ * primary-tinted, border-left, ~30% width — unchanged.
+ *
+ * Children are passed through React's `children`, so the panel content tree
+ * is rendered exactly once regardless of which wrapper is active.
+ */
+function ChatPanelWrap({
+  isMobile,
+  open,
+  onClose,
+  children,
+}: {
+  isMobile: boolean;
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    return (
+      <Sheet
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) onClose();
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="h-[85vh] flex flex-col gap-0 p-4 overflow-hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>AI Assistant</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+            {children}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+  return (
+    <div className="flex flex-col overflow-hidden min-h-0 w-full rounded-l-xl border-l border-primary/20 bg-primary/5 px-4 py-3 ring-1 ring-inset ring-primary/10 lg:w-[30%] xl:w-[25%]">
+      {children}
+    </div>
+  );
 }
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
@@ -2483,14 +2544,15 @@ export default function PostWorkspacePage() {
         )}
 
         {/* ─── Right Panel: Post Pilot AI ─── runs from the page top
-            because it's a sibling of the entire left column. */}
+            because it's a sibling of the entire left column.
+            On mobile renders as a bottom-sheet (slide-up over the editor);
+            on desktop keeps the inline border-left column. See <ChatPanelWrap />. */}
         {chatOpen && (
-          <div className={cn(
-            "flex flex-col overflow-hidden min-h-0",
-            isMobile
-              ? "fixed inset-0 z-50 bg-background p-4"
-              : "w-full rounded-l-xl border-l border-primary/20 bg-primary/5 px-4 py-3 ring-1 ring-inset ring-primary/10 lg:w-[30%] xl:w-[25%]"
-          )}>
+          <ChatPanelWrap
+            isMobile={isMobile}
+            open={chatOpen}
+            onClose={() => setPanelViewPersisted(null)}
+          >
             {/* Panel tab header — only Team+ users in workspace see Comments/Activity tabs */}
             {post?.workspace_id && hasFeature(userTier, "workspaces") ? (
               <>
@@ -2829,7 +2891,7 @@ export default function PostWorkspacePage() {
             </div>
             </>
             )}
-          </div>
+          </ChatPanelWrap>
         )}
 
       {/* Schedule dialog */}

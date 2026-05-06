@@ -60,7 +60,10 @@ const TAB_BUTTON_BASE =
   "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors";
 
 const IDEAS_TAB: NavTabDef = {
-  href: "/ideas?open=generate",
+  // Tab Bar Ideas opens the Idea Bank — NOT the generator. The generator
+  // is reachable from inside the bank, or by tapping Create in the tab
+  // bar (which prompts the user to choose generator vs. blank post).
+  href: "/ideas",
   label: "Ideas",
   icon: Lightbulb,
   activeWhen: (p) => p === "/ideas" || p.startsWith("/ideas/"),
@@ -128,12 +131,19 @@ export function MobileTabBar() {
     >
       <NavTab tab={IDEAS_TAB} pathname={pathname} />
       {/*
-        Create tab: same dialog flow as Phase 1's "Create a Post" card.
-        Override the shadcn Button defaults (background, padding,
-        rounded corners, fixed height) so it visually fits the tab bar row.
+        Create tab. Unlike Phase 1's direct "Create a Post" cards, the
+        tab bar's Create button first asks the user how they want to
+        start: from an AI-generated idea, or from a blank post they title
+        themselves. `askStartChoice` flips on the pre-flight chooser inside
+        <NewPostButton>; the Launch Pad cards keep the direct flow because
+        they already expose both options as separate cards.
+
+        Button-style overrides keep the tab visually consistent with the
+        other nav-tabs (no background, no rounded chrome).
       */}
       <NewPostButton
         label="Create"
+        askStartChoice
         className={cn(
           TAB_BUTTON_BASE,
           // Neutralize Button default-variant chrome
