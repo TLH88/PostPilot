@@ -2457,6 +2457,31 @@ export default function PostWorkspacePage() {
         </div>
       </div>
 
+        {/* Mobile-only AI FAB — opens the chat panel.
+            BP-143 placeholder: matches the visual position the old
+            create-FAB occupied, but with a Bot icon and an action that
+            summons the AI assistant. Hidden when the panel is already
+            open (would float over its own content). Hidden at `md+`
+            because the desktop layout has its own panel toggle. */}
+        {!chatOpen && (
+          <button
+            type="button"
+            onClick={() => setPanelViewPersisted("ai")}
+            aria-label="Open AI assistant"
+            className={cn(
+              "md:hidden",
+              "fixed bottom-20 right-4 z-30",
+              "mb-[env(safe-area-inset-bottom)]",
+              "size-14 rounded-full bg-primary text-primary-foreground",
+              "flex items-center justify-center",
+              "shadow-lg shadow-primary/20",
+              "transition-transform hover:scale-105 active:scale-95"
+            )}
+          >
+            <Bot className="size-6" aria-hidden="true" />
+          </button>
+        )}
+
         {/* ─── Right Panel: Post Pilot AI ─── runs from the page top
             because it's a sibling of the entire left column. */}
         {chatOpen && (

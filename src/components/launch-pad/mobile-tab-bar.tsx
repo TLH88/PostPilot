@@ -1,21 +1,30 @@
 "use client";
 
 /**
- * BP-099 Phase 2 — Mobile bottom tab bar for Launch Pad.
+ * BP-099 Phase 2 — Mobile bottom tab bar (global).
  *
  * Fixed to the bottom of the viewport on screens narrower than the
- * Tailwind `md` breakpoint (768px). Surfaces the same four destinations
- * as the desktop Launch Pad cards so mobile users always have one-tap
- * access to the primary actions of the app.
+ * Tailwind `md` breakpoint (768px). Mounted once from the (app) layout
+ * via `<MobileAppShell />` so it follows the user across every (app)
+ * route, not just `/launch-pad`.
+ *
+ * Five tabs, identical on every page (no route-aware variation, per
+ * owner direction 2026-05-06 — "changing them based on the page will
+ * cause confusion"):
+ *
+ *   Ideas | Create | Launch Pad (center) | Drafts | Scheduled
+ *
+ * Editorial logic: the four Phase 1 launcher cards stay in their
+ * original left-to-right order with Launch Pad slotted in the middle
+ * as the home/hub. Left side reads as "create flow", right side as
+ * "review flow", center as "go home".
  *
  * Active-tab highlighting is computed from `usePathname()` — no JS
- * media-query / UA sniffing involved. Visibility itself is controlled
- * by Tailwind responsive classes on the parent (`md:hidden` on the
- * mobile shell wrapper).
+ * media-query / UA sniffing involved.
  *
  * The "Create" tab is action-typed (Create = Create per owner direction
  * 2026-05-04): tapping it fires the same NewPostTitleDialog → /api/posts/create
- * flow as the desktop "Create a Post" card and the FAB. We render Phase 1's
+ * flow as the desktop "Create a Post" card. We render Phase 1's
  * `<NewPostButton>` here with override className so the create flow stays a
  * single source of truth (quota check, slow/fail health timers, telemetry).
  * Active-state highlighting doesn't apply — clicking opens a dialog rather
@@ -28,6 +37,7 @@ import {
   Lightbulb,
   FileText,
   CalendarDays,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,6 +64,12 @@ const IDEAS_TAB: NavTabDef = {
   label: "Ideas",
   icon: Lightbulb,
   activeWhen: (p) => p === "/ideas" || p.startsWith("/ideas/"),
+};
+const LAUNCH_PAD_TAB: NavTabDef = {
+  href: "/launch-pad",
+  label: "Launch Pad",
+  icon: Rocket,
+  activeWhen: (p) => p === "/launch-pad" || p.startsWith("/launch-pad/"),
 };
 const DRAFTS_TAB: NavTabDef = {
   href: "/posts",
@@ -101,7 +117,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      aria-label="Launch Pad mobile navigation"
+      aria-label="Primary mobile navigation"
       className={cn(
         "fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch justify-around",
         "border-t border-border bg-background/95 backdrop-blur",
@@ -112,8 +128,8 @@ export function MobileTabBar() {
     >
       <NavTab tab={IDEAS_TAB} pathname={pathname} />
       {/*
-        Create tab: same dialog flow as Phase 1's "Create a Post" card and the
-        MobileFab. Override the shadcn Button defaults (background, padding,
+        Create tab: same dialog flow as Phase 1's "Create a Post" card.
+        Override the shadcn Button defaults (background, padding,
         rounded corners, fixed height) so it visually fits the tab bar row.
       */}
       <NewPostButton
@@ -130,6 +146,7 @@ export function MobileTabBar() {
           "[&>svg]:!size-5 [&>svg]:shrink-0"
         )}
       />
+      <NavTab tab={LAUNCH_PAD_TAB} pathname={pathname} />
       <NavTab tab={DRAFTS_TAB} pathname={pathname} />
       <NavTab tab={SCHEDULED_TAB} pathname={pathname} />
     </nav>

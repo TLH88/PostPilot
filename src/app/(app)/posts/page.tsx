@@ -279,9 +279,17 @@ export default async function PostsPage() {
         </Card>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs.
+          On mobile (<md) the tab list wraps onto multiple rows so
+          long counts ("Posted (10)") don't push later tabs off the
+          right edge of the viewport. Above `md` the original
+          single-row inline layout is restored. Mirrors the wrapping
+          pill pattern used on /library. */}
       <Tabs defaultValue="in_work">
-        <TabsList id="tour-posts-filters">
+        <TabsList
+          id="tour-posts-filters"
+          className="flex h-auto flex-wrap gap-1 md:inline-flex md:h-9 md:flex-nowrap"
+        >
           <TabsTrigger value="in_work">
             In Work ({inWorkPosts.length})
           </TabsTrigger>
