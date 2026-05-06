@@ -410,8 +410,11 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // ── Step 5: Content Tools (last visible step for free tier) ───────
     // No required fields and no inputs — just a "Complete Setup" button
     // that fires both /step (final step record) and /complete.
+    // Scope to the card title since "Content Tools" also appears in the
+    // step indicator (Playwright strict mode would otherwise reject the
+    // ambiguous match).
     await expect(
-      page.getByText(/^Content Tools$/i)
+      page.locator('[data-slot="card-title"]', { hasText: /^Content Tools$/i })
     ).toBeVisible();
 
     const stepCountBeforeComplete = requestLog.stepPosts.length;
@@ -423,11 +426,13 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     await page.getByRole("button", { name: /Complete Setup/i }).click();
     const completeResp = await completeResponse;
     expect(completeResp.status()).toBe(200);
-    const completeBody = (await completeResp.json()) as {
-      ok: true;
-      redirectTo?: string;
-    };
-    expect(completeBody.ok).toBe(true);
+    // Note: deliberately not reading the JSON body here. The route
+    // returns { ok: true, redirectTo } and the wizard immediately
+    // navigates via window.location.href, which discards the response
+    // handle before .json() can read it (Playwright surfaces this as
+    // "Protocol error: No resource with given identifier"). The
+    // waitForURL(/\/launch-pad/) assertion below is a stronger end-to-
+    // end signal that the route succeeded.
 
     // The wizard fires /step for the final step BEFORE /complete (see
     // handleSubmit in onboarding/page.tsx). Confirm we logged at least
@@ -444,8 +449,16 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     // Post-onboarding entry-point sanity check. Launch Pad surfaces at
     // least one of: "Generate New Ideas" (Brainstorm card) or
     // "Create a Post". Either passing satisfies the spec.
+    //
+    // Note: the launch-pad page renders BOTH a mobile shell
+    // (`md:hidden`) and a desktop shell (`hidden md:block`). At the
+    // default Playwright viewport (1280) the mobile shell is
+    // display:none, but it still appears first in DOM order, so a plain
+    // `.first()` would grab the hidden mobile copy and the visibility
+    // assertion would fail. Filter to visible matches before .first().
     const launchPadEntryPoint = page
       .getByText(/Generate New Ideas|Create a Post|Brainstorm/i)
+      .filter({ visible: true })
       .first();
     await expect(launchPadEntryPoint).toBeVisible({ timeout: 15_000 });
 
