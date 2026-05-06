@@ -426,11 +426,13 @@ test.describe("auth-onboarding (free tier, fresh user)", () => {
     await page.getByRole("button", { name: /Complete Setup/i }).click();
     const completeResp = await completeResponse;
     expect(completeResp.status()).toBe(200);
-    const completeBody = (await completeResp.json()) as {
-      ok: true;
-      redirectTo?: string;
-    };
-    expect(completeBody.ok).toBe(true);
+    // Note: deliberately not reading the JSON body here. The route
+    // returns { ok: true, redirectTo } and the wizard immediately
+    // navigates via window.location.href, which discards the response
+    // handle before .json() can read it (Playwright surfaces this as
+    // "Protocol error: No resource with given identifier"). The
+    // waitForURL(/\/launch-pad/) assertion below is a stronger end-to-
+    // end signal that the route succeeded.
 
     // The wizard fires /step for the final step BEFORE /complete (see
     // handleSubmit in onboarding/page.tsx). Confirm we logged at least
