@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { POST_STATUSES, type SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 import { NewPostButton } from "@/components/posts/new-post-button";
@@ -280,15 +281,48 @@ export default async function PostsPage() {
       </div>
 
       {/* Filter Tabs.
-          On mobile (<md) the tab list wraps onto multiple rows so
-          long counts ("Posted (10)") don't push later tabs off the
-          right edge of the viewport. Above `md` the original
-          single-row inline layout is restored. Mirrors the wrapping
-          pill pattern used on /library. */}
+          On mobile (<md) the chip-style segmented list is dropped:
+          the muted-bg parent goes transparent and each TabsTrigger
+          renders as a self-contained rounded-full pill that wraps
+          cleanly onto multiple rows — the same look the Library page
+          uses for its type filters. At md+ the original chip + flat
+          segmented layout is restored. Done via descendant selectors
+          on the TabsList so we don't have to touch all 9 TabsTrigger
+          elements individually. */}
       <Tabs defaultValue="in_work">
         <TabsList
           id="tour-posts-filters"
-          className="flex h-auto flex-wrap gap-1 md:inline-flex md:h-9 md:flex-nowrap"
+          className={cn(
+            // Mobile: kill the chip — go flex-wrap, transparent bg.
+            "!bg-transparent !p-0 flex h-auto flex-wrap gap-1.5",
+            // Mobile: each trigger becomes a library-style pill.
+            "[&>[data-slot=tabs-trigger]]:!h-auto",
+            "[&>[data-slot=tabs-trigger]]:!flex-none",
+            "[&>[data-slot=tabs-trigger]]:!rounded-full",
+            "[&>[data-slot=tabs-trigger]]:!border",
+            "[&>[data-slot=tabs-trigger]]:!border-border",
+            "[&>[data-slot=tabs-trigger]]:!bg-background",
+            "[&>[data-slot=tabs-trigger]]:!px-3",
+            "[&>[data-slot=tabs-trigger]]:!py-1",
+            "[&>[data-slot=tabs-trigger]]:!text-xs",
+            // Mobile: active pill = primary tint (matches Library).
+            "[&>[data-slot=tabs-trigger][data-active]]:!border-primary",
+            "[&>[data-slot=tabs-trigger][data-active]]:!bg-primary/10",
+            "[&>[data-slot=tabs-trigger][data-active]]:!text-primary",
+            // md+: restore the original chip + segmented behavior.
+            "md:!bg-muted md:!p-[3px] md:inline-flex md:!h-9 md:flex-nowrap md:!gap-0",
+            "md:[&>[data-slot=tabs-trigger]]:!h-[calc(100%-1px)]",
+            "md:[&>[data-slot=tabs-trigger]]:!flex-1",
+            "md:[&>[data-slot=tabs-trigger]]:!rounded-md",
+            "md:[&>[data-slot=tabs-trigger]]:!border-transparent",
+            "md:[&>[data-slot=tabs-trigger]]:!bg-transparent",
+            "md:[&>[data-slot=tabs-trigger]]:!px-1.5",
+            "md:[&>[data-slot=tabs-trigger]]:!py-0.5",
+            "md:[&>[data-slot=tabs-trigger]]:!text-sm",
+            "md:[&>[data-slot=tabs-trigger][data-active]]:!bg-background",
+            "md:[&>[data-slot=tabs-trigger][data-active]]:!text-foreground",
+            "md:[&>[data-slot=tabs-trigger][data-active]]:!border-transparent"
+          )}
         >
           <TabsTrigger value="in_work">
             In Work ({inWorkPosts.length})

@@ -146,9 +146,13 @@ export function MobileTabBar() {
         askStartChoice
         className={cn(
           TAB_BUTTON_BASE,
-          // Neutralize Button default-variant chrome
-          "!h-auto !min-h-0 !rounded-none !bg-transparent !p-0 !shadow-none",
-          "hover:!bg-transparent",
+          // Neutralize Button default-variant chrome. The default variant
+          // uses a `bg-gradient-to-r from-blue-600 to-blue-500` (gradient
+          // lives on background-image, NOT background-color), so we need
+          // BOTH `!bg-none` (kills the gradient) AND `!bg-transparent`
+          // (kills any solid fill) to stop Create from looking active.
+          "!h-auto !min-h-0 !rounded-none !bg-none !bg-transparent !p-0 !shadow-none",
+          "hover:!bg-none hover:!bg-transparent",
           // Match unactive nav-tab text colors (Create has no "active" route)
           "!text-muted-foreground hover:!text-foreground",
           "disabled:opacity-60",
