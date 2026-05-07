@@ -650,8 +650,10 @@ export default function IdeasPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center">
-          {/* View toggle — kanban (default) / list. Persists per device. */}
-          <div className="inline-flex rounded-md border border-input p-0.5">
+          {/* View toggle — kanban (default) / list. Persists per device.
+              `tour-ideas-view-toggle` is the anchor for the
+              overview-ideas tutorial's kanban-introduction step. */}
+          <div id="tour-ideas-view-toggle" className="inline-flex rounded-md border border-input p-0.5">
             <button
               type="button"
               onClick={() => setViewMode("kanban")}
@@ -694,16 +696,20 @@ export default function IdeasPage() {
         </div>
       </div>
 
-      {/* Kanban view — replaces the list view + filter bar when active. */}
+      {/* Kanban view — replaces the list view + filter bar when active.
+          `tour-ideas-kanban` wrapper is the tutorial anchor for the
+          overview-ideas kanban-introduction step. */}
       {viewMode === "kanban" && (
-        <KanbanBoard
-          ideas={ideas}
-          pillars={contentPillars}
-          userTier={userTier}
-          onAddIdea={() => setCreateOpen(true)}
-          onEditIdea={(idea) => setEditingIdea(idea)}
-          setIdeas={setIdeas}
-        />
+        <div id="tour-ideas-kanban">
+          <KanbanBoard
+            ideas={ideas}
+            pillars={contentPillars}
+            userTier={userTier}
+            onAddIdea={() => setCreateOpen(true)}
+            onEditIdea={(idea) => setEditingIdea(idea)}
+            setIdeas={setIdeas}
+          />
+        </div>
       )}
 
       {viewMode === "list" && (

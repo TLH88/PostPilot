@@ -9,29 +9,10 @@ export interface TooltipEntry {
   helpUrl?: string;
 }
 
-// ─── Posts Page ─────────────────────────────────────────────────────────────
-
-export const POSTS_TOOLTIPS = {
-  newPost: { text: "Create a new blank post and open it in the editor" },
-  filterInWork: { text: "Posts you're currently working on: drafts, in review, and scheduled" },
-  filterComplete: { text: "Posts that have been published or archived" },
-  filterDraft: { text: "Posts still being written or edited" },
-  filterReview: { text: "Posts submitted for team review before publishing" },
-  filterScheduled: { text: "Posts queued to publish automatically at a future date and time" },
-  filterPastDue: { text: "Scheduled posts that missed their publish window" },
-  filterPosted: { text: "Posts successfully published to LinkedIn" },
-  filterArchived: { text: "Posts removed from your active workflow" },
-  metricTotal: { text: "Total number of posts across all statuses" },
-  metricScheduled: { text: "Posts queued for automatic LinkedIn publishing" },
-  metricReview: { text: "Posts awaiting team review" },
-  metricPublished: { text: "Posts successfully published to LinkedIn" },
-} satisfies Record<string, TooltipEntry>;
-
 // ─── Post Card Actions ─────────────────────────────────────────────────────
 
 export const POST_ACTION_TOOLTIPS = {
-  moveToReview: { text: "Submit this post for team review before publishing. Available for Team and Enterprise plans." },
-  backToDraft: { text: "Revert this post to draft status for further editing" },
+  moveToReview: { text: "Submit this post for review before publishing" },
   manuallyPosted: { text: "Mark this post as already published to LinkedIn outside of PostPilot" },
   reschedule: { text: "Change the scheduled publish date and time for this post" },
   postNow: { text: "Publish this post to LinkedIn immediately" },
@@ -45,13 +26,12 @@ export const POST_ACTION_TOOLTIPS = {
 
 export const EDITOR_TOOLTIPS = {
   // Formatting toolbar
-  lineBreak: { text: "Insert a line break for visual spacing between paragraphs" },
-  bulletPoint: { text: "Insert a bullet point. Press Enter to continue the list, Enter twice to exit." },
-  copyPost: { text: "Copy the post content and hashtags to your clipboard for pasting into LinkedIn" },
-  saveToLibrary: { text: "Save a section of this post to your Content Library for reuse", helpUrl: "/help#content-library" },
-  insertFromLibrary: { text: "Insert saved hooks, CTAs, or closings from your Content Library", helpUrl: "/help#content-library" },
-  emojiPicker: { text: "Insert an emoji into your post" },
-  analyzeHook: { text: "Get AI feedback on your post's opening lines (the first ~210 characters visible before 'see more')", helpUrl: "/help#hook-analysis" },
+  bulletPoint: { text: "Bullet list" },
+  numberedList: { text: "Numbered list" },
+  suggestHashtags: { text: "Suggest hashtags" },
+  aiEnhance: { text: "AI Enhance" },
+  saveToLibrary: { text: "Save to Library", helpUrl: "/help#content-library" },
+  emojiPicker: { text: "Insert emoji" },
   // Version management
   saveVersion: { text: "Save the current state as a named version you can return to later" },
   saveAsNewPost: { text: "Create a separate standalone post from the current content" },
@@ -60,8 +40,8 @@ export const EDITOR_TOOLTIPS = {
   // — no code path currently reaches this entry, but keeping the (unused)
   // tooltip text out of the bundle keeps the marketing surface consistent.
   // AI chat
-  showAI: { text: "Open the Post Pilot AI panel to get help drafting, refining, or improving your post", helpUrl: "/help#ai-assistant" },
-  hideAI: { text: "Close the Post Pilot AI panel" },
+  showAI: { text: "Show Post Pilot AI", helpUrl: "/help#ai-assistant" },
+  hideAI: { text: "Hide Post Pilot AI" },
   applyToEditor: { text: "Replace the editor content with this AI-generated draft" },
   // Status actions
   schedule: { text: "Set a date and time for this post to be automatically published to LinkedIn", helpUrl: "/help#scheduling" },
@@ -74,7 +54,6 @@ export const EDITOR_TOOLTIPS = {
 export const IDEAS_TOOLTIPS = {
   generateIdeas: { text: "Use AI to brainstorm content ideas based on your expertise and content pillars", helpUrl: "/help#idea-generation" },
   develop: { text: "Turn this idea into a post draft. The AI will create an initial draft based on this idea." },
-  archiveIdea: { text: "Remove this idea from your active bank. You can filter to see archived ideas." },
 } satisfies Record<string, TooltipEntry>;
 
 // ─── Calendar Page ──────────────────────────────────────────────────────────
@@ -92,28 +71,14 @@ export const LIBRARY_TOOLTIPS = {
   filterCTA: { text: "Call-to-action phrases that encourage readers to engage, comment, or take a next step" },
   filterClosing: { text: "Closing lines that wrap up your post with impact and leave a lasting impression" },
   filterSnippet: { text: "Reusable text blocks: quotes, stats, transitions, or any content you use often" },
-  usageCount: { text: "How many times you've inserted this item into a post" },
-  addToLibrary: { text: "Save a new hook, CTA, closing, or snippet to your Content Library" },
 } satisfies Record<string, TooltipEntry>;
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
 export const DASHBOARD_TOOLTIPS = {
-  totalPosts: { text: "Total posts you've created across all statuses" },
-  postsThisMonth: { text: "Posts created during the current billing month" },
-  scheduledPosts: { text: "Posts queued for automatic LinkedIn publishing" },
-  contentBalance: { text: "Distribution of your posts across content pillars. A balanced mix keeps your audience engaged.", helpUrl: "/help#content-pillars" },
-  generateIdeas: { text: "Open the AI Idea Generator to brainstorm new content ideas", helpUrl: "/help#idea-generation" },
-} satisfies Record<string, TooltipEntry>;
-
-// ─── Settings ───────────────────────────────────────────────────────────────
-
-export const SETTINGS_TOOLTIPS = {
-  subscriptionTier: { text: "Your current plan determines which features and usage limits are available to you" },
-  aiProvider: { text: "The AI service powering your content generation. You can switch providers anytime." },
-  aiModel: { text: "Different models offer different quality and speed tradeoffs. More capable models may cost more." },
-  apiKey: { text: "Your personal API key from your AI provider. Keys are encrypted and never shared." },
-  linkedinConnect: { text: "Connect your LinkedIn account to publish posts directly from PostPilot" },
-  linkedinDisconnect: { text: "Remove the LinkedIn posting connection. You can reconnect anytime." },
-  managedAI: { text: "Trial AI access provided by PostPilot. Add your own API key for uninterrupted access." },
+  contentBalance: { text: "Content pillars are the key themes you post about. A balanced mix keeps your audience engaged and positions you as a well-rounded thought leader. Click any category to see the individual topics inside it.", helpUrl: "/help#content-pillars" },
+  recentDrafts: { text: "Posts you've started but haven't scheduled or published yet. Click any card to pick up where you left off." },
+  recentScheduled: { text: "Posts you've queued up to publish automatically at a future date and time." },
+  recentlyPosted: { text: "Your most recent posts that have gone live on LinkedIn. Click one to review its analytics." },
+  recentIdeas: { text: "The latest ideas saved in your Idea Bank — including brainstorms we've generated and anything you've captured manually. Click one to start developing it into a post." },
 } satisfies Record<string, TooltipEntry>;

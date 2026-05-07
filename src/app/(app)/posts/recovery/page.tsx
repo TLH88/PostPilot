@@ -568,7 +568,7 @@ function PostsRecoveryInner() {
                       <Button
                         size="sm"
                         onClick={() => setReconnectDialogOpen(true)}
-                        className="gap-1.5 bg-red-600 text-white hover:bg-red-700"
+                        className="gap-1.5 bg-[#0A66C2] text-white hover:bg-[#004182]"
                       >
                         <LinkedInIcon className="size-3.5" />
                         Reconnect LinkedIn

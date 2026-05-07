@@ -43,6 +43,7 @@ import {
   ENHANCEMENT_TEMPLATE_LIST,
   type EnhancementTemplateKey,
 } from "@/lib/ai/enhancement-templates";
+import { EDITOR_TOOLTIPS } from "@/lib/tooltip-content";
 import { cn } from "@/lib/utils";
 
 interface EditorToolbarProps {
@@ -148,24 +149,24 @@ export function EditorToolbar({
         <TooltipTrigger render={<span />}>
           <EmojiPicker onSelect={onInsertEmoji} iconOnly />
         </TooltipTrigger>
-        <TooltipContent side="top">Insert emoji</TooltipContent>
+        <TooltipContent side="top">{EDITOR_TOOLTIPS.emojiPicker.text}</TooltipContent>
       </Tooltip>
 
-      <IconBtn tooltip="Bullet list" onClick={onInsertBulletList}>
+      <IconBtn tooltip={EDITOR_TOOLTIPS.bulletPoint.text} onClick={onInsertBulletList}>
         <List className="size-5" />
       </IconBtn>
 
-      <IconBtn tooltip="Numbered list" onClick={onInsertNumberedList}>
+      <IconBtn tooltip={EDITOR_TOOLTIPS.numberedList.text} onClick={onInsertNumberedList}>
         <ListOrdered className="size-5" />
       </IconBtn>
 
       <IconBtn
         tooltip={
           hashtagsDisabled
-            ? hashtagsDisabledReason ?? "Suggest hashtags"
+            ? hashtagsDisabledReason ?? EDITOR_TOOLTIPS.suggestHashtags.text
             : hashtagsBusy
               ? "Suggesting hashtags…"
-              : "Suggest hashtags"
+              : EDITOR_TOOLTIPS.suggestHashtags.text
         }
         onClick={onSuggestHashtags}
         disabled={hashtagsDisabled || hashtagsBusy}
@@ -180,8 +181,8 @@ export function EditorToolbar({
       <IconBtn
         tooltip={
           saveToLibraryDisabled
-            ? saveToLibraryDisabledReason ?? "Save to Library"
-            : "Save to Library"
+            ? saveToLibraryDisabledReason ?? EDITOR_TOOLTIPS.saveToLibrary.text
+            : EDITOR_TOOLTIPS.saveToLibrary.text
         }
         onClick={onSaveToLibrary}
         disabled={saveToLibraryDisabled}
@@ -215,10 +216,10 @@ export function EditorToolbar({
           </TooltipTrigger>
           <TooltipContent side="top">
             {enhanceDisabled
-              ? enhanceDisabledReason ?? "AI Enhance"
+              ? enhanceDisabledReason ?? EDITOR_TOOLTIPS.aiEnhance.text
               : enhancing
                 ? "Enhancing…"
-                : "AI Enhance"}
+                : EDITOR_TOOLTIPS.aiEnhance.text}
           </TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end" className="w-72 whitespace-normal">
@@ -251,7 +252,7 @@ export function EditorToolbar({
 
       {/* Post Pilot AI panel toggle */}
       <IconBtn
-        tooltip={aiChatOpen ? "Hide Post Pilot AI" : "Show Post Pilot AI"}
+        tooltip={aiChatOpen ? EDITOR_TOOLTIPS.hideAI.text : EDITOR_TOOLTIPS.showAI.text}
         onClick={onToggleAIChat}
         active={aiChatOpen}
       >

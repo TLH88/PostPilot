@@ -28,6 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DASHBOARD_TOOLTIPS } from "@/lib/tooltip-content";
 
 const MODAL_PAGE_SIZE = 25;
 
@@ -293,10 +294,7 @@ export function ContentPillarBalance({
                 <Info className="size-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs text-sm">
-                Content pillars are the key themes you post about. A balanced
-                mix keeps your audience engaged and positions you as a
-                well-rounded thought leader. Click any category to see the
-                individual topics inside it.
+                {DASHBOARD_TOOLTIPS.contentBalance.text}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

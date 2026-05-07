@@ -48,6 +48,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { CALENDAR_TOOLTIPS } from "@/lib/tooltip-content";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { PostPreviewSheet } from "@/components/posts/post-preview-sheet";
@@ -490,21 +491,35 @@ export default function CalendarPage() {
               <div className="flex items-center gap-1">
                 {/* View toggles */}
                 <div id="tour-calendar-views" className="flex rounded-md border border-input mr-2">
-                  {(["month", "week", "day"] as CalendarView[]).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setView(v)}
-                      className={cn(
-                        "px-2.5 py-1 text-xs font-medium transition-colors first:rounded-l-md last:rounded-r-md",
-                        view === v
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {v.charAt(0).toUpperCase() + v.slice(1)}
-                    </button>
-                  ))}
+                  {(["month", "week", "day"] as CalendarView[]).map((v) => {
+                    const tooltipText =
+                      v === "month"
+                        ? CALENDAR_TOOLTIPS.monthView.text
+                        : v === "week"
+                          ? CALENDAR_TOOLTIPS.weekView.text
+                          : CALENDAR_TOOLTIPS.dayView.text;
+                    return (
+                      <Tooltip key={v}>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              onClick={() => setView(v)}
+                              className={cn(
+                                "px-2.5 py-1 text-xs font-medium transition-colors first:rounded-l-md last:rounded-r-md",
+                                view === v
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              {v.charAt(0).toUpperCase() + v.slice(1)}
+                            </button>
+                          }
+                        />
+                        <TooltipContent>{tooltipText}</TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                 </div>
                 <Button variant="outline" size="sm" onClick={navigateToday}>
                   Today
