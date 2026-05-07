@@ -11,12 +11,12 @@ import {
   BookOpen,
   Calendar,
   Lock,
-  Plus,
   Settings,
   HelpCircle,
   LogOut,
   Activity,
   CheckSquare,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 const iconMap: Record<string, LucideIcon> = {
+  Rocket,
   LayoutDashboard,
   Lightbulb,
   FileText,
@@ -83,18 +84,6 @@ export function MobileNav({ open, onOpenChange, userName, userTier = "free" }: M
             <span className="text-lg font-bold tracking-tight">PostPilot</span>
           </SheetTitle>
         </SheetHeader>
-
-        {/* New Post Button */}
-        <div className="px-3 pt-4 pb-2">
-          <Link
-            href="/posts"
-            onClick={handleLinkClick}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-600 transition-all"
-          >
-            <Plus className="size-4" />
-            New Post
-          </Link>
-        </div>
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-2">

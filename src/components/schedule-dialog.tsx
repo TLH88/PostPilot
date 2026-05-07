@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SCHEDULING_SUGGESTIONS } from "@/lib/constants";
 
@@ -30,13 +29,6 @@ function clampHour(n: number): number {
   if (!Number.isFinite(n)) return 1;
   if (n < 1) return 1;
   if (n > 12) return 12;
-  return Math.floor(n);
-}
-
-function clampMinute(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  if (n < 0) return 0;
-  if (n > 59) return 59;
   return Math.floor(n);
 }
 
@@ -223,56 +215,49 @@ export function ScheduleDialog({
               Time
             </label>
             <div className="flex items-center gap-2">
-              <input
-                list="schedule-hours"
-                inputMode="numeric"
+              {/*
+                Hour + minute use native <select> elements rather than
+                <input list=...> + <datalist>. Mobile users reported the
+                old pattern was unusable — datalist support is spotty on
+                iOS Safari, the controlled-value clamp-on-blur logic
+                refused to clear the default, and there was no reliable
+                picker to tap.
+
+                Native <select> gets the OS-level picker on every
+                platform (iOS wheel, Android dropdown, desktop combobox)
+                with zero JS edge cases.
+              */}
+              <select
                 value={hour}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  if (raw === "") return;
-                  const n = parseInt(raw, 10);
-                  if (Number.isFinite(n)) setHour(n);
-                }}
-                onBlur={(e) => {
-                  const n = parseInt(e.target.value, 10);
-                  setHour(clampHour(n));
-                }}
+                onChange={(e) => setHour(clampHour(parseInt(e.target.value, 10)))}
                 aria-label="Hour"
                 className={cn(
                   "h-9 w-16 rounded-md border border-input bg-popover text-popover-foreground px-2 text-sm outline-none tabular-nums",
                   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 )}
-              />
-              <datalist id="schedule-hours">
+              >
                 {HOURS.map((h) => (
-                  <option key={h} value={h} />
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
                 ))}
-              </datalist>
+              </select>
               <span className="text-sm font-medium">:</span>
-              <input
-                list="schedule-minutes"
-                inputMode="numeric"
+              <select
                 value={minute}
-                onChange={(e) => {
-                  // Allow freehand typing — no padding mid-edit
-                  setMinute(e.target.value);
-                }}
-                onBlur={(e) => {
-                  const n = parseInt(e.target.value, 10);
-                  const clamped = Number.isFinite(n) ? clampMinute(n) : 0;
-                  setMinute(String(clamped).padStart(2, "0"));
-                }}
+                onChange={(e) => setMinute(e.target.value)}
                 aria-label="Minute"
                 className={cn(
                   "h-9 w-16 rounded-md border border-input bg-popover text-popover-foreground px-2 text-sm outline-none tabular-nums",
                   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 )}
-              />
-              <datalist id="schedule-minutes">
+              >
                 {MINUTES.map((m) => (
-                  <option key={m} value={m} />
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
                 ))}
-              </datalist>
+              </select>
               <div className="flex rounded-md border border-input">
                 <button
                   type="button"

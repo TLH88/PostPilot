@@ -17,6 +17,7 @@ import { TutorialBridge } from "@/components/tutorial-bridge";
 import { TrialExpiryChecker } from "@/components/trial-expiry-checker";
 import { DevFlagsApplier } from "@/components/dev-flags-applier";
 import { AppBackground } from "@/components/layout/app-background";
+import { MobileAppShell } from "@/components/layout/mobile-app-shell";
 import type { SubscriptionTier } from "@/lib/constants";
 import { validateOnboardingComplete } from "@/lib/onboarding/validate";
 
@@ -108,13 +109,19 @@ export default async function AppLayout({
             (w-16). The sidebar expands as a hover overlay above content. */}
         <div className="lg:pl-16">
           <TopBar userName={userName} userTier={userTier} />
-          <main className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+          <main className="min-h-[calc(100vh-3.5rem)] p-4 pb-20 md:pb-4 lg:p-6">
             <ImpersonationBanner />
             <PausedBanner paused={isPaused} reason={pausedReason} />
             <LinkedInStatusBanner />
             {children}
           </main>
         </div>
+
+        {/* BP-099 P2 promotion: global mobile bottom tab bar + FAB.
+            Renders below `md` only; route-aware hide rules live in the
+            component itself (e.g. hidden during onboarding, FAB hidden
+            on the post editor). */}
+        <MobileAppShell />
       </div>
       </TutorialBridge>
     </HelpSidebarProvider>

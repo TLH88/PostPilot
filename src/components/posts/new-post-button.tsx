@@ -8,14 +8,34 @@ import { createClient } from "@/lib/supabase/client";
 import { getActiveWorkspaceId } from "@/lib/workspace";
 import { toast } from "sonner";
 import { NewPostTitleDialog } from "@/components/posts/new-post-title-dialog";
+import { NewPostStartChoiceDialog } from "@/components/posts/new-post-start-choice-dialog";
 
 const SLOW_THRESHOLD_MS = 10_000; // 10 seconds — show "taking longer" message
 const FAIL_THRESHOLD_MS = 60_000; // 60 seconds — show error + log
 
-export function NewPostButton({ className, label, id }: { className?: string; label?: string; id?: string }) {
+export function NewPostButton({
+  className,
+  label,
+  id,
+  askStartChoice = false,
+}: {
+  className?: string;
+  label?: string;
+  id?: string;
+  /**
+   * When true, clicking the button first opens a "Start from an idea /
+   * Start from scratch" choice dialog instead of going straight to the
+   * title prompt. Used by the mobile tab bar's Create button so the user
+   * can branch into the Idea Generator without having to first navigate
+   * to the Idea Bank. Default false — desktop and Launch Pad cards keep
+   * the direct title-prompt flow.
+   */
+  askStartChoice?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const targetPostId = useRef<string | null>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,7 +182,13 @@ export function NewPostButton({ className, label, id }: { className?: string; la
     <>
       <Button
         id={id}
-        onClick={() => setDialogOpen(true)}
+        onClick={() => {
+          if (askStartChoice) {
+            setChoiceOpen(true);
+          } else {
+            setDialogOpen(true);
+          }
+        }}
         disabled={isCreating}
         className={className ?? "gap-2"}
       >
@@ -173,6 +199,21 @@ export function NewPostButton({ className, label, id }: { className?: string; la
         )}
         {isCreating ? "Creating..." : (label ?? "New Post")}
       </Button>
+
+      {askStartChoice && (
+        <NewPostStartChoiceDialog
+          open={choiceOpen}
+          onOpenChange={setChoiceOpen}
+          onChooseGenerate={() => {
+            setChoiceOpen(false);
+            router.push("/ideas?open=generate");
+          }}
+          onChooseScratch={() => {
+            setChoiceOpen(false);
+            setDialogOpen(true);
+          }}
+        />
+      )}
 
       <NewPostTitleDialog
         open={dialogOpen}

@@ -20,11 +20,17 @@
  * same product, not a stripped-down menu.
  *
  * Why this is `"use client"`: it composes other client-only leaves
- * (`MobileTabBar`, `MobileFab`, `NewPostButton`) and uses the
- * `useEffect`/`useState` time-of-day greeting pattern from the desktop
- * `LaunchPadHome`. The parent page (`/launch-pad/page.tsx`) stays a
- * server component — the "use client" boundary lives at this leaf, not
- * at the page (per the Server/Client Import Trap memory note).
+ * (`NewPostButton`) and uses the `useEffect`/`useState` time-of-day
+ * greeting pattern from the desktop `LaunchPadHome`. The parent page
+ * (`/launch-pad/page.tsx`) stays a server component — the "use client"
+ * boundary lives at this leaf, not at the page (per the Server/Client
+ * Import Trap memory note).
+ *
+ * BP-099 P2 promotion (post-2026-05-06): the bottom tab bar + create
+ * FAB used to be mounted here. They were lifted into the global
+ * `(app)` layout via `<MobileAppShell />` so every (app) route below
+ * `md` gets them, not just `/launch-pad`. This component now renders
+ * only the launcher cards.
  */
 
 import { useEffect, useState } from "react";
@@ -46,8 +52,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { NewPostButton } from "@/components/posts/new-post-button";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { cn } from "@/lib/utils";
-import { MobileTabBar } from "@/components/launch-pad/mobile-tab-bar";
-import { MobileFab } from "@/components/launch-pad/mobile-fab";
 import type { SubscriptionTier } from "@/lib/constants";
 
 interface MobileLaunchPadProps {
@@ -78,12 +82,12 @@ export function MobileLaunchPad({ userName, tier }: MobileLaunchPadProps) {
   }, []);
 
   return (
-    <div className="relative -mx-4 -my-4 flex min-h-[calc(100vh-3.5rem)] flex-col">
-      {/* Scrollable content. `pb-32` reserves space for the fixed tab
-          bar (h-16) plus the FAB above it so the last card never gets
-          hidden behind those layers when the user scrolls to the
-          bottom. */}
-      <div className="flex-1 px-4 pt-6 pb-32">
+    <div className="relative -mx-4 -mt-4 flex min-h-[calc(100vh-3.5rem)] flex-col">
+      {/* Scrollable content. The (app) layout's `pb-20 md:pb-4`
+          handles tab-bar clearance globally; we keep a small extra
+          `pb-8` here so the FAB (which floats 16px above the tab bar)
+          doesn't visually crowd the trailing ad slot. */}
+      <div className="flex-1 px-4 pt-6 pb-8">
         <header className="mb-6">
           <p className="mb-1 text-base font-medium text-muted-foreground">
             {greeting},{" "}
@@ -178,17 +182,12 @@ export function MobileLaunchPad({ userName, tier }: MobileLaunchPadProps) {
 
           {/* BP-045 — Mobile Launch Pad ad surface (primary). Shown for
               Free + Personal tiers only; AdSlot returns null for Pro+.
-              Sits at the bottom of the card stack, above the FAB +
-              tab-bar gutter (`pb-32` reserved on the parent). */}
+              Tab bar + FAB are mounted globally by `<MobileAppShell />`
+              from the (app) layout — page-level mounts removed during
+              the BP-099 P2 promotion. */}
           <AdSlot tier={tier} placement="launch-pad" className="mt-2" />
         </div>
       </div>
-
-      {/* Fixed-position layers — outside the scrollable content. These
-          are `fixed` to the viewport, not the container, so they stay
-          pinned regardless of scroll position. */}
-      <MobileFab />
-      <MobileTabBar />
     </div>
   );
 }

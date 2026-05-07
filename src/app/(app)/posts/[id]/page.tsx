@@ -58,6 +58,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { LinkedInPreview } from "@/components/posts/linkedin-preview";
 import { ScheduleDialog } from "@/components/schedule-dialog";
 import { LinkedInShareDialog } from "@/components/linkedin-share-dialog";
@@ -118,6 +124,90 @@ function charCountColor(count: number): string {
   if (count > 2900) return "text-red-600";
   if (count >= 2500) return "text-yellow-600";
   return "text-green-600";
+}
+
+/**
+ * Conditional wrapper for the AI / Comments / Activity right-panel content.
+ *
+ * On mobile (<lg per `isMobile`) the panel renders inside a bottom-sheet
+ * that slides up over the editor — the editor stays visible behind a scrim
+ * so summoning the AI no longer feels like leaving the page. Owner direction
+ * 2026-05-06: Path A from BP-143 §3 (shadcn Sheet now; vaul drag-snap is a
+ * follow-up if the basic slide-up isn't good enough).
+ *
+ * On desktop the panel keeps its existing inline column placement —
+ * primary-tinted, border-left, ~30% width — unchanged.
+ *
+ * Children are passed through React's `children`, so the panel content tree
+ * is rendered exactly once regardless of which wrapper is active.
+ */
+function ChatPanelWrap({
+  isMobile,
+  open,
+  onClose,
+  children,
+}: {
+  isMobile: boolean;
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    return (
+      <Sheet
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) onClose();
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          // showCloseButton={false}: the default shadcn Close X is small,
+          // ghost-styled, and easy to miss on a dark mobile background —
+          // owner reported users couldn't find a way to dismiss the chat.
+          // We render our own visible top strip below: drag-handle pill
+          // (mobile-native dismiss affordance) + a labelled Close button.
+          showCloseButton={false}
+          className="h-[85vh] flex flex-col gap-0 p-0 overflow-hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>AI Assistant</SheetTitle>
+          </SheetHeader>
+
+          {/* Top dismiss strip: tappable drag handle + Close button.
+              The whole strip is `onClick={onClose}` so users can also
+              tap the empty area around the handle to dismiss. The X
+              button stops propagation so it works the same way. */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close AI panel"
+            className="relative flex shrink-0 items-center justify-center border-b border-border/60 bg-background py-2.5"
+          >
+            <div
+              className="h-1 w-10 rounded-full bg-muted-foreground/40"
+              aria-hidden="true"
+            />
+            <span
+              className="absolute right-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" aria-hidden="true" />
+              <span className="sr-only">Close</span>
+            </span>
+          </button>
+
+          <div className="flex flex-1 flex-col overflow-hidden min-h-0 p-4">
+            {children}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+  return (
+    <div className="flex flex-col overflow-hidden min-h-0 w-full rounded-l-xl border-l border-primary/20 bg-primary/5 px-4 py-3 ring-1 ring-inset ring-primary/10 lg:w-[30%] xl:w-[25%]">
+      {children}
+    </div>
+  );
 }
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
@@ -1775,10 +1865,16 @@ export default function PostWorkspacePage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-4">
+    <div className="flex gap-4 lg:h-[calc(100vh-7rem)]">
       {/* Left column — header, status pipeline, banners, and the scrolling
-          editor body. The Post Pilot AI panel is a sibling at the root
-          level so it can extend the full page height. */}
+          editor body. On desktop (lg+) the AI panel is a sibling column
+          so the outer container locks to the viewport height; the body's
+          `flex-1` distributes that height between the editor and the panel.
+          On mobile/tablet (<lg) the AI panel is a bottom-sheet overlay,
+          not a sibling, so the outer height is auto — the editor stack
+          sizes to its natural content (title + textarea(min-h-300) +
+          action row) instead of stretching to viewport height and leaving
+          a large empty gap below the action row. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Top toolbar */}
       <div className="flex items-center justify-between border-b pb-3 mb-4">
@@ -2309,7 +2405,7 @@ export default function PostWorkspacePage() {
                   render={<Button id="tour-versions-menu" variant="outline" size="sm" className="gap-1.5" />}
                 >
                   <Save className="size-3.5" />
-                  Versions
+                  <span className="sr-only md:not-sr-only">Versions</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-80 whitespace-normal">
                   {/* BP-037: Sub-text under each version action so users know
@@ -2413,7 +2509,7 @@ export default function PostWorkspacePage() {
                     className="gap-1.5"
                   >
                     <Send className="size-3.5" />
-                    Submit for Review
+                    <span className="sr-only md:not-sr-only">Submit for Review</span>
                   </Button>
                 )}
 
@@ -2436,7 +2532,7 @@ export default function PostWorkspacePage() {
                   onClick={() => setPublishPreviewOpen(true)}
                 >
                   <Eye className="size-3.5" />
-                  Preview
+                  <span className="sr-only md:not-sr-only">Preview</span>
                 </Button>
 
                 {/* Schedule */}
@@ -2447,7 +2543,7 @@ export default function PostWorkspacePage() {
                   disabled={status === "archived"}
                 >
                   <CalendarClock className="size-3.5" />
-                  Schedule
+                  <span className="sr-only md:not-sr-only">Schedule</span>
                 </Button>
               </div>
             </div>
@@ -2457,15 +2553,48 @@ export default function PostWorkspacePage() {
         </div>
       </div>
 
+        {/* Mobile-only AI FAB — opens the chat panel.
+            BP-143 placeholder: a circular Bot button summoning the AI.
+            Hidden when the panel is already open (would float over its
+            own content). Hidden at `md+` because the desktop layout has
+            its own panel toggle.
+
+            Positioning: `bottom-32` (128px) clears the editor's bottom
+            action row when the user is scrolled to the end of the post
+            content. Owner reported the previous `bottom-20` overlapped
+            the Schedule button (action row sits at `pb-20 = 80px` from
+            viewport bottom, same place the FAB used to anchor — so they
+            collided). 128px = 80px (main pb-20) + 28px (action row
+            button height) + 20px breathing gap. */}
+        {!chatOpen && (
+          <button
+            type="button"
+            onClick={() => setPanelViewPersisted("ai")}
+            aria-label="Open AI assistant"
+            className={cn(
+              "md:hidden",
+              "fixed bottom-32 right-4 z-30",
+              "mb-[env(safe-area-inset-bottom)]",
+              "size-14 rounded-full bg-primary text-primary-foreground",
+              "flex items-center justify-center",
+              "shadow-lg shadow-primary/20",
+              "transition-transform hover:scale-105 active:scale-95"
+            )}
+          >
+            <Bot className="size-6" aria-hidden="true" />
+          </button>
+        )}
+
         {/* ─── Right Panel: Post Pilot AI ─── runs from the page top
-            because it's a sibling of the entire left column. */}
+            because it's a sibling of the entire left column.
+            On mobile renders as a bottom-sheet (slide-up over the editor);
+            on desktop keeps the inline border-left column. See <ChatPanelWrap />. */}
         {chatOpen && (
-          <div className={cn(
-            "flex flex-col overflow-hidden min-h-0",
-            isMobile
-              ? "fixed inset-0 z-50 bg-background p-4"
-              : "w-full rounded-l-xl border-l border-primary/20 bg-primary/5 px-4 py-3 ring-1 ring-inset ring-primary/10 lg:w-[30%] xl:w-[25%]"
-          )}>
+          <ChatPanelWrap
+            isMobile={isMobile}
+            open={chatOpen}
+            onClose={() => setPanelViewPersisted(null)}
+          >
             {/* Panel tab header — only Team+ users in workspace see Comments/Activity tabs */}
             {post?.workspace_id && hasFeature(userTier, "workspaces") ? (
               <>
@@ -2743,7 +2872,13 @@ export default function PostWorkspacePage() {
                 }}
                 onKeyDown={(e) => {
                   if (slashState.open && slashMenuRef.current?.handleKey(e)) return;
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  // Desktop: Enter (no shift) submits the message.
+                  // Mobile: Enter inserts a newline. Phone keyboards have
+                  // no Shift key, so submit-on-Enter leaves users with no
+                  // way to add a line break in their message — owner
+                  // direction 2026-05-07. The Send button is the only
+                  // submit on mobile.
+                  if (e.key === "Enter" && !e.shiftKey && !isMobile) {
                     e.preventDefault();
                     sendChatMessage(chatInput);
                   }
@@ -2804,7 +2939,7 @@ export default function PostWorkspacePage() {
             </div>
             </>
             )}
-          </div>
+          </ChatPanelWrap>
         )}
 
       {/* Schedule dialog */}
