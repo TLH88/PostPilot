@@ -2554,11 +2554,18 @@ export default function PostWorkspacePage() {
       </div>
 
         {/* Mobile-only AI FAB — opens the chat panel.
-            BP-143 placeholder: matches the visual position the old
-            create-FAB occupied, but with a Bot icon and an action that
-            summons the AI assistant. Hidden when the panel is already
-            open (would float over its own content). Hidden at `md+`
-            because the desktop layout has its own panel toggle. */}
+            BP-143 placeholder: a circular Bot button summoning the AI.
+            Hidden when the panel is already open (would float over its
+            own content). Hidden at `md+` because the desktop layout has
+            its own panel toggle.
+
+            Positioning: `bottom-32` (128px) clears the editor's bottom
+            action row when the user is scrolled to the end of the post
+            content. Owner reported the previous `bottom-20` overlapped
+            the Schedule button (action row sits at `pb-20 = 80px` from
+            viewport bottom, same place the FAB used to anchor — so they
+            collided). 128px = 80px (main pb-20) + 28px (action row
+            button height) + 20px breathing gap. */}
         {!chatOpen && (
           <button
             type="button"
@@ -2566,7 +2573,7 @@ export default function PostWorkspacePage() {
             aria-label="Open AI assistant"
             className={cn(
               "md:hidden",
-              "fixed bottom-20 right-4 z-30",
+              "fixed bottom-32 right-4 z-30",
               "mb-[env(safe-area-inset-bottom)]",
               "size-14 rounded-full bg-primary text-primary-foreground",
               "flex items-center justify-center",
