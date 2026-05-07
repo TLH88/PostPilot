@@ -347,6 +347,13 @@ export default function PostWorkspacePage() {
   // ── Image state ─────────────────────────────────────────────────────────
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [generateImageOpen, setGenerateImageOpen] = useState(false);
+  // Bumped each time the Generate Image dialog closes so the
+  // ImageVersionPicker re-fetches and surfaces any newly-created
+  // versions even when the user didn't click "Save and use" — owner
+  // direction 2026-05-07. Generated images persist as version rows
+  // server-side regardless of the picker action; the strip just needs
+  // to be told to reload.
+  const [imageVersionsRefreshKey, setImageVersionsRefreshKey] = useState(0);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
   // ── Hook analysis state ──────────────────────────────────────────────────
@@ -2465,6 +2472,7 @@ export default function PostWorkspacePage() {
                     postId={postId}
                     currentImageUrl={imageUrl}
                     onImageChange={setImageUrl}
+                    refreshKey={imageVersionsRefreshKey}
                   />
                   <ImageViewer
                     open={imageViewerOpen}
@@ -3187,7 +3195,15 @@ export default function PostWorkspacePage() {
       {/* Generate Image dialog */}
       <GenerateImageDialog
         open={generateImageOpen}
-        onOpenChange={setGenerateImageOpen}
+        onOpenChange={(o) => {
+          setGenerateImageOpen(o);
+          // When the dialog closes, bump the version-picker's refresh
+          // trigger so any images generated this session appear in the
+          // history strip — even if the user closed via X without
+          // clicking "Save and use." The image rows already exist
+          // server-side; the picker just needs to re-fetch.
+          if (!o) setImageVersionsRefreshKey((k) => k + 1);
+        }}
         postId={postId}
         postTitle={title}
         postContent={content}

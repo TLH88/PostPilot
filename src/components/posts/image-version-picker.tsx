@@ -17,6 +17,15 @@ interface ImageVersionPickerProps {
   postId: string;
   currentImageUrl: string | null;
   onImageChange: (imageUrl: string | null) => void;
+  /**
+   * External re-fetch trigger — increment to force the picker to
+   * re-load versions from the API even when `currentImageUrl` hasn't
+   * changed. Owner direction 2026-05-07: when the user closes the
+   * Generate Image dialog without clicking "Save and use", any newly
+   * generated versions should still appear in the strip without a
+   * page reload.
+   */
+  refreshKey?: number;
 }
 
 /**
@@ -27,6 +36,7 @@ export function ImageVersionPicker({
   postId,
   currentImageUrl,
   onImageChange,
+  refreshKey = 0,
 }: ImageVersionPickerProps) {
   const [versions, setVersions] = useState<ImageVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +45,7 @@ export function ImageVersionPicker({
 
   useEffect(() => {
     loadVersions();
-  }, [postId, currentImageUrl]);
+  }, [postId, currentImageUrl, refreshKey]);
 
   async function loadVersions() {
     try {
