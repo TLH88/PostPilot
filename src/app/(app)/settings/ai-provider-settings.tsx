@@ -544,7 +544,12 @@ export function AIProviderSettings({
                                 <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs">
                                   <SelectValue placeholder="Default model" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                {/* alignItemWithTrigger=false: open the
+                                    list BELOW the trigger like a normal
+                                    web dropdown rather than anchoring
+                                    the selected item over the trigger
+                                    (base-ui's macOS-style default). */}
+                                <SelectContent alignItemWithTrigger={false}>
                                   {models.map((m) => (
                                     <SelectItem
                                       key={m.value}
@@ -636,7 +641,7 @@ export function AIProviderSettings({
                 <SelectTrigger id="add-provider" className="text-sm">
                   <SelectValue placeholder="Pick a provider…" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {providers.map((p) => (
                     <SelectItem key={p.slug} value={p.slug}>
                       {p.label}
