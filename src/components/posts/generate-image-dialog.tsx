@@ -417,28 +417,39 @@ export function GenerateImageDialog({
                   ))}
                 </div>
 
-                {currentModels.length > 1 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {currentModels.map((m) => (
-                      <button
-                        key={m.value}
-                        type="button"
-                        onClick={() => setModel(m.value)}
-                        className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-                          model === m.value
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
+                {/* Always show the model row when at least one model is
+                    available for the selected provider. Owner direction
+                    2026-05-07: keep the model picker visible even with a
+                    single option so users can see what model is being
+                    used for this generation, and can switch when more
+                    models are available. */}
+                {currentModels.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                      Model
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentModels.map((m) => (
+                        <button
+                          key={m.value}
+                          type="button"
+                          onClick={() => setModel(m.value)}
+                          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                            model === m.value
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Info className="size-3 shrink-0" />
-                  To use a different provider for image generation, configure it in Settings. Your existing API key will be used.
+                  Provider and model picks here only apply to this image. They don&apos;t change your active provider in Settings.
                 </p>
               </>
             )}

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { version, title, description, features, bug_fixes, roadmap, is_published } = body;
+  const { version, title, description, features, bug_fixes, known_issues, roadmap, is_published } = body;
 
   if (!version || !title) {
     return NextResponse.json({ error: "version and title required" }, { status: 400 });
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       description: description ?? "",
       features: features ?? [],
       bug_fixes: bug_fixes ?? [],
+      known_issues: known_issues ?? [],
       roadmap: roadmap ?? [],
       is_published: is_published ?? false,
       published_at: is_published ? new Date().toISOString() : null,

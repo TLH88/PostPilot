@@ -268,6 +268,7 @@ export interface ReleaseNote {
   description: string;
   features: { title: string; description: string }[];
   bug_fixes: { title: string; description: string }[];
+  known_issues: { title: string; description: string }[];
   roadmap: { title: string; description: string }[];
   is_published: boolean;
   published_at: string;

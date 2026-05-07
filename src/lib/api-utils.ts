@@ -30,6 +30,13 @@ export const ChatInputSchema = z.object({
   characterCount: z.number().optional(),
   recentEdits: z.string().optional(),
   allowEmDashes: z.boolean().optional(),
+  // Per-call provider/model override (BYOK redesign 2026-05-07).
+  // When present, the chat route routes the request through this
+  // provider+model instead of the user's `active text` configuration.
+  // The override applies only to this request — does NOT change the
+  // user's active provider in Settings.
+  provider: z.enum(["anthropic", "openai", "google", "perplexity"]).optional(),
+  model: z.string().optional(),
 });
 
 export const BrainstormInputSchema = z.object({
