@@ -119,7 +119,7 @@ export function ImageVersionPicker({
       }
     >
       <p className="text-[11px] font-medium text-muted-foreground">
-        {isVertical ? `History (${versions.length})` : `Image history (${versions.length})`}
+        Gallery ({versions.length})
       </p>
       <div className="relative group">
         {/* Scroll buttons (only when more thumbs than fit) */}
@@ -163,8 +163,8 @@ export function ImageVersionPicker({
           ref={scrollRef}
           className={
             isVertical
-              ? "flex flex-col gap-1.5 overflow-y-auto py-0.5 px-0.5 max-h-[240px]"
-              : "flex gap-1.5 overflow-x-auto py-0.5 px-0.5"
+              ? "flex flex-col gap-2 overflow-y-auto py-0.5 px-0.5 max-h-[320px]"
+              : "flex gap-2 overflow-x-auto py-0.5 px-0.5"
           }
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
@@ -181,7 +181,7 @@ export function ImageVersionPicker({
                     ? "border-primary ring-1 ring-primary/30"
                     : "border-transparent hover:border-foreground/20"
                 }`}
-                style={{ width: "64px", height: "48px" }}
+                style={{ width: "96px", height: "72px" }}
                 title={isActive ? "Currently selected" : `Switch to this ${v.source === "ai" ? "AI generated" : "uploaded"} image`}
               >
                 <img
