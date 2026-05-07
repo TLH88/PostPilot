@@ -84,12 +84,20 @@ function IconBtn({
   onClick,
   disabled,
   active,
+  activeVariant = "neutral",
   children,
 }: {
   tooltip: string;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
+  /**
+   * Visual treatment when `active=true`. Defaults to "neutral" (the
+   * gray bg-accent fill used by formatting toggles). The Post Pilot AI
+   * chat panel toggle uses "primary" so its on-state reads as a
+   * distinct, deliberate selection — owner direction 2026-05-07.
+   */
+  activeVariant?: "neutral" | "primary";
   children: React.ReactNode;
 }) {
   return (
@@ -104,7 +112,10 @@ function IconBtn({
             disabled={disabled}
             className={cn(
               "size-10 rounded-md",
-              active && "bg-accent text-accent-foreground",
+              active &&
+                (activeVariant === "primary"
+                  ? "bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary"
+                  : "bg-accent text-accent-foreground"),
             )}
           />
         }
@@ -255,6 +266,7 @@ export function EditorToolbar({
         tooltip={aiChatOpen ? EDITOR_TOOLTIPS.hideAI.text : EDITOR_TOOLTIPS.showAI.text}
         onClick={onToggleAIChat}
         active={aiChatOpen}
+        activeVariant="primary"
       >
         {aiChatOpen ? (
           <PanelRightClose className="size-5" />
