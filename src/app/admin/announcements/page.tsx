@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2, Sparkles } from "lucide-react";
+import { Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Trash2, Sparkles, Bug, AlertTriangle, Map as MapIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +39,7 @@ export default function AdminAnnouncementsPage() {
   const [description, setDescription] = useState("");
   const [featuresText, setFeaturesText] = useState("");
   const [bugFixesText, setBugFixesText] = useState("");
+  const [knownIssuesText, setKnownIssuesText] = useState("");
   const [roadmapText, setRoadmapText] = useState("");
 
   useEffect(() => { loadAnnouncements(); }, []);
@@ -110,6 +110,11 @@ export default function AdminAnnouncementsPage() {
           .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
           .join("\n")
       );
+      setKnownIssuesText(
+        (announcement.known_issues || [])
+          .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
+          .join("\n")
+      );
       setRoadmapText(
         (announcement.roadmap || [])
           .map((f: { title: string; description: string }) => `${f.title}: ${f.description}`)
@@ -130,6 +135,7 @@ export default function AdminAnnouncementsPage() {
     setDescription("");
     setFeaturesText("");
     setBugFixesText("");
+    setKnownIssuesText("");
     setRoadmapText("");
     setDialogOpen(true);
   }
@@ -141,6 +147,7 @@ export default function AdminAnnouncementsPage() {
     setDescription(note.description);
     setFeaturesText(itemsToText(note.features));
     setBugFixesText(itemsToText(note.bug_fixes));
+    setKnownIssuesText(itemsToText(note.known_issues ?? []));
     setRoadmapText(itemsToText(note.roadmap));
     setDialogOpen(true);
   }
@@ -154,6 +161,7 @@ export default function AdminAnnouncementsPage() {
       description,
       features: parseItems(featuresText),
       bug_fixes: parseItems(bugFixesText),
+      known_issues: parseItems(knownIssuesText),
       roadmap: parseItems(roadmapText),
       is_published: publish,
     };
@@ -228,7 +236,7 @@ export default function AdminAnnouncementsPage() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {note.features.length} features, {note.bug_fixes.length} fixes, {note.roadmap.length} roadmap
+                      {note.features.length} features, {note.bug_fixes.length} fixes, {(note.known_issues ?? []).length} known issues, {note.roadmap.length} roadmap
                       {note.published_at && ` — ${new Date(note.published_at).toLocaleDateString()}`}
                     </p>
                   </div>
@@ -298,55 +306,103 @@ export default function AdminAnnouncementsPage() {
               )}
             </Button>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Version</Label>
-                <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.3.0" />
+            {/* Meta panel — Version + Title + Description */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/30 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <FileText className="size-4" />
+                Release Details
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Version</Label>
+                  <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.3.0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Title</Label>
+                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Feature Update Title" />
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Title</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Feature Update Title" />
+                <Label>Description</Label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief summary of this release..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Description</Label>
-              <textarea
-                rows={2}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief summary of this release..."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <Separator />
-            <div className="space-y-1.5">
-              <Label>Features (one per line — Title: Description)</Label>
+
+            {/* New Features panel — amber */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                <Sparkles className="size-4" />
+                New Features
+              </div>
+              <p className="text-xs text-amber-900/70 dark:text-amber-200/70">
+                One per line, formatted as <code className="rounded bg-amber-100 dark:bg-amber-900/40 px-1">Title: Description</code>
+              </p>
               <textarea
                 rows={4}
                 value={featuresText}
                 onChange={(e) => setFeaturesText(e.target.value)}
                 placeholder="Analytics Dashboard: Track impressions and engagement&#10;Image Generation: Generate images with AI"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-amber-200 dark:border-amber-900/60 bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Bug Fixes (one per line — Title: Description)</Label>
+
+            {/* Bug Fixes panel — green */}
+            <div className="rounded-lg border border-green-200 bg-green-50/60 dark:border-green-900/60 dark:bg-green-950/20 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-300">
+                <Bug className="size-4" />
+                Bug Fixes
+              </div>
+              <p className="text-xs text-green-900/70 dark:text-green-200/70">
+                Things that were broken and have been resolved in this release.
+              </p>
               <textarea
                 rows={3}
                 value={bugFixesText}
                 onChange={(e) => setBugFixesText(e.target.value)}
                 placeholder="Dark Mode Fix: Hook analysis card now styled correctly"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-green-200 dark:border-green-900/60 bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-green-400"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Roadmap / Coming Soon (one per line — Title: Description)</Label>
+
+            {/* Known Issues panel — red */}
+            <div className="rounded-lg border border-red-200 bg-red-50/60 dark:border-red-900/60 dark:bg-red-950/20 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-300">
+                <AlertTriangle className="size-4" />
+                Known Issues
+              </div>
+              <p className="text-xs text-red-900/70 dark:text-red-200/70">
+                Bugs or limitations users may run into in this release. Include a workaround if one exists.
+              </p>
+              <textarea
+                rows={3}
+                value={knownIssuesText}
+                onChange={(e) => setKnownIssuesText(e.target.value)}
+                placeholder="Calendar drag-drop: Posts dragged across timezones may show wrong time. Workaround: edit the post and re-pick the time."
+                className="w-full rounded-md border border-red-200 dark:border-red-900/60 bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-red-400"
+              />
+            </div>
+
+            {/* Roadmap panel — blue (dashed to match "Coming Soon" feel) */}
+            <div className="rounded-lg border border-dashed border-blue-300 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/20 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                <MapIcon className="size-4" />
+                Roadmap / Coming Soon
+              </div>
+              <p className="text-xs text-blue-900/70 dark:text-blue-200/70">
+                Items planned but not yet built. Sets user expectations for upcoming releases.
+              </p>
               <textarea
                 rows={3}
                 value={roadmapText}
                 onChange={(e) => setRoadmapText(e.target.value)}
                 placeholder="Stripe Billing: Secure subscription management"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-blue-200 dark:border-blue-900/60 bg-background px-3 py-2 text-sm resize-y font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
           </div>

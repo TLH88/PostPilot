@@ -19,6 +19,9 @@ IMPORTANT: You MUST respond with ONLY valid JSON matching this exact structure. 
   "bug_fixes": [
     { "title": "Fix Name", "description": "What was broken and how it was fixed" }
   ],
+  "known_issues": [
+    { "title": "Issue Name", "description": "What's currently not working as expected and any workaround" }
+  ],
   "roadmap": [
     { "title": "Upcoming Feature", "description": "Brief description of what's coming next" }
   ]
@@ -27,6 +30,7 @@ IMPORTANT: You MUST respond with ONLY valid JSON matching this exact structure. 
 Guidelines:
 - Features: New capabilities, improvements, or enhancements that users will notice
 - Bug Fixes: Things that were broken and are now fixed
+- Known Issues: Bugs or limitations users may encounter in this release that haven't been resolved yet. Include a workaround if one exists. Leave the array empty if there are no known issues to disclose.
 - Roadmap: Items from the backlog that are planned but not yet built (status: Backlog)
 - Keep descriptions concise and user-friendly (not technical)
 - Focus on user benefit, not implementation details
