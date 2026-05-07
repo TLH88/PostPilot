@@ -153,12 +153,15 @@ function buildSystemResolution(
   profile: UserProfile,
   forProvider: AIProvider | undefined,
   systemDefaults: { provider: AIProvider; model: string },
+  forModel?: string,
 ): AiResolution | null {
   if (!hasActiveSystemAccess(profile)) return null;
   const systemProvider = forProvider ?? systemDefaults.provider;
-  const systemModel = forProvider
-    ? getDefaultModel(forProvider)
-    : systemDefaults.model;
+  const systemModel = forModel
+    ? forModel
+    : forProvider
+      ? getDefaultModel(forProvider)
+      : systemDefaults.model;
   const gatewayAvailable =
     !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
 
@@ -193,12 +196,14 @@ async function buildBYOKResolution(
   profile: UserProfile,
   forProvider: AIProvider | undefined,
   reason: FallbackReason,
+  forModel?: string,
 ): Promise<AiResolution | null> {
   const candidate = forProvider ?? (profile.ai_provider as AIProvider);
   if (!candidate) return null;
   const apiKey = await resolveBYOKKey(profile, candidate);
   if (!apiKey) return null;
-  const model = profile.ai_model || getDefaultModel(candidate);
+  // Per-call override > user_profiles preference > provider default.
+  const model = forModel || profile.ai_model || getDefaultModel(candidate);
   return {
     client: createAIClient(candidate, apiKey, model),
     profile,
@@ -214,6 +219,14 @@ export interface ResolveAiOptions {
   feature: QuotaType;
   /** Optional provider pin (image-gen pins openai etc.). */
   forProvider?: AIProvider;
+  /**
+   * Optional model override. When set, overrides both the user's
+   * `ai_model` preference and the provider default. Used by the chat
+   * route's per-call provider+model selector — owner direction
+   * 2026-05-07. Honored only on the BYOK path; the system path uses
+   * its own default model.
+   */
+  forModel?: string;
 }
 
 /**
@@ -222,7 +235,7 @@ export interface ResolveAiOptions {
 export async function resolveAi(
   options: ResolveAiOptions,
 ): Promise<AiResolutionResult> {
-  const { feature, forProvider } = options;
+  const { feature, forProvider, forModel } = options;
   const supabase = await createClient();
 
   const {
@@ -256,12 +269,12 @@ export async function resolveAi(
 
   // Happy path — system has capacity.
   if (quota.allowed && budget.ok) {
-    const resolution = buildSystemResolution(profile, forProvider, systemDefaults);
+    const resolution = buildSystemResolution(profile, forProvider, systemDefaults, forModel);
     if (resolution) return { ok: true, resolution };
     // Active system access not granted (e.g. churned, no trial). Try BYOK
     // as a last resort — Pro+ users with BYOK keys can still work even
     // when their managed-AI window has lapsed.
-    const byok = await buildBYOKResolution(profile, forProvider, "quota_exhausted");
+    const byok = await buildBYOKResolution(profile, forProvider, "quota_exhausted", forModel);
     if (byok) return { ok: true, resolution: byok };
     return {
       ok: false,
@@ -283,7 +296,7 @@ export async function resolveAi(
 
   // Attempt BYOK fallback. When force_ai_gateway is true, BYOK is
   // intentionally unavailable and we 402.
-  const byokResolution = await buildBYOKResolution(profile, forProvider, reason);
+  const byokResolution = await buildBYOKResolution(profile, forProvider, reason, forModel);
   if (byokResolution) {
     return { ok: true, resolution: byokResolution };
   }
@@ -343,9 +356,21 @@ async function resolveBYOKImageKey(
 ): Promise<string | null> {
   const tier = (profile.subscription_tier as SubscriptionTier) ?? "free";
   if (!hasFeature(tier, "byok_image_keys")) return null;
-  const gatewayAvailable =
-    !!process.env.VERCEL_OIDC_TOKEN || !!process.env.AI_GATEWAY_API_KEY;
-  if (profile.force_ai_gateway && gatewayAvailable) return null;
+
+  // Note: NO force_ai_gateway short-circuit here. By the time
+  // resolveBYOKImageKey is called, `resolveImageProvider` has already
+  // determined the system path is not viable (no system image key for
+  // this provider, quota out, budget out, etc.) and is asking us for
+  // a fallback. Honoring `force_ai_gateway` at this point would block
+  // the BYOK fallback even though there's no gateway path to fall back
+  // FROM — leaving the user with no way to use their own configured
+  // key and a confusing "No API key configured" error. Owner reported
+  // 2026-05-07: Google image gen failing for users who had Google
+  // configured + force_ai_gateway=true.
+  //
+  // For text gen (resolveAi) the gateway check still belongs upstream
+  // because the gateway DOES handle text. For image gen the gateway
+  // doesn't, so BYOK is always the right fallback when system is out.
 
   const supabase = await createClient();
 
