@@ -4,13 +4,11 @@ import { TutorialRestartSection, RunTutorialButton } from "@/components/tutorial
 import { Badge } from "@/components/ui/badge";
 import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
 
-type PaidTier = "personal" | "professional" | "team";
+type PaidTier = "personal" | "professional";
 
 function HelpPaidBadge({ tier }: { tier: PaidTier }) {
   const label =
-    tier === "team"
-      ? "Team feature"
-      : tier === "professional"
+    tier === "professional"
       ? "Paid feature — Professional and above"
       : "Paid feature — Personal and above";
   return (
@@ -372,30 +370,65 @@ export default function HelpPage() {
         </div>
 
         <CollapsibleCard
-          title="Step 1 — Verify the key is saved and active"
-          description="Make sure PostPilot is even using your key, not the built-in AI."
+          title="Step 1 — Verify the key is saved and in use"
+          description="Make sure PostPilot is actually using your key, not the built-in AI."
           defaultOpen={false}
         >
+          <p className="text-sm text-foreground/80">
+            How the AI Configuration card is laid out:
+          </p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
+            <li>
+              The blue <strong>&quot;Use PostPilot&apos;s built-in AI&quot;</strong>{" "}
+              toggle at the top decides whether PostPilot routes through
+              its managed gateway or through your provider keys below.
+            </li>
+            <li>
+              Below that are the amber <strong>key-secrecy banner</strong>{" "}
+              and your <strong>Your AI Providers</strong> list. Each
+              configured provider is a card with a green check at the
+              top-left if at least one of its capabilities has been
+              successfully tested.
+            </li>
+            <li>
+              Each provider card contains one or more <strong>sub-rows</strong>{" "}
+              — one for <em>Text</em>, one for <em>Image</em> — depending on
+              what the provider supports. The <strong>active sub-row</strong>{" "}
+              has a chunky green bar on the left, a soft green fill, and a
+              green <strong>&quot;✓ IN USE&quot;</strong> pill. The model
+              picker, Test button, Set Active button, and Delete button all
+              live inside the sub-row.
+            </li>
+          </ul>
+
           <StepList>
             <li>
               Open <strong>Settings → AI Configuration</strong>.
             </li>
             <li>
-              Look at the green <strong>&quot;Use PostPilot&apos;s built-in
-              AI&quot;</strong> toggle at the top. If it&apos;s ON, PostPilot
-              is routing through its managed gateway and your key isn&apos;t
-              being used at all. Switch it off if you want your key to take
-              over.
+              Find the <strong>&quot;Use PostPilot&apos;s built-in AI&quot;</strong>{" "}
+              toggle at the top. If it&apos;s ON, PostPilot is routing
+              through its managed gateway and your key isn&apos;t being used
+              at all. Switch it off if you want your key to take over.
             </li>
             <li>
-              Find your provider in the <strong>Your AI Providers</strong>{" "}
-              list below. The row should show a green checkmark on the left
-              and an <strong>ACTIVE</strong> pill next to its capability
-              badge. If not, click <strong>Set Active</strong>.
+              Find your provider&apos;s card in the{" "}
+              <strong>Your AI Providers</strong> list. The card header
+              should show a green check on the left.
             </li>
             <li>
-              If you don&apos;t see your provider listed at all, click{" "}
-              <strong>+ Add Provider Key</strong> to add it.
+              Inside the card, find the sub-row for the capability you
+              expected to use (<em>Text</em> or <em>Image</em>). It should
+              have a green left bar, a green <strong>&quot;✓ IN USE&quot;</strong>{" "}
+              pill, and a soft green background. If it doesn&apos;t, click
+              the blue <strong>Set Active</strong> button on that sub-row.
+            </li>
+            <li>
+              If you don&apos;t see your provider in the list at all, click
+              the blue <strong>+ Add Provider Key</strong> button at the
+              top-right of the section. A modal opens where you pick the
+              provider, choose <em>Text</em> and/or <em>Image</em>, and paste
+              your key. PostPilot validates it before saving.
             </li>
           </StepList>
         </CollapsibleCard>
@@ -407,13 +440,17 @@ export default function HelpPage() {
         >
           <StepList>
             <li>
-              In your provider&apos;s row, click the <strong>Test</strong>{" "}
-              button.
+              Inside the provider&apos;s card, find the sub-row for the
+              capability you want to test (<em>Text</em> or <em>Image</em>)
+              and click the <strong>Test</strong> button on the right side
+              of that sub-row.
             </li>
             <li>
               <strong>Green toast (&quot;key tested OK&quot;)</strong> — the
               key works against the provider&apos;s servers and you have
-              account access. Move to Step 3 if calls still fail.
+              account access. The card header&apos;s green &quot;Tested
+              Xs ago&quot; timestamp refreshes. Move to Step 3 if calls still
+              fail.
             </li>
             <li>
               <strong>Red toast with &quot;Invalid key&quot;</strong> — the
@@ -423,8 +460,9 @@ export default function HelpPage() {
                 <li>Key was rotated or revoked on the provider&apos;s side.</li>
                 <li>Wrong key type pasted (e.g., a project key vs. a user key).</li>
               </ul>
-              Generate a fresh key from the provider&apos;s console and
-              re-add it.
+              Click <strong>+ Add Provider Key</strong>, paste a fresh key
+              for the same provider with the same capability ticked, and
+              save — it overwrites the old one.
             </li>
             <li>
               <strong>&quot;API key test failed: …&quot; with a network
@@ -433,6 +471,12 @@ export default function HelpPage() {
               account console) and retry in a few minutes.
             </li>
           </StepList>
+          <Tip>
+            For providers that support both Text and Image (OpenAI, Google),
+            each capability has its own Test button. Testing Text doesn&apos;t
+            test Image and vice versa — they share the key but hit different
+            provider endpoints.
+          </Tip>
         </CollapsibleCard>
 
         <CollapsibleCard
@@ -442,12 +486,15 @@ export default function HelpPage() {
         >
           <StepList>
             <li>
-              In your provider&apos;s row, look at the model dropdown.
+              Inside the provider&apos;s card, find the sub-row for the
+              capability with the issue. The <strong>model dropdown</strong>{" "}
+              sits to the right of the kind label inside that sub-row.
             </li>
             <li>
               If the dropdown is empty or shows fewer choices than you
-              remember, click <strong>Test</strong> on the row — that
-              triggers a fresh model-list pull from the provider.
+              remember, click <strong>Test</strong> on the same sub-row —
+              that triggers a fresh model-list pull from the provider for
+              that capability.
             </li>
             <li>
               Pick a model that&apos;s clearly listed as current
@@ -455,13 +502,14 @@ export default function HelpPage() {
               <code className="rounded bg-muted px-1.5 py-0.5 text-xs">claude-opus-4-7</code>,{" "}
               <code className="rounded bg-muted px-1.5 py-0.5 text-xs">gemini-2.5-pro</code>).
               Avoid <code className="rounded bg-muted px-1.5 py-0.5 text-xs">-preview</code>{" "}
-              variants for production use — they can change behavior
-              without notice.
+              variants for production use — they can change behavior without
+              notice.
             </li>
             <li>
               If a model you previously used is gone, the provider has
               deprecated it. Pick its replacement from the dropdown — your
-              setting saves automatically.
+              choice saves automatically and applies to that capability
+              only. Text and Image model preferences are independent.
             </li>
           </StepList>
         </CollapsibleCard>
@@ -651,7 +699,9 @@ export default function HelpPage() {
           <li>
             Click <strong>&quot;Generate Ideas&quot;</strong> on the Ideas page. Choose your content
             pillars, set the number of ideas, and let AI brainstorm suggestions tailored to your
-            expertise.
+            expertise. The <strong>&quot;Lean into trending topics&quot;</strong> toggle (on by
+            default) lets the AI draw on recent industry conversations, news, and frameworks
+            relevant to your expertise. Turn it off if you want purely evergreen ideas.
           </li>
           <li>
             Review the generated ideas and save the ones you want to keep. Each idea
@@ -694,32 +744,49 @@ export default function HelpPage() {
             Bank. When developing an idea, the AI automatically generates a first draft for you.
           </li>
           <li>
-            The <strong>progress bar</strong> at the top of the editor shows your post&apos;s workflow
-            status (Draft, Scheduled, Published) with timestamps for each stage.
+            The <strong>status pipeline</strong> at the top of the editor shows your post&apos;s
+            workflow stage (Draft → Scheduled → Published). Hover any step to see its meaning
+            and the relevant timestamp.
           </li>
           <li>
             Write your content in the main text area. The character counter shows your post
             length (LinkedIn allows up to 3,000 characters).
           </li>
           <li>
-            Use the <strong>Format</strong> menu to insert line breaks, bullet points, analyze your
-            hook, or save sections to your Content Library.
+            Use the <strong>editor toolbar</strong> above the text area to insert emojis, bullet
+            and numbered lists, suggest hashtags, save selected text to your Content Library, and
+            run AI Enhance templates.
           </li>
           <li>
-            Use the <strong>Actions</strong> menu to publish, schedule, revert status, archive,
-            or delete your post. All publishing actions are in one place.
+            Type <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/</code> in the editor
+            to open the <strong>slash command menu</strong> with quick AI actions like{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/hook</code>,{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/expand</code>,{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/shorten</code>,{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/cta</code>,{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/hashtags</code>, and more.
           </li>
           <li>
-            Use the <strong>Versions</strong> menu to save versions of your post, create standalone
-            copies, or save as a reusable template.
+            Use the bottom <strong>3-dot Actions</strong> menu to publish, schedule, mark as
+            manually posted, archive, or delete your post.
           </li>
           <li>
-            Click <strong>&quot;Show AI&quot;</strong> to open the Post Pilot AI panel. The AI has
-            full context of your post (title, content, status, hashtags, content pillar) and can
-            help you draft, refine, or improve your writing.
+            Use the <strong>Versions</strong> menu (bottom-left of the editor) to save snapshots,
+            create a separate post from the current content, or browse your version history.
+            Autosaves are hidden by default — toggle <strong>&quot;Show autosaves&quot;</strong>{" "}
+            to reveal them.
           </li>
           <li>
-            Add hashtags, upload or generate images, and preview your post before publishing.
+            Click the chat icon in the toolbar (tooltip:{" "}
+            <strong>&quot;Show Post Pilot AI&quot;</strong>) to open the Post Pilot AI panel.
+            The AI has full context of your post (title, content, status, and content pillar) and
+            can help you draft, refine, or improve your writing.
+          </li>
+          <li>
+            Hashtags are written inline in the body of your post (e.g.{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">#leadership</code>). Use the
+            hashtag icon in the toolbar to have AI suggest relevant tags. Upload or generate images
+            and preview your post before publishing.
           </li>
         </StepList>
 
@@ -743,28 +810,32 @@ export default function HelpPage() {
 
         <h4 className="text-sm font-semibold">Option 1: Direct publish</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          If you&apos;ve connected your LinkedIn account, click <strong>&quot;Post to LinkedIn&quot;</strong> in
-          the Actions menu. A <strong>preview dialog</strong> opens showing exactly how your post will
-          appear on LinkedIn. From the preview you can add or change the post image, schedule for later,
-          or click <strong>&quot;Approve &amp; Publish&quot;</strong> to post immediately. Posts are never
+          If you&apos;ve connected your LinkedIn account, open the <strong>3-dot Actions</strong>{" "}
+          menu at the bottom of the editor and choose{" "}
+          <strong>&quot;Post to LinkedIn&quot;</strong>. A <strong>preview dialog</strong> opens
+          showing exactly how your post will appear on LinkedIn. From the preview you can add or
+          change the post image, jump to scheduling, or click{" "}
+          <strong>&quot;Approve &amp; Publish&quot;</strong> to post immediately. Posts are never
           sent without your confirmation.
         </p>
 
         <h4 className="text-sm font-semibold">Option 2: Schedule for later</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          Click <strong>&quot;Schedule Post&quot;</strong> in the Actions menu (or use the Schedule
-          button in the preview dialog) to set a specific date and time. Your post will be automatically
-          published at the scheduled time. It is <strong>not</strong> published immediately when you
-          schedule it. You can track the post&apos;s progress in the <strong>progress bar</strong> at the
-          top of the editor.
+          Choose <strong>&quot;Schedule Post&quot;</strong> from the 3-dot Actions menu (or use
+          the dedicated Schedule button next to it, or the Schedule button inside the preview
+          dialog) to set a specific date and time. Your post will be automatically published at
+          the scheduled time. It is <strong>not</strong> published immediately when you schedule
+          it. You can track the post&apos;s progress in the <strong>status pipeline</strong> at
+          the top of the editor.
         </p>
 
         <h4 className="text-sm font-semibold">Option 3: Manual copy-paste</h4>
         <p className="text-sm text-foreground/80 mb-3">
-          Use the <strong>&quot;Copy Post&quot;</strong> button in the Format menu to copy your post
-          content and hashtags to your clipboard. Then open LinkedIn and paste it into a new post.
-          After pasting, come back and select <strong>&quot;Manually Posted&quot;</strong> from the
-          Actions menu so PostPilot tracks it as published.
+          If you prefer to post directly from LinkedIn, copy your content from the editor, paste
+          it into a new LinkedIn post, then come back and select{" "}
+          <strong>&quot;Manually Posted&quot;</strong> from the 3-dot Actions menu so PostPilot
+          tracks it as published. You can paste the LinkedIn post URL when prompted so analytics
+          can match it back.
         </p>
 
         <h4 className="text-sm font-semibold">Post images</h4>
@@ -777,7 +848,10 @@ export default function HelpPage() {
 
         <Tip>
           LinkedIn posting is connected automatically after your first login. If the connection
-          is lost, a banner will appear at the top of every page with a quick reconnect button.
+          is lost, a banner appears at the top of every page with a Reconnect button. If a
+          scheduled post couldn&apos;t publish (e.g. because the connection had expired), you&apos;ll
+          see a separate past-due banner that links to <strong>/posts/recovery</strong>, where you
+          can review failed posts and republish or reschedule them once you&apos;re reconnected.
         </Tip>
       </CollapsibleCard>
 
@@ -829,18 +903,17 @@ export default function HelpPage() {
         <h4 className="text-sm font-semibold mt-4">How to save and insert</h4>
         <StepList>
           <li>
-            <strong>Save from the editor:</strong> Select text in your post, click
-            the <strong>Format</strong> menu, then <strong>&quot;Save to Library.&quot;</strong> Choose
-            a type and give it a name.
+            <strong>Save from the editor:</strong> Select text in your post, click the{" "}
+            <strong>bookmark icon</strong> in the editor toolbar (tooltip:{" "}
+            <strong>&quot;Save to Library&quot;</strong>), then choose a type and give it a name.
           </li>
           <li>
             <strong>Save from the Library page:</strong> Click <strong>&quot;Add to
             Library&quot;</strong> and paste your content directly.
           </li>
           <li>
-            <strong>Insert into a post:</strong> In the editor, click the <strong>&quot;Insert from
-            Library&quot;</strong> button next to the Format menu. Browse or filter your saved items
-            and click to insert.
+            <strong>Reuse saved content:</strong> Open the <strong>Library</strong> page from the
+            sidebar to browse, filter, and copy any saved item, then paste it into your post.
           </li>
         </StepList>
 
@@ -913,7 +986,7 @@ export default function HelpPage() {
           When you set up your User Profile, the AI learns your writing style, tone,
           expertise, and target audience. Every AI-generated draft is tailored to sound like you,
           not generic LinkedIn content. The AI also has full context of your current post, including
-          title, content, status, hashtags, and content pillar.
+          title, content, status, and content pillar.
         </p>
 
         <h4 className="text-sm font-semibold">Quick suggestions vs. free-form chat</h4>
@@ -927,10 +1000,12 @@ export default function HelpPage() {
         <h4 id="hook-analysis" className="text-sm font-semibold">Hook analysis</h4>
         <HelpPaidBadge tier="personal" />
         <p className="text-sm text-foreground/80 mb-3">
-          The <strong>&quot;Analyze Hook&quot;</strong> feature in the Format menu evaluates your
-          post&apos;s opening lines (the first ~210 characters visible before LinkedIn&apos;s
-          &quot;see more&quot; link). It scores your hook, identifies the technique used, and
-          suggests improvements.
+          PostPilot focuses on the first ~210 characters of your post — the portion LinkedIn
+          shows before the <em>&quot;see more&quot;</em> link. To rework your opening, type{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/hook</code> in the editor to
+          rewrite the first line, or open the Post Pilot AI panel and ask it to score and improve
+          your hook. The AI considers proven techniques (questions, bold claims, contrarian
+          openers, story leads) and tailors suggestions to your voice profile.
         </p>
 
         <h4 className="text-sm font-semibold">Applying AI drafts</h4>
@@ -975,16 +1050,18 @@ export default function HelpPage() {
         <h4 className="text-sm font-semibold">Rescheduling</h4>
         <StepList>
           <li>
-            Open the scheduled post in the editor and click <strong>&quot;Schedule Post&quot;</strong> in
-            the Actions menu to pick a new date and time.
+            Open the scheduled post in the editor and choose{" "}
+            <strong>&quot;Schedule Post&quot;</strong> from the 3-dot Actions menu (or use the
+            Schedule button next to it) to pick a new date and time.
           </li>
           <li>
-            You can also reschedule from the <strong>Calendar page</strong> using the Reschedule
-            button on upcoming post cards.
+            You can also reschedule from the <strong>Calendar page</strong> or the{" "}
+            <strong>Posts page</strong> using the Reschedule button on upcoming post cards.
           </li>
           <li>
-            To postpone indefinitely, select <strong>&quot;Revert to Draft&quot;</strong> from
-            the Actions menu.
+            To postpone indefinitely, open the post and use the{" "}
+            <strong>3-dot Actions menu</strong> to archive it. You can restore it any time and
+            re-schedule from the editor.
           </li>
         </StepList>
 
@@ -1008,8 +1085,10 @@ export default function HelpPage() {
         </ul>
 
         <Tip>
-          Posts that miss their scheduled publish time (e.g., if there was a connection issue) appear
-          as &quot;Past Due&quot; on the Posts page so you can quickly republish or reschedule them.
+          Posts that miss their scheduled publish time (e.g., if there was a connection issue)
+          appear as &quot;Past Due&quot; on the Posts page and on the dedicated{" "}
+          <strong>/posts/recovery</strong> page, where you can quickly reconnect LinkedIn,
+          republish, or reschedule them.
         </Tip>
       </CollapsibleCard>
       </section>
