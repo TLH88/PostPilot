@@ -25,10 +25,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount, recentEdits, allowEmDashes } = parsed.data;
+    const { messages, postContent, postTitle, postStatus, contentPillar, hashtags, wordCount, characterCount, recentEdits, allowEmDashes, provider: requestProvider, model: requestModel } = parsed.data;
 
-    // BP-045 follow-up: system-first with BYOK fallback.
-    const result = await resolveAi({ feature: "chat_messages" });
+    // Per-call provider+model override from the chat panel selectors
+    // (owner direction 2026-05-07). When the user picks a non-active
+    // provider in the chat header, this routes the request through
+    // that provider for this call only — does NOT touch user_profiles.
+    const result = await resolveAi({
+      feature: "chat_messages",
+      forProvider: requestProvider,
+      forModel: requestModel,
+    });
     if (!result.ok) {
       return new Response(JSON.stringify(result.block.body), {
         status: result.block.status,

@@ -59,6 +59,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -278,6 +285,24 @@ export default function PostWorkspacePage() {
   const [chatMessages, setChatMessages] = useState<AIMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatStreaming, setChatStreaming] = useState(false);
+
+  // Per-session provider+model override for the chat panel — owner
+  // direction 2026-05-07. Lets users switch which configured provider
+  // handles a chat without leaving the editor / opening Settings.
+  // null = use the user's default (resolveAi falls back to user_profiles).
+  // Initialized below from the user's currently-active text provider
+  // once the profile loads.
+  const [chatProvider, setChatProvider] = useState<string | null>(null);
+  const [chatModel, setChatModel] = useState<string | null>(null);
+  // Available text providers + models for the dropdowns. Loaded on
+  // first chat panel open via /api/settings/provider-keys?keyType=text
+  // + /api/models?kind=text.
+  const [chatProviderOptions, setChatProviderOptions] = useState<
+    Array<{ slug: string; label: string; modelId: string | null }>
+  >([]);
+  const [chatModelsByProvider, setChatModelsByProvider] = useState<
+    Record<string, { models: Array<{ value: string; label: string }>; defaultModel: string }>
+  >({});
   const [conversationId, setConversationId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -344,6 +369,50 @@ export default function PostWorkspacePage() {
   const [selectionFloatPos, setSelectionFloatPos] = useState<{x: number, y: number} | null>(null);
 
   // Tutorial target IDs on elements are used by the tutorial overlay
+
+  // ── Chat provider/model options loader ──────────────────────────────────
+  // Pulls available BYOK text providers + the live text-model catalog so
+  // the chat header dropdowns can offer them. Lazy: triggered the first
+  // time the chat panel opens (no point spending the network round-trip
+  // for users who never use chat).
+  useEffect(() => {
+    if (panelView !== "ai") return;
+    if (chatProviderOptions.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [keysRes, modelsRes, providersRes] = await Promise.all([
+          fetch("/api/settings/provider-keys?keyType=text"),
+          fetch("/api/models?kind=text"),
+          fetch("/api/providers"),
+        ]);
+        if (cancelled) return;
+        const keysJson = keysRes.ok ? await keysRes.json() : { keys: [] };
+        const modelsJson: Record<string, { models: Array<{ value: string; label: string }>; defaultModel: string }> = modelsRes.ok ? await modelsRes.json() : {};
+        const providersJson = providersRes.ok ? (await providersRes.json()).providers ?? [] : [];
+
+        const providerLabel = (slug: string) =>
+          (providersJson as Array<{ slug: string; label: string }>).find((p) => p.slug === slug)?.label ?? slug;
+
+        const opts = (keysJson.keys ?? []).map(
+          (k: { provider: string; model_id: string | null }) => ({
+            slug: k.provider,
+            label: providerLabel(k.provider),
+            modelId: k.model_id,
+          })
+        );
+        setChatProviderOptions(opts);
+        setChatModelsByProvider(modelsJson);
+      } catch {
+        // Silent — selectors just won't render. The "use my default"
+        // path still works because chatProvider/chatModel can stay null.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelView]);
 
   // ── Responsive: open AI panel on desktop, keep collapsed on mobile ──────
   const [isMobile, setIsMobile] = useState(false);
@@ -536,6 +605,15 @@ export default function PostWorkspacePage() {
         setProfile(profileData as UserProfile);
         if (profileData.subscription_tier) {
           setUserTier(profileData.subscription_tier as SubscriptionTier);
+        }
+        // Seed chat provider/model from the user's active text key.
+        // Per-call selectors in the chat header start showing this and
+        // the user can switch as needed for the session.
+        if (profileData.ai_provider) {
+          setChatProvider(profileData.ai_provider as string);
+        }
+        if (profileData.ai_model) {
+          setChatModel(profileData.ai_model as string);
         }
       }
 
@@ -1565,6 +1643,12 @@ export default function PostWorkspacePage() {
           characterCount: content.length,
           recentEdits: recentEdits || undefined,
           allowEmDashes: emDashAllowed,
+          // Per-session provider/model override from the chat panel
+          // dropdowns (owner direction 2026-05-07). Sent only when the
+          // user picked something — null falls through to user_profiles
+          // defaults on the server.
+          provider: chatProvider || undefined,
+          model: chatModel || undefined,
         }),
       });
 
@@ -2715,6 +2799,70 @@ export default function PostWorkspacePage() {
                       state={studioState}
                       excerpt={studioExcerpt}
                     />
+                  )}
+
+                  {/* Per-session provider+model pickers — owner direction
+                      2026-05-07. Renders only when the user has at least
+                      one BYOK text key configured (so there's something to
+                      switch to). Selecting a different provider or model
+                      here applies to subsequent chat sends only; it does
+                      NOT change the user's active provider in Settings. */}
+                  {chatProviderOptions.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+                        Using
+                      </span>
+                      <Select
+                        value={chatProvider ?? ""}
+                        onValueChange={(v) => {
+                          if (!v) return;
+                          setChatProvider(v);
+                          // Snap model to the provider's saved
+                          // preference (or default) so the dropdown
+                          // doesn't show a stale model from the
+                          // previous provider.
+                          const opt = chatProviderOptions.find((p) => p.slug === v);
+                          const savedModel = opt?.modelId ?? null;
+                          const fallbackModel = chatModelsByProvider[v]?.defaultModel ?? null;
+                          setChatModel(savedModel ?? fallbackModel);
+                        }}
+                      >
+                        <SelectTrigger className="h-7 w-auto min-w-[140px] text-xs">
+                          <SelectValue placeholder="Provider" />
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          {chatProviderOptions.map((p) => (
+                            <SelectItem key={p.slug} value={p.slug} className="text-xs">
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {chatProvider &&
+                        (chatModelsByProvider[chatProvider]?.models?.length ?? 0) > 0 && (
+                          <Select
+                            value={chatModel ?? ""}
+                            onValueChange={(v) => {
+                              if (v) setChatModel(v);
+                            }}
+                          >
+                            <SelectTrigger className="h-7 w-auto min-w-[160px] text-xs">
+                              <SelectValue placeholder="Model" />
+                            </SelectTrigger>
+                            <SelectContent alignItemWithTrigger={false}>
+                              {chatModelsByProvider[chatProvider].models.map((m) => (
+                                <SelectItem
+                                  key={m.value}
+                                  value={m.value}
+                                  className="text-xs"
+                                >
+                                  {m.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                    </div>
                   )}
                 </div>
                 <Separator />
