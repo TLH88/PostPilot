@@ -57,6 +57,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { hasFeature } from "@/lib/feature-gate";
+import { useHelpSidebar } from "@/components/help-sidebar";
 import type { SubscriptionTier } from "@/lib/constants";
 
 interface ProviderRegistryRow {
@@ -97,6 +98,7 @@ export function AIProviderSettings({
   subscriptionTier,
 }: AIProviderSettingsProps) {
   const byokUnlocked = hasFeature(subscriptionTier, "byok_ai_keys");
+  const { openHelp } = useHelpSidebar();
 
   // Loading
   const [loading, setLoading] = useState(true);
@@ -575,8 +577,8 @@ export function AIProviderSettings({
                               )}
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-xs"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary"
                                 onClick={() => testRow(k)}
                               >
                                 <FlaskConical className="size-3 mr-1" />
@@ -607,6 +609,23 @@ export function AIProviderSettings({
             })}
           </ul>
         )}
+      </div>
+
+      {/* Help footer — opens the contextual help sidebar to the
+          ai-configuration article, which links onward to the full
+          troubleshooting guide and per-provider key creation guides. */}
+      <div className="flex items-center justify-center gap-1.5 pt-1 text-xs text-muted-foreground">
+        <HelpCircle className="size-3.5 text-primary" />
+        <span>
+          Need help with your AI configuration?{" "}
+          <button
+            type="button"
+            onClick={() => openHelp("ai-configuration")}
+            className="text-primary hover:underline underline-offset-4"
+          >
+            Open the troubleshooting guide
+          </button>
+        </span>
       </div>
 
       {/* Add-key modal — replaces the inline form (owner direction
@@ -729,7 +748,7 @@ export function AIProviderSettings({
               type="button"
               variant="outline"
               size="sm"
-              className="gap-1.5"
+              className="gap-1.5 border-primary text-primary hover:bg-primary/10 hover:text-primary"
               onClick={testAddKey}
               disabled={
                 testing || !addProvider || !addKey.trim() || addCaps.length === 0

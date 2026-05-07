@@ -235,6 +235,74 @@ function GuidedToursSection() {
 // ── Article registry ────────────────────────────────────────────────────────
 
 const HELP_ARTICLES: Record<string, { title: string; description: string; content: React.ReactNode; tier?: HelpPaidTier }> = {
+  "ai-configuration": {
+    title: "AI Configuration",
+    description: "Bring your own provider keys (BYOK) and pick models per capability",
+    tier: "professional",
+    content: (
+      <>
+        <p>
+          PostPilot includes built-in AI for drafting, brainstorming, hashtags, and image generation —
+          you don&apos;t need to set anything up to get started. If you&apos;d rather route AI requests
+          through your own OpenAI / Anthropic / Google / Perplexity account, configure your key here.
+        </p>
+
+        <p><strong>How the section is laid out:</strong></p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <strong>Use PostPilot&apos;s built-in AI</strong> toggle at the top: when ON, your keys
+            below are bypassed. Turn OFF to use your own provider.
+          </li>
+          <li>
+            <strong>Your AI Providers</strong> list: each configured provider is a card with a green
+            check at the top-left when at least one of its capabilities has been tested.
+          </li>
+          <li>
+            Inside each provider card, one sub-row per capability (<em>Text</em> and/or <em>Image</em>).
+            The <strong>active</strong> sub-row has a green left bar, soft green fill, and a green{" "}
+            <strong>&quot;✓ IN USE&quot;</strong> pill. The model picker, Test, Set Active, and
+            Delete actions live inside the sub-row.
+          </li>
+        </ul>
+
+        <p><strong>Quick troubleshooting:</strong></p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <strong>Calls bypass my key</strong> — check the gateway toggle is OFF and your row is
+            green &quot;IN USE&quot;.
+          </li>
+          <li>
+            <strong>Test fails &quot;Invalid key&quot;</strong> — re-paste a fresh key via{" "}
+            <strong>+ Add Provider Key</strong>; saving overwrites the old one.
+          </li>
+          <li>
+            <strong>Model dropdown empty / stale</strong> — click <strong>Test</strong> on the
+            sub-row to refresh the live model list.
+          </li>
+          <li>
+            <strong>Mid-draft errors</strong> — usually billing, rate limits, or revoked project access
+            on the provider side. Check the provider console.
+          </li>
+          <li>
+            <strong>Need to keep working</strong> — toggle <strong>Use PostPilot&apos;s built-in AI</strong>{" "}
+            ON until you&apos;ve sorted the provider issue.
+          </li>
+        </ul>
+
+        <p>
+          For the full step-by-step walkthrough, see{" "}
+          <a href="/help#api-keys-troubleshooting" className="text-primary underline underline-offset-4">
+            Troubleshooting Your AI Provider
+          </a>{" "}
+          in the Help Center, or the{" "}
+          <a href="/help#api-keys" className="text-primary underline underline-offset-4">
+            per-provider key creation guides
+          </a>{" "}
+          for OpenAI, Anthropic, Google, and Perplexity.
+        </p>
+      </>
+    ),
+  },
   "content-library": {
     title: "Content Library",
     description: "Save and reuse your best hooks, CTAs, closings, and snippets",

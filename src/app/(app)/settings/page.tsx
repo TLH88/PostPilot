@@ -10,6 +10,7 @@ import { WorkspaceSettings } from "./workspace-settings";
 import { ManagedAIStatus } from "./managed-ai-status";
 import { AnnouncementsSetting } from "./announcements-setting";
 import { DangerZone } from "./danger-zone";
+import { HelpButton } from "@/components/help-sidebar";
 import type { SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 
@@ -90,7 +91,10 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Configuration</CardTitle>
+          <CardTitle className="flex items-center gap-1.5">
+            AI Configuration
+            <HelpButton articleId="ai-configuration" className="ml-1" />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
