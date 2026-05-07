@@ -29,6 +29,10 @@ import {
   Plus,
   Lock,
   Sparkles,
+  ShieldAlert,
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
   Image as ImageIcon,
   Type as TypeIcon,
 } from "lucide-react";
@@ -43,6 +47,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { hasFeature } from "@/lib/feature-gate";
@@ -375,14 +387,16 @@ export function AIProviderSettings({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* Force Gateway toggle */}
-      <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+      {/* Force Gateway toggle — primary-tinted to read as the recommended
+          default. Most users never touch BYOK, so the built-in option
+          should be the visually-prominent surface. */}
+      <div className="flex items-start justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-sm ring-1 ring-inset ring-primary/10">
         <div className="space-y-0.5">
-          <Label className="flex items-center gap-1.5 text-sm font-medium">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold text-primary">
             <Sparkles className="size-3.5" />
             Use PostPilot&apos;s built-in AI
           </Label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-foreground/80">
             When on, PostPilot routes your AI requests through its managed
             gateway and bills against your plan. When off, your configured
             provider keys below are used.
@@ -395,6 +409,18 @@ export function AIProviderSettings({
         />
       </div>
 
+      {/* Key-secrecy warning. Same amber-tone family the help drawer and
+          billing notes use, so users recognize the "be careful" cue. */}
+      <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <p>
+          <strong>Keep your API keys private.</strong> Never share them with
+          anyone, paste them into chats / emails / screenshots, or commit them
+          to source control. PostPilot stores your keys encrypted at rest and
+          only uses them on your behalf to call the provider.
+        </p>
+      </div>
+
       {/* Configured providers dashboard */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -404,7 +430,7 @@ export function AIProviderSettings({
             size="sm"
             variant="outline"
             className="gap-1.5"
-            onClick={() => setAddOpen((v) => !v)}
+            onClick={() => setAddOpen(true)}
           >
             <Plus className="size-3.5" />
             Add Provider Key
@@ -427,22 +453,38 @@ export function AIProviderSettings({
             {keys.map((k) => {
               const models = modelsFor(k.provider, k.key_type);
               const selectedModel = k.model_id ?? defaultModelFor(k.provider, k.key_type);
+              const status = computeKeyStatus(k);
               return (
                 <li
                   key={`${k.provider}-${k.key_type}`}
-                  className="rounded-lg border bg-card p-3 space-y-2"
+                  className={cn(
+                    "rounded-lg border p-3 space-y-2 transition-colors",
+                    status === "active"
+                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      : status === "tested"
+                        ? "bg-card"
+                        : "border-amber-300/50 bg-amber-50/30 dark:border-amber-800/50 dark:bg-amber-950/20"
+                  )}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
+                    <KeyStatusDot status={status} />
                     <span className="font-medium">{providerLabel(k.provider)}</span>
                     <CapabilityBadge kind={k.key_type} />
                     {k.is_active && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                        <CircleCheck className="size-3" />
                         Active ({k.key_type})
                       </span>
                     )}
                     {k.tested_at && (
                       <span className="ml-auto text-[10px] text-muted-foreground">
                         Tested {formatRelative(k.tested_at)}
+                      </span>
+                    )}
+                    {!k.tested_at && (
+                      <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400">
+                        <CircleAlert className="size-3" />
+                        Untested
                       </span>
                     )}
                   </div>
@@ -510,10 +552,27 @@ export function AIProviderSettings({
         )}
       </div>
 
-      {/* Add-key form */}
-      {addOpen && (
-        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
-          <div className="grid gap-3">
+      {/* Add-key modal — replaces the inline form (owner direction
+          2026-05-07). Modal keeps the dashboard view uncluttered and
+          gives the add flow a clear focused surface. */}
+      <Dialog
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) resetAddForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Provider Key</DialogTitle>
+            <DialogDescription>
+              Bring your own AI key. PostPilot encrypts it at rest and never
+              shares it. Pick the provider, choose what to use it for, paste
+              the key, and we&apos;ll validate it before saving.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
             <div className="space-y-1">
               <Label htmlFor="add-provider" className="text-xs">
                 Provider
@@ -538,7 +597,7 @@ export function AIProviderSettings({
             {selectedProvider && selectedProvider.capabilities.length > 1 && (
               <div className="space-y-1">
                 <Label className="text-xs">Use for</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {(["text", "image"] as Capability[]).map((cap) =>
                     selectedProvider.capabilities.includes(cap) ? (
                       <button
@@ -594,23 +653,49 @@ export function AIProviderSettings({
               )}
             </div>
 
+            {addResult === "success" && (
+              <div className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+                <Check className="size-3.5" />
+                Key validated successfully — you can save it now.
+              </div>
+            )}
+            {addResult === "error" && (
+              <div className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
+                <AlertCircle className="size-3.5" />
+                Validation failed. Double-check the key and try again.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={testAddKey}
+              disabled={
+                testing || !addProvider || !addKey.trim() || addCaps.length === 0
+              }
+            >
+              {testing ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <FlaskConical className="size-3.5" />
+              )}
+              Test Key
+            </Button>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="gap-1.5"
-                onClick={testAddKey}
-                disabled={
-                  testing || !addProvider || !addKey.trim() || addCaps.length === 0
-                }
+                onClick={() => {
+                  resetAddForm();
+                  setAddOpen(false);
+                }}
               >
-                {testing ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <FlaskConical className="size-3.5" />
-                )}
-                Test Key
+                Cancel
               </Button>
               <Button
                 type="button"
@@ -626,41 +711,66 @@ export function AIProviderSettings({
                 ) : (
                   <Key className="size-3.5" />
                 )}
-                Save & Activate
+                Save &amp; Activate
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  resetAddForm();
-                  setAddOpen(false);
-                }}
-              >
-                Cancel
-              </Button>
-
-              {addResult === "success" && (
-                <span className="ml-auto inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                  <Check className="size-3.5" />
-                  Validated
-                </span>
-              )}
-              {addResult === "error" && (
-                <span className="ml-auto inline-flex items-center gap-1 text-xs text-destructive">
-                  <AlertCircle className="size-3.5" />
-                  Failed
-                </span>
-              )}
             </div>
-          </div>
-        </div>
-      )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 // ── Small helpers / sub-components ───────────────────────────────────────────
+
+type KeyStatus = "active" | "tested" | "untested";
+
+/**
+ * Status semantics for a configured key:
+ *   active   — green: tested + currently the active provider for its kind
+ *   tested   — neutral: tested OK at some point but not currently active
+ *   untested — amber: never tested (or test cleared via re-save)
+ *
+ * The /api/settings/test-ai-key route bumps `tested_at` on every
+ * successful validation; the POST save flow validates BEFORE writing
+ * (Default to Most Secure / Best Practice memory), so a saved row
+ * always has a non-null `tested_at` until the user explicitly hits
+ * "Test" and it fails. A failure response from the test route does NOT
+ * clear `tested_at` — it stays at the last-known-good timestamp so the
+ * dashboard shows "Tested 3 days ago" rather than reverting to amber.
+ */
+function computeKeyStatus(k: ConfiguredKey): KeyStatus {
+  if (k.is_active && k.tested_at) return "active";
+  if (k.tested_at) return "tested";
+  return "untested";
+}
+
+function KeyStatusDot({ status }: { status: KeyStatus }) {
+  const config = {
+    active: {
+      Icon: CircleCheck,
+      cls: "text-emerald-600 dark:text-emerald-400",
+      label: "Active and tested",
+    },
+    tested: {
+      Icon: CircleDashed,
+      cls: "text-muted-foreground",
+      label: "Configured (not active for this kind)",
+    },
+    untested: {
+      Icon: CircleAlert,
+      cls: "text-amber-600 dark:text-amber-400",
+      label: "Untested — click Test before relying on it",
+    },
+  }[status];
+  const Icon = config.Icon;
+  return (
+    <span className={cn("inline-flex shrink-0", config.cls)} title={config.label}>
+      <Icon className="size-4" aria-hidden="true" />
+      <span className="sr-only">{config.label}</span>
+    </span>
+  );
+}
 
 function CapabilityBadge({ kind }: { kind: "text" | "image" }) {
   return (

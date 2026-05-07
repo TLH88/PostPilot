@@ -90,15 +90,17 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Model (Optional)</CardTitle>
+          <CardTitle>AI Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            PostPilot includes built-in AI. You don&apos;t need to do anything
-            here to get started. If you&apos;d prefer to use your own OpenAI or
-            Anthropic account instead, add your API key below and you&apos;ll
-            be billed by that provider directly. Available on the Professional
-            and Enterprise plans.
+            PostPilot includes built-in AI for drafting, brainstorming,
+            hashtags, and image generation — you don&apos;t need to set anything
+            up here to get started. If you&apos;d rather route AI requests
+            through your own provider account, bring your own API key and
+            you&apos;ll be billed by that provider directly. PostPilot&apos;s
+            advanced AI insights (Studio AI critiques, hook analysis, voice
+            consistency) work with both built-in AI and your own keys.
           </p>
           <AIProviderSettings
             currentForceGateway={profile?.force_ai_gateway ?? true}
