@@ -32,7 +32,6 @@ import {
   ShieldAlert,
   CircleAlert,
   CircleCheck,
-  CircleDashed,
   Image as ImageIcon,
   Type as TypeIcon,
 } from "lucide-react";
@@ -459,11 +458,15 @@ export function AIProviderSettings({
                   key={`${k.provider}-${k.key_type}`}
                   className={cn(
                     "rounded-lg border p-3 space-y-2 transition-colors",
-                    status === "active"
-                      ? "border-emerald-500/30 bg-emerald-500/5"
-                      : status === "tested"
-                        ? "bg-card"
-                        : "border-amber-300/50 bg-amber-50/30 dark:border-amber-800/50 dark:bg-amber-950/20"
+                    // Active row gets a faint primary fill — the universal
+                    // "this is the one being used" cue. Owner direction
+                    // 2026-05-07: green-check now means "tested/valid" for
+                    // every configured row, so active needs its own signal.
+                    k.is_active
+                      ? "border-primary/30 bg-primary/[0.04] dark:bg-primary/10"
+                      : status === "untested"
+                        ? "border-amber-300/50 bg-amber-50/30 dark:border-amber-800/50 dark:bg-amber-950/20"
+                        : "bg-card"
                   )}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
@@ -471,8 +474,7 @@ export function AIProviderSettings({
                     <span className="font-medium">{providerLabel(k.provider)}</span>
                     <CapabilityBadge kind={k.key_type} />
                     {k.is_active && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                        <CircleCheck className="size-3" />
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                         Active ({k.key_type})
                       </span>
                     )}
@@ -513,7 +515,6 @@ export function AIProviderSettings({
                       {!k.is_active && (
                         <Button
                           size="sm"
-                          variant="outline"
                           className="h-8 px-2 text-xs"
                           onClick={() => setActive(k)}
                         >
@@ -723,13 +724,16 @@ export function AIProviderSettings({
 
 // ── Small helpers / sub-components ───────────────────────────────────────────
 
-type KeyStatus = "active" | "tested" | "untested";
+type KeyStatus = "tested" | "untested";
 
 /**
- * Status semantics for a configured key:
- *   active   — green: tested + currently the active provider for its kind
- *   tested   — neutral: tested OK at some point but not currently active
- *   untested — amber: never tested (or test cleared via re-save)
+ * Validity status for a configured key. Owner direction 2026-05-07:
+ * the green-check is now a universal "this key works" marker — both
+ * active and inactive-but-tested rows show it. Active state is
+ * communicated separately via row tint + the existing Active pill.
+ *
+ *   tested   — green check: validated against the provider at least once
+ *   untested — amber alert: never tested (or test cleared via re-save)
  *
  * The /api/settings/test-ai-key route bumps `tested_at` on every
  * successful validation; the POST save flow validates BEFORE writing
@@ -740,22 +744,15 @@ type KeyStatus = "active" | "tested" | "untested";
  * dashboard shows "Tested 3 days ago" rather than reverting to amber.
  */
 function computeKeyStatus(k: ConfiguredKey): KeyStatus {
-  if (k.is_active && k.tested_at) return "active";
-  if (k.tested_at) return "tested";
-  return "untested";
+  return k.tested_at ? "tested" : "untested";
 }
 
 function KeyStatusDot({ status }: { status: KeyStatus }) {
   const config = {
-    active: {
+    tested: {
       Icon: CircleCheck,
       cls: "text-emerald-600 dark:text-emerald-400",
-      label: "Active and tested",
-    },
-    tested: {
-      Icon: CircleDashed,
-      cls: "text-muted-foreground",
-      label: "Configured (not active for this kind)",
+      label: "Validated against the provider — key works",
     },
     untested: {
       Icon: CircleAlert,
