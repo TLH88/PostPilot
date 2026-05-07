@@ -501,16 +501,27 @@ export function AIProviderSettings({
                           key={k.key_type}
                           className={cn(
                             "rounded-md border p-2 transition-colors",
-                            // Active sub-row gets a faint primary fill
-                            // — the universal "this is the one being used"
-                            // signal owner asked for 2026-05-07.
+                            // Active sub-row stacks three visual signals so
+                            // "in use" reads at a glance: chunky 4px primary
+                            // accent on the left edge, primary-tinted fill,
+                            // and a labelled pill on the right (below).
+                            // Owner direction 2026-05-07: the previous
+                            // /[0.04] tint + small uppercase pill was too
+                            // subtle.
                             k.is_active
-                              ? "border-primary/30 bg-primary/[0.04] dark:bg-primary/10"
+                              ? "border-l-4 border-l-primary border-y border-r border-primary/30 bg-primary/10 dark:bg-primary/15 shadow-sm"
                               : "border-border/60 bg-muted/20"
                           )}
                         >
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 text-xs font-medium",
+                                k.is_active
+                                  ? "text-primary"
+                                  : "text-muted-foreground"
+                              )}
+                            >
                               {k.key_type === "text" ? (
                                 <TypeIcon className="size-3" />
                               ) : (
@@ -520,8 +531,9 @@ export function AIProviderSettings({
                             </span>
 
                             {k.is_active && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                                Active
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-sm">
+                                <CircleCheck className="size-3.5" />
+                                In Use
                               </span>
                             )}
 
