@@ -728,6 +728,57 @@ export default function HelpPage() {
       </CollapsibleCard>
 
       <CollapsibleCard
+        title="Content Pillars"
+        description="The 3-5 themes that anchor your professional brand"
+        defaultOpen={false}
+      >
+        <h4 id="content-pillars" className="text-sm font-semibold">What content pillars are</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          Content pillars are the 3-5 themes you consistently post about. They&apos;re the topics
+          your audience expects from you, and they anchor your professional brand on LinkedIn.
+        </p>
+
+        <h4 className="text-sm font-semibold">Why they matter</h4>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/90">
+          <li>
+            A balanced mix across pillars keeps your audience engaged and saves them from
+            seeing the same angle every week.
+          </li>
+          <li>
+            Consistency around a small set of themes positions you as a thought leader in
+            those areas, rather than a generalist.
+          </li>
+        </ul>
+
+        <h4 className="text-sm font-semibold mt-4">How to set yours</h4>
+        <p className="text-sm text-foreground/80 mb-3">
+          You pick your pillars during the onboarding wizard. You can update them anytime
+          from your <strong>Profile</strong> page — adjust the labels, add new pillars, or
+          retire ones that no longer fit.
+        </p>
+
+        <h4 className="text-sm font-semibold">How PostPilot uses them</h4>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/90">
+          <li>
+            AI brainstorming uses your pillars to generate ideas that fit your themes.
+          </li>
+          <li>
+            Each idea and post can be tagged with a pillar so your library stays organized.
+          </li>
+          <li>
+            The dashboard <strong>Content Balance</strong> card shows your distribution
+            across pillars so you can spot themes you&apos;re overusing or neglecting.
+          </li>
+        </ul>
+
+        <Tip>
+          Pick pillars that overlap with your audience&apos;s interests, not just yours. The
+          best pillars sit at the intersection of what you know and what your audience
+          wants to read.
+        </Tip>
+      </CollapsibleCard>
+
+      <CollapsibleCard
         title="Writing Your First Post"
         description="Use the post editor, AI assistant, and formatting tools"
         defaultOpen={false}

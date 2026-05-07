@@ -82,6 +82,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LINKEDIN, POST_STATUSES, AUTOSAVE_DEBOUNCE_MS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { EDITOR_TOOLTIPS } from "@/lib/tooltip-content";
 import { classifyPillar } from "@/lib/classify-pillar";
 import { hasFeature } from "@/lib/feature-gate";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
@@ -2397,8 +2398,10 @@ export default function PostWorkspacePage() {
 
             {/* Bottom action row — Versions on the far left, then on the
                 right: Submit-for-Review (when applicable), 3-dot Actions
-                menu, Preview, Schedule. Mirrors the new mockup. */}
-            <div className="flex items-center gap-2 pb-2">
+                menu, Preview, Schedule. Mirrors the new mockup.
+                Wrapper id `tour-bottom-actions` is the anchor for the
+                howto-develop-idea.dev-publish tutorial step. */}
+            <div id="tour-bottom-actions" className="flex items-center gap-2 pb-2">
               {/* Versions dropdown — far left */}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -2525,26 +2528,40 @@ export default function PostWorkspacePage() {
                 />
 
                 {/* Preview */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setPublishPreviewOpen(true)}
-                >
-                  <Eye className="size-3.5" />
-                  <span className="sr-only md:not-sr-only">Preview</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setPublishPreviewOpen(true)}
+                      >
+                        <Eye className="size-3.5" />
+                        <span className="sr-only md:not-sr-only">Preview</span>
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>{EDITOR_TOOLTIPS.preview.text}</TooltipContent>
+                </Tooltip>
 
                 {/* Schedule */}
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setScheduleDialogOpen(true)}
-                  disabled={status === "archived"}
-                >
-                  <CalendarClock className="size-3.5" />
-                  <span className="sr-only md:not-sr-only">Schedule</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setScheduleDialogOpen(true)}
+                        disabled={status === "archived"}
+                      >
+                        <CalendarClock className="size-3.5" />
+                        <span className="sr-only md:not-sr-only">Schedule</span>
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>{EDITOR_TOOLTIPS.schedule.text}</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -2844,14 +2861,21 @@ export default function PostWorkspacePage() {
                       {msg.role === "assistant" &&
                         msg.content.length > 200 &&
                         !chatStreaming && (
-                          <button
-                            id="tour-apply-to-editor"
-                            onClick={() => applyAIContent(msg.content)}
-                            className="mt-2 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-                          >
-                            <Sparkles className="size-3" />
-                            Apply to Editor
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  id="tour-apply-to-editor"
+                                  onClick={() => applyAIContent(msg.content)}
+                                  className="mt-2 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                                >
+                                  <Sparkles className="size-3" />
+                                  Apply to Editor
+                                </button>
+                              }
+                            />
+                            <TooltipContent>{EDITOR_TOOLTIPS.applyToEditor.text}</TooltipContent>
+                          </Tooltip>
                         )}
                     </div>
                   </div>

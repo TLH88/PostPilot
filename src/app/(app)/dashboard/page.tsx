@@ -36,6 +36,7 @@ import { ContentPillarBalance } from "@/components/dashboard/content-pillar-bala
 import { UsageSummary } from "@/components/dashboard/usage-summary";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { GenerateIdeasButton } from "@/components/ideas/generate-ideas-button";
+import { DASHBOARD_TOOLTIPS } from "@/lib/tooltip-content";
 
 // ─── Shared post-cards section ────────────────────────────────────────────────
 // Same layout the dashboard uses for Recent Drafts. Extracted so Scheduled
@@ -553,7 +554,7 @@ export default async function DashboardPage() {
             sectionBg="bg-blue-500/10 dark:bg-blue-500/[0.12]"
             accentBorder="border-l-blue-500"
             title="Recent Drafts"
-            tooltip="Posts you've started but haven't scheduled or published yet. Click any card to pick up where you left off."
+            tooltip={DASHBOARD_TOOLTIPS.recentDrafts.text}
             posts={recentDrafts}
             viewAllHref="/posts"
             viewAllLabel="View all posts"
@@ -569,7 +570,7 @@ export default async function DashboardPage() {
             sectionBg="bg-purple-500/10 dark:bg-purple-500/[0.12]"
             accentBorder="border-l-purple-500"
             title="Recent Scheduled Posts"
-            tooltip="Posts you've queued up to publish automatically at a future date and time."
+            tooltip={DASHBOARD_TOOLTIPS.recentScheduled.text}
             posts={recentScheduled}
             viewAllHref="/posts"
             viewAllLabel="View all scheduled"
@@ -598,7 +599,7 @@ export default async function DashboardPage() {
             sectionBg="bg-emerald-500/10 dark:bg-emerald-500/[0.12]"
             accentBorder="border-l-emerald-500"
             title="Recently Posted"
-            tooltip="Your most recent posts that have gone live on LinkedIn. Click one to review its analytics."
+            tooltip={DASHBOARD_TOOLTIPS.recentlyPosted.text}
             posts={recentPosted}
             viewAllHref="/posts"
             viewAllLabel="View all posted"
@@ -621,7 +622,7 @@ export default async function DashboardPage() {
                       <Info className="size-3.5" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-xs text-sm">
-                      The latest ideas saved in your Idea Bank — including brainstorms we&apos;ve generated and anything you&apos;ve captured manually. Click one to start developing it into a post.
+                      {DASHBOARD_TOOLTIPS.recentIdeas.text}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
