@@ -10,6 +10,7 @@ import { WorkspaceSettings } from "./workspace-settings";
 import { ManagedAIStatus } from "./managed-ai-status";
 import { AnnouncementsSetting } from "./announcements-setting";
 import { DangerZone } from "./danger-zone";
+import { HelpButton } from "@/components/help-sidebar";
 import type { SubscriptionTier } from "@/lib/constants";
 import { hasFeature } from "@/lib/feature-gate";
 
@@ -90,12 +91,15 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>AI Configuration</CardTitle>
+          <CardTitle className="flex items-center gap-1.5">
+            AI Configuration
+            <HelpButton articleId="ai-configuration" className="ml-1" />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             PostPilot includes built-in AI for drafting, brainstorming,
-            hashtags, and image generation — you don&apos;t need to set anything
+            hashtags, and image generation. You don&apos;t need to set anything
             up here to get started. If you&apos;d rather route AI requests
             through your own provider account, bring your own API key and
             you&apos;ll be billed by that provider directly. PostPilot&apos;s

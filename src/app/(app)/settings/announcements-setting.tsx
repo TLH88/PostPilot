@@ -15,7 +15,7 @@ export function AnnouncementsSetting() {
       </p>
       <Button
         variant="outline"
-        className="gap-2"
+        className="gap-2 border-primary text-primary hover:bg-primary/10 hover:text-primary"
         onClick={() => setShowNotes(true)}
       >
         <Megaphone className="size-4" />

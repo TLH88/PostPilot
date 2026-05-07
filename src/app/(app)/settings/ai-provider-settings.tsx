@@ -32,7 +32,6 @@ import {
   ShieldAlert,
   CircleAlert,
   CircleCheck,
-  CircleDashed,
   Image as ImageIcon,
   Type as TypeIcon,
 } from "lucide-react";
@@ -58,6 +57,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { hasFeature } from "@/lib/feature-gate";
+import { useHelpSidebar } from "@/components/help-sidebar";
 import type { SubscriptionTier } from "@/lib/constants";
 
 interface ProviderRegistryRow {
@@ -98,6 +98,7 @@ export function AIProviderSettings({
   subscriptionTier,
 }: AIProviderSettingsProps) {
   const byokUnlocked = hasFeature(subscriptionTier, "byok_ai_keys");
+  const { openHelp } = useHelpSidebar();
 
   // Loading
   const [loading, setLoading] = useState(true);
@@ -176,7 +177,7 @@ export function AIProviderSettings({
       toast.success(
         next
           ? "PostPilot AI Gateway enabled."
-          : "AI Gateway disabled — using your configured provider keys."
+          : "AI Gateway disabled. Using your configured provider keys."
       );
     } catch {
       setForceGateway(!next);
@@ -428,7 +429,6 @@ export function AIProviderSettings({
           <Button
             type="button"
             size="sm"
-            variant="outline"
             className="gap-1.5"
             onClick={() => setAddOpen(true)}
           >
@@ -449,39 +449,38 @@ export function AIProviderSettings({
             to bring your own OpenAI, Anthropic, Google, or Perplexity key.
           </div>
         ) : (
-          <ul className="space-y-2">
-            {keys.map((k) => {
-              const models = modelsFor(k.provider, k.key_type);
-              const selectedModel = k.model_id ?? defaultModelFor(k.provider, k.key_type);
-              const status = computeKeyStatus(k);
+          <ul className="space-y-3">
+            {groupKeysByProvider(keys).map((group) => {
+              // The provider-level header rolls up status across its
+              // configured kinds: pick the most-recent test timestamp,
+              // and show "Untested" only if NONE of the kinds are tested.
+              const anyTested = group.keys.some((k) => k.tested_at);
+              const mostRecentTest = group.keys
+                .map((k) => k.tested_at)
+                .filter((t): t is string => !!t)
+                .sort()
+                .pop() ?? null;
               return (
                 <li
-                  key={`${k.provider}-${k.key_type}`}
-                  className={cn(
-                    "rounded-lg border p-3 space-y-2 transition-colors",
-                    status === "active"
-                      ? "border-emerald-500/30 bg-emerald-500/5"
-                      : status === "tested"
-                        ? "bg-card"
-                        : "border-amber-300/50 bg-amber-50/30 dark:border-amber-800/50 dark:bg-amber-950/20"
-                  )}
+                  key={group.provider}
+                  className="rounded-lg border bg-card p-3 space-y-3"
                 >
+                  {/* Provider header — single row per provider regardless
+                      of how many kinds are configured. Avoids the previous
+                      "OpenAI listed twice" UX. */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <KeyStatusDot status={status} />
-                    <span className="font-medium">{providerLabel(k.provider)}</span>
-                    <CapabilityBadge kind={k.key_type} />
-                    {k.is_active && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                        <CircleCheck className="size-3" />
-                        Active ({k.key_type})
+                    <KeyStatusDot status={anyTested ? "tested" : "untested"} />
+                    <span className="font-medium">
+                      {providerLabel(group.provider)}
+                    </span>
+                    {group.keys.map((k) => (
+                      <CapabilityBadge key={k.key_type} kind={k.key_type} />
+                    ))}
+                    {mostRecentTest ? (
+                      <span className="ml-auto text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                        Tested {formatRelative(mostRecentTest)}
                       </span>
-                    )}
-                    {k.tested_at && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        Tested {formatRelative(k.tested_at)}
-                      </span>
-                    )}
-                    {!k.tested_at && (
+                    ) : (
                       <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400">
                         <CircleAlert className="size-3" />
                         Untested
@@ -489,67 +488,141 @@ export function AIProviderSettings({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {models.length > 0 && (
-                      <Select
-                        value={selectedModel}
-                        onValueChange={(v) => {
-                          if (v) setModel(k, v);
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-auto min-w-[200px] text-xs">
-                          <SelectValue placeholder="Default model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {models.map((m) => (
-                            <SelectItem key={m.value} value={m.value} className="text-xs">
-                              {m.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <div className="ml-auto flex items-center gap-1">
-                      {!k.is_active && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-2 text-xs"
-                          onClick={() => setActive(k)}
+                  {/* One sub-row per configured kind (text / image).
+                      Active state, model preference, Test, and Delete are
+                      all kind-scoped because the provider can be active
+                      for image while another provider is active for text. */}
+                  <div className="space-y-2">
+                    {group.keys.map((k) => {
+                      const models = modelsFor(k.provider, k.key_type);
+                      const selectedModel =
+                        k.model_id ?? defaultModelFor(k.provider, k.key_type);
+                      return (
+                        <div
+                          key={k.key_type}
+                          className={cn(
+                            "rounded-md border p-2 transition-colors",
+                            // Active sub-row: green-tinted fill matching
+                            // the green-check tested marker + green left
+                            // accent + green pill below. Owner direction
+                            // 2026-05-07: green pill (not button-styled),
+                            // green row fill instead of primary blue.
+                            k.is_active
+                              ? "border-l-4 border-l-emerald-500 border-y border-r border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-sm"
+                              : "border-border/60 bg-muted/20"
+                          )}
                         >
-                          Set Active
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-xs"
-                        onClick={() => testRow(k)}
-                      >
-                        <FlaskConical className="size-3.5 mr-1" />
-                        Test
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        onClick={() => deleteRow(k)}
-                        disabled={k.is_active}
-                        title={
-                          k.is_active
-                            ? "Set another provider active before removing this one."
-                            : "Remove key"
-                        }
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 text-xs font-medium",
+                                k.is_active
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {k.key_type === "text" ? (
+                                <TypeIcon className="size-3" />
+                              ) : (
+                                <ImageIcon className="size-3" />
+                              )}
+                              {k.key_type === "text" ? "Text" : "Image"}
+                            </span>
+
+                            {k.is_active && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                <CircleCheck className="size-3" />
+                                In Use
+                              </span>
+                            )}
+
+                            {models.length > 0 && (
+                              <Select
+                                value={selectedModel}
+                                onValueChange={(v) => {
+                                  if (v) setModel(k, v);
+                                }}
+                              >
+                                <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs">
+                                  <SelectValue placeholder="Default model" />
+                                </SelectTrigger>
+                                {/* alignItemWithTrigger=false: open the
+                                    list BELOW the trigger like a normal
+                                    web dropdown rather than anchoring
+                                    the selected item over the trigger
+                                    (base-ui's macOS-style default). */}
+                                <SelectContent alignItemWithTrigger={false}>
+                                  {models.map((m) => (
+                                    <SelectItem
+                                      key={m.value}
+                                      value={m.value}
+                                      className="text-xs"
+                                    >
+                                      {m.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+
+                            <div className="ml-auto flex items-center gap-1">
+                              {!k.is_active && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => setActive(k)}
+                                >
+                                  Set Active
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                                onClick={() => testRow(k)}
+                              >
+                                <FlaskConical className="size-3 mr-1" />
+                                Test
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteRow(k)}
+                                disabled={k.is_active}
+                                title={
+                                  k.is_active
+                                    ? "Set another provider active before removing this one."
+                                    : "Remove key"
+                                }
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </li>
               );
             })}
           </ul>
         )}
+      </div>
+
+      {/* Help footer — opens the contextual help sidebar to the
+          ai-configuration article, which links onward to the full
+          troubleshooting guide and per-provider key creation guides. */}
+      <div className="flex items-center justify-center gap-1.5 pt-1 text-xs">
+        <HelpCircle className="size-3.5 text-primary" />
+        <button
+          type="button"
+          onClick={() => openHelp("ai-configuration")}
+          className="text-primary hover:underline underline-offset-4"
+        >
+          Encounter an issue? Check out troubleshooting guide for assistance.
+        </button>
       </div>
 
       {/* Add-key modal — replaces the inline form (owner direction
@@ -584,7 +657,7 @@ export function AIProviderSettings({
                 <SelectTrigger id="add-provider" className="text-sm">
                   <SelectValue placeholder="Pick a provider…" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {providers.map((p) => (
                     <SelectItem key={p.slug} value={p.slug}>
                       {p.label}
@@ -656,7 +729,7 @@ export function AIProviderSettings({
             {addResult === "success" && (
               <div className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400">
                 <Check className="size-3.5" />
-                Key validated successfully — you can save it now.
+                Key validated successfully. You can save it now.
               </div>
             )}
             {addResult === "error" && (
@@ -672,7 +745,7 @@ export function AIProviderSettings({
               type="button"
               variant="outline"
               size="sm"
-              className="gap-1.5"
+              className="gap-1.5 border-primary text-primary hover:bg-primary/10 hover:text-primary"
               onClick={testAddKey}
               disabled={
                 testing || !addProvider || !addKey.trim() || addCaps.length === 0
@@ -723,13 +796,45 @@ export function AIProviderSettings({
 
 // ── Small helpers / sub-components ───────────────────────────────────────────
 
-type KeyStatus = "active" | "tested" | "untested";
+interface ProviderGroup {
+  provider: string;
+  /** Stable order: text first, then image. */
+  keys: ConfiguredKey[];
+}
 
 /**
- * Status semantics for a configured key:
- *   active   — green: tested + currently the active provider for its kind
- *   tested   — neutral: tested OK at some point but not currently active
- *   untested — amber: never tested (or test cleared via re-save)
+ * Collapse the (provider, kind) row list into one entry per provider,
+ * with each provider's configured kinds sorted text → image. Owner
+ * direction 2026-05-07: providers that support both kinds (OpenAI,
+ * Google) shouldn't appear twice in the dashboard — one provider, one
+ * row, with sub-rows per configured capability.
+ */
+function groupKeysByProvider(keys: ConfiguredKey[]): ProviderGroup[] {
+  const map = new Map<string, ProviderGroup>();
+  for (const k of keys) {
+    let g = map.get(k.provider);
+    if (!g) {
+      g = { provider: k.provider, keys: [] };
+      map.set(k.provider, g);
+    }
+    g.keys.push(k);
+  }
+  for (const g of map.values()) {
+    g.keys.sort((a, b) =>
+      a.key_type === b.key_type ? 0 : a.key_type === "text" ? -1 : 1
+    );
+  }
+  return Array.from(map.values());
+}
+
+type KeyStatus = "tested" | "untested";
+
+/**
+ * Provider-level validity dot, rolled up across all configured kinds:
+ *
+ *   tested   — green check: at least one configured kind has been
+ *              validated against the provider
+ *   untested — amber alert: NO configured kind has been tested yet
  *
  * The /api/settings/test-ai-key route bumps `tested_at` on every
  * successful validation; the POST save flow validates BEFORE writing
@@ -738,29 +843,22 @@ type KeyStatus = "active" | "tested" | "untested";
  * "Test" and it fails. A failure response from the test route does NOT
  * clear `tested_at` — it stays at the last-known-good timestamp so the
  * dashboard shows "Tested 3 days ago" rather than reverting to amber.
+ *
+ * Owner direction 2026-05-07: the green-check is a universal "this key
+ * works" marker, not an "active" indicator. Active state is communicated
+ * separately by a faint primary-tinted row fill on the relevant sub-row.
  */
-function computeKeyStatus(k: ConfiguredKey): KeyStatus {
-  if (k.is_active && k.tested_at) return "active";
-  if (k.tested_at) return "tested";
-  return "untested";
-}
-
 function KeyStatusDot({ status }: { status: KeyStatus }) {
   const config = {
-    active: {
+    tested: {
       Icon: CircleCheck,
       cls: "text-emerald-600 dark:text-emerald-400",
-      label: "Active and tested",
-    },
-    tested: {
-      Icon: CircleDashed,
-      cls: "text-muted-foreground",
-      label: "Configured (not active for this kind)",
+      label: "Validated against the provider. Key works.",
     },
     untested: {
       Icon: CircleAlert,
       cls: "text-amber-600 dark:text-amber-400",
-      label: "Untested — click Test before relying on it",
+      label: "Untested. Click Test before relying on it.",
     },
   }[status];
   const Icon = config.Icon;
