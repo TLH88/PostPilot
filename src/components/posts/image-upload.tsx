@@ -120,7 +120,7 @@ export function ImageUpload({
               disabled={uploading}
             >
               {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
-              {uploading ? "Uploading..." : "Replace Image"}
+              {uploading ? "Uploading..." : "Upload an Image"}
             </Button>
             <Button
               variant="outline"
@@ -207,7 +207,7 @@ export function ImageUpload({
             disabled={uploading}
           >
             {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
-            {uploading ? "Uploading..." : "Replace Image"}
+            {uploading ? "Uploading..." : "Upload an Image"}
           </Button>
           <Button
             variant="outline"

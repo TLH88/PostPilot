@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronLeft, ChevronRight, Sparkles, Upload } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Sparkles, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -17,6 +17,24 @@ interface ImageVersionPickerProps {
   postId: string;
   currentImageUrl: string | null;
   onImageChange: (imageUrl: string | null) => void;
+  /**
+   * External re-fetch trigger — increment to force the picker to
+   * re-load versions from the API even when `currentImageUrl` hasn't
+   * changed. Owner direction 2026-05-07: when the user closes the
+   * Generate Image dialog without clicking "Save and use", any newly
+   * generated versions should still appear in the strip without a
+   * page reload.
+   */
+  refreshKey?: number;
+  /**
+   * Layout orientation — "horizontal" (default) renders a left-to-right
+   * scroll strip below the active image; "vertical" renders a top-to-
+   * bottom scroll strip alongside the image. Owner direction 2026-05-07:
+   * editor's Post Image card uses "vertical" so the active image gets
+   * the full horizontal real estate instead of being centered with
+   * empty space on either side.
+   */
+  orientation?: "horizontal" | "vertical";
 }
 
 /**
@@ -27,6 +45,8 @@ export function ImageVersionPicker({
   postId,
   currentImageUrl,
   onImageChange,
+  refreshKey = 0,
+  orientation = "horizontal",
 }: ImageVersionPickerProps) {
   const [versions, setVersions] = useState<ImageVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +55,7 @@ export function ImageVersionPicker({
 
   useEffect(() => {
     loadVersions();
-  }, [postId, currentImageUrl]);
+  }, [postId, currentImageUrl, refreshKey]);
 
   async function loadVersions() {
     try {
@@ -72,38 +92,70 @@ export function ImageVersionPicker({
     }
   }
 
-  function scrollLeft() {
-    scrollRef.current?.scrollBy({ left: -160, behavior: "smooth" });
+  function scrollPrev() {
+    if (orientation === "vertical") {
+      scrollRef.current?.scrollBy({ top: -160, behavior: "smooth" });
+    } else {
+      scrollRef.current?.scrollBy({ left: -160, behavior: "smooth" });
+    }
   }
 
-  function scrollRight() {
-    scrollRef.current?.scrollBy({ left: 160, behavior: "smooth" });
+  function scrollNext() {
+    if (orientation === "vertical") {
+      scrollRef.current?.scrollBy({ top: 160, behavior: "smooth" });
+    } else {
+      scrollRef.current?.scrollBy({ left: 160, behavior: "smooth" });
+    }
   }
 
   if (loading || versions.length <= 1) return null;
 
+  const isVertical = orientation === "vertical";
+
   return (
-    <div className="space-y-1.5">
+    <div
+      className={
+        isVertical ? "flex flex-col gap-1.5 shrink-0" : "space-y-1.5"
+      }
+    >
       <p className="text-[11px] font-medium text-muted-foreground">
-        Image history ({versions.length})
+        Gallery ({versions.length})
       </p>
       <div className="relative group">
-        {/* Scroll buttons */}
-        {versions.length > 3 && (
+        {/* Scroll buttons (only when more thumbs than fit). Vertical
+            mode is now a 2-col grid: ~3 rows visible at max-h-[320px]
+            = 6 thumbs visible before scrolling kicks in. */}
+        {versions.length > (isVertical ? 6 : 3) && (
           <>
             <button
               type="button"
-              onClick={scrollLeft}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={scrollPrev}
+              className={
+                isVertical
+                  ? "absolute left-1/2 -translate-x-1/2 top-0 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  : "absolute left-0 top-1/2 -translate-y-1/2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              }
             >
-              <ChevronLeft className="size-3.5" />
+              {isVertical ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronLeft className="size-3.5" />
+              )}
             </button>
             <button
               type="button"
-              onClick={scrollRight}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={scrollNext}
+              className={
+                isVertical
+                  ? "absolute left-1/2 -translate-x-1/2 bottom-0 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  : "absolute right-0 top-1/2 -translate-y-1/2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              }
             >
-              <ChevronRight className="size-3.5" />
+              {isVertical ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronRight className="size-3.5" />
+              )}
             </button>
           </>
         )}
@@ -111,7 +163,11 @@ export function ImageVersionPicker({
         {/* Thumbnail strip */}
         <div
           ref={scrollRef}
-          className="flex gap-1.5 overflow-x-auto py-0.5 px-0.5"
+          className={
+            isVertical
+              ? "grid grid-cols-2 gap-2 overflow-y-auto py-0.5 px-0.5 max-h-[320px]"
+              : "flex gap-2 overflow-x-auto py-0.5 px-0.5"
+          }
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {versions.map((v) => {
@@ -127,7 +183,7 @@ export function ImageVersionPicker({
                     ? "border-primary ring-1 ring-primary/30"
                     : "border-transparent hover:border-foreground/20"
                 }`}
-                style={{ width: "64px", height: "48px" }}
+                style={{ width: "128px", height: "96px" }}
                 title={isActive ? "Currently selected" : `Switch to this ${v.source === "ai" ? "AI generated" : "uploaded"} image`}
               >
                 <img
