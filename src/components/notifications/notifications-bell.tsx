@@ -31,6 +31,8 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   budget_threshold_exceeded: AlertTriangle,
   budget_auto_paused: Pause,
   budget_team_burn: Flame,
+  // BYOK redesign 2026-05-07: refresh-models cron failure surfaces here.
+  cron_refresh_models_failure: AlertTriangle,
 };
 
 function formatTimeAgo(iso: string): string {

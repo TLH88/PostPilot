@@ -356,6 +356,182 @@ export default function HelpPage() {
 
       </section>
 
+      {/* ─── BYOK Troubleshooting ─── */}
+      <section id="api-keys-troubleshooting" className="space-y-4 rounded-xl border bg-muted/30 p-5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="size-5 text-primary" />
+            <h2 className="text-lg font-semibold">Troubleshooting Your AI Provider</h2>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            When something isn&apos;t working with your own provider key — failed
+            tests, missing models, calls returning errors mid-draft — work
+            through the checks below in order. Most issues fall into one of
+            five categories.
+          </p>
+        </div>
+
+        <CollapsibleCard
+          title="Step 1 — Verify the key is saved and active"
+          description="Make sure PostPilot is even using your key, not the built-in AI."
+          defaultOpen={false}
+        >
+          <StepList>
+            <li>
+              Open <strong>Settings → AI Configuration</strong>.
+            </li>
+            <li>
+              Look at the green <strong>&quot;Use PostPilot&apos;s built-in
+              AI&quot;</strong> toggle at the top. If it&apos;s ON, PostPilot
+              is routing through its managed gateway and your key isn&apos;t
+              being used at all. Switch it off if you want your key to take
+              over.
+            </li>
+            <li>
+              Find your provider in the <strong>Your AI Providers</strong>{" "}
+              list below. The row should show a green checkmark on the left
+              and an <strong>ACTIVE</strong> pill next to its capability
+              badge. If not, click <strong>Set Active</strong>.
+            </li>
+            <li>
+              If you don&apos;t see your provider listed at all, click{" "}
+              <strong>+ Add Provider Key</strong> to add it.
+            </li>
+          </StepList>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          title="Step 2 — Test the key from the dashboard"
+          description="Tells you in seconds whether the key itself is valid."
+          defaultOpen={false}
+        >
+          <StepList>
+            <li>
+              In your provider&apos;s row, click the <strong>Test</strong>{" "}
+              button.
+            </li>
+            <li>
+              <strong>Green toast (&quot;key tested OK&quot;)</strong> — the
+              key works against the provider&apos;s servers and you have
+              account access. Move to Step 3 if calls still fail.
+            </li>
+            <li>
+              <strong>Red toast with &quot;Invalid key&quot;</strong> — the
+              key was rejected by the provider. Common causes:
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>Key was copied incorrectly (extra space, missing prefix).</li>
+                <li>Key was rotated or revoked on the provider&apos;s side.</li>
+                <li>Wrong key type pasted (e.g., a project key vs. a user key).</li>
+              </ul>
+              Generate a fresh key from the provider&apos;s console and
+              re-add it.
+            </li>
+            <li>
+              <strong>&quot;API key test failed: …&quot; with a network
+              error</strong> — your provider may be experiencing an outage.
+              Check the provider&apos;s status page (linked from your
+              account console) and retry in a few minutes.
+            </li>
+          </StepList>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          title="Step 3 — Check the model is still available"
+          description="Models get deprecated. Your selection may have aged out."
+          defaultOpen={false}
+        >
+          <StepList>
+            <li>
+              In your provider&apos;s row, look at the model dropdown.
+            </li>
+            <li>
+              If the dropdown is empty or shows fewer choices than you
+              remember, click <strong>Test</strong> on the row — that
+              triggers a fresh model-list pull from the provider.
+            </li>
+            <li>
+              Pick a model that&apos;s clearly listed as current
+              (e.g. <code className="rounded bg-muted px-1.5 py-0.5 text-xs">gpt-4.1</code>,{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">claude-opus-4-7</code>,{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">gemini-2.5-pro</code>).
+              Avoid <code className="rounded bg-muted px-1.5 py-0.5 text-xs">-preview</code>{" "}
+              variants for production use — they can change behavior
+              without notice.
+            </li>
+            <li>
+              If a model you previously used is gone, the provider has
+              deprecated it. Pick its replacement from the dropdown — your
+              setting saves automatically.
+            </li>
+          </StepList>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          title="Step 4 — Confirm billing / quota / rate limits with the provider"
+          description="Most mid-call failures are about money or rate limits, not the key itself."
+          defaultOpen={false}
+        >
+          <p className="text-sm text-foreground/80">
+            A valid key can still produce errors mid-draft if your
+            provider account has billing or usage problems. Log into the
+            provider&apos;s console and confirm:
+          </p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
+            <li>
+              <strong>Payment method on file</strong> — providers reject
+              calls when the card on file fails to charge.
+            </li>
+            <li>
+              <strong>Account credits or balance</strong> — Anthropic and
+              OpenAI both require positive balance for API access.
+            </li>
+            <li>
+              <strong>Rate limits not exhausted</strong> — Free-tier accounts
+              and new Pay-as-You-Go accounts have low per-minute caps.
+              Check the provider&apos;s usage dashboard.
+            </li>
+            <li>
+              <strong>Project / organization access</strong> — OpenAI keys
+              are scoped to a project; if the project was archived, the key
+              stops working.
+            </li>
+          </ul>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          title="Step 5 — Fall back to PostPilot's built-in AI while you investigate"
+          description="So you're not blocked from drafting while sorting out the provider issue."
+          defaultOpen={false}
+        >
+          <StepList>
+            <li>
+              Open <strong>Settings → AI Configuration</strong>.
+            </li>
+            <li>
+              Toggle <strong>Use PostPilot&apos;s built-in AI</strong> ON.
+              All AI features (drafting, brainstorming, hashtags, image
+              generation) immediately route through PostPilot&apos;s
+              managed gateway against your plan quota — no provider key
+              required.
+            </li>
+            <li>
+              Once you&apos;ve fixed the underlying issue with your provider
+              key, toggle the gateway back OFF and you&apos;re routed
+              through your own key again.
+            </li>
+          </StepList>
+          <Tip>
+            If your built-in AI is also failing, check the in-app{" "}
+            <strong>Notifications</strong> bell — admin alerts about gateway
+            issues land there. You can also reach out at{" "}
+            <ExternalUrl href="mailto:support@mypostpilot.app">
+              support@mypostpilot.app
+            </ExternalUrl>
+            .
+          </Tip>
+        </CollapsibleCard>
+      </section>
+
       {/* ─── LinkedIn Analytics Import ─── */}
       <section className="space-y-4 rounded-xl border bg-muted/30 p-5">
         <div className="space-y-2">
