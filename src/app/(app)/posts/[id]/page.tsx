@@ -162,12 +162,41 @@ function ChatPanelWrap({
       >
         <SheetContent
           side="bottom"
-          className="h-[85vh] flex flex-col gap-0 p-4 overflow-hidden"
+          // showCloseButton={false}: the default shadcn Close X is small,
+          // ghost-styled, and easy to miss on a dark mobile background —
+          // owner reported users couldn't find a way to dismiss the chat.
+          // We render our own visible top strip below: drag-handle pill
+          // (mobile-native dismiss affordance) + a labelled Close button.
+          showCloseButton={false}
+          className="h-[85vh] flex flex-col gap-0 p-0 overflow-hidden"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>AI Assistant</SheetTitle>
           </SheetHeader>
-          <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+
+          {/* Top dismiss strip: tappable drag handle + Close button.
+              The whole strip is `onClick={onClose}` so users can also
+              tap the empty area around the handle to dismiss. The X
+              button stops propagation so it works the same way. */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close AI panel"
+            className="relative flex shrink-0 items-center justify-center border-b border-border/60 bg-background py-2.5"
+          >
+            <div
+              className="h-1 w-10 rounded-full bg-muted-foreground/40"
+              aria-hidden="true"
+            />
+            <span
+              className="absolute right-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" aria-hidden="true" />
+              <span className="sr-only">Close</span>
+            </span>
+          </button>
+
+          <div className="flex flex-1 flex-col overflow-hidden min-h-0 p-4">
             {children}
           </div>
         </SheetContent>
@@ -2836,7 +2865,13 @@ export default function PostWorkspacePage() {
                 }}
                 onKeyDown={(e) => {
                   if (slashState.open && slashMenuRef.current?.handleKey(e)) return;
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  // Desktop: Enter (no shift) submits the message.
+                  // Mobile: Enter inserts a newline. Phone keyboards have
+                  // no Shift key, so submit-on-Enter leaves users with no
+                  // way to add a line break in their message — owner
+                  // direction 2026-05-07. The Send button is the only
+                  // submit on mobile.
+                  if (e.key === "Enter" && !e.shiftKey && !isMobile) {
                     e.preventDefault();
                     sendChatMessage(chatInput);
                   }
