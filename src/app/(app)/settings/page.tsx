@@ -24,10 +24,12 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  // Fetch AI provider settings + subscription tier
+  // Fetch tier + force-gateway preference. Provider/model state is now
+  // loaded client-side via /api/providers + /api/settings/provider-keys
+  // (BYOK redesign 2026-05-07 — see ai-provider-settings.tsx).
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("ai_provider, ai_model, ai_api_key_encrypted, subscription_tier, force_ai_gateway")
+    .select("subscription_tier, force_ai_gateway")
     .eq("user_id", user.id)
     .single();
 
@@ -99,9 +101,6 @@ export default async function SettingsPage() {
             and Enterprise plans.
           </p>
           <AIProviderSettings
-            currentProvider={profile?.ai_provider ?? "anthropic"}
-            currentModel={profile?.ai_model ?? null}
-            hasExistingKey={!!profile?.ai_api_key_encrypted}
             currentForceGateway={profile?.force_ai_gateway ?? true}
             subscriptionTier={subscriptionTier}
           />

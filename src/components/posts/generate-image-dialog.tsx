@@ -34,32 +34,23 @@ interface GenerateImageDialogProps {
   onImageGenerated: (imageUrl: string) => void;
 }
 
-type ImageProvider = "openai" | "google";
+/**
+ * Image-provider list and per-provider model catalogs are no longer
+ * hardcoded — they come from the BYOK registry (`ai_providers` table)
+ * and the live model catalog (`ai_models` via /api/models?kind=image).
+ *
+ * `ImageProvider` is a string slug now (any provider whose capabilities
+ * include 'image'), not a closed enum. Adding a 5th image provider in
+ * the future = INSERT INTO ai_providers + register adapter; this dialog
+ * picks it up with no edits.
+ */
+type ImageProvider = string;
 
-const IMAGE_PROVIDER_CONFIG: Record<
-  ImageProvider,
-  { label: string; models: { value: string; label: string }[] }
-> = {
-  openai: {
-    label: "OpenAI",
-    models: [
-      { value: "gpt-image-1.5", label: "GPT Image 1.5" },
-      { value: "gpt-image-1", label: "GPT Image 1" },
-      { value: "gpt-image-1-mini", label: "GPT Image 1 Mini" },
-      { value: "dall-e-3", label: "DALL-E 3" },
-      { value: "dall-e-2", label: "DALL-E 2" },
-    ],
-  },
-  google: {
-    label: "Google (Gemini)",
-    models: [
-      { value: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image" },
-      { value: "gemini-2.0-flash-preview-image-generation", label: "Gemini 2.0 Flash Image" },
-    ],
-  },
-};
-
-const IMAGE_CAPABLE_PROVIDERS: ImageProvider[] = ["openai", "google"];
+interface ImageProviderInfo {
+  slug: string;
+  label: string;
+  models: { value: string; label: string }[];
+}
 
 type ImageFormat = "landscape" | "square";
 
@@ -115,6 +106,10 @@ export function GenerateImageDialog({
   const [configuredProviders, setConfiguredProviders] = useState<ImageProvider[]>([]);
   const [configLoaded, setConfigLoaded] = useState(false);
 
+  // Per-provider info (label + image model catalog) sourced from
+  // /api/providers + /api/models?kind=image.
+  const [providerInfo, setProviderInfo] = useState<Record<string, ImageProviderInfo>>({});
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -131,10 +126,36 @@ export function GenerateImageDialog({
     try {
       // SECURITY: all provider key lookups go through the safe metadata API.
       // Never fetch ciphertext columns from the browser.
-      const [imageRes, textRes] = await Promise.all([
+      const [providersRes, imageModelsRes, imageRes, textRes] = await Promise.all([
+        fetch("/api/providers"),
+        fetch("/api/models?kind=image"),
         fetch("/api/settings/provider-keys?keyType=image"),
         fetch("/api/settings/provider-keys?keyType=text"),
       ]);
+
+      const providersJson = providersRes.ok
+        ? (await providersRes.json()).providers ?? []
+        : [];
+      const capable = (providersJson as Array<{
+        slug: string;
+        label: string;
+        capabilities: string[];
+      }>)
+        .filter((p) => p.capabilities?.includes("image"))
+        .map((p) => p.slug);
+
+      const modelsJson: Record<string, { models: { value: string; label: string }[] }> =
+        imageModelsRes.ok ? await imageModelsRes.json() : {};
+      const info: Record<string, ImageProviderInfo> = {};
+      for (const p of providersJson as Array<{ slug: string; label: string }>) {
+        if (!capable.includes(p.slug)) continue;
+        info[p.slug] = {
+          slug: p.slug,
+          label: p.label,
+          models: modelsJson[p.slug]?.models ?? [],
+        };
+      }
+      setProviderInfo(info);
 
       const imageKeys: Array<{ provider: string; is_active: boolean }> =
         imageRes.ok ? (await imageRes.json()).keys ?? [] : [];
@@ -143,51 +164,43 @@ export function GenerateImageDialog({
 
       const available: ImageProvider[] = [];
 
-      // Image-specific keys take priority
+      // Image-specific keys take priority.
       for (const key of imageKeys) {
-        if (
-          IMAGE_CAPABLE_PROVIDERS.includes(key.provider as ImageProvider) &&
-          !available.includes(key.provider as ImageProvider)
-        ) {
-          available.push(key.provider as ImageProvider);
+        if (capable.includes(key.provider) && !available.includes(key.provider)) {
+          available.push(key.provider);
         }
       }
 
-      // Fall back to any text keys that happen to be for image-capable
-      // providers (OpenAI / Google) — users can use their text key for
-      // image gen too if no dedicated image key is configured
+      // Fall back to text keys for image-capable providers — same key
+      // works for both at the provider level (OpenAI, Google).
       for (const key of textKeys) {
-        if (
-          IMAGE_CAPABLE_PROVIDERS.includes(key.provider as ImageProvider) &&
-          !available.includes(key.provider as ImageProvider)
-        ) {
-          available.push(key.provider as ImageProvider);
+        if (capable.includes(key.provider) && !available.includes(key.provider)) {
+          available.push(key.provider);
         }
       }
 
       setConfiguredProviders(available);
 
-      // Prefer the active image key, then active text key, then first available
+      // Prefer the active image key, then active text key, then first available.
       const activeImageKey = imageKeys.find((k) => k.is_active);
       const activeTextKey = textKeys.find(
-        (k) =>
-          k.is_active &&
-          IMAGE_CAPABLE_PROVIDERS.includes(k.provider as ImageProvider)
+        (k) => k.is_active && capable.includes(k.provider)
       );
 
       const pick =
-        (activeImageKey?.provider as ImageProvider | undefined) ||
-        (activeTextKey?.provider as ImageProvider | undefined) ||
+        activeImageKey?.provider ||
+        activeTextKey?.provider ||
         available[0];
 
       if (pick && available.includes(pick)) {
         setProvider(pick);
-        setModel(IMAGE_PROVIDER_CONFIG[pick].models[0].value);
+        const firstModel = info[pick]?.models[0]?.value ?? "";
+        setModel(firstModel);
       } else {
         setProvider(null);
       }
     } catch {
-      // Silently fail
+      // Silently fail — UI surfaces "no providers configured" empty state.
     }
 
     setConfigLoaded(true);
@@ -233,10 +246,11 @@ export function GenerateImageDialog({
 
   function handleProviderChange(p: ImageProvider) {
     setProvider(p);
-    setModel(IMAGE_PROVIDER_CONFIG[p].models[0].value);
+    const firstModel = providerInfo[p]?.models[0]?.value ?? "";
+    setModel(firstModel);
   }
 
-  const currentModels = provider ? IMAGE_PROVIDER_CONFIG[provider]?.models ?? [] : [];
+  const currentModels = provider ? providerInfo[provider]?.models ?? [] : [];
   const availableProviders = configuredProviders;
   const selectedVersion = versions[selectedIndex] ?? null;
 
@@ -398,7 +412,7 @@ export function GenerateImageDialog({
                           : "border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                       }`}
                     >
-                      {IMAGE_PROVIDER_CONFIG[p].label}
+                      {providerInfo[p]?.label ?? p}
                     </button>
                   ))}
                 </div>
