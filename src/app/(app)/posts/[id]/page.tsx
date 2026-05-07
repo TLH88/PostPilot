@@ -1836,10 +1836,16 @@ export default function PostWorkspacePage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-4">
+    <div className="flex gap-4 lg:h-[calc(100vh-7rem)]">
       {/* Left column — header, status pipeline, banners, and the scrolling
-          editor body. The Post Pilot AI panel is a sibling at the root
-          level so it can extend the full page height. */}
+          editor body. On desktop (lg+) the AI panel is a sibling column
+          so the outer container locks to the viewport height; the body's
+          `flex-1` distributes that height between the editor and the panel.
+          On mobile/tablet (<lg) the AI panel is a bottom-sheet overlay,
+          not a sibling, so the outer height is auto — the editor stack
+          sizes to its natural content (title + textarea(min-h-300) +
+          action row) instead of stretching to viewport height and leaving
+          a large empty gap below the action row. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Top toolbar */}
       <div className="flex items-center justify-between border-b pb-3 mb-4">
