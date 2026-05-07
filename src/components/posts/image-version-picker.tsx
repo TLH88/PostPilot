@@ -122,8 +122,10 @@ export function ImageVersionPicker({
         Gallery ({versions.length})
       </p>
       <div className="relative group">
-        {/* Scroll buttons (only when more thumbs than fit) */}
-        {versions.length > (isVertical ? 4 : 3) && (
+        {/* Scroll buttons (only when more thumbs than fit). Vertical
+            mode is now a 2-col grid: ~3 rows visible at max-h-[320px]
+            = 6 thumbs visible before scrolling kicks in. */}
+        {versions.length > (isVertical ? 6 : 3) && (
           <>
             <button
               type="button"
@@ -163,7 +165,7 @@ export function ImageVersionPicker({
           ref={scrollRef}
           className={
             isVertical
-              ? "flex flex-col gap-2 overflow-y-auto py-0.5 px-0.5 max-h-[320px]"
+              ? "grid grid-cols-2 gap-2 overflow-y-auto py-0.5 px-0.5 max-h-[320px]"
               : "flex gap-2 overflow-x-auto py-0.5 px-0.5"
           }
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -181,7 +183,7 @@ export function ImageVersionPicker({
                     ? "border-primary ring-1 ring-primary/30"
                     : "border-transparent hover:border-foreground/20"
                 }`}
-                style={{ width: "96px", height: "72px" }}
+                style={{ width: "128px", height: "96px" }}
                 title={isActive ? "Currently selected" : `Switch to this ${v.source === "ai" ? "AI generated" : "uploaded"} image`}
               >
                 <img

@@ -2480,7 +2480,7 @@ export default function PostWorkspacePage() {
                     <img
                       src={imageUrl}
                       alt="Post image"
-                      className="flex-1 min-w-0 max-h-64 rounded-lg border object-contain bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
+                      className="flex-1 min-w-0 max-h-80 rounded-lg border object-contain bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => setImageViewerOpen(true)}
                       title="Click to view full resolution"
                     />
