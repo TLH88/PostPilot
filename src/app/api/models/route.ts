@@ -1,15 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logApiError } from "@/lib/api-utils";
 
-export async function GET() {
+/**
+ * Returns the active model catalog grouped by provider.
+ *
+ * Query params:
+ *   - kind=text|image  (optional, default 'text')
+ *
+ * The `kind` column was added 2026-05-07 alongside the BYOK redesign;
+ * existing rows defaulted to 'text', which matches their semantics.
+ * Image models are populated by the adapter refresh path on demand.
+ */
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const { searchParams } = new URL(request.url);
+    const kindParam = searchParams.get("kind");
+    const kind = kindParam === "image" ? "image" : "text";
 
     const { data, error } = await supabase
       .from("ai_models")
       .select("provider, model_id, label, is_default, sort_order")
       .eq("is_active", true)
+      .eq("kind", kind)
       .order("sort_order", { ascending: true });
 
     if (error) throw error;

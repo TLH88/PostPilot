@@ -1,6 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+/**
+ * BYOK settings (2026-05-07 redesign).
+ *
+ * Single dashboard listing every configured AI provider — text and image
+ * mixed in one list with capability badges and Active markers per kind.
+ * One inline "Add provider key" form. Per-row inline model dropdown that
+ * appears only after the key has been validated.
+ *
+ * The provider list, capability metadata, key placeholders, and help URLs
+ * all come from the `ai_providers` registry (via /api/providers). Adding
+ * a 5th provider is one DB row + one adapter file — no edits here.
+ *
+ * Models come from the `ai_models` table via /api/models?kind=… and are
+ * refreshed by the adapter pipeline whenever a key is tested or saved
+ * (see /api/settings/test-ai-key, /api/settings/provider-keys POST).
+ */
+
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Loader2,
   Key,
@@ -9,15 +26,16 @@ import {
   AlertCircle,
   HelpCircle,
   Trash2,
-  Zap,
-  ChevronDown,
-  ChevronRight,
+  Plus,
   Lock,
+  Sparkles,
+  Image as ImageIcon,
+  Type as TypeIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -25,129 +43,115 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type AIProvider } from "@/lib/ai/providers";
-import { useModels } from "@/lib/ai/use-models";
-import { APIKeyHelpDrawer } from "@/components/ai-help/api-key-help-drawer";
 import { hasFeature } from "@/lib/feature-gate";
 import type { SubscriptionTier } from "@/lib/constants";
 
-// All 4 text providers, shown in a fixed order so users see all options
-const TEXT_AI_PROVIDERS = [
-  { value: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
-  { value: "openai", label: "OpenAI (GPT / o-series)", placeholder: "sk-..." },
-  { value: "google", label: "Google (Gemini)", placeholder: "AIza..." },
-  { value: "perplexity", label: "Perplexity (Sonar)", placeholder: "pplx-..." },
-] as const;
+interface ProviderRegistryRow {
+  slug: string;
+  label: string;
+  placeholder: string;
+  capabilities: ("text" | "image")[];
+  help_url: string | null;
+  sort_order: number;
+}
 
-// Only OpenAI and Google support image generation
-const IMAGE_AI_PROVIDERS = [
-  { value: "openai", label: "OpenAI (DALL-E / gpt-image)", placeholder: "sk-..." },
-  { value: "google", label: "Google (Gemini)", placeholder: "AIza..." },
-] as const;
-
-const IMAGE_MODELS: Record<"openai" | "google", { value: string; label: string }[]> = {
-  openai: [
-    { value: "gpt-image-1", label: "GPT Image 1 (recommended)" },
-    { value: "dall-e-3", label: "DALL-E 3" },
-    { value: "dall-e-2", label: "DALL-E 2" },
-  ],
-  google: [
-    { value: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image (Preview)" },
-  ],
-};
-
-type ConfiguredKey = {
+interface ConfiguredKey {
   id: string;
   provider: string;
   key_type: "text" | "image";
   is_active: boolean;
   tested_at: string | null;
-};
+  model_id: string | null;
+}
+
+interface ModelEntry {
+  value: string;
+  label: string;
+}
+interface ModelsByProvider {
+  [provider: string]: { models: ModelEntry[]; defaultModel: string };
+}
 
 interface AIProviderSettingsProps {
-  currentProvider: string;
-  currentModel: string | null;
-  hasExistingKey: boolean;
   currentForceGateway: boolean;
   subscriptionTier: SubscriptionTier;
 }
 
+type Capability = "text" | "image";
+
 export function AIProviderSettings({
-  currentProvider,
-  currentModel,
-  hasExistingKey,
   currentForceGateway,
   subscriptionTier,
 }: AIProviderSettingsProps) {
   const byokUnlocked = hasFeature(subscriptionTier, "byok_ai_keys");
 
-  // Gateway toggle — always visible, locked ON for non-BYOK tiers
+  // Loading
+  const [loading, setLoading] = useState(true);
+
+  // Registry (from /api/providers)
+  const [providers, setProviders] = useState<ProviderRegistryRow[]>([]);
+
+  // User's configured keys (text + image combined)
+  const [keys, setKeys] = useState<ConfiguredKey[]>([]);
+
+  // Model catalogs per kind (from /api/models?kind=…)
+  const [textModels, setTextModels] = useState<ModelsByProvider>({});
+  const [imageModels, setImageModels] = useState<ModelsByProvider>({});
+
+  // Force-gateway toggle
   const [forceGateway, setForceGateway] = useState(currentForceGateway);
   const [savingGateway, setSavingGateway] = useState(false);
 
-  // Text AI form state
-  const [provider, setProvider] = useState(currentProvider);
-  const [selectedModel, setSelectedModel] = useState<string | null>(currentModel);
-  const [apiKey, setApiKey] = useState("");
-  const [saving, setSaving] = useState(false);
+  // Add-key form
+  const [addOpen, setAddOpen] = useState(false);
+  const [addProvider, setAddProvider] = useState<string>("");
+  const [addCaps, setAddCaps] = useState<Capability[]>(["text"]);
+  const [addKey, setAddKey] = useState("");
+  const [adding, setAdding] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
-  const [savedProvider, setSavedProvider] = useState(currentProvider);
-  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
-  const [savedModel, setSavedModel] = useState<string | null>(currentModel);
-  const [keyConfigured, setKeyConfigured] = useState(hasExistingKey);
+  const [addResult, setAddResult] = useState<"success" | "error" | null>(null);
 
-  // Configured keys (text + image)
-  const [textKeys, setTextKeys] = useState<ConfiguredKey[]>([]);
-  const [imageKeys, setImageKeys] = useState<ConfiguredKey[]>([]);
-
-  // Collapsible section state
-  const [textListOpen, setTextListOpen] = useState(false);
-  const [textFormOpen, setTextFormOpen] = useState(false);
-  const [imageFormOpen, setImageFormOpen] = useState(false);
-
-  // Image AI form state
-  const [imgProvider, setImgProvider] = useState<"openai" | "google">("openai");
-  const [imgModel, setImgModel] = useState<string>(IMAGE_MODELS.openai[0].value);
-  const [imgApiKey, setImgApiKey] = useState("");
-  const [imgSaving, setImgSaving] = useState(false);
-  const [imgTesting, setImgTesting] = useState(false);
-  const [imgTestResult, setImgTestResult] = useState<"success" | "error" | null>(null);
-
-  const loadConfiguredKeys = useCallback(async () => {
+  // ── Loaders ────────────────────────────────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    setLoading(true);
     try {
-      const [textRes, imageRes] = await Promise.all([
-        fetch("/api/settings/provider-keys?keyType=text"),
-        fetch("/api/settings/provider-keys?keyType=image"),
-      ]);
-      if (textRes.ok) {
-        const { keys } = await textRes.json();
-        setTextKeys(keys);
+      const [provRes, textKeysRes, imageKeysRes, textModelsRes, imageModelsRes] =
+        await Promise.all([
+          fetch("/api/providers"),
+          fetch("/api/settings/provider-keys?keyType=text"),
+          fetch("/api/settings/provider-keys?keyType=image"),
+          fetch("/api/models?kind=text"),
+          fetch("/api/models?kind=image"),
+        ]);
+      if (provRes.ok) {
+        const json = await provRes.json();
+        setProviders(json.providers ?? []);
       }
-      if (imageRes.ok) {
-        const { keys } = await imageRes.json();
-        setImageKeys(keys);
+      const merged: ConfiguredKey[] = [];
+      if (textKeysRes.ok) {
+        const json = await textKeysRes.json();
+        for (const k of json.keys ?? []) merged.push(k);
       }
-    } catch {
-      // Silent fail — RLS & auth errors already handled by API
+      if (imageKeysRes.ok) {
+        const json = await imageKeysRes.json();
+        for (const k of json.keys ?? []) merged.push(k);
+      }
+      setKeys(merged);
+      if (textModelsRes.ok) setTextModels(await textModelsRes.json());
+      if (imageModelsRes.ok) setImageModels(await imageModelsRes.json());
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadConfiguredKeys();
-  }, [loadConfiguredKeys]);
+    loadAll();
+  }, [loadAll]);
 
-  const { getAvailableModels, getDefaultModel } = useModels();
-
-  const selectedProviderInfo = TEXT_AI_PROVIDERS.find((p) => p.value === provider);
-  const availableModels = getAvailableModels(provider as AIProvider);
-  const effectiveModel = selectedModel ?? getDefaultModel(provider as AIProvider);
-
-  // ── Gateway toggle handler ────────────────────────────────────────────────
-  async function handleToggleForceGateway(next: boolean) {
+  // ── Force Gateway ──────────────────────────────────────────────────────────
+  async function toggleGateway(next: boolean) {
     setForceGateway(next);
     setSavingGateway(true);
     try {
@@ -156,797 +160,538 @@ export function AIProviderSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ forceAiGateway: next }),
       });
-      if (!res.ok) throw new Error("Failed to update setting");
+      if (!res.ok) throw new Error("Failed to update gateway");
       toast.success(
         next
-          ? "AI Gateway enabled — using PostPilot's managed AI access."
+          ? "PostPilot AI Gateway enabled."
           : "AI Gateway disabled — using your configured provider keys."
       );
     } catch {
       setForceGateway(!next);
-      toast.error("Failed to update gateway setting.");
+      toast.error("Failed to update gateway preference.");
     } finally {
       setSavingGateway(false);
     }
   }
 
-  // ── Text AI key save ───────────────────────────────────────────────────────
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  // ── Add-key form ───────────────────────────────────────────────────────────
+  const selectedProvider = useMemo(
+    () => providers.find((p) => p.slug === addProvider) ?? null,
+    [providers, addProvider]
+  );
 
-    if (!apiKey && !keyConfigured) {
-      toast.error("Please enter an API key.");
-      return;
+  // When the user picks a provider that doesn't support image, drop image
+  // from the capability checkboxes.
+  useEffect(() => {
+    if (!selectedProvider) return;
+    setAddCaps((prev) =>
+      prev.filter((c) => selectedProvider.capabilities.includes(c))
+    );
+    if (selectedProvider.capabilities.length === 1) {
+      setAddCaps([selectedProvider.capabilities[0]]);
     }
+  }, [selectedProvider]);
 
-    setSaving(true);
-    try {
-      const res = await fetch("/api/settings/ai-provider", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider,
-          apiKey: apiKey || undefined,
-          aiModel: selectedModel,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save settings");
-      }
-
-      if (apiKey) {
-        await fetch("/api/settings/provider-keys", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            provider,
-            apiKey,
-            keyType: "text",
-            setActive: true,
-          }),
-        });
-      } else {
-        await fetch("/api/settings/provider-keys", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ provider, keyType: "text" }),
-        });
-      }
-
-      toast.success("Text AI provider saved.");
-      setSavedProvider(provider);
-      setSavedModel(selectedModel);
-      if (apiKey) setKeyConfigured(true);
-      setApiKey("");
-      setTestResult(null);
-      loadConfiguredKeys();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to save settings.";
-      toast.error(msg);
-    } finally {
-      setSaving(false);
-    }
+  function toggleAddCap(cap: Capability) {
+    setAddCaps((prev) =>
+      prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap]
+    );
   }
 
-  async function handleTestKey() {
-    if (!apiKey && !keyConfigured) {
-      toast.error("Please enter an API key first.");
-      return;
-    }
+  function resetAddForm() {
+    setAddProvider("");
+    setAddCaps(["text"]);
+    setAddKey("");
+    setAddResult(null);
+  }
 
+  async function testAddKey() {
+    if (!addProvider || !addKey.trim() || addCaps.length === 0) return;
     setTesting(true);
-    setTestResult(null);
+    setAddResult(null);
     try {
       const res = await fetch("/api/settings/test-ai-key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider,
-          apiKey: apiKey || undefined,
-          aiModel: selectedModel,
-          keyType: "text",
+          provider: addProvider,
+          apiKey: addKey,
+          keyType: addCaps[0], // adapter validation is the same regardless
         }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        setTestResult("error");
-        toast.error(data.error || "API key test failed.");
-        return;
+      if (!res.ok || !data.success) {
+        setAddResult("error");
+        toast.error(data.error ?? "Key test failed.");
+      } else {
+        setAddResult("success");
+        toast.success("Key is valid.");
       }
-
-      setTestResult("success");
-      toast.success(data.message || "API key is valid!");
-      loadConfiguredKeys();
     } catch {
-      setTestResult("error");
-      toast.error("Failed to test API key.");
+      setAddResult("error");
+      toast.error("Key test failed.");
     } finally {
       setTesting(false);
     }
   }
 
-  // ── Image AI key save ──────────────────────────────────────────────────────
-  async function handleImgSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!imgApiKey) {
-      toast.error("Please enter an API key.");
-      return;
-    }
-    setImgSaving(true);
+  async function saveAddKey() {
+    if (!addProvider || !addKey.trim() || addCaps.length === 0) return;
+    setAdding(true);
     try {
       const res = await fetch("/api/settings/provider-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: imgProvider,
-          apiKey: imgApiKey,
-          keyType: "image",
+          provider: addProvider,
+          apiKey: addKey,
+          keyTypes: addCaps,
+          // Auto-activate on first key for that kind; harmless if already
+          // active for another provider — the route deactivates others.
           setActive: true,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save image provider key");
-      }
-      toast.success("Image AI provider saved.");
-      setImgApiKey("");
-      setImgTestResult(null);
-      loadConfiguredKeys();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to save.";
-      toast.error(msg);
-    } finally {
-      setImgSaving(false);
-    }
-  }
-
-  async function handleImgTestKey() {
-    if (!imgApiKey) {
-      toast.error("Please enter an API key first.");
-      return;
-    }
-    setImgTesting(true);
-    setImgTestResult(null);
-    try {
-      const res = await fetch("/api/settings/test-ai-key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider: imgProvider,
-          apiKey: imgApiKey,
-          keyType: "image",
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setImgTestResult("error");
-        toast.error(data.error || "API key test failed.");
-        return;
+        toast.error(data.error ?? "Failed to save key.");
+      } else {
+        toast.success(`Saved ${addProvider}.`);
+        resetAddForm();
+        setAddOpen(false);
+        await loadAll();
       }
-      setImgTestResult("success");
-      toast.success("Image API key is valid.");
-      loadConfiguredKeys();
     } catch {
-      setImgTestResult("error");
-      toast.error("Failed to test image API key.");
+      toast.error("Failed to save key.");
     } finally {
-      setImgTesting(false);
+      setAdding(false);
     }
   }
 
-  const activeProviderLabel = TEXT_AI_PROVIDERS.find(
-    (p) => p.value === savedProvider
-  )?.label;
+  // ── Row actions ────────────────────────────────────────────────────────────
+  async function setActive(key: ConfiguredKey) {
+    try {
+      const res = await fetch("/api/settings/provider-keys", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: key.provider, keyType: key.key_type }),
+      });
+      if (!res.ok) throw new Error("Switch failed");
+      toast.success(`${key.provider} is now active for ${key.key_type}.`);
+      await loadAll();
+    } catch {
+      toast.error("Failed to switch active provider.");
+    }
+  }
 
-  const activeModelLabel = getAvailableModels(savedProvider as AIProvider).find(
-    (m) => m.value === (savedModel ?? getDefaultModel(savedProvider as AIProvider))
-  )?.label;
+  async function setModel(key: ConfiguredKey, modelId: string) {
+    try {
+      const res = await fetch("/api/settings/provider-keys", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: key.provider,
+          keyType: key.key_type,
+          modelId,
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      await loadAll();
+    } catch {
+      toast.error("Failed to update model.");
+    }
+  }
 
-  // ── Section render helpers ────────────────────────────────────────────────
-  function renderTextProviderRow(p: typeof TEXT_AI_PROVIDERS[number]) {
-    const stored = textKeys.find((k) => k.provider === p.value);
-    const isTested = !!stored?.tested_at;
-    const isActive = !!stored?.is_active;
-    // BP-118: a user who configured BYOK during a Pro trial and reverted to
-    // Personal has `stored` but can no longer USE the key — Personal is
-    // system-keys-only. Surface that inline so they don't wonder why their
-    // saved key doesn't do anything.
-    const storedButTierLocked = !!stored && !byokUnlocked;
+  async function testRow(key: ConfiguredKey) {
+    try {
+      const res = await fetch("/api/settings/test-ai-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: key.provider, keyType: key.key_type }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast.error(data.error ?? "Key test failed.");
+      } else {
+        toast.success(`${key.provider} key tested OK.`);
+        await loadAll();
+      }
+    } catch {
+      toast.error("Key test failed.");
+    }
+  }
 
+  async function deleteRow(key: ConfiguredKey) {
+    if (!confirm(`Remove ${key.provider} (${key.key_type})?`)) return;
+    try {
+      const res = await fetch("/api/settings/provider-keys", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: key.provider, keyType: key.key_type }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to remove key.");
+      } else {
+        toast.success("Key removed.");
+        await loadAll();
+      }
+    } catch {
+      toast.error("Failed to remove key.");
+    }
+  }
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
+  function providerLabel(slug: string): string {
+    return providers.find((p) => p.slug === slug)?.label ?? slug;
+  }
+
+  function modelsFor(provider: string, kind: Capability): ModelEntry[] {
+    const map = kind === "image" ? imageModels : textModels;
+    return map[provider]?.models ?? [];
+  }
+
+  function defaultModelFor(provider: string, kind: Capability): string {
+    const map = kind === "image" ? imageModels : textModels;
+    return map[provider]?.defaultModel ?? "";
+  }
+
+  // ── BYOK tier gate ─────────────────────────────────────────────────────────
+  if (!byokUnlocked) {
     return (
-      <div
-        key={p.value}
-        className="flex items-center justify-between rounded-md border px-3 py-2"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <div
-            className={cn(
-              "size-2 rounded-full shrink-0",
-              isActive ? "bg-green-500" : stored ? "bg-gray-300" : "bg-gray-200"
-            )}
-          />
-          <span className="text-sm font-medium truncate">{p.label}</span>
-          {isTested && !storedButTierLocked && (
-            <span className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase tracking-wider">
-              Configured
-            </span>
-          )}
-          {isActive && !storedButTierLocked && (
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
-              Active
-            </span>
-          )}
-          {storedButTierLocked && (
-            <span
-              className="text-[10px] text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wider"
-              title="Your saved key is preserved but won't be used on your current plan. Upgrade to Pro to reactivate it."
-            >
-              Inactive — upgrade to Pro
-            </span>
-          )}
+      <div className="space-y-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 font-medium text-foreground">
+          <Lock className="size-4" />
+          BYOK is a Professional+ feature
         </div>
-        <div className="flex items-center gap-1">
-          {!stored && byokUnlocked && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => {
-                setProvider(p.value);
-                setSelectedModel(null);
-                setApiKey("");
-                setTestResult(null);
-                setTextFormOpen(true);
-              }}
-            >
-              Setup Provider
-            </Button>
-          )}
-          {stored && !isActive && (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                disabled={!byokUnlocked}
-                onClick={async () => {
-                  await fetch("/api/settings/provider-keys", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      provider: p.value,
-                      keyType: "text",
-                    }),
-                  });
-                  setSavedProvider(p.value);
-                  setProvider(p.value);
-                  setSelectedModel(null);
-                  setKeyConfigured(true);
-                  loadConfiguredKeys();
-                  toast.success(`Switched to ${p.label}`);
-                }}
-              >
-                Switch to
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                className="text-destructive hover:text-destructive"
-                disabled={!byokUnlocked}
-                onClick={async () => {
-                  const res = await fetch("/api/settings/provider-keys", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      provider: p.value,
-                      keyType: "text",
-                    }),
-                  });
-                  if (res.ok) {
-                    loadConfiguredKeys();
-                    toast.success(`${p.label} removed`);
-                  } else {
-                    const data = await res.json();
-                    toast.error(data.error || "Failed to remove");
-                  }
-                }}
-              >
-                <Trash2 className="size-3" />
-              </Button>
-            </>
-          )}
-        </div>
+        <p>
+          You&apos;re on the {subscriptionTier} plan. PostPilot&apos;s built-in AI
+          covers all your needs at this tier. Upgrade to Professional or above
+          to bring your own OpenAI / Anthropic / Google / Perplexity keys.
+        </p>
       </div>
     );
   }
 
-  function renderImageProviderRow(p: typeof IMAGE_AI_PROVIDERS[number]) {
-    const stored = imageKeys.find((k) => k.provider === p.value);
-    const isTested = !!stored?.tested_at;
-    const isActive = !!stored?.is_active;
-    // BP-118: same inactive state as text keys — an image BYOK saved during
-    // a Pro trial is preserved but not used when the user reverts to Personal.
-    const storedButTierLocked = !!stored && !byokUnlocked;
-
-    return (
-      <div
-        key={p.value}
-        className="flex items-center justify-between rounded-md border px-3 py-2"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <div
-            className={cn(
-              "size-2 rounded-full shrink-0",
-              isActive ? "bg-green-500" : stored ? "bg-gray-300" : "bg-gray-200"
-            )}
-          />
-          <span className="text-sm font-medium truncate">{p.label}</span>
-          {isTested && !storedButTierLocked && (
-            <span className="text-[10px] text-green-600 dark:text-green-400 font-medium uppercase tracking-wider">
-              Configured
-            </span>
-          )}
-          {isActive && !storedButTierLocked && (
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
-              Active
-            </span>
-          )}
-          {storedButTierLocked && (
-            <span
-              className="text-[10px] text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wider"
-              title="Your saved image key is preserved but won't be used on your current plan. Upgrade to Pro to reactivate it."
-            >
-              Inactive — upgrade to Pro
-            </span>
-          )}
-        </div>
-        {stored && !isActive && (
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="text-destructive hover:text-destructive"
-              onClick={async () => {
-                const res = await fetch("/api/settings/provider-keys", {
-                  method: "DELETE",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    provider: p.value,
-                    keyType: "image",
-                  }),
-                });
-                if (res.ok) {
-                  loadConfiguredKeys();
-                  toast.success(`${p.label} removed`);
-                } else {
-                  const data = await res.json();
-                  toast.error(data.error || "Failed to remove");
-                }
-              }}
-            >
-              <Trash2 className="size-3" />
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* ── Section 1: Gateway Toggle (always at top) ────────────────────── */}
-      <div className="rounded-md border bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2 flex-1 min-w-0">
-            <Zap className="size-4 text-amber-500 mt-0.5 shrink-0" />
-            <div className="space-y-0.5 min-w-0">
-              <div className="text-sm font-semibold">
-                Use PostPilot&apos;s built-in AI
+      {/* Force Gateway toggle */}
+      <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <Label className="flex items-center gap-1.5 text-sm font-medium">
+            <Sparkles className="size-3.5" />
+            Use PostPilot&apos;s built-in AI
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            When on, PostPilot routes your AI requests through its managed
+            gateway and bills against your plan. When off, your configured
+            provider keys below are used.
+          </p>
+        </div>
+        <Switch
+          checked={forceGateway}
+          onCheckedChange={toggleGateway}
+          disabled={savingGateway}
+        />
+      </div>
+
+      {/* Configured providers dashboard */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Your AI Providers</h3>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setAddOpen((v) => !v)}
+          >
+            <Plus className="size-3.5" />
+            Add Provider Key
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center rounded-lg border border-dashed py-8 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin mr-2" />
+            Loading providers…
+          </div>
+        ) : keys.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No keys configured yet. Use{" "}
+            <span className="font-medium text-foreground">Add Provider Key</span>{" "}
+            to bring your own OpenAI, Anthropic, Google, or Perplexity key.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {keys.map((k) => {
+              const models = modelsFor(k.provider, k.key_type);
+              const selectedModel = k.model_id ?? defaultModelFor(k.provider, k.key_type);
+              return (
+                <li
+                  key={`${k.provider}-${k.key_type}`}
+                  className="rounded-lg border bg-card p-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium">{providerLabel(k.provider)}</span>
+                    <CapabilityBadge kind={k.key_type} />
+                    {k.is_active && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Active ({k.key_type})
+                      </span>
+                    )}
+                    {k.tested_at && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        Tested {formatRelative(k.tested_at)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {models.length > 0 && (
+                      <Select
+                        value={selectedModel}
+                        onValueChange={(v) => {
+                          if (v) setModel(k, v);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-auto min-w-[200px] text-xs">
+                          <SelectValue placeholder="Default model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {models.map((m) => (
+                            <SelectItem key={m.value} value={m.value} className="text-xs">
+                              {m.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      {!k.is_active && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => setActive(k)}
+                        >
+                          Set Active
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => testRow(k)}
+                      >
+                        <FlaskConical className="size-3.5 mr-1" />
+                        Test
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        onClick={() => deleteRow(k)}
+                        disabled={k.is_active}
+                        title={
+                          k.is_active
+                            ? "Set another provider active before removing this one."
+                            : "Remove key"
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Add-key form */}
+      {addOpen && (
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+          <div className="grid gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="add-provider" className="text-xs">
+                Provider
+              </Label>
+              <Select
+                value={addProvider}
+                onValueChange={(v) => setAddProvider(v ?? "")}
+              >
+                <SelectTrigger id="add-provider" className="text-sm">
+                  <SelectValue placeholder="Pick a provider…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map((p) => (
+                    <SelectItem key={p.slug} value={p.slug}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedProvider && selectedProvider.capabilities.length > 1 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Use for</Label>
+                <div className="flex gap-2">
+                  {(["text", "image"] as Capability[]).map((cap) =>
+                    selectedProvider.capabilities.includes(cap) ? (
+                      <button
+                        key={cap}
+                        type="button"
+                        onClick={() => toggleAddCap(cap)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                          addCaps.includes(cap)
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-foreground/30"
+                        )}
+                      >
+                        {cap === "text" ? (
+                          <TypeIcon className="size-3.5" />
+                        ) : (
+                          <ImageIcon className="size-3.5" />
+                        )}
+                        {cap === "text" ? "Text generation" : "Image generation"}
+                      </button>
+                    ) : null
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Let PostPilot handle AI for you — billing is included with your
-                plan and we automatically fall back if one provider is slow or
-                down. Turn this off only if you want to use your own OpenAI or
-                Anthropic account (added below).
-              </p>
-              {!byokUnlocked && (
-                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1 pt-1">
-                  <Lock className="size-3" /> Required on the Free and Personal plans.
-                </p>
+            )}
+
+            <div className="space-y-1">
+              <Label htmlFor="add-key" className="text-xs">
+                API Key
+              </Label>
+              <Input
+                id="add-key"
+                type="password"
+                placeholder={selectedProvider?.placeholder ?? "Enter API key…"}
+                value={addKey}
+                onChange={(e) => {
+                  setAddKey(e.target.value);
+                  setAddResult(null);
+                }}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {selectedProvider?.help_url && (
+                <a
+                  href={selectedProvider.help_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <HelpCircle className="size-3" />
+                  Where do I find my {selectedProvider.label} key?
+                </a>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={testAddKey}
+                disabled={
+                  testing || !addProvider || !addKey.trim() || addCaps.length === 0
+                }
+              >
+                {testing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <FlaskConical className="size-3.5" />
+                )}
+                Test Key
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                onClick={saveAddKey}
+                disabled={
+                  adding || !addProvider || !addKey.trim() || addCaps.length === 0
+                }
+              >
+                {adding ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Key className="size-3.5" />
+                )}
+                Save & Activate
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  resetAddForm();
+                  setAddOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+
+              {addResult === "success" && (
+                <span className="ml-auto inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <Check className="size-3.5" />
+                  Validated
+                </span>
+              )}
+              {addResult === "error" && (
+                <span className="ml-auto inline-flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="size-3.5" />
+                  Failed
+                </span>
               )}
             </div>
           </div>
-          <Switch
-            checked={forceGateway}
-            onCheckedChange={handleToggleForceGateway}
-            disabled={savingGateway || !byokUnlocked}
-            aria-label="Use PostPilot AI Gateway"
-          />
         </div>
-      </div>
-
-      {/* Everything below the gateway toggle is BYOK config — gated.
-           BP-118 fix: when locked, render the lock card inline (sized by
-           its own content) instead of absolutely overlaying the fieldset,
-           which collapses in that state and caused the card to spill past
-           the container boundary. */}
-      {!byokUnlocked ? (
-        <div className="rounded-md border border-dashed bg-muted/20 p-6 text-center">
-          <Lock className="size-6 mx-auto text-muted-foreground" />
-          <p className="mt-2 text-sm font-medium">
-            Want to use your own AI account?
-          </p>
-          {/* TODO(BP-125): revisit once image AI provider configuration
-               expands and text-provider list grows. Copy should then mention
-               image providers explicitly and the broader supported set. */}
-          <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
-            Upgrade to Professional, Team, or Enterprise to add your own AI
-            provider keys. You&apos;ll be billed by that provider directly instead of us.
-          </p>
-          {(textKeys.length > 0 || imageKeys.length > 0) && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 max-w-md mx-auto">
-              Your previously configured key
-              {textKeys.length + imageKeys.length > 1 ? "s are" : " is"} saved
-              and will reactivate automatically when you upgrade.
-            </p>
-          )}
-          <Link
-            href="/pricing"
-            className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Upgrade Plan
-          </Link>
-        </div>
-      ) : (
-        <fieldset
-          disabled={!byokUnlocked}
-          className={cn(
-            "space-y-4",
-            !byokUnlocked && "pointer-events-none select-none"
-          )}
-        >
-          {/* ── Section 2: Configured Text AI Providers (collapsible) ─── */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setTextListOpen((v) => !v)}
-              aria-expanded={textListOpen}
-              className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <Key className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium">Text AI Providers</span>
-                {textKeys.length > 0 && (
-                  <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
-                    {textKeys.length} configured
-                  </span>
-                )}
-              </div>
-              {textListOpen ? (
-                <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-              ) : (
-                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-              )}
-            </button>
-
-            {textListOpen && (
-              <div className="space-y-1.5 rounded-md border p-3 bg-muted/30">
-                {TEXT_AI_PROVIDERS.map(renderTextProviderRow)}
-              </div>
-            )}
-          </div>
-
-          {/* ── Section 3: Text AI Config (collapsible) ──────────────────── */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setTextFormOpen((v) => !v)}
-              aria-expanded={textFormOpen}
-              className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <FlaskConical className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium">
-                  Configure Text AI Provider Key
-                </span>
-              </div>
-              {textFormOpen ? (
-                <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-              ) : (
-                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-              )}
-            </button>
-
-            {textFormOpen && (
-              <form
-                onSubmit={handleSave}
-                className="space-y-3 rounded-md border p-3 bg-muted/30"
-              >
-                {/* Active provider status */}
-                <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
-                  <div
-                    className={cn(
-                      "size-2 rounded-full",
-                      keyConfigured ? "bg-green-500" : "bg-amber-500"
-                    )}
-                  />
-                  <span className="text-sm">
-                    <span className="font-medium">{activeProviderLabel}</span>
-                    {activeModelLabel && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        / {activeModelLabel}
-                      </span>
-                    )}
-                    {" — "}
-                    {keyConfigured ? (
-                      <span className="text-green-600 dark:text-green-400">
-                        Key configured
-                      </span>
-                    ) : (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        No key saved
-                      </span>
-                    )}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>AI Provider</Label>
-                  <Select
-                    value={provider}
-                    onValueChange={(v) => {
-                      if (v) {
-                        setProvider(v);
-                        setSelectedModel(null);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEXT_AI_PROVIDERS.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Model</Label>
-                  <Select
-                    value={effectiveModel}
-                    onValueChange={(v) => {
-                      if (v) setSelectedModel(v);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableModels.map((m) => (
-                        <SelectItem key={m.value} value={m.value}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="apiKey">API Key</Label>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    placeholder={
-                      keyConfigured
-                        ? "Enter new key to replace existing"
-                        : selectedProviderInfo?.placeholder ?? "Enter your API key"
-                    }
-                    value={apiKey}
-                    onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setTestResult(null);
-                    }}
-                    autoComplete="off"
-                  />
-                  {keyConfigured && !apiKey && (
-                    <p className="text-xs text-muted-foreground">
-                      A key is already saved. Leave blank to keep it.
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    <button
-                      type="button"
-                      onClick={() => setHelpDrawerOpen(true)}
-                      className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                    >
-                      <HelpCircle className="size-3" />
-                      Need help finding your API key?
-                    </button>
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={saving} className="gap-1.5">
-                    {saving ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Key className="size-4" />
-                    )}
-                    {saving ? "Saving..." : "Save Settings"}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={testing || (!apiKey && !keyConfigured)}
-                    onClick={handleTestKey}
-                    className="gap-1.5"
-                  >
-                    {testing ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : testResult === "success" ? (
-                      <Check className="size-4 text-green-600" />
-                    ) : testResult === "error" ? (
-                      <AlertCircle className="size-4 text-red-600" />
-                    ) : (
-                      <FlaskConical className="size-4" />
-                    )}
-                    {testing ? "Testing..." : "Test Key"}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-
-          {/* ── Section 4: Image Generation (collapsible) ────────────────── */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setImageFormOpen((v) => !v)}
-              aria-expanded={imageFormOpen}
-              className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <Key className="size-4 text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium">
-                  Image Generation Providers
-                </span>
-                {imageKeys.length > 0 && (
-                  <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
-                    {imageKeys.length} configured
-                  </span>
-                )}
-              </div>
-              {imageFormOpen ? (
-                <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-              ) : (
-                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-              )}
-            </button>
-
-            {imageFormOpen && (
-              <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-                {/* Configured image providers list */}
-                <div className="space-y-1.5">
-                  {IMAGE_AI_PROVIDERS.map(renderImageProviderRow)}
-                </div>
-
-                <form onSubmit={handleImgSave} className="space-y-3 pt-2 border-t">
-                  <div className="space-y-2">
-                    <Label>Image Provider</Label>
-                    <Select
-                      value={imgProvider}
-                      onValueChange={(v) => {
-                        if (v === "openai" || v === "google") {
-                          setImgProvider(v);
-                          setImgModel(IMAGE_MODELS[v][0].value);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {IMAGE_AI_PROVIDERS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>
-                            {p.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Image Model</Label>
-                    <Select
-                      value={imgModel}
-                      onValueChange={(v) => {
-                        if (v) setImgModel(v);
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {IMAGE_MODELS[imgProvider].map((m) => (
-                          <SelectItem key={m.value} value={m.value}>
-                            {m.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="imgApiKey">Image API Key</Label>
-                    <Input
-                      id="imgApiKey"
-                      type="password"
-                      placeholder={
-                        IMAGE_AI_PROVIDERS.find((p) => p.value === imgProvider)
-                          ?.placeholder ?? ""
-                      }
-                      value={imgApiKey}
-                      onChange={(e) => {
-                        setImgApiKey(e.target.value);
-                        setImgTestResult(null);
-                      }}
-                      autoComplete="off"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Image keys are stored separately from your text AI key so
-                      you can use different accounts or billing for image
-                      generation.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button type="submit" disabled={imgSaving} className="gap-1.5">
-                      {imgSaving ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Key className="size-4" />
-                      )}
-                      {imgSaving ? "Saving..." : "Save Image Key"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={imgTesting || !imgApiKey}
-                      onClick={handleImgTestKey}
-                      className="gap-1.5"
-                    >
-                      {imgTesting ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : imgTestResult === "success" ? (
-                        <Check className="size-4 text-green-600" />
-                      ) : imgTestResult === "error" ? (
-                        <AlertCircle className="size-4 text-red-600" />
-                      ) : (
-                        <FlaskConical className="size-4" />
-                      )}
-                      {imgTesting ? "Testing..." : "Test Key"}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        </fieldset>
       )}
-
-      <APIKeyHelpDrawer open={helpDrawerOpen} onOpenChange={setHelpDrawerOpen} />
     </div>
   );
+}
+
+// ── Small helpers / sub-components ───────────────────────────────────────────
+
+function CapabilityBadge({ kind }: { kind: "text" | "image" }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+        kind === "text"
+          ? "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+          : "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+      )}
+    >
+      {kind === "text" ? (
+        <TypeIcon className="size-2.5" />
+      ) : (
+        <ImageIcon className="size-2.5" />
+      )}
+      {kind === "text" ? "Text" : "Image"}
+    </span>
+  );
+}
+
+function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const seconds = Math.max(1, Math.round((now - then) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
