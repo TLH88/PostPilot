@@ -614,18 +614,15 @@ export function AIProviderSettings({
       {/* Help footer — opens the contextual help sidebar to the
           ai-configuration article, which links onward to the full
           troubleshooting guide and per-provider key creation guides. */}
-      <div className="flex items-center justify-center gap-1.5 pt-1 text-xs text-muted-foreground">
+      <div className="flex items-center justify-center gap-1.5 pt-1 text-xs">
         <HelpCircle className="size-3.5 text-primary" />
-        <span>
-          Need help with your AI configuration?{" "}
-          <button
-            type="button"
-            onClick={() => openHelp("ai-configuration")}
-            className="text-primary hover:underline underline-offset-4"
-          >
-            Open the troubleshooting guide
-          </button>
-        </span>
+        <button
+          type="button"
+          onClick={() => openHelp("ai-configuration")}
+          className="text-primary hover:underline underline-offset-4"
+        >
+          Encounter an issue? Check out troubleshooting guide for assistance.
+        </button>
       </div>
 
       {/* Add-key modal — replaces the inline form (owner direction
