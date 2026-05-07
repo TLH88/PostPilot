@@ -138,7 +138,7 @@ export function LinkedInConnection() {
               </Button>
             )}
             <Button
-              variant="outline"
+              variant="destructive"
               size="sm"
               className="gap-1.5"
               onClick={handleDisconnect}
@@ -181,7 +181,7 @@ export function LinkedInConnection() {
               Reconnect LinkedIn
             </Button>
             <Button
-              variant="outline"
+              variant="destructive"
               size="sm"
               className="gap-1.5"
               onClick={handleDisconnect}

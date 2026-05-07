@@ -175,7 +175,7 @@ export function AIProviderSettings({
       toast.success(
         next
           ? "PostPilot AI Gateway enabled."
-          : "AI Gateway disabled — using your configured provider keys."
+          : "AI Gateway disabled. Using your configured provider keys."
       );
     } catch {
       setForceGateway(!next);
@@ -427,7 +427,6 @@ export function AIProviderSettings({
           <Button
             type="button"
             size="sm"
-            variant="outline"
             className="gap-1.5"
             onClick={() => setAddOpen(true)}
           >
@@ -476,7 +475,7 @@ export function AIProviderSettings({
                       <CapabilityBadge key={k.key_type} kind={k.key_type} />
                     ))}
                     {mostRecentTest ? (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
+                      <span className="ml-auto text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
                         Tested {formatRelative(mostRecentTest)}
                       </span>
                     ) : (
@@ -501,15 +500,13 @@ export function AIProviderSettings({
                           key={k.key_type}
                           className={cn(
                             "rounded-md border p-2 transition-colors",
-                            // Active sub-row stacks three visual signals so
-                            // "in use" reads at a glance: chunky 4px primary
-                            // accent on the left edge, primary-tinted fill,
-                            // and a labelled pill on the right (below).
-                            // Owner direction 2026-05-07: the previous
-                            // /[0.04] tint + small uppercase pill was too
-                            // subtle.
+                            // Active sub-row: green-tinted fill matching
+                            // the green-check tested marker + green left
+                            // accent + green pill below. Owner direction
+                            // 2026-05-07: green pill (not button-styled),
+                            // green row fill instead of primary blue.
                             k.is_active
-                              ? "border-l-4 border-l-primary border-y border-r border-primary/30 bg-primary/10 dark:bg-primary/15 shadow-sm"
+                              ? "border-l-4 border-l-emerald-500 border-y border-r border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-sm"
                               : "border-border/60 bg-muted/20"
                           )}
                         >
@@ -518,7 +515,7 @@ export function AIProviderSettings({
                               className={cn(
                                 "inline-flex items-center gap-1 text-xs font-medium",
                                 k.is_active
-                                  ? "text-primary"
+                                  ? "text-emerald-700 dark:text-emerald-400"
                                   : "text-muted-foreground"
                               )}
                             >
@@ -531,8 +528,8 @@ export function AIProviderSettings({
                             </span>
 
                             {k.is_active && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-sm">
-                                <CircleCheck className="size-3.5" />
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                <CircleCheck className="size-3" />
                                 In Use
                               </span>
                             )}
@@ -711,7 +708,7 @@ export function AIProviderSettings({
             {addResult === "success" && (
               <div className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400">
                 <Check className="size-3.5" />
-                Key validated successfully — you can save it now.
+                Key validated successfully. You can save it now.
               </div>
             )}
             {addResult === "error" && (
@@ -835,12 +832,12 @@ function KeyStatusDot({ status }: { status: KeyStatus }) {
     tested: {
       Icon: CircleCheck,
       cls: "text-emerald-600 dark:text-emerald-400",
-      label: "Validated against the provider — key works",
+      label: "Validated against the provider. Key works.",
     },
     untested: {
       Icon: CircleAlert,
       cls: "text-amber-600 dark:text-amber-400",
-      label: "Untested — click Test before relying on it",
+      label: "Untested. Click Test before relying on it.",
     },
   }[status];
   const Icon = config.Icon;
