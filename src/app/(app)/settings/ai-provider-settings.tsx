@@ -448,42 +448,38 @@ export function AIProviderSettings({
             to bring your own OpenAI, Anthropic, Google, or Perplexity key.
           </div>
         ) : (
-          <ul className="space-y-2">
-            {keys.map((k) => {
-              const models = modelsFor(k.provider, k.key_type);
-              const selectedModel = k.model_id ?? defaultModelFor(k.provider, k.key_type);
-              const status = computeKeyStatus(k);
+          <ul className="space-y-3">
+            {groupKeysByProvider(keys).map((group) => {
+              // The provider-level header rolls up status across its
+              // configured kinds: pick the most-recent test timestamp,
+              // and show "Untested" only if NONE of the kinds are tested.
+              const anyTested = group.keys.some((k) => k.tested_at);
+              const mostRecentTest = group.keys
+                .map((k) => k.tested_at)
+                .filter((t): t is string => !!t)
+                .sort()
+                .pop() ?? null;
               return (
                 <li
-                  key={`${k.provider}-${k.key_type}`}
-                  className={cn(
-                    "rounded-lg border p-3 space-y-2 transition-colors",
-                    // Active row gets a faint primary fill — the universal
-                    // "this is the one being used" cue. Owner direction
-                    // 2026-05-07: green-check now means "tested/valid" for
-                    // every configured row, so active needs its own signal.
-                    k.is_active
-                      ? "border-primary/30 bg-primary/[0.04] dark:bg-primary/10"
-                      : status === "untested"
-                        ? "border-amber-300/50 bg-amber-50/30 dark:border-amber-800/50 dark:bg-amber-950/20"
-                        : "bg-card"
-                  )}
+                  key={group.provider}
+                  className="rounded-lg border bg-card p-3 space-y-3"
                 >
+                  {/* Provider header — single row per provider regardless
+                      of how many kinds are configured. Avoids the previous
+                      "OpenAI listed twice" UX. */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <KeyStatusDot status={status} />
-                    <span className="font-medium">{providerLabel(k.provider)}</span>
-                    <CapabilityBadge kind={k.key_type} />
-                    {k.is_active && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                        Active ({k.key_type})
-                      </span>
-                    )}
-                    {k.tested_at && (
+                    <KeyStatusDot status={anyTested ? "tested" : "untested"} />
+                    <span className="font-medium">
+                      {providerLabel(group.provider)}
+                    </span>
+                    {group.keys.map((k) => (
+                      <CapabilityBadge key={k.key_type} kind={k.key_type} />
+                    ))}
+                    {mostRecentTest ? (
                       <span className="ml-auto text-[10px] text-muted-foreground">
-                        Tested {formatRelative(k.tested_at)}
+                        Tested {formatRelative(mostRecentTest)}
                       </span>
-                    )}
-                    {!k.tested_at && (
+                    ) : (
                       <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400">
                         <CircleAlert className="size-3" />
                         Untested
@@ -491,60 +487,106 @@ export function AIProviderSettings({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {models.length > 0 && (
-                      <Select
-                        value={selectedModel}
-                        onValueChange={(v) => {
-                          if (v) setModel(k, v);
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-auto min-w-[200px] text-xs">
-                          <SelectValue placeholder="Default model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {models.map((m) => (
-                            <SelectItem key={m.value} value={m.value} className="text-xs">
-                              {m.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <div className="ml-auto flex items-center gap-1">
-                      {!k.is_active && (
-                        <Button
-                          size="sm"
-                          className="h-8 px-2 text-xs"
-                          onClick={() => setActive(k)}
+                  {/* One sub-row per configured kind (text / image).
+                      Active state, model preference, Test, and Delete are
+                      all kind-scoped because the provider can be active
+                      for image while another provider is active for text. */}
+                  <div className="space-y-2">
+                    {group.keys.map((k) => {
+                      const models = modelsFor(k.provider, k.key_type);
+                      const selectedModel =
+                        k.model_id ?? defaultModelFor(k.provider, k.key_type);
+                      return (
+                        <div
+                          key={k.key_type}
+                          className={cn(
+                            "rounded-md border p-2 transition-colors",
+                            // Active sub-row gets a faint primary fill
+                            // — the universal "this is the one being used"
+                            // signal owner asked for 2026-05-07.
+                            k.is_active
+                              ? "border-primary/30 bg-primary/[0.04] dark:bg-primary/10"
+                              : "border-border/60 bg-muted/20"
+                          )}
                         >
-                          Set Active
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-xs"
-                        onClick={() => testRow(k)}
-                      >
-                        <FlaskConical className="size-3.5 mr-1" />
-                        Test
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        onClick={() => deleteRow(k)}
-                        disabled={k.is_active}
-                        title={
-                          k.is_active
-                            ? "Set another provider active before removing this one."
-                            : "Remove key"
-                        }
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                              {k.key_type === "text" ? (
+                                <TypeIcon className="size-3" />
+                              ) : (
+                                <ImageIcon className="size-3" />
+                              )}
+                              {k.key_type === "text" ? "Text" : "Image"}
+                            </span>
+
+                            {k.is_active && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                                Active
+                              </span>
+                            )}
+
+                            {models.length > 0 && (
+                              <Select
+                                value={selectedModel}
+                                onValueChange={(v) => {
+                                  if (v) setModel(k, v);
+                                }}
+                              >
+                                <SelectTrigger className="h-7 w-auto min-w-[180px] text-xs">
+                                  <SelectValue placeholder="Default model" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {models.map((m) => (
+                                    <SelectItem
+                                      key={m.value}
+                                      value={m.value}
+                                      className="text-xs"
+                                    >
+                                      {m.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+
+                            <div className="ml-auto flex items-center gap-1">
+                              {!k.is_active && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => setActive(k)}
+                                >
+                                  Set Active
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => testRow(k)}
+                              >
+                                <FlaskConical className="size-3 mr-1" />
+                                Test
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteRow(k)}
+                                disabled={k.is_active}
+                                title={
+                                  k.is_active
+                                    ? "Set another provider active before removing this one."
+                                    : "Remove key"
+                                }
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </li>
               );
@@ -724,16 +766,45 @@ export function AIProviderSettings({
 
 // ── Small helpers / sub-components ───────────────────────────────────────────
 
+interface ProviderGroup {
+  provider: string;
+  /** Stable order: text first, then image. */
+  keys: ConfiguredKey[];
+}
+
+/**
+ * Collapse the (provider, kind) row list into one entry per provider,
+ * with each provider's configured kinds sorted text → image. Owner
+ * direction 2026-05-07: providers that support both kinds (OpenAI,
+ * Google) shouldn't appear twice in the dashboard — one provider, one
+ * row, with sub-rows per configured capability.
+ */
+function groupKeysByProvider(keys: ConfiguredKey[]): ProviderGroup[] {
+  const map = new Map<string, ProviderGroup>();
+  for (const k of keys) {
+    let g = map.get(k.provider);
+    if (!g) {
+      g = { provider: k.provider, keys: [] };
+      map.set(k.provider, g);
+    }
+    g.keys.push(k);
+  }
+  for (const g of map.values()) {
+    g.keys.sort((a, b) =>
+      a.key_type === b.key_type ? 0 : a.key_type === "text" ? -1 : 1
+    );
+  }
+  return Array.from(map.values());
+}
+
 type KeyStatus = "tested" | "untested";
 
 /**
- * Validity status for a configured key. Owner direction 2026-05-07:
- * the green-check is now a universal "this key works" marker — both
- * active and inactive-but-tested rows show it. Active state is
- * communicated separately via row tint + the existing Active pill.
+ * Provider-level validity dot, rolled up across all configured kinds:
  *
- *   tested   — green check: validated against the provider at least once
- *   untested — amber alert: never tested (or test cleared via re-save)
+ *   tested   — green check: at least one configured kind has been
+ *              validated against the provider
+ *   untested — amber alert: NO configured kind has been tested yet
  *
  * The /api/settings/test-ai-key route bumps `tested_at` on every
  * successful validation; the POST save flow validates BEFORE writing
@@ -742,11 +813,11 @@ type KeyStatus = "tested" | "untested";
  * "Test" and it fails. A failure response from the test route does NOT
  * clear `tested_at` — it stays at the last-known-good timestamp so the
  * dashboard shows "Tested 3 days ago" rather than reverting to amber.
+ *
+ * Owner direction 2026-05-07: the green-check is a universal "this key
+ * works" marker, not an "active" indicator. Active state is communicated
+ * separately by a faint primary-tinted row fill on the relevant sub-row.
  */
-function computeKeyStatus(k: ConfiguredKey): KeyStatus {
-  return k.tested_at ? "tested" : "untested";
-}
-
 function KeyStatusDot({ status }: { status: KeyStatus }) {
   const config = {
     tested: {
