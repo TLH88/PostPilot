@@ -2461,19 +2461,30 @@ export default function PostWorkspacePage() {
               </div>
               {imageUrl && (
                 <>
-                  <img
-                    src={imageUrl}
-                    alt="Post image"
-                    className="w-full max-h-48 rounded-lg border object-contain bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => setImageViewerOpen(true)}
-                    title="Click to view full resolution"
-                  />
-                  <ImageVersionPicker
-                    postId={postId}
-                    currentImageUrl={imageUrl}
-                    onImageChange={setImageUrl}
-                    refreshKey={imageVersionsRefreshKey}
-                  />
+                  {/* Side-by-side layout: vertical history strip on the
+                      left, active image filling the remaining horizontal
+                      space on the right. Owner direction 2026-05-07:
+                      stop centering the image with empty side gutters
+                      and stop pushing history below — uses the editor
+                      column's full width more deliberately. The picker
+                      returns null when ≤1 versions exist, so the image
+                      naturally takes 100% width on first generation. */}
+                  <div className="flex items-start gap-3">
+                    <ImageVersionPicker
+                      postId={postId}
+                      currentImageUrl={imageUrl}
+                      onImageChange={setImageUrl}
+                      refreshKey={imageVersionsRefreshKey}
+                      orientation="vertical"
+                    />
+                    <img
+                      src={imageUrl}
+                      alt="Post image"
+                      className="flex-1 min-w-0 max-h-64 rounded-lg border object-contain bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setImageViewerOpen(true)}
+                      title="Click to view full resolution"
+                    />
+                  </div>
                   <ImageViewer
                     open={imageViewerOpen}
                     onOpenChange={setImageViewerOpen}
