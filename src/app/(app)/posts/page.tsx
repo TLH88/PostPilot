@@ -294,7 +294,12 @@ export default async function PostsPage() {
           id="tour-posts-filters"
           className={cn(
             // Mobile: kill the chip — go flex-wrap, transparent bg.
-            "!bg-transparent !p-0 flex h-auto flex-wrap gap-1.5",
+            // `!h-auto` is critical: the cva variant pins TabsList to
+            // h-8 via `group-data-horizontal/tabs:h-8`, which keeps the
+            // layout box at 32px tall even when the pills visually wrap
+            // to 3 rows — the next sibling (post cards) then renders
+            // underneath the wrapped rows. Important-flag breaks the tie.
+            "!bg-transparent !p-0 flex !h-auto flex-wrap gap-1.5",
             // Mobile: each trigger becomes a library-style pill.
             "[&>[data-slot=tabs-trigger]]:!h-auto",
             "[&>[data-slot=tabs-trigger]]:!flex-none",
