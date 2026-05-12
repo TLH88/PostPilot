@@ -424,6 +424,28 @@ export function AIProviderSettings({
 
       {/* Configured providers dashboard */}
       <div className="space-y-2">
+        {/* 2026-05-12 — Default-state callout. Tells users on the system path
+            what powers image generation when they haven't added a BYOK key.
+            Mirrors the same info presented for text generation (which routes
+            through the PostPilot AI Gateway automatically). */}
+        <div className="rounded-lg border border-primary/20 bg-primary/[0.04] p-3 text-xs text-muted-foreground">
+          <div className="flex items-start gap-2.5">
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="space-y-1">
+              <p className="text-foreground">
+                <span className="font-semibold">PostPilot default —</span>{" "}
+                Text and image generation route through the PostPilot AI
+                Gateway with no setup required.
+              </p>
+              <p>
+                Image generation uses <span className="font-mono text-foreground">openai/gpt-image-1</span>{" "}
+                by default. Add a Provider Key below to use your own OpenAI or
+                Google account instead.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Your AI Providers</h3>
           <Button
