@@ -4,6 +4,9 @@ import { logApiError } from "@/lib/api-utils";
 import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 import { resolveImageProvider } from "@/lib/ai/resolve-ai";
+import { getUserTier } from "@/lib/quota";
+import { hasFeature } from "@/lib/feature-gate";
+import { BASIC_IMAGE_MODELS } from "@/lib/ai/image-model-tiers";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
 
@@ -70,20 +73,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const provider = (requestProvider ||
-      profileData.image_ai_provider ||
-      profileData.ai_provider) as AIProvider;
+    // 2026-05-12 — provider resolution + sensible default. Order of preference:
+    //   1. Per-request override from the dialog
+    //   2. user_profiles.image_ai_provider (explicitly chosen)
+    //   3. user_profiles.ai_provider (text provider, when image-capable)
+    //   4. "openai" — system default for users whose text provider can't
+    //      do image gen (anthropic, perplexity) or who never configured one.
+    //      The gateway path makes this work without any per-provider env keys.
+    // Step 4 also auto-populates `image_ai_provider` in user_profiles so the
+    // user sees "OpenAI" in Settings the next time they look — preventing a
+    // hidden runtime fallback that doesn't match the UI state.
+    const IMAGE_CAPABLE_PROVIDERS: AIProvider[] = ["openai", "google"];
+    let provider: AIProvider;
+    let needsImageProviderBackfill = false;
+    if (requestProvider) {
+      provider = requestProvider as AIProvider;
+    } else if (profileData.image_ai_provider) {
+      provider = profileData.image_ai_provider as AIProvider;
+    } else if (
+      profileData.ai_provider &&
+      IMAGE_CAPABLE_PROVIDERS.includes(profileData.ai_provider as AIProvider)
+    ) {
+      provider = profileData.ai_provider as AIProvider;
+      needsImageProviderBackfill = true;
+    } else {
+      provider = "openai";
+      needsImageProviderBackfill = true;
+    }
     const imageModel = requestModel || profileData.image_ai_model;
     imgProvider = provider;
     imgModel = imageModel;
     userId = user.id;
 
     // BP-125: reject image-gen for providers that don't support image models
-    // (Anthropic, Perplexity). Previously the route would resolve a text key
-    // for these providers, then silently fail because no branch matches.
-    // Return a clear 400 with a direction to configure an image-capable
-    // provider in Settings.
-    const IMAGE_CAPABLE_PROVIDERS: AIProvider[] = ["openai", "google"];
+    // (Anthropic, Perplexity). This catches per-request overrides that name
+    // a non-image-capable provider explicitly — the auto-default above already
+    // rescues empty/anthropic profile state by picking openai.
     if (!IMAGE_CAPABLE_PROVIDERS.includes(provider)) {
       return NextResponse.json(
         {
@@ -95,21 +120,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 2026-05-12 — tier gate on premium image models. Free / Personal are
+    // restricted to BASIC_IMAGE_MODELS for the selected provider; Pro+ has
+    // the full catalog. /api/models filters the picker, but a stale client
+    // could still POST a premium model — reject those here as defense in depth.
+    if (imageModel) {
+      const tierForGate = await getUserTier(user.id);
+      const hasPremiumModels = hasFeature(tierForGate, "premium_image_models");
+      if (!hasPremiumModels) {
+        const allowed = BASIC_IMAGE_MODELS[provider] ?? [];
+        if (!allowed.includes(imageModel)) {
+          return NextResponse.json(
+            {
+              error: `"${imageModel}" requires the Professional plan. Choose one of the available models for your plan or upgrade.`,
+              reason: "model_tier_gated",
+              model: imageModel,
+              requiredTier: "professional",
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     // BP-045 follow-up: system-first with BYOK image-key fallback.
     // resolveImageProvider runs the system-path quota + budget checks and
-    // returns either the system env key (when allowed) or a BYOK image
-    // key (when system is blocked but the user has BYOK configured).
-    // Pause on budget no longer locks BYOK-configured Pro+ image users.
+    // returns either the AI Gateway, a per-provider system env key, or a
+    // BYOK image key. 2026-05-12: gateway path added so the system route
+    // works on Vercel without SYSTEM_AI_KEY_OPENAI / SYSTEM_AI_KEY_GOOGLE.
     const imgResult = await resolveImageProvider(provider);
     if (!imgResult.ok) {
       return NextResponse.json(imgResult.block.body, {
         status: imgResult.block.status,
       });
     }
-    const { apiKey, source, isFallback } = imgResult.resolution;
+    const { apiKey, source, isFallback, baseURL } = imgResult.resolution;
     console.log(
       `[Image Gen] ${provider} via ${source}${isFallback ? " (fallback)" : ""}`,
     );
+
+    // 2026-05-12 — Google through the gateway routes via the OpenAI-compatible
+    // base URL using `google/${model}` namespacing (the gateway translates).
+    // BYOK Google users hit the direct Generative Language API branch below.
+    // The unified "gateway path" is handled in the OpenAI branch — we route
+    // both providers through openai.images.generate when source === "gateway".
     const hook = post.content?.slice(0, 210) ?? "";
     const selectedStyle = artStyle || ART_STYLES[0];
     const format = imageFormat || "landscape";
@@ -132,10 +186,35 @@ export async function POST(request: NextRequest) {
     // Unique suffix per generation so the storage path is different each time
     const genId = Date.now();
 
-    if (provider === "openai") {
-      const openai = new OpenAI({ apiKey });
-      const selectedModel = imageModel || "gpt-image-1";
-      const isDallE = selectedModel.startsWith("dall-e");
+    // 2026-05-12 — Unified gateway path. When source === "gateway" we route
+    // BOTH openai and google through the OpenAI-compatible gateway endpoint
+    // (https://ai-gateway.vercel.sh/v1) with provider-namespaced model IDs
+    // ("openai/gpt-5-nano", "google/gemini-3-pro-image"). The gateway
+    // translates internally. BYOK Google falls through to the native
+    // Generative Language API branch below since gateway routing requires
+    // the gateway key, not a Google key.
+    const useOpenAIShape = source === "gateway" || provider === "openai";
+
+    if (useOpenAIShape) {
+      const openai = new OpenAI(
+        baseURL ? { apiKey, baseURL } : { apiKey }
+      );
+      // Per-provider defaults; per-user image_ai_model preference wins when set.
+      // gpt-5-nano leads OpenAI (owner direction 2026-05-12: lower cost +
+      // more capable than gpt-image-*). gemini-3.1-flash-image-preview leads
+      // Google.
+      const defaultModel =
+        provider === "google" ? "gemini-3.1-flash-image-preview" : "gpt-5-nano";
+      const rawModel = imageModel || defaultModel;
+      const selectedModel =
+        source === "gateway" && !rawModel.includes("/")
+          ? `${provider}/${rawModel}`
+          : rawModel;
+      const isGptImage = rawModel.startsWith("gpt-image-");
+      // size + quality are legacy Images-API params. The gpt-image-* family
+      // still accepts them. GPT-5 multimodal + every Google model reject
+      // them — let the gateway/API pick defaults instead.
+      const supportsImagesApiParams = provider === "openai" && isGptImage;
 
       const generateParams: Record<string, unknown> = {
         model: selectedModel,
@@ -143,12 +222,7 @@ export async function POST(request: NextRequest) {
         n: 1,
       };
 
-      if (isDallE) {
-        generateParams.size = selectedModel === "dall-e-2"
-          ? "1024x1024"
-          : format === "square" ? "1024x1024" : "1792x1024";
-        generateParams.quality = "standard";
-      } else {
+      if (supportsImagesApiParams) {
         generateParams.size = format === "square" ? "1024x1024" : "1536x1024";
         generateParams.quality = "auto";
       }
@@ -219,6 +293,9 @@ export async function POST(request: NextRequest) {
         throw new Error("OpenAI did not return an image");
       }
     } else if (provider === "google") {
+      // BYOK Google direct path — uses the Generative Language REST API
+      // with the user's own Google API key. Gateway-routed Google requests
+      // hit the unified openai.images.generate branch above instead.
       const selectedModel = imageModel || "gemini-3.1-flash-image-preview";
 
       const geminiRes = await fetch(
@@ -317,6 +394,21 @@ export async function POST(request: NextRequest) {
     // fallback (`isFallback === true`) doesn't consume system quota.
     if (!isFallback) {
       await incrementQuota(user.id, "image_generations");
+    }
+
+    // 2026-05-12 — when the route inferred a default provider (because the
+    // user had no image_ai_provider set, or their text provider couldn't do
+    // images), backfill the choice on user_profiles so Settings reflects
+    // the actual provider being used. Non-fatal if it fails — the gen
+    // succeeded and the next request will retry the same inference.
+    if (needsImageProviderBackfill) {
+      const { error: backfillError } = await supabase
+        .from("user_profiles")
+        .update({ image_ai_provider: provider })
+        .eq("user_id", user.id);
+      if (backfillError) {
+        logApiError("api/ai/generate-image (image_ai_provider backfill)", backfillError);
+      }
     }
 
     logAiUsage({

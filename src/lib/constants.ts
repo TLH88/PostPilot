@@ -240,6 +240,11 @@ export const GATED_FEATURES: Record<string, SubscriptionTier> = {
   // Advanced AI Collaboration — Pro+ (new headline feature, 2026-05-04).
   ai_collaboration: "professional",
   image_generation: "personal",
+  // BP-163 follow-on (2026-05-12): premium image model catalog (gpt-image-*,
+  // gemini-3-pro-image, gpt-5-pro) is Pro+ only. Free / Personal see a
+  // curated subset of cheaper / more cost-effective image models. See
+  // src/lib/ai/image-model-tiers.ts for the basic set.
+  premium_image_models: "professional",
   analytics: "personal",
   byok_ai_keys: "professional",
   byok_image_keys: "professional",

@@ -328,15 +328,28 @@ export async function resolveAi(
 
 // ─── Image generation: same system-first / BYOK-fallback semantics ───────
 // Image gen has its own shape (separate `image_ai_*` columns + image-typed
-// rows in `ai_provider_keys`, no gateway pass-through, providers pinned to
-// openai/google), so it gets its own resolver function. The decision flow
-// mirrors `resolveAi` but the key plumbing is image-specific.
+// rows in `ai_provider_keys`, providers pinned to openai/google), so it gets
+// its own resolver function. The decision flow mirrors `resolveAi` but the
+// key plumbing is image-specific.
+//
+// 2026-05-12: added "gateway" source. When the Vercel AI Gateway is
+// configured (VERCEL_OIDC_TOKEN or AI_GATEWAY_API_KEY) and the user has
+// system access, image gen routes through https://ai-gateway.vercel.sh/v1
+// with provider-prefixed model IDs (e.g. "openai/gpt-image-1"). This removes
+// the dependency on per-provider SYSTEM_AI_KEY_* env vars for the system
+// path — matching how text gen already works.
 
 export interface ImageProviderResolution {
   apiKey: string;
-  source: "system_key" | "byok";
+  source: "gateway" | "system_key" | "byok";
   isFallback: boolean;
   fallbackReason?: FallbackReason;
+  /**
+   * When `source === "gateway"`, the OpenAI-compatible base URL that should
+   * be passed into `new OpenAI({ baseURL })`. Undefined for system_key and
+   * byok which call the provider directly.
+   */
+  baseURL?: string;
 }
 
 /**
@@ -480,12 +493,31 @@ export async function resolveImageProvider(
   const quota = await checkQuota(user.id, "image_generations");
   const budget = await checkBudget(user.id);
   const systemKey = SYSTEM_AI_KEYS[provider];
+  // 2026-05-12 — prefer the AI Gateway over a per-provider system env key
+  // when both are available. Gateway routing matches text-gen behavior and
+  // removes the SYSTEM_AI_KEY_OPENAI / SYSTEM_AI_KEY_GOOGLE requirement on
+  // Vercel deployments that only ship AI_GATEWAY_API_KEY / OIDC.
+  const gatewayAuth =
+    process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
 
-  if (quota.allowed && budget.ok && systemKey && hasActiveSystemAccess(profile)) {
-    return {
-      ok: true,
-      resolution: { apiKey: systemKey, source: "system_key", isFallback: false },
-    };
+  if (quota.allowed && budget.ok && hasActiveSystemAccess(profile)) {
+    if (gatewayAuth) {
+      return {
+        ok: true,
+        resolution: {
+          apiKey: gatewayAuth,
+          source: "gateway",
+          isFallback: false,
+          baseURL: "https://ai-gateway.vercel.sh/v1",
+        },
+      };
+    }
+    if (systemKey) {
+      return {
+        ok: true,
+        resolution: { apiKey: systemKey, source: "system_key", isFallback: false },
+      };
+    }
   }
 
   // System blocked or unavailable — try BYOK fallback.

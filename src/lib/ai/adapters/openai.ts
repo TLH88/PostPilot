@@ -38,10 +38,21 @@ const STATIC_TEXT: ModelEntry[] = [
   { value: "o3-mini", label: "o3-mini (Reasoning)" },
 ];
 
+// 2026-05-12 — list matches the Vercel AI Gateway's OpenAI image-capable
+// catalog. GPT-5 Nano leads as the recommended default (lower input/output
+// cost + more capable than the gpt-image-* family for typical post-image
+// use cases). DALL-E removed: not exposed on the Vercel AI Gateway, so
+// system-path users couldn't use it and BYOK users had the modern gpt-image-*
+// family as a better option anyway.
 const STATIC_IMAGE: ModelEntry[] = [
-  { value: "gpt-image-1", label: "GPT Image 1 (recommended)" },
-  { value: "dall-e-3", label: "DALL-E 3" },
-  { value: "dall-e-2", label: "DALL-E 2" },
+  { value: "gpt-5-nano", label: "GPT-5 Nano (recommended)" },
+  { value: "gpt-5.1-thinking", label: "GPT-5.1 Thinking" },
+  { value: "gpt-5", label: "GPT-5" },
+  { value: "gpt-5-pro", label: "GPT-5 Pro" },
+  { value: "gpt-image-1", label: "GPT Image 1" },
+  { value: "gpt-image-1-mini", label: "GPT Image 1 Mini" },
+  { value: "gpt-image-1.5", label: "GPT Image 1.5" },
+  { value: "gpt-image-2", label: "GPT Image 2" },
 ];
 
 const TEXT_INCLUDE_PATTERNS: RegExp[] = [
@@ -60,7 +71,9 @@ const TEXT_EXCLUDE_PATTERNS: RegExp[] = [
   /-vision-preview/,
 ];
 
-const IMAGE_INCLUDE_PATTERNS: RegExp[] = [/^dall-e-/, /^gpt-image-/];
+// DALL-E removed from the include set (2026-05-12) — not gateway-supported,
+// so live-fetched BYOK rows shouldn't surface it in the picker either.
+const IMAGE_INCLUDE_PATTERNS: RegExp[] = [/^gpt-image-/];
 
 function humanize(id: string): string {
   // Strip date suffixes ("-2025-08-15") that OpenAI bakes into ids.
