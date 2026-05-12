@@ -20,8 +20,6 @@ export const BASIC_IMAGE_MODELS: Record<AIProvider, string[]> = {
     "gpt-5-nano",
     "gpt-5.1-thinking",
     "gpt-5",
-    "dall-e-3",
-    "dall-e-2",
   ],
   google: [
     "gemini-3.1-flash-image-preview",

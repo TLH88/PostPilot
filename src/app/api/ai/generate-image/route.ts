@@ -210,13 +210,11 @@ export async function POST(request: NextRequest) {
         source === "gateway" && !rawModel.includes("/")
           ? `${provider}/${rawModel}`
           : rawModel;
-      const isDallE = rawModel.startsWith("dall-e");
       const isGptImage = rawModel.startsWith("gpt-image-");
-      // Images-API legacy params (size + quality) only apply to the OpenAI
-      // legacy image families. GPT-5 multimodal + every Google model rejects
-      // them — let the gateway/API pick its own defaults instead.
-      const supportsImagesApiParams =
-        provider === "openai" && (isDallE || isGptImage);
+      // size + quality are legacy Images-API params. The gpt-image-* family
+      // still accepts them. GPT-5 multimodal + every Google model reject
+      // them — let the gateway/API pick defaults instead.
+      const supportsImagesApiParams = provider === "openai" && isGptImage;
 
       const generateParams: Record<string, unknown> = {
         model: selectedModel,
@@ -225,15 +223,8 @@ export async function POST(request: NextRequest) {
       };
 
       if (supportsImagesApiParams) {
-        if (isDallE) {
-          generateParams.size = rawModel === "dall-e-2"
-            ? "1024x1024"
-            : format === "square" ? "1024x1024" : "1792x1024";
-          generateParams.quality = "standard";
-        } else {
-          generateParams.size = format === "square" ? "1024x1024" : "1536x1024";
-          generateParams.quality = "auto";
-        }
+        generateParams.size = format === "square" ? "1024x1024" : "1536x1024";
+        generateParams.quality = "auto";
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
