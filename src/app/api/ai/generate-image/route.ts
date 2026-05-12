@@ -178,12 +178,18 @@ export async function POST(request: NextRequest) {
       const openai = new OpenAI(
         baseURL ? { apiKey, baseURL } : { apiKey }
       );
-      const rawModel = imageModel || "gpt-image-1";
+      // 2026-05-12 — recommended default flipped to gpt-5-nano per owner
+      // direction. Lower cost + more capable than gpt-image-* for the
+      // typical post-image use case. Existing imageModel preferences on
+      // user_profiles still win when set.
+      const rawModel = imageModel || "gpt-5-nano";
       const selectedModel =
         source === "gateway" && !rawModel.includes("/")
           ? `openai/${rawModel}`
           : rawModel;
       const isDallE = rawModel.startsWith("dall-e");
+      const isGptImage = rawModel.startsWith("gpt-image-");
+      const supportsImagesApiParams = isDallE || isGptImage;
 
       const generateParams: Record<string, unknown> = {
         model: selectedModel,
@@ -191,14 +197,21 @@ export async function POST(request: NextRequest) {
         n: 1,
       };
 
-      if (isDallE) {
-        generateParams.size = selectedModel === "dall-e-2"
-          ? "1024x1024"
-          : format === "square" ? "1024x1024" : "1792x1024";
-        generateParams.quality = "standard";
-      } else {
-        generateParams.size = format === "square" ? "1024x1024" : "1536x1024";
-        generateParams.quality = "auto";
+      // size + quality are Images-API legacy params. dall-e-* and gpt-image-*
+      // accept them; the GPT-5 multimodal family routes through the gateway
+      // to OpenAI's responses endpoint and rejects unknown params. Only set
+      // them when the model is in the supported set — otherwise let the
+      // gateway use its own defaults.
+      if (supportsImagesApiParams) {
+        if (isDallE) {
+          generateParams.size = rawModel === "dall-e-2"
+            ? "1024x1024"
+            : format === "square" ? "1024x1024" : "1792x1024";
+          generateParams.quality = "standard";
+        } else {
+          generateParams.size = format === "square" ? "1024x1024" : "1536x1024";
+          generateParams.quality = "auto";
+        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

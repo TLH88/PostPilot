@@ -38,18 +38,20 @@ const STATIC_TEXT: ModelEntry[] = [
   { value: "o3-mini", label: "o3-mini (Reasoning)" },
 ];
 
-// 2026-05-12 — expanded to cover the OpenAI image-capable models that the
-// Vercel AI Gateway exposes. GPT Image 1 stays first so it's the picker's
-// default (matches the route's `imageModel || "gpt-image-1"` fallback).
-// DALL-E variants kept at the tail for users with BYOK keys who still rely
-// on the legacy Images API; they pass through unchanged on the direct path.
+// 2026-05-12 — list matches the Vercel AI Gateway's OpenAI image-capable
+// catalog. Order is "recommended first" per owner direction: GPT-5 Nano
+// leads (lower input/output cost, more capable than gpt-image-* family),
+// followed by the rest of the GPT-5 line, then the gpt-image-* models,
+// then DALL-E for legacy BYOK users.
 const STATIC_IMAGE: ModelEntry[] = [
-  { value: "gpt-image-1", label: "GPT Image 1 (recommended)" },
+  { value: "gpt-5-nano", label: "GPT-5 Nano (recommended)" },
+  { value: "gpt-5.1-thinking", label: "GPT-5.1 Thinking" },
+  { value: "gpt-5", label: "GPT-5" },
+  { value: "gpt-5-pro", label: "GPT-5 Pro" },
+  { value: "gpt-image-1", label: "GPT Image 1" },
   { value: "gpt-image-1-mini", label: "GPT Image 1 Mini" },
   { value: "gpt-image-1.5", label: "GPT Image 1.5" },
   { value: "gpt-image-2", label: "GPT Image 2" },
-  { value: "gpt-5-pro", label: "GPT-5 Pro (multimodal)" },
-  { value: "gpt-5-nano", label: "GPT-5 Nano (multimodal)" },
   { value: "dall-e-3", label: "DALL-E 3" },
   { value: "dall-e-2", label: "DALL-E 2" },
 ];
