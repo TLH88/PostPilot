@@ -54,6 +54,9 @@ import { useModels } from "@/lib/ai/use-models";
 import { APIKeyHelpDrawer } from "@/components/ai-help/api-key-help-drawer";
 import { POST_TEMPLATES_ENABLED } from "@/lib/feature-flags";
 import { ThemePickerCard } from "@/components/onboarding/theme-picker-card";
+import { SystemFlowOverviewCard } from "@/components/onboarding/system-flow-overview-card";
+import { LinkedInConnectStep } from "@/components/onboarding/linkedin-connect-step";
+import { Linkedin } from "lucide-react";
 
 const STEPS = [
   { label: "Basic Info", icon: User },
@@ -62,9 +65,24 @@ const STEPS = [
   { label: "Voice & Style", icon: Pen },
   { label: "AI Setup", icon: Sparkles },
   { label: "Content Tools", icon: FlaskConical },
+  // 2026-05-12 — final step. Folded in to replace the post-onboarding
+  // LinkedIn connect dialog that was colliding with the launch-pad tutorial.
+  // Short label keeps the 7-tile step indicator readable; full "Connect
+  // LinkedIn for posting" lives in the step's card heading.
+  { label: "LinkedIn", icon: Linkedin },
 ] as const;
 
 const AI_SETUP_STEP_INDEX = 4;
+const LINKEDIN_STEP_INDEX = 6;
+
+/**
+ * 2026-05-12 — localStorage key the LinkedIn status banner reads to
+ * decide whether to fire the auto-prompt dialog. Set on onboarding
+ * completion regardless of whether the user connected or skipped the
+ * LinkedIn step, so the tutorial system gets clean air on launch-pad.
+ * Users who skipped still see the persistent banner at the top of the app.
+ */
+const LINKEDIN_ONBOARDING_SEEN_KEY = "pp:linkedin_onboarding_seen";
 
 // BP-135 / UF-002a: Free + Personal tiers use system AI keys (Subscription
 // Model v2). BYOK setup is gated to Pro+, so the "AI Setup" step in the
@@ -490,65 +508,105 @@ export default function OnboardingPage() {
     return json.nextStep;
   };
 
+  /**
+   * Server-side onboarding completion. Persists the current step, aggregates
+   * every step's data into one final commit, then optionally saves BYOK AI
+   * settings. Returns true on success; on failure toasts and returns false.
+   *
+   * 2026-05-12 — extracted from the original handleSubmit so the LinkedIn
+   * step can call it without also triggering the launch-pad redirect (the
+   * step component handles its own navigation, since "Connect" goes to
+   * /api/linkedin/connect and "Skip" goes straight to /launch-pad).
+   */
+  const markOnboardingComplete = async (): Promise<boolean> => {
+    if (!userId) return false;
+
+    // Persist whatever step we're on before flipping the completion flag.
+    // For the LinkedIn step there's no associated data; persistStep is a
+    // safe no-op for that step's empty payload.
+    await persistStep(currentStep);
+
+    const aggregateData: Record<string, unknown> = {};
+    for (let s = 0; s < STEPS.length; s++) {
+      Object.assign(aggregateData, getStepData(s));
+    }
+
+    const res = await fetch("/api/onboarding/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: aggregateData }),
+    });
+
+    if (!res.ok) {
+      const errBody = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        missing?: string[];
+      };
+      const message = errBody.missing?.length
+        ? `Please fill in: ${errBody.missing.join(", ")}`
+        : errBody.error || "Failed to complete onboarding.";
+      toast.error(message);
+      return false;
+    }
+
+    // BP-142 / UF-007: Save AI provider settings only when the user actually
+    // entered a key. Skipping AI Setup no longer fires a phantom POST.
+    if (aiApiKey.trim()) {
+      try {
+        await fetch("/api/settings/ai-provider", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: aiProvider,
+            apiKey: aiApiKey,
+            aiModel,
+          }),
+        });
+      } catch (aiError) {
+        console.error("Failed to save AI settings:", aiError);
+        // Non-blocking — user can configure later in Settings.
+      }
+    }
+
+    return true;
+  };
+
+  /**
+   * Wrapper for the LinkedIn step. Marks onboarding complete WITHOUT
+   * navigating — LinkedInConnectStep redirects to either
+   * /api/linkedin/connect or /launch-pad based on which CTA was clicked.
+   */
+  const completeOnboardingForLinkedInStep = async (): Promise<void> => {
+    setIsSubmitting(true);
+    try {
+      const ok = await markOnboardingComplete();
+      if (!ok) {
+        setIsSubmitting(false);
+        throw new Error("onboarding-complete-failed");
+      }
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      setIsSubmitting(false);
+      throw error;
+    }
+  };
+
+  /**
+   * Legacy entry point — kept so any non-LinkedIn last-step path still works.
+   * Today the LINKEDIN step is the last visible step for every tier, so
+   * goNext() shouldn't actually reach this in normal flow. Left as a safety
+   * net in case the LinkedIn step is ever skipped by tier in the future.
+   */
   const handleSubmit = async () => {
     if (!userId) return;
     setIsSubmitting(true);
-
     try {
-      // Persist the final step (Content Tools) before flipping the completion
-      // flag — required fields on prior steps were already saved as the user
-      // walked through. Server validates the merged profile before commit.
-      await persistStep(currentStep);
-
-      // Aggregate every step's data so the server has the merged view it
-      // needs to validate against REQUIRED_FIELDS_FOR_COMPLETE in one shot.
-      const aggregateData: Record<string, unknown> = {};
-      for (let s = 0; s < STEPS.length; s++) {
-        Object.assign(aggregateData, getStepData(s));
+      const ok = await markOnboardingComplete();
+      if (!ok) return;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LINKEDIN_ONBOARDING_SEEN_KEY, "true");
+        window.location.href = "/launch-pad";
       }
-
-      const res = await fetch("/api/onboarding/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: aggregateData }),
-      });
-
-      if (!res.ok) {
-        const errBody = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          missing?: string[];
-        };
-        const message = errBody.missing?.length
-          ? `Please fill in: ${errBody.missing.join(", ")}`
-          : errBody.error || "Failed to complete onboarding.";
-        toast.error(message);
-        return;
-      }
-
-      // BP-142 / UF-007: Save AI provider settings only when the user
-      // actually entered a key. Skipping AI Setup no longer fires a phantom
-      // POST (refutes the prior NEW-O6 finding for AI-skip path).
-      if (aiApiKey.trim()) {
-        try {
-          await fetch("/api/settings/ai-provider", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              provider: aiProvider,
-              apiKey: aiApiKey,
-              aiModel,
-            }),
-          });
-        } catch (aiError) {
-          console.error("Failed to save AI settings:", aiError);
-          // Non-blocking — user can configure later in Settings.
-        }
-      }
-
-      // BP-099: post-onboarding lands on Launch Pad — the simplified
-      // launcher home where every user starts.
-      // Full reload so the server layout re-fetches the updated profile.
-      window.location.href = "/launch-pad";
     } catch (error) {
       console.error("Error completing onboarding:", error);
       toast.error("Something went wrong. Please try again.");
@@ -1296,57 +1354,32 @@ export default function OnboardingPage() {
           </Card>
         )}
 
-        {/* Step 6: Content Tools Introduction */}
+        {/* Step 6: Content Tools — system-flow overview + theme picker.
+            Owner direction 2026-05-12: dropped the Content Library section
+            and replaced it with a 4-card visual of the system flow. Post
+            Templates stay gated by POST_TEMPLATES_ENABLED and are still
+            suppressed until GTM. The LinkedIn connect step lives at
+            Step 7 (LINKEDIN_STEP_INDEX) — see below. */}
         {currentStep === 5 && (
           <Card>
             <CardHeader>
               <CardTitle>Content Tools</CardTitle>
               <CardDescription>
-                PostPilot includes powerful tools to help you create better content faster. Here&apos;s a quick overview.
+                Here&apos;s the flow you&apos;ll work through every time you
+                ship a post on LinkedIn — and a quick look at the visual
+                preference that follows you across the app.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <SystemFlowOverviewCard />
+
               {/* Theme picker — small UI preference, set early so the rest of
                   onboarding (and the app) renders in their chosen mode. */}
               <ThemePickerCard />
 
-              {/* Content Library */}
-              <div className="rounded-lg border p-4 space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <span className="flex size-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300">
-                    <FlaskConical className="size-4" />
-                  </span>
-                  Content Library
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Save your best hooks, calls-to-action, closing lines, and reusable text snippets. Insert them into any post with one click.
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-md bg-orange-50 dark:bg-orange-950/30 p-2.5">
-                    <strong className="text-orange-700 dark:text-orange-300">Hooks</strong>
-                    <p className="text-muted-foreground mt-0.5">Opening lines that stop scrollers and make them click &quot;see more&quot;</p>
-                  </div>
-                  <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 p-2.5">
-                    <strong className="text-blue-700 dark:text-blue-300">CTAs</strong>
-                    <p className="text-muted-foreground mt-0.5">Calls-to-action that drive comments, shares, and engagement</p>
-                  </div>
-                  <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-2.5">
-                    <strong className="text-green-700 dark:text-green-300">Closings</strong>
-                    <p className="text-muted-foreground mt-0.5">Memorable sign-offs that leave a lasting impression</p>
-                  </div>
-                  <div className="rounded-md bg-purple-50 dark:bg-purple-950/30 p-2.5">
-                    <strong className="text-purple-700 dark:text-purple-300">Snippets</strong>
-                    <p className="text-muted-foreground mt-0.5">Reusable text blocks you find yourself typing often</p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  We&apos;ve included built-in examples to get you started. Find your library in the sidebar.
-                </p>
-              </div>
-
               {/* Post Templates — suppressed until GTM (POST_TEMPLATES_ENABLED).
-                  When the flag flips post-GTM, restore this block + reword
-                  the tip below to mention Templates again. */}
+                  When the flag flips post-GTM, restore this block as a small
+                  card on this step. */}
               {POST_TEMPLATES_ENABLED && (
                 <div className="rounded-lg border p-4 space-y-3">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -1363,23 +1396,62 @@ export default function OnboardingPage() {
                       <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    When creating a new post, click &quot;Use Template&quot; to pick a structure. You can also save any post as a template from the editor.
-                  </p>
                 </div>
               )}
-
-              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Tip:</strong> You can access the Content Library
-                  {POST_TEMPLATES_ENABLED && " and Templates"} anytime from the sidebar and post editor. No need to memorize anything now.
-                </p>
-              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Navigation */}
+        {/* Step 7: Connect LinkedIn (final step). Folded in 2026-05-12 to
+            replace the post-onboarding auto-prompt dialog that was colliding
+            with the launch-pad tutorial. The Connect button kicks off OAuth
+            with return_to=/launch-pad. Skip completes onboarding without
+            connecting; either way we set LINKEDIN_ONBOARDING_SEEN_KEY so the
+            persistent banner's auto-prompt dialog stays out of the way. */}
+        {currentStep === LINKEDIN_STEP_INDEX && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Connect LinkedIn for posting</CardTitle>
+              <CardDescription>
+                Last step. Authorize PostPilot to publish to LinkedIn so the
+                features you just set up can actually reach your feed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LinkedInConnectStep
+                onConnect={async () => {
+                  await completeOnboardingForLinkedInStep();
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem(
+                      LINKEDIN_ONBOARDING_SEEN_KEY,
+                      "true"
+                    );
+                    window.location.href =
+                      "/api/linkedin/connect?return_to=/launch-pad";
+                  }
+                }}
+                onSkip={async () => {
+                  await completeOnboardingForLinkedInStep();
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem(
+                      LINKEDIN_ONBOARDING_SEEN_KEY,
+                      "true"
+                    );
+                    window.location.href = "/launch-pad";
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Navigation — hidden on the LinkedIn step because LinkedInConnectStep
+            provides its own Connect / Skip CTAs (and they need to set the
+            suppression flag + navigate themselves, which the bottom nav
+            can't do cleanly). Back button still works via the step's own
+            handling — actually no, we keep Back available so the user
+            can return to Content Tools. We just hide the Next / Skip /
+            Complete Setup cluster on the right. */}
         <div className="mt-6 flex items-center justify-between">
           <div>
             {currentStep > 0 ? (
@@ -1392,38 +1464,40 @@ export default function OnboardingPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* BP-142 / UF-007d: hide "Skip for now" on required-field steps
-                so users can't bypass validation gates. Steps without
-                required fields still show Skip. */}
-            {!isLastVisibleStep && !stepHasRequiredFields && (
-              <Button
-                variant="ghost"
-                onClick={goNext}
-                disabled={isSubmitting}
-              >
-                Skip for now
-              </Button>
-            )}
-            <Button onClick={goNext} disabled={isSubmitting || !canAdvance}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : isLastVisibleStep ? (
-                <>
-                  Complete Setup
-                  <Check className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  Next
-                  <ArrowRight className="h-4 w-4" />
-                </>
+          {currentStep !== LINKEDIN_STEP_INDEX && (
+            <div className="flex items-center gap-3">
+              {/* BP-142 / UF-007d: hide "Skip for now" on required-field steps
+                  so users can't bypass validation gates. Steps without
+                  required fields still show Skip. */}
+              {!isLastVisibleStep && !stepHasRequiredFields && (
+                <Button
+                  variant="ghost"
+                  onClick={goNext}
+                  disabled={isSubmitting}
+                >
+                  Skip for now
+                </Button>
               )}
-            </Button>
-          </div>
+              <Button onClick={goNext} disabled={isSubmitting || !canAdvance}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : isLastVisibleStep ? (
+                  <>
+                    Complete Setup
+                    <Check className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
