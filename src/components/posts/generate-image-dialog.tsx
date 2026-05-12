@@ -179,14 +179,16 @@ export function GenerateImageDialog({
         }
       }
 
-      // 2026-05-12 — when the user hasn't configured any image-capable BYOK
-      // key, the system AI Gateway path covers image gen via OpenAI
-      // (openai/gpt-image-1) by default. Surface OpenAI as available so the
-      // dialog doesn't false-alarm with the "no provider configured" banner
-      // for users on the managed plan. The server enforces tier + access on
-      // the actual call — this is just UI plumbing so the user can submit.
-      if (available.length === 0 && capable.includes("openai")) {
-        available.push("openai");
+      // 2026-05-12 — When the user hasn't configured any image-capable BYOK
+      // key, the system AI Gateway covers image gen for ALL image-capable
+      // providers (gpt-5-nano via openai/* models, gemini-3-pro-image via
+      // google/* models, etc.). Surface every image-capable provider so the
+      // user can pick either family. Server enforces tier + access on the
+      // actual call.
+      if (available.length === 0) {
+        for (const slug of capable) {
+          available.push(slug);
+        }
       }
 
       setConfiguredProviders(available);

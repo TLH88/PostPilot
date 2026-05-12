@@ -133,21 +133,11 @@ export async function POST(request: NextRequest) {
       `[Image Gen] ${provider} via ${source}${isFallback ? " (fallback)" : ""}`,
     );
 
-    // Google image gen via gateway is not wired yet (Gemini image responses
-    // don't match the OpenAI image API shape that the gateway exposes). If
-    // we somehow end up here with google + gateway, surface a clean error
-    // instead of silently failing. BYOK Google users hit the direct branch
-    // below and continue to work.
-    if (provider === "google" && source === "gateway") {
-      return NextResponse.json(
-        {
-          error:
-            "Google image generation isn't supported on the system plan yet. Either switch your image provider to OpenAI in Settings or add a Google BYOK key.",
-          reason: "google_gateway_unsupported",
-        },
-        { status: 400 }
-      );
-    }
+    // 2026-05-12 — Google through the gateway routes via the OpenAI-compatible
+    // base URL using `google/${model}` namespacing (the gateway translates).
+    // BYOK Google users hit the direct Generative Language API branch below.
+    // The unified "gateway path" is handled in the OpenAI branch — we route
+    // both providers through openai.images.generate when source === "gateway".
     const hook = post.content?.slice(0, 210) ?? "";
     const selectedStyle = artStyle || ART_STYLES[0];
     const format = imageFormat || "landscape";
@@ -170,26 +160,37 @@ export async function POST(request: NextRequest) {
     // Unique suffix per generation so the storage path is different each time
     const genId = Date.now();
 
-    if (provider === "openai") {
-      // 2026-05-12 — when source is "gateway", point the OpenAI client at
-      // https://ai-gateway.vercel.sh/v1 and namespace the model with the
-      // "openai/" prefix the gateway expects. Direct provider calls
-      // (system_key / byok) use plain model IDs.
+    // 2026-05-12 — Unified gateway path. When source === "gateway" we route
+    // BOTH openai and google through the OpenAI-compatible gateway endpoint
+    // (https://ai-gateway.vercel.sh/v1) with provider-namespaced model IDs
+    // ("openai/gpt-5-nano", "google/gemini-3-pro-image"). The gateway
+    // translates internally. BYOK Google falls through to the native
+    // Generative Language API branch below since gateway routing requires
+    // the gateway key, not a Google key.
+    const useOpenAIShape = source === "gateway" || provider === "openai";
+
+    if (useOpenAIShape) {
       const openai = new OpenAI(
         baseURL ? { apiKey, baseURL } : { apiKey }
       );
-      // 2026-05-12 — recommended default flipped to gpt-5-nano per owner
-      // direction. Lower cost + more capable than gpt-image-* for the
-      // typical post-image use case. Existing imageModel preferences on
-      // user_profiles still win when set.
-      const rawModel = imageModel || "gpt-5-nano";
+      // Per-provider defaults; per-user image_ai_model preference wins when set.
+      // gpt-5-nano leads OpenAI (owner direction 2026-05-12: lower cost +
+      // more capable than gpt-image-*). gemini-3.1-flash-image-preview leads
+      // Google.
+      const defaultModel =
+        provider === "google" ? "gemini-3.1-flash-image-preview" : "gpt-5-nano";
+      const rawModel = imageModel || defaultModel;
       const selectedModel =
         source === "gateway" && !rawModel.includes("/")
-          ? `openai/${rawModel}`
+          ? `${provider}/${rawModel}`
           : rawModel;
       const isDallE = rawModel.startsWith("dall-e");
       const isGptImage = rawModel.startsWith("gpt-image-");
-      const supportsImagesApiParams = isDallE || isGptImage;
+      // Images-API legacy params (size + quality) only apply to the OpenAI
+      // legacy image families. GPT-5 multimodal + every Google model rejects
+      // them — let the gateway/API pick its own defaults instead.
+      const supportsImagesApiParams =
+        provider === "openai" && (isDallE || isGptImage);
 
       const generateParams: Record<string, unknown> = {
         model: selectedModel,
@@ -197,11 +198,6 @@ export async function POST(request: NextRequest) {
         n: 1,
       };
 
-      // size + quality are Images-API legacy params. dall-e-* and gpt-image-*
-      // accept them; the GPT-5 multimodal family routes through the gateway
-      // to OpenAI's responses endpoint and rejects unknown params. Only set
-      // them when the model is in the supported set — otherwise let the
-      // gateway use its own defaults.
       if (supportsImagesApiParams) {
         if (isDallE) {
           generateParams.size = rawModel === "dall-e-2"
@@ -280,6 +276,9 @@ export async function POST(request: NextRequest) {
         throw new Error("OpenAI did not return an image");
       }
     } else if (provider === "google") {
+      // BYOK Google direct path — uses the Generative Language REST API
+      // with the user's own Google API key. Gateway-routed Google requests
+      // hit the unified openai.images.generate branch above instead.
       const selectedModel = imageModel || "gemini-3.1-flash-image-preview";
 
       const geminiRes = await fetch(
