@@ -179,6 +179,16 @@ export function GenerateImageDialog({
         }
       }
 
+      // 2026-05-12 — when the user hasn't configured any image-capable BYOK
+      // key, the system AI Gateway path covers image gen via OpenAI
+      // (openai/gpt-image-1) by default. Surface OpenAI as available so the
+      // dialog doesn't false-alarm with the "no provider configured" banner
+      // for users on the managed plan. The server enforces tier + access on
+      // the actual call — this is just UI plumbing so the user can submit.
+      if (available.length === 0 && capable.includes("openai")) {
+        available.push("openai");
+      }
+
       setConfiguredProviders(available);
 
       // Prefer the active image key, then active text key, then first available.
