@@ -4,6 +4,9 @@ import { logApiError } from "@/lib/api-utils";
 import { incrementQuota } from "@/lib/quota";
 import { logAiUsage, classifyAiError } from "@/lib/ai/usage-logger";
 import { resolveImageProvider } from "@/lib/ai/resolve-ai";
+import { getUserTier } from "@/lib/quota";
+import { hasFeature } from "@/lib/feature-gate";
+import { BASIC_IMAGE_MODELS } from "@/lib/ai/image-model-tiers";
 import OpenAI from "openai";
 import type { AIProvider } from "@/lib/ai/providers";
 
@@ -115,6 +118,29 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // 2026-05-12 — tier gate on premium image models. Free / Personal are
+    // restricted to BASIC_IMAGE_MODELS for the selected provider; Pro+ has
+    // the full catalog. /api/models filters the picker, but a stale client
+    // could still POST a premium model — reject those here as defense in depth.
+    if (imageModel) {
+      const tierForGate = await getUserTier(user.id);
+      const hasPremiumModels = hasFeature(tierForGate, "premium_image_models");
+      if (!hasPremiumModels) {
+        const allowed = BASIC_IMAGE_MODELS[provider] ?? [];
+        if (!allowed.includes(imageModel)) {
+          return NextResponse.json(
+            {
+              error: `"${imageModel}" requires the Professional plan. Choose one of the available models for your plan or upgrade.`,
+              reason: "model_tier_gated",
+              model: imageModel,
+              requiredTier: "professional",
+            },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     // BP-045 follow-up: system-first with BYOK image-key fallback.
