@@ -49,6 +49,7 @@ const STATIC_IMAGE: ModelEntry[] = [
   { value: "gpt-image-1.5", label: "GPT Image 1.5" },
   { value: "gpt-image-2", label: "GPT Image 2" },
   { value: "gpt-5-pro", label: "GPT-5 Pro (multimodal)" },
+  { value: "gpt-5-nano", label: "GPT-5 Nano (multimodal)" },
   { value: "dall-e-3", label: "DALL-E 3" },
   { value: "dall-e-2", label: "DALL-E 2" },
 ];
