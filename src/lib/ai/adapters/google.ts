@@ -35,8 +35,18 @@ const STATIC_TEXT: ModelEntry[] = [
   { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
 ];
 
+// 2026-05-12 — expanded to cover the Google image-capable models exposed by
+// the Vercel AI Gateway. Gemini families (responseModalities: IMAGE) are
+// listed first; Imagen 4 family follows for users who want pure image-gen
+// (no text co-generation). Default stays on gemini-3.1-flash-image-preview
+// since it's what the existing route falls back to.
 const STATIC_IMAGE: ModelEntry[] = [
   { value: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image (Preview)" },
+  { value: "gemini-3-pro-image", label: "Gemini 3 Pro Image" },
+  { value: "gemini-2.5-flash-image", label: "Gemini 2.5 Flash Image" },
+  { value: "imagen-4.0-ultra-generate-001", label: "Imagen 4 Ultra" },
+  { value: "imagen-4.0-generate-001", label: "Imagen 4" },
+  { value: "imagen-4.0-fast-generate-001", label: "Imagen 4 Fast" },
 ];
 
 function stripPrefix(name: string): string {
