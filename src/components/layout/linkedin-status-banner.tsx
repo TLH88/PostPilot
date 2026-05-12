@@ -62,6 +62,14 @@ export function LinkedInStatusBanner() {
   // Auto-prompt: on very first visit (no LinkedIn ever connected), open the
   // connect dialog so the user can decide to continue. Previously did a hard
   // redirect that felt like a logout — see BP-136 / UF-002b.
+  //
+  // 2026-05-12 — Onboarding now includes a dedicated LinkedIn-connect step,
+  // so users who finished onboarding have already been prompted. Suppress
+  // the dialog when localStorage `pp:linkedin_onboarding_seen` is set
+  // (written by the onboarding completion handler regardless of whether
+  // the user connected or skipped). The persistent banner still surfaces
+  // for skip-then-connect later — only the auto-modal is gated. This keeps
+  // the launch-pad tutorial from colliding with the connect modal.
   useEffect(() => {
     if (isExcludedPage || checking) return;
 
@@ -75,6 +83,13 @@ export function LinkedInStatusBanner() {
           pathname === "/dashboard" ||
           pathname === "/";
         if (!data.connected && !data.connected_at && isAutoPromptPage) {
+          // Suppress for users who finished onboarding with the LinkedIn
+          // step on screen — they already saw the prompt inline.
+          const seenInOnboarding =
+            typeof window !== "undefined" &&
+            window.localStorage.getItem("pp:linkedin_onboarding_seen") === "true";
+          if (seenInOnboarding) return;
+
           const hasPrompted = sessionStorage.getItem("linkedin_auto_connect_attempted");
           if (!hasPrompted) {
             sessionStorage.setItem("linkedin_auto_connect_attempted", "true");
