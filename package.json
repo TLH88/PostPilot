@@ -2,9 +2,11 @@
   "name": "linkedin-post-generator",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -13,9 +15,9 @@
     "test:e2e:teardown": "tsx scripts/e2e/teardown-test-users.ts"
   },
   "dependencies": {
-    "@postpilot/tutorial-sdk": "workspace:*",
     "@anthropic-ai/sdk": "^0.78.0",
     "@base-ui/react": "^1.2.0",
+    "@postpilot/tutorial-sdk": "workspace:*",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.98.0",
     "canvas-confetti": "^1.9.4",
@@ -47,6 +49,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
