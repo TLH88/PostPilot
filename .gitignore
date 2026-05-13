@@ -67,3 +67,7 @@ supabase/.temp/
 # docs scratch / personal assets not intended for the repo
 docs/images/ScreenShots_Before/
 public/NPOS Favicon.png
+
+# Owner-only dev notes — contains secrets / personal context. NEVER commit.
+docs/PostPilot_Dev_Notes.txt
+docs/PostPilot_Dev_Notes.*
