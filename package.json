@@ -12,12 +12,15 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "test:e2e:seed": "tsx scripts/e2e/seed-test-users.ts",
-    "test:e2e:teardown": "tsx scripts/e2e/teardown-test-users.ts"
+    "test:e2e:teardown": "tsx scripts/e2e/teardown-test-users.ts",
+    "email": "email dev --dir ./emails --port 3001",
+    "email:send-test": "tsx --env-file=.env.local scripts/email/send-test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@base-ui/react": "^1.2.0",
     "@postpilot/tutorial-sdk": "workspace:*",
+    "@react-email/components": "^1.0.12",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.98.0",
     "canvas-confetti": "^1.9.4",
@@ -34,6 +37,7 @@
     "react-day-picker": "^9.14.0",
     "react-dom": "19.2.3",
     "recharts": "^3.8.1",
+    "resend": "^6.12.3",
     "shadcn": "^4.0.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
@@ -52,6 +56,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "react-email": "^6.1.4",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5"
