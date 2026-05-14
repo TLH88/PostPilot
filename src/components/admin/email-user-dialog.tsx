@@ -275,7 +275,7 @@ export function EmailUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isBulk ? <Users className="size-4" /> : <Mail className="size-4" />}
@@ -315,14 +315,17 @@ export function EmailUserDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isBulk && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            Each recipient gets their own email with only their address in the
-            To: header. No recipient sees the others.
-          </div>
-        )}
+        {/* Scrollable middle — locks the dialog at max-h-[90vh] and lets
+            the form scroll vertically when the resized message body (or
+            any other content) exceeds available height. */}
+        <div className="overflow-y-auto min-h-0 -mr-2 pr-2 space-y-3">
+          {isBulk && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              Each recipient gets their own email with only their address in the
+              To: header. No recipient sees the others.
+            </div>
+          )}
 
-        <div className="space-y-3">
           {/* Sender picker */}
           <div className="flex items-center justify-between gap-3">
             <Label className="text-xs text-muted-foreground">From</Label>
@@ -581,6 +584,8 @@ export function EmailUserDialog({
             </button>
           </div>
         </div>
+
+        {/* end scrollable middle */}
 
         <DialogFooter>
           <Button
