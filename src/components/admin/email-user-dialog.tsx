@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Loader2, Mail, Send, Users, Image as ImageIcon, Pencil, Maximize2, Minimize2 } from "lucide-react";
+import { Eye, Loader2, Mail, Send, Users, Image as ImageIcon, Pencil } from "lucide-react";
 import { RecipientManagerDialog } from "@/components/admin/recipient-manager-dialog";
 import { AttachmentsField, PAYLOAD_MAX_BYTES, type ComposerAttachment } from "@/components/admin/attachments-field";
 import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
@@ -73,7 +73,6 @@ export function EmailUserDialog({
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
   const [showLogo, setShowLogo] = useState(true);
-  const [bodyExpanded, setBodyExpanded] = useState(false);
   const [sending, setSending] = useState(false);
   // Editable working copy of recipients. Initialized from `recipients`
   // prop when the dialog opens; admin can add/remove via the manager.
@@ -102,7 +101,6 @@ export function EmailUserDialog({
     setBodyHtml("");
     setSender("support");
     setShowLogo(true);
-    setBodyExpanded(false);
     setAttachments([]);
     setSelectedFooterIds(new Set());
     setWorkingRecipients(recipients);
@@ -417,37 +415,15 @@ export function EmailUserDialog({
 
           {/* Body */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Message</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setBodyExpanded((v) => !v)}
-                className="h-6 gap-1 text-xs text-muted-foreground"
-                aria-label={bodyExpanded ? "Collapse editor" : "Expand editor"}
-              >
-                {bodyExpanded ? (
-                  <>
-                    <Minimize2 className="size-3" />
-                    Collapse
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="size-3" />
-                    Expand
-                  </>
-                )}
-              </Button>
-            </div>
+            <Label className="text-xs text-muted-foreground">Message</Label>
             <RichTextEditor
               value={bodyHtml}
               onChange={setBodyHtml}
               placeholder="Type your message…"
               disabled={sending}
-              minHeightPx={bodyExpanded ? 480 : 180}
             />
             <p className="text-[10px] text-muted-foreground">
+              Drag the bottom-right corner of the message box to resize.{" "}
               {isBulk && "Each recipient sees their own first name in the greeting. "}
               Greeting + signature are inserted automatically.
             </p>

@@ -80,11 +80,13 @@ interface RichTextEditorProps {
   className?: string;
   disabled?: boolean;
   /**
-   * Minimum editor body height. Use 180 for compact contexts (default),
-   * larger values for expanded composer views. Tailwind arbitrary class
-   * is applied via min-h-[Npx].
+   * Starting height of the body area in pixels. Users can drag the
+   * bottom-right resize handle vertically to grow or shrink the body
+   * up to maxHeightPx, with no impact on the surrounding container.
    */
-  minHeightPx?: number;
+  initialHeightPx?: number;
+  /** Hard ceiling for the resize handle. Defaults to a viewport-aware cap. */
+  maxHeightPx?: number;
 }
 
 /**
@@ -101,7 +103,8 @@ export function RichTextEditor({
   placeholder = "Type your message…",
   className,
   disabled = false,
-  minHeightPx = 180,
+  initialHeightPx = 240,
+  maxHeightPx = 600,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -146,13 +149,12 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "prose prose-sm max-w-none px-3 py-2 outline-none",
+          "prose prose-sm max-w-none px-3 py-2 outline-none min-h-full",
           "[&_p]:my-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1",
           "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1",
           "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
           "[&_a]:text-primary [&_a]:underline",
         ),
-        style: `min-height:${minHeightPx}px`,
         "data-placeholder": placeholder,
       },
     },
@@ -171,8 +173,15 @@ export function RichTextEditor({
   return (
     <div className={cn("rounded-md border bg-background", className)}>
       <Toolbar editor={editor} />
-      <div className="border-t">
-        <EditorContent editor={editor} />
+      <div
+        className="border-t resize-y overflow-auto"
+        style={{
+          height: `${initialHeightPx}px`,
+          minHeight: "120px",
+          maxHeight: `${maxHeightPx}px`,
+        }}
+      >
+        <EditorContent editor={editor} className="h-full" />
       </div>
     </div>
   );
