@@ -18,6 +18,8 @@ const ALLOWED_TAGS = [
   "em",
   "i",
   "u",
+  "s",
+  "span",
   "h2",
   "h3",
   "ul",
@@ -27,9 +29,18 @@ const ALLOWED_TAGS = [
   "img",
 ];
 
-const ALLOWED_ATTR = ["href", "target", "rel", "src", "alt", "width", "height"];
+const ALLOWED_ATTR = [
+  "href",
+  "target",
+  "rel",
+  "src",
+  "alt",
+  "width",
+  "height",
+  "style", // text-style wrappers from TipTap (color, font-family, text-align)
+];
 
-const FORBID_ATTR = ["style", "class", "id", "onclick", "onload", "onerror"];
+const FORBID_ATTR = ["class", "id", "onclick", "onload", "onerror"];
 
 /**
  * Sanitize admin-authored HTML before it gets stored in the audit log

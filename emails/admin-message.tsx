@@ -11,7 +11,12 @@ import {
   Tailwind,
   Text,
 } from "@react-email/components";
-import parse from "html-react-parser";
+import parse, {
+  type HTMLReactParserOptions,
+  Element as HrpElement,
+  domToReact,
+  type DOMNode,
+} from "html-react-parser";
 
 /**
  * Public URL for the brand mark — same file is served by Next.js at
@@ -19,7 +24,7 @@ import parse from "html-react-parser";
  * Apple Mail, Outlook.com/365 modern) render this inline; clients that
  * don't (Outlook desktop) fall back to the alt text.
  */
-const LOGO_URL = "https://mypostpilot.app/icon.svg";
+const DEFAULT_BASE_URL = "https://mypostpilot.app";
 
 export interface AdminMessageEmailProps {
   recipientName?: string;
@@ -28,40 +33,150 @@ export interface AdminMessageEmailProps {
   bodyHtml: string;
   /** Preview text shown in inbox lists before the message is opened. */
   preview?: string;
-  /**
-   * Optional pre-rendered greeting (e.g. "Hi Jane,"). Server should
-   * substitute {firstName} placeholders before passing in. When omitted,
-   * the template falls back to "Hi {recipientName},".
-   */
   greeting?: string;
-  /**
-   * Optional sanitized signature HTML. When omitted, the template falls
-   * back to a default text signoff using the legacy `signoff` prop.
-   */
   signatureHtml?: string;
   /** Legacy default signoff — used only when signatureHtml is absent. */
   signoff?: string;
-  /**
-   * Optional pre-rendered footer HTML blocks. Each block is sanitized
-   * server-side before being passed in. Rendered in array order below
-   * the signature, separated by a thin divider.
-   */
   footerHtmlBlocks?: string[];
-  /** Show the PostPilot wordmark at the top of the email. Default true. */
   showLogo?: boolean;
+  /**
+   * Base URL used to resolve the logo. Defaults to production. Preview
+   * passes the request origin so the logo loads on localhost / preview
+   * deploys before prod has the new asset.
+   */
+  baseUrl?: string;
 }
 
 /**
- * Template for direct admin-to-user messages composed in the User
- * Management admin tool. Body HTML is authored by an admin via TipTap,
- * sanitized server-side via DOMPurify, then parsed here into React
- * elements (no dangerouslySetInnerHTML). Two layers of defense:
- *   1. TipTap extension list constrains what can be produced
- *   2. DOMPurify on the server enforces an allow-list before render
- *
- * Do not loosen sanitization without re-evaluating the editor's
- * extension list — the two are deliberately matched.
+ * Inline styles applied to common HTML tags in admin-authored body
+ * content. We can't use Tailwind arbitrary variants like `[&_p]:my-3`
+ * because @react-email/tailwind doesn't support descendant selectors —
+ * it would apply the class to the parent and bleed styles into siblings.
  */
+const TAG_STYLES: Record<string, React.CSSProperties> = {
+  p: { margin: "12px 0", color: "#334155", fontSize: "16px", lineHeight: "24px" },
+  h2: { fontSize: "18px", fontWeight: 600, color: "#0f172a", marginTop: "20px", marginBottom: "8px" },
+  h3: { fontSize: "16px", fontWeight: 600, color: "#0f172a", marginTop: "16px", marginBottom: "8px" },
+  ul: { listStyleType: "disc", paddingLeft: "20px", margin: "12px 0", color: "#334155" },
+  ol: { listStyleType: "decimal", paddingLeft: "20px", margin: "12px 0", color: "#334155" },
+  li: { margin: "4px 0" },
+  strong: { fontWeight: 600 },
+  em: { fontStyle: "italic" },
+  u: { textDecoration: "underline" },
+  s: { textDecoration: "line-through" },
+  span: {}, // pass-through; admin inline styles below apply on top
+  img: { maxWidth: "100%", borderRadius: "6px", margin: "8px 0", display: "block" },
+};
+
+const LINK_STYLE: React.CSSProperties = { color: "#2563eb", textDecoration: "underline" };
+const FOOTER_STYLE: React.CSSProperties = { fontSize: "12px", color: "#64748b", margin: "8px 0", lineHeight: "18px" };
+
+/**
+ * Parse a TipTap-edited inline style attribute string into a React
+ * style object. Keeps only safe CSS properties — admin is trusted, but
+ * the parsed result is sent to recipients and we want a tight allow-list
+ * so a compromised admin can't smuggle anything weird through.
+ */
+const ALLOWED_INLINE_CSS = new Set([
+  "color",
+  "background-color",
+  "font-family",
+  "font-weight",
+  "font-style",
+  "font-size",
+  "text-align",
+  "text-decoration",
+]);
+
+function parseInlineStyle(style: string | undefined): React.CSSProperties {
+  if (!style) return {};
+  const out: Record<string, string> = {};
+  for (const decl of style.split(";")) {
+    const idx = decl.indexOf(":");
+    if (idx === -1) continue;
+    const prop = decl.slice(0, idx).trim().toLowerCase();
+    const val = decl.slice(idx + 1).trim();
+    if (!prop || !val) continue;
+    if (!ALLOWED_INLINE_CSS.has(prop)) continue;
+    const camel = prop.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    out[camel] = val;
+  }
+  return out as React.CSSProperties;
+}
+
+function buildBodyParseOptions(): HTMLReactParserOptions {
+  const options: HTMLReactParserOptions = {
+    replace(node) {
+      if (!(node instanceof HrpElement)) return undefined;
+      const name = node.name;
+      const tagStyle = TAG_STYLES[name];
+      const adminStyle = parseInlineStyle(node.attribs.style);
+
+      if (name === "a") {
+        const href = node.attribs.href ?? "#";
+        return (
+          <a
+            href={href}
+            title={href}
+            target={node.attribs.target ?? "_blank"}
+            rel={node.attribs.rel ?? "noopener noreferrer"}
+            style={{ ...LINK_STYLE, ...adminStyle }}
+          >
+            {domToReact(node.children as DOMNode[], options)}
+          </a>
+        );
+      }
+      if (name === "img") {
+        return (
+          <img
+            src={node.attribs.src}
+            alt={node.attribs.alt ?? ""}
+            style={{ ...TAG_STYLES.img, ...adminStyle }}
+          />
+        );
+      }
+      if (tagStyle) {
+        // Use createElement-style JSX so the tag name stays dynamic.
+        const Tag = name as keyof React.JSX.IntrinsicElements;
+        return (
+          <Tag style={{ ...tagStyle, ...adminStyle }}>
+            {domToReact(node.children as DOMNode[], options)}
+          </Tag>
+        );
+      }
+      return undefined;
+    },
+  };
+  return options;
+}
+
+function buildFooterParseOptions(): HTMLReactParserOptions {
+  const options: HTMLReactParserOptions = {
+    replace(node) {
+      if (!(node instanceof HrpElement)) return undefined;
+      if (node.name === "a") {
+        const href = node.attribs.href ?? "#";
+        return (
+          <a
+            href={href}
+            title={href}
+            target={node.attribs.target ?? "_blank"}
+            rel={node.attribs.rel ?? "noopener noreferrer"}
+            style={LINK_STYLE}
+          >
+            {domToReact(node.children as DOMNode[], options)}
+          </a>
+        );
+      }
+      if (node.name === "p") {
+        return <p style={FOOTER_STYLE}>{domToReact(node.children as DOMNode[], options)}</p>;
+      }
+      return undefined;
+    },
+  };
+  return options;
+}
+
 export function AdminMessageEmail({
   recipientName,
   subject,
@@ -72,9 +187,14 @@ export function AdminMessageEmail({
   signoff = "PostPilot Support",
   footerHtmlBlocks,
   showLogo = true,
+  baseUrl = DEFAULT_BASE_URL,
 }: AdminMessageEmailProps) {
   const previewText = preview ?? subject;
   const greetingFallbackName = recipientName?.trim() || "there";
+  const logoUrl = `${baseUrl.replace(/\/$/, "")}/icon.svg`;
+
+  const bodyOptions = buildBodyParseOptions();
+  const footerOptions = buildFooterParseOptions();
 
   return (
     <Html>
@@ -90,7 +210,7 @@ export function AdminMessageEmail({
                     <tr>
                       <td style={{ verticalAlign: "middle", paddingRight: "8px" }}>
                         <Img
-                          src={LOGO_URL}
+                          src={logoUrl}
                           alt="PostPilot"
                           width="28"
                           height="28"
@@ -120,12 +240,10 @@ export function AdminMessageEmail({
             <Text className="text-base text-slate-700">
               {greeting ?? `Hi ${greetingFallbackName},`}
             </Text>
-            <Section className="text-base text-slate-700 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-blue-600 [&_a]:underline">
-              {parse(bodyHtml)}
-            </Section>
+            <Section>{parse(bodyHtml, bodyOptions)}</Section>
             {signatureHtml ? (
-              <Section className="text-base text-slate-700 mt-6 [&_p]:my-1 [&_a]:text-blue-600 [&_a]:underline">
-                {parse(signatureHtml)}
+              <Section style={{ marginTop: "24px", fontSize: "16px", color: "#334155" }}>
+                {parse(signatureHtml, bodyOptions)}
               </Section>
             ) : (
               <Text className="text-base text-slate-700 mt-6 mb-1">
@@ -136,11 +254,8 @@ export function AdminMessageEmail({
               <>
                 <Hr className="my-6 border-slate-200" />
                 {footerHtmlBlocks.map((html, i) => (
-                  <Section
-                    key={i}
-                    className="text-xs text-slate-500 [&_p]:my-1 [&_a]:underline"
-                  >
-                    {parse(html)}
+                  <Section key={i} style={{ marginBottom: "8px" }}>
+                    {parse(html, footerOptions)}
                   </Section>
                 ))}
               </>

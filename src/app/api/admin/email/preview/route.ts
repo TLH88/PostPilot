@@ -67,6 +67,11 @@ export async function POST(req: NextRequest) {
     ? substitutePlaceholders(greeting.content, { firstName })
     : undefined;
 
+  // Use the current request origin as the asset base URL so the SVG
+  // logo loads from this same server (localhost in dev, the preview
+  // deploy URL on Vercel). Production sends use the hardcoded default.
+  const requestOrigin = new URL(req.url).origin;
+
   const html = await render(
     AdminMessageEmail({
       recipientName: firstName,
@@ -76,6 +81,7 @@ export async function POST(req: NextRequest) {
       greeting: renderedGreeting,
       signatureHtml: signature?.content,
       footerHtmlBlocks: footers.map((f) => f.content),
+      baseUrl: requestOrigin,
     }),
   );
 
