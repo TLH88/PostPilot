@@ -19,8 +19,25 @@ export interface AdminMessageEmailProps {
   bodyHtml: string;
   /** Preview text shown in inbox lists before the message is opened. */
   preview?: string;
-  /** Display name shown in the signoff. Defaults to "PostPilot Support". */
+  /**
+   * Optional pre-rendered greeting (e.g. "Hi Jane,"). Server should
+   * substitute {firstName} placeholders before passing in. When omitted,
+   * the template falls back to "Hi {recipientName},".
+   */
+  greeting?: string;
+  /**
+   * Optional sanitized signature HTML. When omitted, the template falls
+   * back to a default text signoff using the legacy `signoff` prop.
+   */
+  signatureHtml?: string;
+  /** Legacy default signoff — used only when signatureHtml is absent. */
   signoff?: string;
+  /**
+   * Optional pre-rendered footer HTML blocks. Each block is sanitized
+   * server-side before being passed in. Rendered in array order below
+   * the signature, separated by a thin divider.
+   */
+  footerHtmlBlocks?: string[];
   /** Show the PostPilot wordmark at the top of the email. Default true. */
   showLogo?: boolean;
 }
@@ -41,11 +58,14 @@ export function AdminMessageEmail({
   subject,
   bodyHtml,
   preview,
+  greeting,
+  signatureHtml,
   signoff = "PostPilot Support",
+  footerHtmlBlocks,
   showLogo = true,
 }: AdminMessageEmailProps) {
   const previewText = preview ?? subject;
-  const greetingName = recipientName?.trim() || "there";
+  const greetingFallbackName = recipientName?.trim() || "there";
 
   return (
     <Html>
@@ -65,20 +85,37 @@ export function AdminMessageEmail({
               {subject}
             </Heading>
             <Text className="text-base text-slate-700">
-              Hi {greetingName},
+              {greeting ?? `Hi ${greetingFallbackName},`}
             </Text>
             <Section className="text-base text-slate-700 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-blue-600 [&_a]:underline">
               {parse(bodyHtml)}
             </Section>
-            <Text className="text-base text-slate-700 mt-6 mb-1">
-              — {signoff}
-            </Text>
+            {signatureHtml ? (
+              <Section className="text-base text-slate-700 mt-6 [&_p]:my-1 [&_a]:text-blue-600 [&_a]:underline">
+                {parse(signatureHtml)}
+              </Section>
+            ) : (
+              <Text className="text-base text-slate-700 mt-6 mb-1">
+                — {signoff}
+              </Text>
+            )}
             <Hr className="my-6 border-slate-200" />
-            <Text className="text-xs text-slate-500">
-              You received this because the PostPilot team sent you a message
-              directly. To reply, just hit reply on this email — it will reach
-              a real person on our support team.
-            </Text>
+            {footerHtmlBlocks && footerHtmlBlocks.length > 0 ? (
+              footerHtmlBlocks.map((html, i) => (
+                <Section
+                  key={i}
+                  className="text-xs text-slate-500 [&_p]:my-1 [&_a]:underline"
+                >
+                  {parse(html)}
+                </Section>
+              ))
+            ) : (
+              <Text className="text-xs text-slate-500">
+                You received this because the PostPilot team sent you a message
+                directly. To reply, just hit reply on this email — it will reach
+                a real person on our support team.
+              </Text>
+            )}
           </Container>
         </Body>
       </Tailwind>

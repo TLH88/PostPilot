@@ -3,7 +3,8 @@
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import { Bold, Italic, Link as LinkIcon, List, ListOrdered, Heading2, Heading3 } from "lucide-react";
+import Image from "@tiptap/extension-image";
+import { Bold, Italic, Link as LinkIcon, List, ListOrdered, Heading2, Heading3, Image as ImageIcon } from "lucide-react";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,12 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /**
+   * Minimum editor body height. Use 180 for compact contexts (default),
+   * larger values for expanded composer views. Tailwind arbitrary class
+   * is applied via min-h-[Npx].
+   */
+  minHeightPx?: number;
 }
 
 /**
@@ -30,6 +37,7 @@ export function RichTextEditor({
   placeholder = "Type your message…",
   className,
   disabled = false,
+  minHeightPx = 180,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -49,6 +57,13 @@ export function RichTextEditor({
           target: "_blank",
         },
       }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: {
+          class: "max-w-full rounded-md my-2",
+        },
+      }),
     ],
     content: value,
     editable: !disabled,
@@ -57,12 +72,13 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "prose prose-sm max-w-none min-h-[180px] px-3 py-2 outline-none",
+          "prose prose-sm max-w-none px-3 py-2 outline-none",
           "[&_p]:my-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1",
           "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1",
           "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
           "[&_a]:text-primary [&_a]:underline",
         ),
+        style: `min-height:${minHeightPx}px`,
         "data-placeholder": placeholder,
       },
     },
@@ -126,6 +142,17 @@ function Toolbar({ editor }: { editor: Editor }) {
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }
 
+  function promptImage() {
+    const url = window.prompt("Image URL (https only)", "https://");
+    if (!url || url.trim() === "" || url === "https://") return;
+    if (!/^https:\/\//i.test(url)) {
+      // eslint-disable-next-line no-alert
+      alert("Image URL must use https://");
+      return;
+    }
+    editor.chain().focus().setImage({ src: url, alt: "" }).run();
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-0.5 p-1">
       <ToolbarButton
@@ -179,6 +206,13 @@ function Toolbar({ editor }: { editor: Editor }) {
         label="Link"
       >
         <LinkIcon className="size-3.5" />
+      </ToolbarButton>
+      <ToolbarButton
+        active={false}
+        onClick={promptImage}
+        label="Insert image (URL)"
+      >
+        <ImageIcon className="size-3.5" />
       </ToolbarButton>
     </div>
   );

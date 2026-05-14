@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Send, Users, Image as ImageIcon, Pencil } from "lucide-react";
+import { Loader2, Mail, Send, Users, Image as ImageIcon, Pencil, Maximize2, Minimize2 } from "lucide-react";
 import { RecipientManagerDialog } from "@/components/admin/recipient-manager-dialog";
+import { AttachmentsField, PAYLOAD_MAX_BYTES, type ComposerAttachment } from "@/components/admin/attachments-field";
+import type { EmailGreeting, EmailSignature } from "@/lib/email/settings-types";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -70,11 +72,19 @@ export function EmailUserDialog({
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
   const [showLogo, setShowLogo] = useState(true);
+  const [bodyExpanded, setBodyExpanded] = useState(false);
   const [sending, setSending] = useState(false);
   // Editable working copy of recipients. Initialized from `recipients`
   // prop when the dialog opens; admin can add/remove via the manager.
   const [workingRecipients, setWorkingRecipients] = useState<EmailRecipient[]>(recipients);
   const [managerOpen, setManagerOpen] = useState(false);
+
+  // Email settings — fetched lazily when dialog opens
+  const [greetings, setGreetings] = useState<EmailGreeting[]>([]);
+  const [signatures, setSignatures] = useState<EmailSignature[]>([]);
+  const [greetingId, setGreetingId] = useState<string | null>(null);
+  const [signatureId, setSignatureId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
 
   // Reset form when recipient set changes or dialog closes
   const recipientKey = recipients.map((r) => r.id).join(",");
@@ -84,8 +94,41 @@ export function EmailUserDialog({
     setBodyHtml("");
     setSender("support");
     setShowLogo(true);
+    setBodyExpanded(false);
+    setAttachments([]);
     setWorkingRecipients(recipients);
   }, [open, recipientKey]);
+
+  // Fetch greetings + signatures on open
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    (async () => {
+      const [gRes, sRes] = await Promise.all([
+        fetch("/api/admin/email-settings/greetings"),
+        fetch("/api/admin/email-settings/signatures"),
+      ]);
+      if (!active) return;
+      if (gRes.ok) {
+        const data = await gRes.json();
+        const list: EmailGreeting[] = data.greetings ?? [];
+        setGreetings(list);
+        // Pick default greeting (first is_default, else first)
+        const def = list.find((g) => g.is_default) ?? list[0];
+        setGreetingId(def?.id ?? null);
+      }
+      if (sRes.ok) {
+        const data = await sRes.json();
+        const list: EmailSignature[] = data.signatures ?? [];
+        setSignatures(list);
+        const def = list.find((s) => s.is_default) ?? list[0];
+        setSignatureId(def?.id ?? null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const isBulk = workingRecipients.length > 1;
   const single = workingRecipients[0];
@@ -101,27 +144,33 @@ export function EmailUserDialog({
       toast.error("Message body is required");
       return;
     }
+    const totalAttachmentBytes = attachments.reduce((s, a) => s + a.sizeBytes, 0);
+    if (totalAttachmentBytes > PAYLOAD_MAX_BYTES) {
+      toast.error("Attachments exceed the 25 MB limit — remove some before sending");
+      return;
+    }
 
     setSending(true);
     try {
       const endpoint = isBulk
         ? "/api/admin/email/send-bulk"
         : "/api/admin/email/send-to-user";
+      const shared = {
+        subject: trimmedSubject,
+        bodyHtml,
+        from: sender,
+        showLogo,
+        greetingId,
+        signatureId,
+        attachments: attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
+      };
       const body = isBulk
-        ? {
-            userIds: workingRecipients.map((r) => r.id),
-            subject: trimmedSubject,
-            bodyHtml,
-            from: sender,
-            showLogo,
-          }
-        : {
-            userId: single.id,
-            subject: trimmedSubject,
-            bodyHtml,
-            from: sender,
-            showLogo,
-          };
+        ? { userIds: workingRecipients.map((r) => r.id), ...shared }
+        : { userId: single.id, ...shared };
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -259,20 +308,128 @@ export function EmailUserDialog({
             />
           </div>
 
+          {/* Greeting selector */}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-xs text-muted-foreground">Greeting</Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" size="sm" className="font-normal" />
+                }
+              >
+                {greetings.find((g) => g.id === greetingId)?.name ?? "None"}
+                <span className="ml-2 text-xs text-muted-foreground font-mono truncate max-w-48">
+                  {greetings.find((g) => g.id === greetingId)?.content ?? "(no greeting)"}
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-w-sm">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Greeting</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setGreetingId(null)} className={greetingId === null ? "bg-accent font-semibold" : ""}>
+                    <div className="flex flex-col">
+                      <span>None</span>
+                      <span className="text-[10px] text-muted-foreground">No greeting line</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {greetings.map((g) => (
+                    <DropdownMenuItem
+                      key={g.id}
+                      onClick={() => setGreetingId(g.id)}
+                      className={greetingId === g.id ? "bg-accent font-semibold" : ""}
+                    >
+                      <div className="flex flex-col">
+                        <span>{g.name}{g.is_default ? " (default)" : ""}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono truncate">{g.content}</span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           {/* Body */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Message</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Message</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setBodyExpanded((v) => !v)}
+                className="h-6 gap-1 text-xs text-muted-foreground"
+                aria-label={bodyExpanded ? "Collapse editor" : "Expand editor"}
+              >
+                {bodyExpanded ? (
+                  <>
+                    <Minimize2 className="size-3" />
+                    Collapse
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="size-3" />
+                    Expand
+                  </>
+                )}
+              </Button>
+            </div>
             <RichTextEditor
               value={bodyHtml}
               onChange={setBodyHtml}
               placeholder="Type your message…"
               disabled={sending}
+              minHeightPx={bodyExpanded ? 480 : 180}
             />
             <p className="text-[10px] text-muted-foreground">
-              Greeting + signoff are added automatically by the template.
-              {isBulk && " Each recipient sees their own first name in the greeting."}
+              {isBulk && "Each recipient sees their own first name in the greeting. "}
+              Greeting + signature are inserted automatically.
             </p>
           </div>
+
+          {/* Signature selector */}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-xs text-muted-foreground">Signature</Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" size="sm" className="font-normal" />
+                }
+              >
+                {signatures.find((s) => s.id === signatureId)?.name ?? "None"}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-w-sm">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Signature</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSignatureId(null)} className={signatureId === null ? "bg-accent font-semibold" : ""}>
+                    <div className="flex flex-col">
+                      <span>None</span>
+                      <span className="text-[10px] text-muted-foreground">Default signoff</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {signatures.map((s) => (
+                    <DropdownMenuItem
+                      key={s.id}
+                      onClick={() => setSignatureId(s.id)}
+                      className={signatureId === s.id ? "bg-accent font-semibold" : ""}
+                    >
+                      {s.name}{s.is_default ? " (default)" : ""}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Attachments */}
+          <AttachmentsField
+            value={attachments}
+            onChange={setAttachments}
+            disabled={sending}
+          />
 
           {/* Display options */}
           <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">

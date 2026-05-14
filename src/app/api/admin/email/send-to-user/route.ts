@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient, verifyAdmin } from "@/lib/supabase/admin";
-import { sendEmail } from "@/lib/email/send";
+import { sendEmail, EMAIL_PAYLOAD_MAX_BYTES } from "@/lib/email/send";
 import { isEmailConfigured } from "@/lib/email/client";
 import { sanitizeAdminEmailHtml, htmlToPlainText } from "@/lib/email/sanitize";
+import {
+  resolveGreeting,
+  resolveSignature,
+  resolveFooters,
+  substitutePlaceholders,
+} from "@/lib/email/resolve";
 import { AdminMessageEmail } from "@/emails/admin-message";
 
 const SUBJECT_MAX = 200;
 const BODY_HTML_MAX = 50_000;
+
+const attachmentSchema = z.object({
+  filename: z.string().min(1).max(255),
+  content: z.string().min(1), // base64
+  contentType: z.string().max(200).optional(),
+});
 
 const bodySchema = z.object({
   userId: z.string().uuid(),
@@ -15,7 +27,16 @@ const bodySchema = z.object({
   bodyHtml: z.string().min(1).max(BODY_HTML_MAX),
   from: z.enum(["noreply", "hello", "news", "support"]).default("support"),
   showLogo: z.boolean().default(true),
+  greetingId: z.string().uuid().nullable().optional(),
+  signatureId: z.string().uuid().nullable().optional(),
+  footerIds: z.array(z.string().uuid()).optional(),
+  attachments: z.array(attachmentSchema).max(50).optional(),
 });
+
+function approxAttachmentBytes(attachments: { content: string }[] | undefined): number {
+  if (!attachments) return 0;
+  return attachments.reduce((sum, a) => sum + Math.floor(a.content.length * 0.75), 0);
+}
 
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin();
@@ -36,9 +57,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const attachmentBytes = approxAttachmentBytes(parsed.data.attachments);
+  if (attachmentBytes > EMAIL_PAYLOAD_MAX_BYTES) {
+    return NextResponse.json(
+      { error: `Attachments total ${Math.round(attachmentBytes / 1024 / 1024)}MB exceeds the 25 MB limit` },
+      { status: 413 },
+    );
+  }
+
   const supabase = createAdminClient();
 
-  // Look up recipient
   const { data: authData, error: lookupError } =
     await supabase.auth.admin.getUserById(parsed.data.userId);
   if (lookupError || !authData?.user?.email) {
@@ -48,9 +76,8 @@ export async function POST(req: NextRequest) {
     );
   }
   const recipient = authData.user;
-  const recipientEmail = recipient.email!; // guarded by the !authData?.user?.email check above
+  const recipientEmail = recipient.email!;
 
-  // Fetch their profile for the name
   const { data: profile } = await supabase
     .from("user_profiles")
     .select("full_name")
@@ -58,7 +85,6 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   const recipientFullName = profile?.full_name ?? null;
 
-  // Sanitize the HTML and derive a plain-text approximation for search
   const cleanHtml = sanitizeAdminEmailHtml(parsed.data.bodyHtml);
   if (!cleanHtml.trim()) {
     return NextResponse.json(
@@ -70,6 +96,17 @@ export async function POST(req: NextRequest) {
 
   const recipientName = recipientFullName?.split(" ")[0] ?? undefined;
 
+  // Resolve composition pieces in parallel
+  const [greeting, signature, footers] = await Promise.all([
+    resolveGreeting(supabase, parsed.data.greetingId ?? null),
+    resolveSignature(supabase, parsed.data.signatureId ?? null),
+    resolveFooters(supabase, parsed.data.footerIds ?? null),
+  ]);
+
+  const renderedGreeting = greeting
+    ? substitutePlaceholders(greeting.content, { firstName: recipientName ?? "there" })
+    : undefined;
+
   const result = await sendEmail({
     from: parsed.data.from,
     to: recipientEmail,
@@ -79,16 +116,18 @@ export async function POST(req: NextRequest) {
       subject: parsed.data.subject,
       bodyHtml: cleanHtml,
       showLogo: parsed.data.showLogo,
+      greeting: renderedGreeting,
+      signatureHtml: signature?.content,
+      footerHtmlBlocks: footers.map((f) => f.content),
     }),
     idempotencyKey: `admin-message/${admin.id}/${recipient.id}/${Date.now()}`,
     tags: [
       { name: "category", value: "admin-message" },
       { name: "sender", value: parsed.data.from },
     ],
+    attachments: parsed.data.attachments,
   });
 
-  // Append to audit log regardless of send outcome — we want failed
-  // attempts on record too. Status reflects what happened.
   const logRow = {
     sent_by: admin.id,
     sent_by_email: admin.email!,
@@ -108,8 +147,6 @@ export async function POST(req: NextRequest) {
     .from("admin_email_log")
     .insert(logRow);
   if (logError) {
-    // Don't fail the send because the log write failed — the email
-    // either went or didn't, the log is best-effort accounting.
     console.error("[admin/email/send-to-user] log write failed", logError);
   }
 

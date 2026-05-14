@@ -5,6 +5,21 @@ import { EMAIL_FROM, EMAIL_REPLY_TO, type EmailSenderKey } from "./from";
 /** Resend hard caps: 100 messages per batch.send() call. */
 export const RESEND_BATCH_MAX = 100;
 
+/** Per-email payload cap. Owner-chosen at 25 MB — Gmail's standard receive limit. */
+export const EMAIL_PAYLOAD_MAX_BYTES = 25 * 1024 * 1024;
+
+/**
+ * One attachment as delivered to Resend. `content` is a base64-encoded
+ * string of the file bytes. `filename` is what the recipient sees.
+ */
+export interface EmailAttachment {
+  filename: string;
+  /** Base64-encoded file bytes (no data: URL prefix). */
+  content: string;
+  /** Optional MIME type. Resend infers if omitted. */
+  contentType?: string;
+}
+
 export interface SendEmailInput {
   from: EmailSenderKey;
   to: string | string[];
@@ -27,6 +42,8 @@ export interface SendEmailInput {
    * suppress reply-to entirely (transactional noreply scenarios).
    */
   replyTo?: string | null;
+  /** Optional file attachments. Caller must size-validate before calling. */
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -83,6 +100,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       react: input.react,
       replyTo,
       tags: input.tags,
+      attachments: input.attachments,
     },
     input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
   );
@@ -126,6 +144,8 @@ export interface SendBulkEmailInput {
   /** Extra tags applied to every recipient. Per-recipient `batch_id` is auto. */
   tags?: Array<{ name: string; value: string }>;
   replyTo?: string | null;
+  /** Shared attachments delivered with every recipient's email. */
+  attachments?: EmailAttachment[];
 }
 
 export interface SendBulkResult {
@@ -186,6 +206,7 @@ export async function sendBulkEmail(input: SendBulkEmailInput): Promise<SendBulk
     react: input.buildEmail(r),
     replyTo,
     tags: baseTags,
+    attachments: input.attachments,
   }));
 
   const { data, error } = await client.batch.send(entries, {

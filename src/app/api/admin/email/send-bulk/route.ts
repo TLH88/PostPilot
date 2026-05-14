@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient, verifyAdmin } from "@/lib/supabase/admin";
-import { sendBulkEmail, RESEND_BATCH_MAX } from "@/lib/email/send";
+import { sendBulkEmail, RESEND_BATCH_MAX, EMAIL_PAYLOAD_MAX_BYTES } from "@/lib/email/send";
 import { isEmailConfigured } from "@/lib/email/client";
 import { sanitizeAdminEmailHtml, htmlToPlainText } from "@/lib/email/sanitize";
+import {
+  resolveGreeting,
+  resolveSignature,
+  resolveFooters,
+  substitutePlaceholders,
+} from "@/lib/email/resolve";
 import { AdminMessageEmail } from "@/emails/admin-message";
 
 const SUBJECT_MAX = 200;
 const BODY_HTML_MAX = 50_000;
+
+const attachmentSchema = z.object({
+  filename: z.string().min(1).max(255),
+  content: z.string().min(1),
+  contentType: z.string().max(200).optional(),
+});
 
 const bodySchema = z.object({
   userIds: z.array(z.string().uuid()).min(1).max(RESEND_BATCH_MAX),
@@ -15,7 +27,16 @@ const bodySchema = z.object({
   bodyHtml: z.string().min(1).max(BODY_HTML_MAX),
   from: z.enum(["noreply", "hello", "news", "support"]).default("support"),
   showLogo: z.boolean().default(true),
+  greetingId: z.string().uuid().nullable().optional(),
+  signatureId: z.string().uuid().nullable().optional(),
+  footerIds: z.array(z.string().uuid()).optional(),
+  attachments: z.array(attachmentSchema).max(50).optional(),
 });
+
+function approxAttachmentBytes(attachments: { content: string }[] | undefined): number {
+  if (!attachments) return 0;
+  return attachments.reduce((sum, a) => sum + Math.floor(a.content.length * 0.75), 0);
+}
 
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin();
@@ -36,9 +57,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const attachmentBytes = approxAttachmentBytes(parsed.data.attachments);
+  if (attachmentBytes > EMAIL_PAYLOAD_MAX_BYTES) {
+    return NextResponse.json(
+      { error: `Attachments total ${Math.round(attachmentBytes / 1024 / 1024)}MB exceeds the 25 MB limit` },
+      { status: 413 },
+    );
+  }
+
   const supabase = createAdminClient();
 
-  // Look up all recipients in one auth call, then resolve their profiles
   const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   const authUsers = authData?.users ?? [];
   const targetIds = new Set(parsed.data.userIds);
@@ -50,7 +78,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Profiles for full_name → personalized greeting
   const { data: profiles } = await supabase
     .from("user_profiles")
     .select("user_id, full_name")
@@ -59,7 +86,6 @@ export async function POST(req: NextRequest) {
     (profiles ?? []).map((p) => [p.user_id, p.full_name as string | null]),
   );
 
-  // Sanitize body once — same content goes to every recipient.
   const cleanHtml = sanitizeAdminEmailHtml(parsed.data.bodyHtml);
   if (!cleanHtml.trim()) {
     return NextResponse.json(
@@ -68,6 +94,14 @@ export async function POST(req: NextRequest) {
     );
   }
   const plainText = htmlToPlainText(cleanHtml);
+
+  // Resolve composition pieces once (shared across all recipients)
+  const [greeting, signature, footers] = await Promise.all([
+    resolveGreeting(supabase, parsed.data.greetingId ?? null),
+    resolveSignature(supabase, parsed.data.signatureId ?? null),
+    resolveFooters(supabase, parsed.data.footerIds ?? null),
+  ]);
+  const footerHtmlBlocks = footers.map((f) => f.content);
 
   const batchId = crypto.randomUUID();
 
@@ -86,23 +120,30 @@ export async function POST(req: NextRequest) {
     subject: parsed.data.subject,
     bodyHtml: cleanHtml,
     recipients,
-    buildEmail: (r) =>
-      AdminMessageEmail({
+    buildEmail: (r) => {
+      const renderedGreeting = greeting
+        ? substitutePlaceholders(greeting.content, {
+            firstName: r.recipientName ?? "there",
+          })
+        : undefined;
+      return AdminMessageEmail({
         recipientName: r.recipientName,
         subject: parsed.data.subject,
         bodyHtml: cleanHtml,
         showLogo: parsed.data.showLogo,
-      }),
+        greeting: renderedGreeting,
+        signatureHtml: signature?.content,
+        footerHtmlBlocks,
+      });
+    },
     batchId,
     tags: [
       { name: "category", value: "admin-bulk-message" },
       { name: "sender", value: parsed.data.from },
     ],
+    attachments: parsed.data.attachments,
   });
 
-  // Append one log row per recipient. Status reflects the batch outcome:
-  // on batch success, all sent; on batch failure, all failed (Resend
-  // batches are atomic).
   const logRows = recipients.map((r) => {
     const messageId = result.results.find((x) => x.userId === r.userId)?.messageId ?? null;
     return {
@@ -145,6 +186,6 @@ export async function POST(req: NextRequest) {
     batchId,
     sent: sentCount,
     failed: recipients.length - sentCount,
-    skipped: parsed.data.userIds.length - recipients.length, // ids that didn't resolve to a user
+    skipped: parsed.data.userIds.length - recipients.length,
   });
 }

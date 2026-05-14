@@ -24,9 +24,10 @@ const ALLOWED_TAGS = [
   "ol",
   "li",
   "a",
+  "img",
 ];
 
-const ALLOWED_ATTR = ["href", "target", "rel"];
+const ALLOWED_ATTR = ["href", "target", "rel", "src", "alt", "width", "height"];
 
 const FORBID_ATTR = ["style", "class", "id", "onclick", "onload", "onerror"];
 
@@ -43,7 +44,7 @@ export function sanitizeAdminEmailHtml(html: string): string {
     ALLOWED_ATTR,
     FORBID_ATTR,
     ALLOW_DATA_ATTR: false,
-    ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i,
+    ALLOWED_URI_REGEXP: /^(?:https?|mailto|cid):/i,
   });
 
   // Belt-and-braces: enforce safe rel/target on every <a>. DOMPurify
