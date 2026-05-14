@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Eye, Loader2, Monitor, Paperclip, Smartphone } from "lucide-react";
 import {
   Dialog,
@@ -56,17 +56,6 @@ export function EmailPreviewDialog({
   attachments,
 }: EmailPreviewDialogProps) {
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  // Write the HTML into the sandboxed iframe whenever it changes.
-  useEffect(() => {
-    if (!iframeRef.current || !html) return;
-    const doc = iframeRef.current.contentDocument;
-    if (!doc) return;
-    doc.open();
-    doc.write(html);
-    doc.close();
-  }, [html, viewport, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -160,8 +149,8 @@ export function EmailPreviewDialog({
           ) : html ? (
             <div className={cn("mx-auto bg-white transition-all", viewport === "mobile" ? "max-w-[375px]" : "w-full")}>
               <iframe
-                ref={iframeRef}
                 title="Email preview"
+                srcDoc={html}
                 sandbox=""
                 className="block w-full"
                 style={{ height: "60vh", border: 0 }}
