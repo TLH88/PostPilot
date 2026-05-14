@@ -25,6 +25,7 @@ const ADMIN_NAV = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/workspaces", label: "Workspaces", icon: Building2 },
   { href: "/admin/waitlist", label: "Waitlist", icon: Mail },
+  { href: "/admin/email-settings", label: "Email Settings", icon: Mail },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/system", label: "System", icon: Settings },
   { href: "/admin/dev-tools", label: "Dev Tools", icon: Wrench },
