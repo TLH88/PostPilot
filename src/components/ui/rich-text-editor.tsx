@@ -80,13 +80,18 @@ interface RichTextEditorProps {
   className?: string;
   disabled?: boolean;
   /**
-   * Starting height of the body area in pixels. Users can drag the
-   * bottom-right resize handle vertically to grow or shrink the body
-   * up to maxHeightPx, with no impact on the surrounding container.
+   * When true (default), the editor fills its parent's available height
+   * via flex and scrolls internally. The parent decides the height; the
+   * editor never grows past it. Use false for standalone contexts where
+   * the editor should size to its content (e.g. settings dialogs).
+   */
+  fillParent?: boolean;
+  /**
+   * Initial height when `fillParent` is false. Sets `min-height` for the
+   * editor body so it doesn't collapse below this. Ignored when
+   * `fillParent` is true.
    */
   initialHeightPx?: number;
-  /** Hard ceiling for the resize handle. Defaults to a viewport-aware cap. */
-  maxHeightPx?: number;
 }
 
 /**
@@ -103,8 +108,8 @@ export function RichTextEditor({
   placeholder = "Type your message…",
   className,
   disabled = false,
+  fillParent = false,
   initialHeightPx = 240,
-  maxHeightPx = 600,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -170,17 +175,26 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
+  // Two sizing modes:
+  //   fillParent=true (default): editor fills its parent's flex space and
+  //     scrolls internally. Use inside a bounded flex column container so
+  //     the editor never causes the parent to grow.
+  //   fillParent=false: editor is sized to a fixed initial height (with
+  //     internal scroll on overflow). Use in standalone contexts.
+  const outerClasses = fillParent
+    ? "flex flex-col flex-1 min-h-0 rounded-md border bg-background"
+    : "rounded-md border bg-background";
+  const bodyClasses = fillParent
+    ? "flex-1 min-h-0 overflow-y-auto border-t"
+    : "overflow-y-auto border-t";
+  const bodyStyle = fillParent
+    ? undefined
+    : { height: `${initialHeightPx}px`, minHeight: "120px" };
+
   return (
-    <div className={cn("rounded-md border bg-background", className)}>
+    <div className={cn(outerClasses, className)}>
       <Toolbar editor={editor} />
-      <div
-        className="border-t resize-y overflow-auto"
-        style={{
-          height: `${initialHeightPx}px`,
-          minHeight: "120px",
-          maxHeight: `${maxHeightPx}px`,
-        }}
-      >
+      <div className={bodyClasses} style={bodyStyle}>
         <EditorContent editor={editor} className="h-full" />
       </div>
     </div>

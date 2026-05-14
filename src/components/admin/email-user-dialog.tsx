@@ -315,17 +315,20 @@ export function EmailUserDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Scrollable middle — locks the dialog at max-h-[90vh] and lets
-            the form scroll vertically when the resized message body (or
-            any other content) exceeds available height. */}
-        <div className="overflow-y-auto min-h-0 -mr-2 pr-2 space-y-3">
+        {/* Middle row — flex column, no scroll. The Message editor takes
+            all leftover vertical space via flex-1 and scrolls internally.
+            Other fields stay shrink-0 around it. The composer itself
+            never grows; only the message body content scrolls. */}
+        <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
           {isBulk && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            <div className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
               Each recipient gets their own email with only their address in the
               To: header. No recipient sees the others.
             </div>
           )}
 
+          {/* Top fields (above body) — fixed height, no shrink */}
+          <div className="shrink-0 space-y-3">
           {/* Sender picker */}
           <div className="flex items-center justify-between gap-3">
             <Label className="text-xs text-muted-foreground">From</Label>
@@ -415,23 +418,28 @@ export function EmailUserDialog({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          </div>{/* end top fields */}
 
-          {/* Body */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Message</Label>
+          {/* Body — flex-1 takes all remaining vertical space inside the
+              dialog's middle row. The editor scrolls internally; the
+              composer dimensions never change with content. */}
+          <div className="flex flex-col flex-1 min-h-0 gap-1.5">
+            <Label className="shrink-0 text-xs text-muted-foreground">Message</Label>
             <RichTextEditor
+              fillParent
               value={bodyHtml}
               onChange={setBodyHtml}
               placeholder="Type your message…"
               disabled={sending}
             />
-            <p className="text-[10px] text-muted-foreground">
-              Drag the bottom-right corner of the message box to resize.{" "}
+            <p className="shrink-0 text-[10px] text-muted-foreground">
               {isBulk && "Each recipient sees their own first name in the greeting. "}
-              Greeting + signature are inserted automatically.
+              Greeting + signature are inserted automatically. Long messages scroll within the box.
             </p>
           </div>
 
+          {/* Bottom fields (below body) — fixed height, no shrink */}
+          <div className="shrink-0 space-y-3">
           {/* Signature selector */}
           <div className="flex items-center justify-between gap-3">
             <Label className="text-xs text-muted-foreground">Signature</Label>
@@ -583,9 +591,8 @@ export function EmailUserDialog({
               />
             </button>
           </div>
-        </div>
-
-        {/* end scrollable middle */}
+          </div>{/* end bottom fields */}
+        </div>{/* end middle row */}
 
         <DialogFooter>
           <Button
