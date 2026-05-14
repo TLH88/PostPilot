@@ -7,7 +7,7 @@ import { TestSendEmail } from "@/emails/test-send";
 
 const bodySchema = z.object({
   to: z.string().email(),
-  from: z.enum(["noreply", "hello", "news"]).default("hello"),
+  from: z.enum(["noreply", "hello", "news", "support"]).default("hello"),
 });
 
 export async function POST(req: NextRequest) {

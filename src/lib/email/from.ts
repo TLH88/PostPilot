@@ -9,6 +9,9 @@
  *   receipts). Replies route to the Fastmail inbox.
  * - NEWS: marketing / newsletter / product updates. Reply-to = HELLO so
  *   curious replies still reach a human.
+ * - SUPPORT: direct admin-to-user messages (help responses, manual outreach).
+ *   Reply-to = SUPPORT so the conversation continues in the support@ inbox.
+ *   Fastmail receives via the root MX; no Resend Receiving needed.
  */
 
 const DOMAIN = "mypostpilot.app";
@@ -18,10 +21,12 @@ export const EMAIL_FROM = {
   noreply: `${BRAND} <noreply@${DOMAIN}>`,
   hello: `${BRAND} <hello@${DOMAIN}>`,
   news: `${BRAND} <news@${DOMAIN}>`,
+  support: `PostPilot Support <support@${DOMAIN}>`,
 } as const;
 
 export const EMAIL_REPLY_TO = {
   hello: `hello@${DOMAIN}`,
+  support: `support@${DOMAIN}`,
 } as const;
 
 export type EmailSenderKey = keyof typeof EMAIL_FROM;

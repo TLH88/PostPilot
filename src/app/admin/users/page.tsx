@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, Check, X, Sparkles, UserCog, ChevronDown, ChevronRight, FileText, Lightbulb, MessageCircle, Calendar, MoreVertical, Building2, UserPlus, UserMinus, Key, Trash2 } from "lucide-react";
+import { Search, Loader2, Check, X, Sparkles, UserCog, ChevronDown, ChevronRight, FileText, Lightbulb, MessageCircle, Calendar, MoreVertical, Building2, UserPlus, UserMinus, Key, Trash2, Mail, Filter } from "lucide-react";
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
+import { EmailUserDialog, type EmailRecipient } from "@/components/admin/email-user-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +74,44 @@ function isOnline(lastSignIn: string | null): boolean {
   return Date.now() - new Date(lastSignIn).getTime() < 15 * 60 * 1000; // 15 min
 }
 
+function FilterChip({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value: string;
+  children: React.ReactNode;
+}) {
+  const isActive = value !== "All";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs cursor-pointer transition-colors",
+              isActive
+                ? "border-primary/40 bg-primary/10 text-foreground font-medium"
+                : "border-border bg-background text-muted-foreground hover:bg-accent",
+            )}
+          />
+        }
+      >
+        {label}: <span className="font-medium">{value}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{label}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {children}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [allWorkspaces, setAllWorkspaces] = useState<{ id: string; name: string }[]>([]);
@@ -81,7 +120,18 @@ export default function AdminUsersPage() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
+  const [emailRecipients, setEmailRecipients] = useState<EmailRecipient[]>([]);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [filterTier, setFilterTier] = useState<SubscriptionTier | "all">("all");
+  const [filterAiAccess, setFilterAiAccess] = useState<"all" | "system" | "personal" | "team" | "none">("all");
+  const [filterStatus, setFilterStatus] = useState<AccountStatus | "all">("all");
   const router = useRouter();
+
+  function openEmailDialog(recipients: EmailRecipient[]) {
+    setEmailRecipients(recipients);
+    setEmailDialogOpen(true);
+  }
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -160,14 +210,73 @@ export default function AdminUsersPage() {
     }
   }
 
+  function aiAccessKind(u: AdminUser): "system" | "personal" | "team" | "none" {
+    if (u.hasPersonalKey) return "personal";
+    if (u.workspaces.length > 0) return "team";
+    const expired = u.managed_ai_expires_at && new Date(u.managed_ai_expires_at) < new Date();
+    if (u.managed_ai_access && !expired) return "system";
+    return "none";
+  }
+
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
       !q ||
       (u.email ?? "").toLowerCase().includes(q) ||
-      (u.full_name ?? "").toLowerCase().includes(q)
-    );
+      (u.full_name ?? "").toLowerCase().includes(q);
+    if (!matchesSearch) return false;
+    if (filterTier !== "all" && u.subscription_tier !== filterTier) return false;
+    if (filterStatus !== "all" && u.account_status !== filterStatus) return false;
+    if (filterAiAccess !== "all" && aiAccessKind(u) !== filterAiAccess) return false;
+    return true;
   });
+
+  const selectedRecipients: EmailRecipient[] = filtered
+    .filter((u) => selectedUserIds.has(u.id))
+    .map((u) => ({ id: u.id, email: u.email, full_name: u.full_name }));
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((u) => selectedUserIds.has(u.id));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      // Deselect all filtered users
+      setSelectedUserIds((prev) => {
+        const next = new Set(prev);
+        filtered.forEach((u) => next.delete(u.id));
+        return next;
+      });
+    } else {
+      // Select all filtered users
+      setSelectedUserIds((prev) => {
+        const next = new Set(prev);
+        filtered.forEach((u) => next.add(u.id));
+        return next;
+      });
+    }
+  }
+
+  function toggleUser(userId: string) {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedUserIds(new Set());
+  }
+
+  function clearFilters() {
+    setFilterTier("all");
+    setFilterAiAccess("all");
+    setFilterStatus("all");
+  }
+
+  const hasActiveFilters =
+    filterTier !== "all" || filterAiAccess !== "all" || filterStatus !== "all";
 
   if (loading) {
     return (
@@ -184,16 +293,89 @@ export default function AdminUsersPage() {
         <p className="text-muted-foreground">{users.length} registered users</p>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search + filter chips */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-wrap">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="size-3.5 text-muted-foreground" />
+          <FilterChip label="Tier" value={filterTier === "all" ? "All" : SUBSCRIPTION_TIERS[filterTier]?.label ?? filterTier}>
+            <DropdownMenuItem onClick={() => setFilterTier("all")}>All tiers</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {(Object.keys(SUBSCRIPTION_TIERS) as SubscriptionTier[]).map((tier) => (
+              <DropdownMenuItem key={tier} onClick={() => setFilterTier(tier)}>
+                {SUBSCRIPTION_TIERS[tier].label}
+              </DropdownMenuItem>
+            ))}
+          </FilterChip>
+          <FilterChip
+            label="AI access"
+            value={
+              filterAiAccess === "all"
+                ? "All"
+                : filterAiAccess === "system"
+                ? "System Key"
+                : filterAiAccess === "personal"
+                ? "Personal Key"
+                : filterAiAccess === "team"
+                ? "Team Key"
+                : "Not Active"
+            }
+          >
+            <DropdownMenuItem onClick={() => setFilterAiAccess("all")}>All access types</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setFilterAiAccess("system")}>System Key</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterAiAccess("personal")}>Personal Key</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterAiAccess("team")}>Team Key</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterAiAccess("none")}>Not Active</DropdownMenuItem>
+          </FilterChip>
+          <FilterChip
+            label="Status"
+            value={filterStatus === "all" ? "All" : ACCOUNT_STATUS_CONFIG[filterStatus]?.label ?? filterStatus}
+          >
+            <DropdownMenuItem onClick={() => setFilterStatus("all")}>All statuses</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {(Object.keys(ACCOUNT_STATUS_CONFIG) as AccountStatus[]).map((status) => (
+              <DropdownMenuItem key={status} onClick={() => setFilterStatus(status)}>
+                {ACCOUNT_STATUS_CONFIG[status].label}
+              </DropdownMenuItem>
+            ))}
+          </FilterChip>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs h-7">
+              Clear filters
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Bulk action toolbar */}
+      {selectedUserIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border bg-accent/40 px-3 py-2 text-sm">
+          <span className="font-medium">
+            {selectedUserIds.size} {selectedUserIds.size === 1 ? "user" : "users"} selected
+          </span>
+          <Button
+            size="sm"
+            onClick={() => openEmailDialog(selectedRecipients)}
+            disabled={selectedRecipients.length === 0}
+            className="gap-1.5"
+          >
+            <Mail className="size-3.5" />
+            Email selected
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearSelection} className="ml-auto text-xs">
+            Clear selection
+          </Button>
+        </div>
+      )}
 
       {/* User table */}
       <Card>
@@ -202,6 +384,15 @@ export default function AdminUsersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="px-3 py-3 text-left font-medium text-muted-foreground w-9">
+                    <input
+                      type="checkbox"
+                      aria-label={allFilteredSelected ? "Deselect all visible" : "Select all visible"}
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      className="size-3.5 rounded border-input accent-primary cursor-pointer"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">User</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Team</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Tier</th>
@@ -218,7 +409,16 @@ export default function AdminUsersPage() {
                   const isExpired = user.managed_ai_expires_at && new Date(user.managed_ai_expires_at) < new Date();
                   return (
                     <React.Fragment key={user.id}>
-                    <tr className="border-b last:border-0 hover:bg-hover-highlight cursor-pointer" onClick={() => setExpandedUser(expandedUser === user.id ? null : user.id)}>
+                    <tr className={cn("border-b last:border-0 hover:bg-hover-highlight cursor-pointer", selectedUserIds.has(user.id) && "bg-accent/20")} onClick={() => setExpandedUser(expandedUser === user.id ? null : user.id)}>
+                      <td className="px-3 py-3 w-9" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${user.full_name ?? user.email}`}
+                          checked={selectedUserIds.has(user.id)}
+                          onChange={() => toggleUser(user.id)}
+                          className="size-3.5 rounded border-input accent-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {expandedUser === user.id ? <ChevronDown className="size-3 text-muted-foreground shrink-0" /> : <ChevronRight className="size-3 text-muted-foreground shrink-0" />}
@@ -517,6 +717,12 @@ export default function AdminUsersPage() {
                             <DropdownMenuGroup>
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => openEmailDialog([{ id: user.id, email: user.email, full_name: user.full_name }])}
+                              >
+                                <Mail className="size-3.5 mr-2" />
+                                Email user…
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => impersonate(user.email)}>
                                 <UserCog className="size-3.5 mr-2" />
                                 Impersonate User
@@ -569,7 +775,7 @@ export default function AdminUsersPage() {
                     {/* Expanded detail row */}
                     {expandedUser === user.id && (
                       <tr className="bg-muted/30">
-                        <td colSpan={9} className="px-4 py-4">
+                        <td colSpan={10} className="px-4 py-4">
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Activity */}
                             <div className="space-y-2">
@@ -668,6 +874,15 @@ export default function AdminUsersPage() {
                                   variant="outline"
                                   size="sm"
                                   className="w-full gap-1.5 text-xs justify-start"
+                                  onClick={() => openEmailDialog([{ id: user.id, email: user.email, full_name: user.full_name }])}
+                                >
+                                  <Mail className="size-3" />
+                                  Email User
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full gap-1.5 text-xs justify-start"
                                   onClick={() => impersonate(user.email)}
                                 >
                                   <UserCog className="size-3" />
@@ -696,6 +911,15 @@ export default function AdminUsersPage() {
           setDeleteTarget(null);
           loadUsers();
         }}
+      />
+
+      <EmailUserDialog
+        open={emailDialogOpen}
+        onOpenChange={(o) => {
+          setEmailDialogOpen(o);
+          if (!o) setEmailRecipients([]);
+        }}
+        recipients={emailRecipients}
       />
     </div>
   );

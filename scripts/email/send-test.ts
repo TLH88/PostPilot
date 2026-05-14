@@ -28,10 +28,10 @@ function parseArg(name: string): string | undefined {
 
 async function main() {
   const to = parseArg("to") ?? "support@mypostpilot.app";
-  const fromArg = (parseArg("from") ?? "hello") as "hello" | "noreply" | "news";
+  const fromArg = (parseArg("from") ?? "hello") as "hello" | "noreply" | "news" | "support";
 
-  if (!["hello", "noreply", "news"].includes(fromArg)) {
-    console.error(`[send-test] invalid --from='${fromArg}' (must be hello|noreply|news)`);
+  if (!["hello", "noreply", "news", "support"].includes(fromArg)) {
+    console.error(`[send-test] invalid --from='${fromArg}' (must be hello|noreply|news|support)`);
     process.exit(1);
   }
 
