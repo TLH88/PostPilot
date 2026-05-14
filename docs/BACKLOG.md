@@ -1,6 +1,8 @@
 # PostPilot - Product Backlog
 
-> Last updated: 2026-05-06 (Marketing site polish, Foundry 88 Labs LLC legal identification + GDPR/CCPA privacy policy, Advanced Insights Phase 2, Quota-reached modal replaces toast, App-wide ambient background, E2E pipeline rescue. Added BP-154 → BP-162. UF-014 resolved via Launch Pad / Dashboard polish.)
+> Last updated: 2026-05-14 (Admin email pipeline + Email Settings page + Admin System page overhaul. End-to-end Resend integration, TipTap composer with single + bulk send, preview iframe, attachments, image upload, footer/greeting/signature settings, 11 seeded system email templates ready for Workstream 2 cron jobs. Workspace deletion. Tier × kind AI defaults replacing the singleton, DB-managed admin users, dropped the static Env Variables card. Added BP-164 / BP-165 / BP-166 / BP-174.)
+>
+> Previous: 2026-05-06 (Marketing site polish, Foundry 88 Labs LLC legal identification + GDPR/CCPA privacy policy, Advanced Insights Phase 2, Quota-reached modal replaces toast, App-wide ambient background, E2E pipeline rescue. Added BP-154 → BP-162. UF-014 resolved via Launch Pad / Dashboard polish.)
 >
 > Previous: 2026-04-24 (Subscription Model v2 pricing pivot: BYOK gated to Pro+, Personal on system keys. Added BP-115–BP-126 under a new EPIC grouping scheme. BP-114 extended to cover Creator Profile → User Profile rename. Extensive impact on BP-018, BP-045, BP-054.)
 >
@@ -5433,6 +5435,137 @@ Extracted Launch Pad's gradient blobs + dot grid pattern into a shared `<AppBack
 Iterated extensively on light-mode color values — final landing: slate-200 base layer + 400-stop blue/sky/cyan blobs at moderate opacity + 500-lead indigo / violet bottom blobs for warmth + a 50%-larger top-left **slate grey** blob (light-mode only via `dark:hidden`) anchoring the upper-left corner. Dark mode stops untouched throughout.
 
 LaunchPadHome stripped of its now-duplicate background plumbing.
+
+---
+
+### BP-164: Admin Email Pipeline — Resend + Composer + Templates + Settings — DONE 2026-05-14
+
+**Status:** Done — shipped 2026-05-14 across 15 commits on `bp-164-email-foundation`, merged into develop and main.
+**Priority:** P1 / High (foundation for Workstream 2 automated emails + immediate admin outreach)
+**Source:** Owner request 2026-05-13 — "ability to send users emails from within the system and have the system send emails to users (usage reports, error notifications, marketing, etc.)"
+**EPIC:** EPIC 9 — Communications (new — covers everything email-out-of-the-app)
+
+End-to-end transactional + admin-authored email infrastructure. Foundation in place for the upcoming Workstream 2 automated email waves (Welcome / Trial Expiry / Monthly Usage / Inactivity / Quota Warnings / LinkedIn token expiring).
+
+**Provider + DNS**
+- **Resend** chosen as the transactional sender after a comparison with Postmark / SendGrid / AWS SES. Owner created the account; verified `mypostpilot.app` domain via DNS records (SPF / DKIM / DMARC on Namecheap, coexists with Fastmail's MX on the root). Production + local-dev API keys separately scoped.
+- Paper-airplane brand mark added at `src/app/icon.svg` + `public/icon.svg`. Next.js's `app/icon.svg` convention auto-generates `<link rel='icon'>` tags; same SVG referenced as the email logo via the new `baseUrl` prop (preview uses request origin, sends use `https://mypostpilot.app/icon.svg`).
+
+**Backend (`src/lib/email/`)**
+- `client.ts`: Resend singleton + a fallback chain across `RESEND_API_KEY` / `RESEND_LOCAL_DEV_API_KEY` / `RESEND_PRODUCTION_API_KEY` so the owner's environment-suffixed Vercel naming Just Works alongside `.env.local`.
+- `from.ts`: sender registry (`noreply` / `hello` / `news` / `support`) with per-sender reply-to defaults so admin↔user threads route to support@.
+- `send.ts`: `sendEmail()` + `sendBulkEmail()`. Bulk uses Resend's `batch.send()` (max 100 entries per call), one recipient per entry so no `To:` header leak, per-recipient template render for personalized greetings.
+- `sanitize.ts`: DOMPurify allow-list scoped to TipTap's enabled tags + style attribute (with a CSS property allow-list as defense-in-depth in `admin-message.tsx`).
+- `resolve.ts`: helpers to look up `email_greetings` / `email_signatures` / `email_footers` rows + `substitutePlaceholders()` for `{firstName}` etc.
+
+**API routes (all admin-gated)**
+- `POST /api/admin/email/test` — single-recipient delivery smoke test.
+- `POST /api/admin/email/send-to-user` — single-recipient with subject/body/sender/greetingId/signatureId/footerIds/showLogo/attachments.
+- `POST /api/admin/email/send-bulk` — N-recipient batch with the same payload shape; writes one `admin_email_log` row per recipient.
+- `POST /api/admin/email/preview` — same template + sanitization as send, returns rendered HTML for in-UI preview.
+- `POST /api/admin/email/upload-image` — multipart upload to the existing `post-images` bucket under `email-uploads/<uuid>.<ext>`. 5MB cap, image types only.
+
+**Email composition surface** (`/admin/users` 3-dot menu and Quick Actions)
+- TipTap-based `<RichTextEditor>` with consolidated toolbar: marks (B/I/U/S), Reset, Formatting dropdown (font size + family in one menu), color swatch, alignment, lists, link, image-upload. Every button has a `title=` tooltip; the dropdown previews each size/font in its own face.
+- Inline image embedding via the upload route (replaced the earlier paste-URL prompt).
+- `<EmailUserDialog>` — composer modal with sender picker, subject, greeting selector, body editor, signature selector, **footer multi-select**, attachments field (25MB cap), show-logo toggle. Bulk mode shows a privacy banner; recipient list editable via `<RecipientManagerDialog>` (search-add, chip-remove).
+- `<EmailPreviewDialog>` — sandboxed iframe (`sandbox="allow-same-origin"`), Desktop / Mobile viewport toggle, hover-URL status bar that surfaces any link's `href` (parent JS hooks anchor mouseenter via `contentDocument`).
+
+**Composer sizing** (iterated through BP-173 multiple commits)
+- DialogContent: `sm:max-w-2xl min-h-[820px] max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`.
+- Middle row: `flex flex-col gap-3 min-h-0 overflow-hidden` — no form-level scroll.
+- Body editor opts into `fillParent` and takes `flex-1 min-h-0`; its content scrolls **inside the body only**. Composer outer dimensions never change with body size. Owner referenced shadcn input-group/text pattern.
+
+**Email rendering safety**
+- The template (`emails/admin-message.tsx`) uses `html-react-parser` with a `replace` transform that maps each parsed tag to an inline-styled React element — **no raw HTML injection anywhere**. A subtle `instanceof` bug (duplicated `domhandler` in the dep tree silently failed the type check) initially caused the transform to skip every node, dropping anchor `title` attributes and inline body styles. Fixed via duck-typed `node.type === 'tag'` guard. Verified end-to-end via `scripts/email/render-dump.ts`.
+
+**Email Settings admin page** (`/admin/email-settings`) — shipped under the same BP-164 umbrella (see BP-166 below for the standalone callout).
+
+**Migration**: `20260513_admin_email_log.sql` — append-only audit table, RLS-on / no policies (service-role only).
+
+**Side-effect**: pulled the `cross-env NODE_OPTIONS=--use-system-ca` Windows TLS fix from `future_features` onto develop so every Windows contributor gets it.
+
+**Files (new):** `src/lib/email/{client,send,from,sanitize,resolve,settings-types}.ts` · `emails/{admin-message,test-send}.tsx` + `emails/README.md` · `src/components/ui/rich-text-editor.tsx` · `src/components/admin/{email-user-dialog,email-preview-dialog,recipient-manager-dialog,attachments-field}.tsx` · API routes under `src/app/api/admin/email/` · `scripts/email/{send-test,render-dump}.ts` · `supabase/migrations/20260513_admin_email_log.sql`.
+
+---
+
+### BP-165: Admin Workspace Deletion — Reassign or Cascade — DONE 2026-05-14
+
+**Status:** Done — shipped 2026-05-14 (commit `c96853b`)
+**Priority:** P2 / Medium (admin tooling gap)
+**Source:** Owner request 2026-05-13 — needed a way to delete stale workspaces, with control over what happens to members + content
+**EPIC:** EPIC 6 — Admin & Operations
+
+Adds a trash button to each row on `/admin/workspaces`. Empty workspaces delete with a single confirm. Workspaces with members open `<WorkspaceDeleteDialog>` with three options:
+- **Reassign to another workspace** — moves members (UPSERT with `ON CONFLICT DO NOTHING` to skip already-members) + posts + ideas + content_library + post_templates to the target. Source owner becomes a regular member of the target if not already.
+- **Remove all assigned users** — workspace_members cascade-deletes by FK; posts/ideas/etc. have their `workspace_id` NULLed first so the FK doesn't block delete.
+- **Cancel** — close the dialog.
+
+**API:** `DELETE /api/admin/workspaces/[id]` with zod-validated discriminated union body `{ action: 'cascade' } | { action: 'reassign', targetWorkspaceId: uuid }`. Service-role + verifyAdmin. Sequential ops (not in a Postgres transaction) — partial failure surfaces the failed step with descriptive error; admin is in-the-loop so manual recovery is acceptable.
+
+**Files:** `src/app/api/admin/workspaces/[id]/route.ts` · `src/components/admin/workspace-delete-dialog.tsx` · `src/app/admin/workspaces/page.tsx` (trash button + dialog mount).
+
+---
+
+### BP-166: Email Settings Admin Page (Templates / Greetings / Signatures / Footers) — DONE 2026-05-14
+
+**Status:** Done — shipped 2026-05-14 (commit `138f9b2`)
+**Priority:** P1 / High (prerequisite for Workstream 2 automated emails)
+**Source:** Owner request 2026-05-13 — "saved templates for all system generated emails… ability to edit, create, and delete those templates as needed"
+**EPIC:** EPIC 9 — Communications
+
+Centralized admin surface at `/admin/email-settings` for managing reusable email building blocks. Four tabs:
+
+- **Greetings** (`email_greetings` table) — plain-text opening lines with `{firstName}` substitution. Seeded: Casual, Formal, Warm.
+- **Signatures** (`email_signatures` table) — rich-text closing lines. Seeded: Team, Support, Founder.
+- **Footers** (`email_footers` table) — multi-attachable footer blocks (kind: unsubscribe / gdpr / governance / custom / noreply_notice) with sort_order. Seeded: Unsubscribe link, GDPR notice, No-reply notice.
+- **Templates** (`email_templates` table) — system templates for the upcoming automated email waves. **Editable, undeletable when `is_system=true`** (cron jobs depend on their keys). Seeded: welcome, first_post_celebration, trial_expiry_{3d,1d}, monthly_usage_report, inactivity_{7d,14d,30d}, quota_warning_{80,100}, linkedin_token_expiring.
+
+Each tab has: list view + Add button + edit dialog. Server-side sanitization on all rich-text fields. Previews render via html-react-parser (safe HTML, no raw HTML injection).
+
+**API:** `GET/POST /api/admin/email-settings/{greetings,signatures,footers,templates}` + `PUT/DELETE` per `[id]`. zod schemas with DOMPurify on the way in. is_system templates return 409 on DELETE with a descriptive error.
+
+**Migration:** `20260514_email_settings.sql` — 4 tables, RLS-on / no policies (service-role only), seeded with defaults.
+
+**Files:** `src/app/admin/email-settings/page.tsx` · `src/components/admin/email-settings/{templates,greetings,signatures,footers}-tab.tsx` · API routes under `src/app/api/admin/email-settings/` · `src/lib/email/settings-types.ts` · `supabase/migrations/20260514_email_settings.sql`.
+
+---
+
+### BP-174: Admin System Page Overhaul — Tier × Kind AI Defaults + DB-Managed Admin Users — DONE 2026-05-14
+
+**Status:** Done — shipped 2026-05-14 (commit `71f1ccd`)
+**Priority:** P1 / High (resolves three owner concerns about /admin/system in one pass)
+**Source:** Owner audit 2026-05-14 — three requested changes
+**EPIC:** EPIC 6 — Admin & Operations
+
+Three changes to the `/admin/system` page:
+
+**1. Tier × kind AI defaults (replaces singleton)**
+The old `system_ai_config` table held a single (provider, model) pair used for every system-key call regardless of user tier or content kind. Replaced with `system_ai_defaults` — composite PK `(tier, kind)`. Two tiers (`free_personal` / `pro_plus`) × two kinds (`text` / `image`) = 4 rows. Seeded:
+- `free_personal / text` → `openai / gpt-4.1-mini`
+- `free_personal / image` → `openai / gpt-image-1-mini`
+- `pro_plus / text` → `anthropic / claude-sonnet-4-6`
+- `pro_plus / image` → `openai / gpt-image-1`
+
+UI is a 2-column card with 4 selectors. **Models pulled from the gateway-backed `ai_models` table** (via new `GET /api/admin/ai-models?kind=`) so the dropdown only ever shows providers/models the Vercel AI Gateway can actually resolve.
+
+`getSystemAIDefaults({ tier, kind })` is the new signature; legacy no-args calls default to `free_personal / text` for back-compat. `bucketForTier(subscription_tier)` maps `'professional' | 'team' | 'enterprise' → 'pro_plus'`, everything else → `'free_personal'`. Consumers updated: `resolve-ai.ts` (text gen) + `get-user-ai-client.ts` (kind inferred — image when `forProvider` is set in image routes, else text).
+
+Legacy `system_ai_config` table kept as a fallback for one release for deploy crossover safety.
+
+**2. DB-managed admin users**
+Previously `ADMIN_EMAILS` env var was the only path. Added `admin_users` table (id, email, added_by, added_at, notes) with a case-insensitive unique index on `lower(email)`. `verifyAdmin()` now checks **env var OR DB**. Env var stays as the bootstrap so a wiped DB never locks the owner out.
+
+`<AdminUsersCard>` UI splits the two: bootstrap admins shown with a lock icon and `ADMIN_EMAILS` chip (can't be removed from UI); DB-managed admins have an add button (email + notes) and trash icon (with self-removal block + confirm).
+
+**API:** `GET/POST /api/admin/admins`, `DELETE /api/admin/admins/[id]`. Self-removal returns 409. All adds/removes logged.
+
+**3. Drop Environment Variables card**
+The static env-var status panel was deleted. It didn't reflect Vercel/.env.local truth (was a hand-curated list), offered no in-app actions, and the owner can change env vars at the source. UI no longer pretends to surface that.
+
+**Migration:** `20260514_admin_users_and_tiered_ai_defaults.sql`.
+
+**Files:** `src/app/admin/system/page.tsx` · `src/components/admin/{system-ai-config-card,admin-users-card}.tsx` · API routes under `src/app/api/admin/{admins,ai-models,system-ai-defaults}/` · `src/lib/ai/system-defaults.ts` (rewritten with tier/kind signature + back-compat fallback) · `src/lib/supabase/admin.ts` (verifyAdmin now async-checks env OR DB) · `supabase/migrations/20260514_admin_users_and_tiered_ai_defaults.sql`.
 
 ---
 

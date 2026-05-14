@@ -35,7 +35,7 @@ import {
   type AIClient,
   type AIProvider,
 } from "@/lib/ai/providers";
-import { getSystemAIDefaults } from "@/lib/ai/system-defaults";
+import { getSystemAIDefaults, bucketForTier } from "@/lib/ai/system-defaults";
 import { checkQuota, buildQuotaExceededResponse } from "@/lib/quota";
 import { checkBudget, buildBudgetExceededBody } from "@/lib/ai/budget-check";
 import { hasFeature } from "@/lib/feature-gate";
@@ -265,7 +265,10 @@ export async function resolveAi(
   const quota = await checkQuota(user.id, feature);
   const budget = await checkBudget(user.id);
 
-  const systemDefaults = await getSystemAIDefaults();
+  const systemDefaults = await getSystemAIDefaults({
+    tier: bucketForTier(profile.subscription_tier),
+    kind: "text",
+  });
 
   // Happy path — system has capacity.
   if (quota.allowed && budget.ok) {

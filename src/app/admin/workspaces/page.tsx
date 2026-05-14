@@ -14,11 +14,14 @@ import {
   Target,
   Megaphone,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { TIER_BADGE_COLORS, SUBSCRIPTION_TIERS, type SubscriptionTier } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { WorkspaceDeleteDialog, type WorkspaceDeleteTarget } from "@/components/admin/workspace-delete-dialog";
 
 interface WorkspaceMember {
   user_id: string;
@@ -53,6 +56,7 @@ export default function AdminWorkspacesPage() {
   const [workspaces, setWorkspaces] = useState<WorkspaceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedWs, setExpandedWs] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceDeleteTarget | null>(null);
   const router = useRouter();
 
   useEffect(() => { loadWorkspaces(); }, []);
@@ -94,6 +98,7 @@ export default function AdminWorkspacesPage() {
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Posts</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Ideas</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Created</th>
+                  <th className="px-3 py-3 text-right font-medium text-muted-foreground w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -127,12 +132,23 @@ export default function AdminWorkspacesPage() {
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {new Date(ws.created_at).toLocaleDateString()}
                       </td>
+                      <td className="px-3 py-3 text-right w-12" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Delete workspace ${ws.name}`}
+                          onClick={() => setDeleteTarget({ id: ws.id, name: ws.name, memberCount: ws.memberCount })}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </td>
                     </tr>
 
                     {/* Expanded details */}
                     {expandedWs === ws.id && (
                       <tr className="bg-muted/30">
-                        <td colSpan={7} className="px-4 py-4">
+                        <td colSpan={8} className="px-4 py-4">
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Brand Info */}
                             <div className="space-y-2">
@@ -257,7 +273,7 @@ export default function AdminWorkspacesPage() {
                 ))}
                 {workspaces.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
                       No workspaces created yet.
                     </td>
                   </tr>
@@ -267,6 +283,19 @@ export default function AdminWorkspacesPage() {
           </div>
         </CardContent>
       </Card>
+
+      <WorkspaceDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        workspace={deleteTarget}
+        reassignOptions={workspaces
+          .filter((w) => w.id !== deleteTarget?.id)
+          .map((w) => ({ id: w.id, name: w.name }))}
+        onDeleted={() => {
+          setDeleteTarget(null);
+          loadWorkspaces();
+        }}
+      />
     </div>
   );
 }
