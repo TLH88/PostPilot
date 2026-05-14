@@ -5,7 +5,7 @@ import { Eye, Loader2, Mail, Send, Users, Image as ImageIcon, Pencil, Maximize2,
 import { RecipientManagerDialog } from "@/components/admin/recipient-manager-dialog";
 import { AttachmentsField, PAYLOAD_MAX_BYTES, type ComposerAttachment } from "@/components/admin/attachments-field";
 import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
-import type { EmailGreeting, EmailSignature } from "@/lib/email/settings-types";
+import type { EmailGreeting, EmailSignature, EmailFooter } from "@/lib/email/settings-types";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -83,8 +83,10 @@ export function EmailUserDialog({
   // Email settings — fetched lazily when dialog opens
   const [greetings, setGreetings] = useState<EmailGreeting[]>([]);
   const [signatures, setSignatures] = useState<EmailSignature[]>([]);
+  const [footers, setFooters] = useState<EmailFooter[]>([]);
   const [greetingId, setGreetingId] = useState<string | null>(null);
   const [signatureId, setSignatureId] = useState<string | null>(null);
+  const [selectedFooterIds, setSelectedFooterIds] = useState<Set<string>>(new Set());
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -102,24 +104,25 @@ export function EmailUserDialog({
     setShowLogo(true);
     setBodyExpanded(false);
     setAttachments([]);
+    setSelectedFooterIds(new Set());
     setWorkingRecipients(recipients);
   }, [open, recipientKey]);
 
-  // Fetch greetings + signatures on open
+  // Fetch greetings + signatures + footers on open
   useEffect(() => {
     if (!open) return;
     let active = true;
     (async () => {
-      const [gRes, sRes] = await Promise.all([
+      const [gRes, sRes, fRes] = await Promise.all([
         fetch("/api/admin/email-settings/greetings"),
         fetch("/api/admin/email-settings/signatures"),
+        fetch("/api/admin/email-settings/footers"),
       ]);
       if (!active) return;
       if (gRes.ok) {
         const data = await gRes.json();
         const list: EmailGreeting[] = data.greetings ?? [];
         setGreetings(list);
-        // Pick default greeting (first is_default, else first)
         const def = list.find((g) => g.is_default) ?? list[0];
         setGreetingId(def?.id ?? null);
       }
@@ -129,6 +132,12 @@ export function EmailUserDialog({
         setSignatures(list);
         const def = list.find((s) => s.is_default) ?? list[0];
         setSignatureId(def?.id ?? null);
+      }
+      if (fRes.ok) {
+        const data = await fRes.json();
+        const list: EmailFooter[] = data.footers ?? [];
+        setFooters(list);
+        // No footers selected by default — admin opts in
       }
     })();
     return () => {
@@ -170,6 +179,7 @@ export function EmailUserDialog({
           showLogo,
           greetingId,
           signatureId,
+          footerIds: Array.from(selectedFooterIds),
           recipientName: sampleName,
         }),
       });
@@ -216,6 +226,7 @@ export function EmailUserDialog({
         showLogo,
         greetingId,
         signatureId,
+        footerIds: Array.from(selectedFooterIds),
         attachments: attachments.map((a) => ({
           filename: a.filename,
           content: a.content,
@@ -476,6 +487,90 @@ export function EmailUserDialog({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          {/* Footers */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs text-muted-foreground">Footers</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="outline" size="sm" className="font-normal" />
+                  }
+                >
+                  {selectedFooterIds.size === 0
+                    ? "Add footer…"
+                    : `${selectedFooterIds.size} attached`}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Toggle footers</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {footers.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        No footers configured — add some in Email Settings
+                      </DropdownMenuItem>
+                    ) : (
+                      footers.map((f) => {
+                        const checked = selectedFooterIds.has(f.id);
+                        return (
+                          <DropdownMenuItem
+                            key={f.id}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setSelectedFooterIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(f.id)) next.delete(f.id);
+                                else next.add(f.id);
+                                return next;
+                              });
+                            }}
+                            className={checked ? "bg-accent" : ""}
+                          >
+                            <div className="flex items-start gap-2 w-full">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                readOnly
+                                className="mt-0.5 size-3.5 rounded border-input accent-primary pointer-events-none"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium">{f.name}</p>
+                                <p className="text-[10px] text-muted-foreground capitalize">{f.kind.replace(/_/g, " ")}</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                        );
+                      })
+                    )}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {selectedFooterIds.size > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {footers
+                  .filter((f) => selectedFooterIds.has(f.id))
+                  .map((f) => (
+                    <button
+                      type="button"
+                      key={f.id}
+                      onClick={() =>
+                        setSelectedFooterIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(f.id);
+                          return next;
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[10px] font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40"
+                    >
+                      {f.name}
+                      <span className="text-muted-foreground">×</span>
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
 
           {/* Attachments */}

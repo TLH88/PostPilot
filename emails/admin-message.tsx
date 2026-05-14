@@ -5,12 +5,21 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Section,
   Tailwind,
   Text,
 } from "@react-email/components";
 import parse from "html-react-parser";
+
+/**
+ * Public URL for the brand mark — same file is served by Next.js at
+ * /icon.svg in the deployed app. Email clients that support SVG (Gmail,
+ * Apple Mail, Outlook.com/365 modern) render this inline; clients that
+ * don't (Outlook desktop) fall back to the alt text.
+ */
+const LOGO_URL = "https://mypostpilot.app/icon.svg";
 
 export interface AdminMessageEmailProps {
   recipientName?: string;
@@ -75,10 +84,34 @@ export function AdminMessageEmail({
         <Body className="bg-white font-sans">
           <Container className="mx-auto max-w-[600px] px-6 py-10">
             {showLogo && (
-              <Section className="mb-6 text-center">
-                <Text className="m-0 text-2xl font-bold tracking-tight text-slate-900">
-                  Post<span className="text-blue-600">Pilot</span>
-                </Text>
+              <Section className="mb-6">
+                <table cellPadding={0} cellSpacing={0} border={0}>
+                  <tbody>
+                    <tr>
+                      <td style={{ verticalAlign: "middle", paddingRight: "8px" }}>
+                        <Img
+                          src={LOGO_URL}
+                          alt="PostPilot"
+                          width="28"
+                          height="28"
+                          style={{ display: "block" }}
+                        />
+                      </td>
+                      <td style={{ verticalAlign: "middle" }}>
+                        <span
+                          style={{
+                            fontSize: "22px",
+                            fontWeight: 700,
+                            letterSpacing: "-0.01em",
+                            color: "#0f172a",
+                          }}
+                        >
+                          Post<span style={{ color: "#2563eb" }}>Pilot</span>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </Section>
             )}
             <Heading className="text-xl font-semibold text-slate-900 m-0 mb-4">
@@ -99,22 +132,18 @@ export function AdminMessageEmail({
                 — {signoff}
               </Text>
             )}
-            <Hr className="my-6 border-slate-200" />
-            {footerHtmlBlocks && footerHtmlBlocks.length > 0 ? (
-              footerHtmlBlocks.map((html, i) => (
-                <Section
-                  key={i}
-                  className="text-xs text-slate-500 [&_p]:my-1 [&_a]:underline"
-                >
-                  {parse(html)}
-                </Section>
-              ))
-            ) : (
-              <Text className="text-xs text-slate-500">
-                You received this because the PostPilot team sent you a message
-                directly. To reply, just hit reply on this email — it will reach
-                a real person on our support team.
-              </Text>
+            {footerHtmlBlocks && footerHtmlBlocks.length > 0 && (
+              <>
+                <Hr className="my-6 border-slate-200" />
+                {footerHtmlBlocks.map((html, i) => (
+                  <Section
+                    key={i}
+                    className="text-xs text-slate-500 [&_p]:my-1 [&_a]:underline"
+                  >
+                    {parse(html)}
+                  </Section>
+                ))}
+              </>
             )}
           </Container>
         </Body>
