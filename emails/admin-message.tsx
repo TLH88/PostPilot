@@ -13,10 +13,34 @@ import {
 } from "@react-email/components";
 import parse, {
   type HTMLReactParserOptions,
-  Element as HrpElement,
   domToReact,
   type DOMNode,
 } from "html-react-parser";
+
+/**
+ * Duck-typed Element guard.
+ *
+ * We deliberately don't use `node instanceof Element` (re-exported by
+ * html-react-parser from domhandler) — when domhandler appears twice
+ * in the dep tree (transitive vs direct), `instanceof` checks against
+ * the wrong class and silently returns false. That dropped our replace
+ * transform for every <a>, leaving anchors with no title attribute and
+ * the body un-styled. The runtime shape is stable: tag nodes always
+ * have `type === "tag"` plus `name` and `attribs`.
+ */
+interface TagNode {
+  type: string;
+  name: string;
+  attribs: Record<string, string>;
+  children: DOMNode[];
+  parent: TagNode | null;
+}
+
+function isTag(node: unknown): node is TagNode {
+  if (typeof node !== "object" || node === null) return false;
+  const n = node as Partial<TagNode>;
+  return n.type === "tag" && typeof n.name === "string" && typeof n.attribs === "object";
+}
 
 /**
  * Public URL for the brand mark — same file is served by Next.js at
@@ -57,9 +81,9 @@ const TAG_STYLES: Record<string, React.CSSProperties> = {
   p: { margin: "12px 0", color: "#334155", fontSize: "16px", lineHeight: "24px" },
   h2: { fontSize: "18px", fontWeight: 600, color: "#0f172a", marginTop: "20px", marginBottom: "8px" },
   h3: { fontSize: "16px", fontWeight: 600, color: "#0f172a", marginTop: "16px", marginBottom: "8px" },
-  ul: { listStyleType: "disc", paddingLeft: "20px", margin: "12px 0", color: "#334155" },
-  ol: { listStyleType: "decimal", paddingLeft: "20px", margin: "12px 0", color: "#334155" },
-  li: { margin: "4px 0" },
+  ul: { listStyleType: "disc", paddingLeft: "20px", margin: "4px 0", color: "#334155" },
+  ol: { listStyleType: "decimal", paddingLeft: "20px", margin: "4px 0", color: "#334155" },
+  li: { margin: "2px 0", lineHeight: "22px" },
   strong: { fontWeight: 600 },
   em: { fontStyle: "italic" },
   u: { textDecoration: "underline" },
@@ -104,10 +128,24 @@ function parseInlineStyle(style: string | undefined): React.CSSProperties {
   return out as React.CSSProperties;
 }
 
+/** True when the given node has an ancestor named "ul", "ol", or "li". */
+function isInsideList(node: TagNode): boolean {
+  let p: unknown = node.parent;
+  while (p) {
+    if (!isTag(p)) {
+      p = (p as { parent?: unknown }).parent ?? null;
+      continue;
+    }
+    if (p.name === "ul" || p.name === "ol" || p.name === "li") return true;
+    p = p.parent;
+  }
+  return false;
+}
+
 function buildBodyParseOptions(): HTMLReactParserOptions {
   const options: HTMLReactParserOptions = {
     replace(node) {
-      if (!(node instanceof HrpElement)) return undefined;
+      if (!isTag(node)) return undefined;
       const name = node.name;
       const tagStyle = TAG_STYLES[name];
       const adminStyle = parseInlineStyle(node.attribs.style);
@@ -122,7 +160,7 @@ function buildBodyParseOptions(): HTMLReactParserOptions {
             rel={node.attribs.rel ?? "noopener noreferrer"}
             style={{ ...LINK_STYLE, ...adminStyle }}
           >
-            {domToReact(node.children as DOMNode[], options)}
+            {domToReact(node.children, options)}
           </a>
         );
       }
@@ -135,12 +173,21 @@ function buildBodyParseOptions(): HTMLReactParserOptions {
           />
         );
       }
+      if (name === "p" && isInsideList(node)) {
+        // Strip vertical margin on paragraphs inside list items — TipTap
+        // wraps li content in <p> by default and stacking p-margin on
+        // top of li-margin makes lists look too breezy.
+        return (
+          <p style={{ ...tagStyle, marginTop: 0, marginBottom: 0, ...adminStyle }}>
+            {domToReact(node.children, options)}
+          </p>
+        );
+      }
       if (tagStyle) {
-        // Use createElement-style JSX so the tag name stays dynamic.
         const Tag = name as keyof React.JSX.IntrinsicElements;
         return (
           <Tag style={{ ...tagStyle, ...adminStyle }}>
-            {domToReact(node.children as DOMNode[], options)}
+            {domToReact(node.children, options)}
           </Tag>
         );
       }
@@ -153,7 +200,7 @@ function buildBodyParseOptions(): HTMLReactParserOptions {
 function buildFooterParseOptions(): HTMLReactParserOptions {
   const options: HTMLReactParserOptions = {
     replace(node) {
-      if (!(node instanceof HrpElement)) return undefined;
+      if (!isTag(node)) return undefined;
       if (node.name === "a") {
         const href = node.attribs.href ?? "#";
         return (
@@ -164,12 +211,12 @@ function buildFooterParseOptions(): HTMLReactParserOptions {
             rel={node.attribs.rel ?? "noopener noreferrer"}
             style={LINK_STYLE}
           >
-            {domToReact(node.children as DOMNode[], options)}
+            {domToReact(node.children, options)}
           </a>
         );
       }
       if (node.name === "p") {
-        return <p style={FOOTER_STYLE}>{domToReact(node.children as DOMNode[], options)}</p>;
+        return <p style={FOOTER_STYLE}>{domToReact(node.children, options)}</p>;
       }
       return undefined;
     },

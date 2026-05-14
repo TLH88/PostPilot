@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -9,6 +10,36 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import { FontFamily } from "@tiptap/extension-font-family";
 import TextAlign from "@tiptap/extension-text-align";
+
+/**
+ * Adds a `fontSize` attribute to the `textStyle` mark so the toolbar
+ * can set inline font sizes. Mirrors how @tiptap/extension-color and
+ * @tiptap/extension-font-family extend textStyle.
+ */
+const FontSize = Extension.create({
+  name: "fontSize",
+  addOptions() {
+    return { types: ["textStyle"] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types as string[],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element: HTMLElement) =>
+              element.style.fontSize?.replace(/['"]+/g, "") || null,
+            renderHTML: (attributes: { fontSize?: string | null }) => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+});
 import {
   Bold,
   Italic,
@@ -17,8 +48,6 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
-  Heading2,
-  Heading3,
   Image as ImageIcon,
   AlignLeft,
   AlignCenter,
@@ -26,6 +55,8 @@ import {
   AlignJustify,
   Type,
   Palette,
+  RemoveFormatting,
+  ChevronDown,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -99,6 +130,7 @@ export function RichTextEditor({
       TextStyle,
       Color.configure({ types: ["textStyle"] }),
       FontFamily.configure({ types: ["textStyle"] }),
+      FontSize,
       TextAlign.configure({
         types: ["heading", "paragraph"],
         alignments: ["left", "center", "right", "justify"],
@@ -170,6 +202,17 @@ function ToolbarButton({
   );
 }
 
+/** Font size presets — px values render reliably across email clients. */
+const FONT_SIZES: { label: string; value: string | null }[] = [
+  { label: "Default", value: null },
+  { label: "Small (12px)", value: "12px" },
+  { label: "Normal (16px)", value: "16px" },
+  { label: "Medium (18px)", value: "18px" },
+  { label: "Large (22px)", value: "22px" },
+  { label: "Heading (28px)", value: "28px" },
+  { label: "Hero (36px)", value: "36px" },
+];
+
 /** Email-safe font families: web-safe (universal) + Google Fonts via @import in body fallback. */
 const FONT_FAMILIES: { label: string; value: string | null }[] = [
   { label: "Default", value: null },
@@ -224,6 +267,30 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   const currentColor = (editor.getAttributes("textStyle").color as string | undefined) ?? null;
   const currentFont = (editor.getAttributes("textStyle").fontFamily as string | undefined) ?? null;
+  const currentSize = (editor.getAttributes("textStyle").fontSize as string | undefined) ?? null;
+
+  function applyFontSize(value: string | null) {
+    if (value === null) {
+      // Strip just the fontSize attribute. Other textStyle attrs (color,
+      // fontFamily) survive because we only update this one key.
+      editor.chain().focus().setMark("textStyle", { fontSize: null }).run();
+    } else {
+      editor.chain().focus().setMark("textStyle", { fontSize: value }).run();
+    }
+  }
+
+  function clearFormatting() {
+    // Remove all inline marks (bold, italic, underline, strike, color,
+    // fontFamily, fontSize, link), demote headings to paragraphs, and
+    // reset text alignment. This is the "back to default" reset.
+    editor
+      .chain()
+      .focus()
+      .unsetAllMarks()
+      .clearNodes()
+      .setTextAlign("left")
+      .run();
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 p-1">
@@ -259,23 +326,40 @@ function Toolbar({ editor }: { editor: Editor }) {
 
       <div className="mx-1 h-4 w-px bg-border" />
 
-      {/* Headings */}
-      <ToolbarButton
-        active={editor.isActive("heading", { level: 2 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        label="Heading 2"
-      >
-        <Heading2 className="size-3.5" />
-      </ToolbarButton>
-      <ToolbarButton
-        active={editor.isActive("heading", { level: 3 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        label="Heading 3"
-      >
-        <Heading3 className="size-3.5" />
-      </ToolbarButton>
-
-      <div className="mx-1 h-4 w-px bg-border" />
+      {/* Font size */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Font size"
+              className="h-7 px-1.5 gap-0.5 text-[11px] font-normal"
+            />
+          }
+        >
+          {FONT_SIZES.find((s) => s.value === currentSize)?.label.replace(/\s*\(.*\)/, "") ?? "Size"}
+          <ChevronDown className="size-3" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Font size</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {FONT_SIZES.map((s) => (
+              <DropdownMenuItem
+                key={s.label}
+                onClick={() => applyFontSize(s.value)}
+                className={currentSize === s.value ? "bg-accent font-semibold" : ""}
+              >
+                <span style={s.value ? { fontSize: s.value, lineHeight: 1.2 } : undefined}>
+                  {s.label}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Font family */}
       <DropdownMenu>
@@ -430,6 +514,16 @@ function Toolbar({ editor }: { editor: Editor }) {
         label="Insert image (URL)"
       >
         <ImageIcon className="size-3.5" />
+      </ToolbarButton>
+
+      <div className="mx-1 h-4 w-px bg-border" />
+
+      <ToolbarButton
+        active={false}
+        onClick={clearFormatting}
+        label="Reset to default formatting"
+      >
+        <RemoveFormatting className="size-3.5" />
       </ToolbarButton>
     </div>
   );

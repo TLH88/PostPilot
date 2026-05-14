@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Eye, Loader2, Monitor, Paperclip, Smartphone } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, Link as LinkIcon, Loader2, Monitor, Paperclip, Smartphone } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +56,56 @@ export function EmailPreviewDialog({
   attachments,
 }: EmailPreviewDialogProps) {
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
+  const [hoveredUrl, setHoveredUrl] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // After the iframe renders, attach hover listeners to its anchors so
+  // we can show the href in a status bar below the preview. Browsers'
+  // native title-attribute tooltips work but vary by OS / settings, so
+  // an in-UI fallback is more reliable.
+  //
+  // sandbox=\"allow-same-origin\" gives the parent DOM access to the
+  // iframe (so we can attach listeners) without enabling scripts/forms.
+  useEffect(() => {
+    if (!open || !html) return;
+    const frame = iframeRef.current;
+    if (!frame) return;
+
+    function bind() {
+      const doc = frame?.contentDocument;
+      if (!doc) return;
+      const anchors = Array.from(doc.querySelectorAll<HTMLAnchorElement>("a[href]"));
+      const onEnter = (e: Event) => {
+        const a = e.currentTarget as HTMLAnchorElement;
+        setHoveredUrl(a.getAttribute("href"));
+      };
+      const onLeave = () => setHoveredUrl(null);
+      for (const a of anchors) {
+        a.addEventListener("mouseenter", onEnter);
+        a.addEventListener("mouseleave", onLeave);
+      }
+      return () => {
+        for (const a of anchors) {
+          a.removeEventListener("mouseenter", onEnter);
+          a.removeEventListener("mouseleave", onLeave);
+        }
+      };
+    }
+
+    // srcDoc renders synchronously on attribute change, but the iframe
+    // load event fires on the next tick. Bind on load and also try once
+    // immediately in case the content is already ready.
+    let cleanup = bind();
+    const onLoad = () => {
+      cleanup?.();
+      cleanup = bind();
+    };
+    frame.addEventListener("load", onLoad);
+    return () => {
+      frame.removeEventListener("load", onLoad);
+      cleanup?.();
+    };
+  }, [open, html, viewport]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,6 +185,21 @@ export function EmailPreviewDialog({
           </div>
         </div>
 
+        {/* Status bar showing hovered link href */}
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-md border px-2.5 py-1 text-[11px] font-mono transition-colors",
+            hoveredUrl
+              ? "border-primary/40 bg-primary/5 text-foreground"
+              : "border-border bg-muted/30 text-muted-foreground italic",
+          )}
+        >
+          <LinkIcon className="size-3 shrink-0" />
+          <span className="truncate">
+            {hoveredUrl ?? "Hover any link in the preview to see its URL"}
+          </span>
+        </div>
+
         {/* Iframe sandbox */}
         <div className="rounded-md border bg-slate-50 dark:bg-slate-900 overflow-hidden">
           {loading ? (
@@ -149,9 +214,10 @@ export function EmailPreviewDialog({
           ) : html ? (
             <div className={cn("mx-auto bg-white transition-all", viewport === "mobile" ? "max-w-[375px]" : "w-full")}>
               <iframe
+                ref={iframeRef}
                 title="Email preview"
                 srcDoc={html}
-                sandbox=""
+                sandbox="allow-same-origin"
                 className="block w-full"
                 style={{ height: "60vh", border: 0 }}
               />
