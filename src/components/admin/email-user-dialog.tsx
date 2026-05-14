@@ -275,7 +275,7 @@ export function EmailUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl min-h-[680px] max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]">
+      <DialogContent className="sm:max-w-2xl min-h-[1360px] max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isBulk ? <Users className="size-4" /> : <Mail className="size-4" />}
