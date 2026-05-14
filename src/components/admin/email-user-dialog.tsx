@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Send, Users, Image as ImageIcon, Pencil, Maximize2, Minimize2 } from "lucide-react";
+import { Eye, Loader2, Mail, Send, Users, Image as ImageIcon, Pencil, Maximize2, Minimize2 } from "lucide-react";
 import { RecipientManagerDialog } from "@/components/admin/recipient-manager-dialog";
 import { AttachmentsField, PAYLOAD_MAX_BYTES, type ComposerAttachment } from "@/components/admin/attachments-field";
+import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
 import type { EmailGreeting, EmailSignature } from "@/lib/email/settings-types";
 import { toast } from "sonner";
 import {
@@ -86,6 +87,11 @@ export function EmailUserDialog({
   const [signatureId, setSignatureId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
 
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
   // Reset form when recipient set changes or dialog closes
   const recipientKey = recipients.map((r) => r.id).join(",");
   useEffect(() => {
@@ -132,6 +138,54 @@ export function EmailUserDialog({
 
   const isBulk = workingRecipients.length > 1;
   const single = workingRecipients[0];
+
+  async function handlePreview() {
+    const trimmedSubject = subject.trim();
+    if (!trimmedSubject) {
+      toast.error("Subject is required");
+      return;
+    }
+    if (!bodyHtml.trim() || bodyHtml.replace(/<[^>]+>/g, "").trim() === "") {
+      toast.error("Message body is required");
+      return;
+    }
+
+    // Sample recipient: first staged recipient if any, else "Sample User"
+    const sample = workingRecipients[0];
+    const sampleName = sample?.full_name ?? sample?.email?.split("@")[0] ?? "Sample User";
+
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewHtml(null);
+
+    try {
+      const res = await fetch("/api/admin/email/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: trimmedSubject,
+          bodyHtml,
+          from: sender,
+          showLogo,
+          greetingId,
+          signatureId,
+          recipientName: sampleName,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPreviewError(data.error || `Preview failed (HTTP ${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      setPreviewHtml(data.html);
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
 
   async function handleSend() {
     if (workingRecipients.length === 0) return;
@@ -465,6 +519,15 @@ export function EmailUserDialog({
           >
             Cancel
           </Button>
+          <Button
+            variant="outline"
+            onClick={handlePreview}
+            disabled={sending || previewLoading}
+            className="gap-1.5"
+          >
+            <Eye className="size-3.5" />
+            Preview
+          </Button>
           <Button onClick={handleSend} disabled={sending || workingRecipients.length === 0}>
             {sending ? (
               <>
@@ -490,6 +553,30 @@ export function EmailUserDialog({
           onApply={(next) => setWorkingRecipients(next)}
         />
       )}
+
+      <EmailPreviewDialog
+        open={previewOpen}
+        onOpenChange={(o) => {
+          setPreviewOpen(o);
+          if (!o) {
+            setPreviewHtml(null);
+            setPreviewError(null);
+          }
+        }}
+        html={previewHtml}
+        loading={previewLoading}
+        error={previewError}
+        subject={subject}
+        fromLabel={`${senderMeta.label} <${sender}@mypostpilot.app>`}
+        recipientLabel={
+          workingRecipients.length === 0
+            ? "(no recipients yet)"
+            : workingRecipients.length === 1
+              ? `${workingRecipients[0].full_name ?? workingRecipients[0].email} <${workingRecipients[0].email}>`
+              : `${workingRecipients.length} recipients — preview rendered for ${workingRecipients[0].full_name ?? workingRecipients[0].email}`
+        }
+        attachments={attachments.map((a) => ({ filename: a.filename, sizeBytes: a.sizeBytes }))}
+      />
     </Dialog>
   );
 }
