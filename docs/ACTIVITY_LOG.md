@@ -4,6 +4,100 @@
 
 ---
 
+## 2026-05-13 → 2026-05-14: Admin email pipeline + Email Settings + Admin System overhaul — develop → main
+
+Long working session that built out the entire admin email surface from a cold start. 21 commits on a feature branch (`bp-164-email-foundation`), then merged develop → main. Four new BPs filed: BP-164 (email pipeline + composer), BP-165 (workspace deletion), BP-166 (email settings page), BP-174 (admin system page overhaul).
+
+### Provider + DNS — Resend on mypostpilot.app (BP-164)
+
+Owner created a Resend account from scratch. Walked through:
+- Adding `mypostpilot.app` to Resend → 4 DNS records (MX on `send.`, TXT-SPF on `send.`, TXT-DKIM at `resend._domainkey`, TXT-DMARC at `_dmarc`).
+- Coexistence with Fastmail (Fastmail keeps the root MX for inbox, Resend gets the `send.` subdomain for bounces). Verified neither service's records were disturbed.
+- Production + Local-Dev API keys generated separately. Local dev key in `.env.local`, prod key on Vercel as `RESEND_PRODUCTION_API_KEY` (env var keys can't be renamed in Vercel UI — client falls back through `RESEND_API_KEY` → `RESEND_LOCAL_DEV_API_KEY` → `RESEND_PRODUCTION_API_KEY` to absorb the naming).
+
+First end-to-end send verified via a one-off CLI (`npm run email:send-test`) — landed in `support@mypostpilot.app` (Fastmail catch-all). Resend dashboard confirmed delivery.
+
+### Side-quest — Windows TLS dev script fix pulled from future_features
+
+Dev server's Supabase admin calls were failing with `UNABLE_TO_VERIFY_LEAF_SIGNATURE` (corporate cert / antivirus injects itself into the TLS chain; Node's bundled CA store doesn't trust the intermediate). The fix already existed on `future_features` from BP-163 (`cross-env NODE_OPTIONS=--use-system-ca next dev`). Pulled it onto develop so every Windows contributor gets it — was the unblock for finishing the dev-side email verification today.
+
+### Email backend (BP-164)
+
+`src/lib/email/` directory:
+- `client.ts` — Resend SDK singleton + 3-key fallback chain.
+- `from.ts` — sender registry (`noreply` / `hello` / `news` / `support`) with per-sender reply-to defaults so admin↔user threads stay in the support inbox.
+- `send.ts` — `sendEmail()` for single sends, `sendBulkEmail()` for `batch.send()` (max 100 per Resend call). Each bulk entry has one recipient → no cross-recipient `To:` leak; each entry gets its own `react:` render so greetings personalize.
+- `sanitize.ts` — DOMPurify allow-list scoped to TipTap's enabled tag set + `style` attribute; the email template enforces a second-layer CSS property allow-list as defense-in-depth.
+- `resolve.ts` — `resolveGreeting / Signature / Footers` + `substitutePlaceholders` for `{firstName}` etc.
+
+### API surface
+
+All admin-gated (`verifyAdmin`):
+- `POST /api/admin/email/test` — smoke-test send.
+- `POST /api/admin/email/send-to-user` — single-recipient.
+- `POST /api/admin/email/send-bulk` — N-recipient batch + audit-log fanout.
+- `POST /api/admin/email/preview` — renders the exact recipient view via `@react-email/render`. Passes request origin as `baseUrl` so the SVG logo loads from localhost in dev / preview deploys, not the prod URL that may not have the asset yet.
+- `POST /api/admin/email/upload-image` — multipart upload to the existing `post-images` bucket under `email-uploads/<uuid>.<ext>` (5MB cap; png/jpg/gif/webp/svg only). Reused that bucket instead of provisioning a new one.
+
+### Composer (TipTap)
+
+`<RichTextEditor>` — single TipTap component with a consolidated toolbar. Iterated heavily through BP-167 → BP-172 → BP-173 based on owner feedback:
+
+- **BP-167:** added attachments + greeting/signature selectors; later replaced the body Expand button with a corner-drag resize → eventually replaced again with auto-fill (see BP-173).
+- **BP-170:** found that React-Email's Tailwind plugin doesn't support `[&_X]:` arbitrary variant selectors — they were being stripped, leaving the parent's classes applied to all child text. Switched the body render to `html-react-parser` with a `replace` transform that maps each parsed HTML tag to inline-styled React elements per element. Anchor tags get `title={href}` so hover shows the URL natively.
+- **BP-171:** a sneakier bug — `node instanceof Element` (re-exported from `domhandler`) returned `false` for every node because the dep tree had two copies of `domhandler` and `instanceof` checked the wrong class. Replace transform ran zero times → anchor titles + inline styles all silently disappeared. Fixed with a duck-typed `node.type === 'tag'` guard. Verified via `scripts/email/render-dump.ts`.
+- **BP-172:** image-URL prompt swapped for a real file-picker upload. Tooltips added to every toolbar button. Consolidated separate Size + Font Family dropdowns into one `<Pilcrow icon /> Formatting` dropdown. Moved "Reset to default" from the toolbar tail to be the first button in section 2.
+- **BP-173:** five commits chasing the "composer grows when the body grows" complaint. Final shape after referencing the shadcn input-group/text pattern:
+  - DialogContent: `sm:max-w-2xl min-h-[820px] max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`.
+  - Middle row: `flex flex-col gap-3 min-h-0 overflow-hidden` — **no form-level scroll**.
+  - Body editor: opts into a new `fillParent` prop, renders as `flex-1 min-h-0` and scrolls internally only. The Message field fills all leftover space; everything around it is `shrink-0`. Composer outer dimensions never change.
+
+### Email Settings admin page (BP-166)
+
+New `/admin/email-settings` with 4 tabs:
+- **Templates** — system + custom email templates. 11 seeded `is_system=true` rows for the upcoming Workstream 2 automated emails (welcome, first_post_celebration, trial_expiry_{3d,1d}, monthly_usage_report, inactivity_{7d,14d,30d}, quota_warning_{80,100}, linkedin_token_expiring). System templates editable but undeletable.
+- **Greetings** — `{firstName}` opening lines.
+- **Signatures** — rich-text closings.
+- **Footers** — multi-attachable blocks (unsubscribe / gdpr / governance / custom / noreply_notice) with sort_order.
+
+CRUD endpoints under `/api/admin/email-settings/{kind}` + `[id]`, zod-validated, sanitized server-side. RLS-on / no policies (service-role only).
+
+### Workspace deletion (BP-165)
+
+Trash button per row on `/admin/workspaces`. With members, opens a dialog with three options: **Reassign to target** (members + posts + ideas + content_library + post_templates moved), **Remove all members** (members cascade-delete, content workspace_id NULLed), or **Cancel**. `DELETE /api/admin/workspaces/[id]` with discriminated-union zod body.
+
+### Admin System page overhaul (BP-174)
+
+Three changes in one commit:
+
+**Tier × kind AI defaults** — replaced the single-row `system_ai_config` table with `system_ai_defaults` (composite PK `(tier, kind)`). Two tiers × two kinds = 4 rows seeded. UI is a 2-col card with 4 selectors. Model list comes from the gateway-backed `ai_models` table (via `GET /api/admin/ai-models?kind=`), so the dropdown shows exactly what the Vercel AI Gateway can resolve. `getSystemAIDefaults({ tier, kind })` is the new signature; `bucketForTier(subscription_tier)` maps `'professional' | 'team' | 'enterprise' → 'pro_plus'`, else `'free_personal'`. Consumers updated: `resolve-ai.ts` + `get-user-ai-client.ts`. Legacy singleton kept as a fallback for one release.
+
+**DB-managed admins** — added `admin_users` table; `verifyAdmin()` checks env var OR DB. Env var stays as bootstrap so a wiped DB never locks the owner out. UI splits the two: bootstrap admins shown with a lock icon (`ADMIN_EMAILS` chip), DB admins have add/remove with self-removal block.
+
+**Dropped Env Variables card** — was a hand-curated static list. Didn't reflect Vercel/.env.local truth, offered no in-app actions. Removed; Vercel + `.env.local` remain the source of truth.
+
+### Migrations applied (via MCP apply_migration)
+
+- `admin_email_log` (2026-05-13) — admin email audit table.
+- `email_settings` (2026-05-14) — 4 tables (greetings, signatures, footers, templates) with seeded defaults.
+- `admin_users_and_tiered_ai_defaults` (2026-05-14) — admin_users + system_ai_defaults.
+
+### Patterns / gotchas added by this session
+
+- **Email template HTML rendering:** never inject raw HTML via React's raw-injection prop. Use `html-react-parser` with a `replace` transform + server-side DOMPurify. The replace transform's runtime check must be duck-typed (`node.type === 'tag'`), not `instanceof Element` — dep-tree dedupe can silently make `instanceof` always-false.
+- **React-Email Tailwind plugin:** does NOT support arbitrary variant selectors like `[&_p]:my-3`. Those classes get stripped and applied to the parent. Use inline styles or a parser transform instead.
+- **Preview iframe sandbox:** `sandbox=""` is the most restrictive and blocks the parent from writing via `contentDocument.write()` (the empty sandbox treats the iframe as cross-origin). Use the iframe's `srcDoc` attribute instead; if the parent needs to attach DOM listeners (e.g. the hover-URL status bar), use `sandbox="allow-same-origin"` — scripts still disabled, but parent JS can attach listeners.
+- **Vercel env var rename:** Vercel's UI has no rename action for env var keys. Either delete + recreate, or have the client code fall back across the alternative names.
+- **Resend batch:** atomic — any single validation error fails the entire batch. Pre-validate every recipient email before calling. Cap each batch at 100 entries (hard limit).
+- **Composer/dialog sizing pattern (shadcn input-group/text):** a draggable resize handle on a child element is incompatible with "parent stays fixed size." Use `flex-1 min-h-0` + internal `overflow-y-auto` on the child; let the parent's flex column auto-allocate space. The shadcn input-group textarea uses `flex-1 resize-none` — no resize handle at all.
+
+### Merges
+
+- `bp-164-email-foundation` (21 commits) → develop → main, both pushed.
+- Migrations were applied to the shared Supabase project before merge — running on prod data already, so the merge just lines up the code.
+
+---
+
 ## 2026-05-05 → 2026-05-06: Marketing site, legal pages, Advanced Insights Phase 2, E2E pipeline rescue — develop → main merged twice
 
 Long working session that spanned an evening + early-morning push. Three develop → main merges rolled up: a sizable in-app polish + quota-modal batch (`b476bc9`), a marketing-site / legal / Advanced Insights Phase 2 batch (`21972e8`), and the E2E pipeline rescue follow-up (`6734505`). 47 commits total.
