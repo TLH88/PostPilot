@@ -53,12 +53,14 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
-  Type,
   Palette,
   RemoveFormatting,
   ChevronDown,
+  Loader2,
+  Pilcrow,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -180,11 +182,13 @@ function ToolbarButton({
   active,
   onClick,
   label,
+  disabled = false,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -192,9 +196,11 @@ function ToolbarButton({
       type="button"
       variant="ghost"
       size="icon-sm"
+      title={label}
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
+      disabled={disabled}
       className={cn("h-7 w-7", active && "bg-accent text-accent-foreground")}
     >
       {children}
@@ -243,6 +249,9 @@ const COLOR_SWATCHES: { label: string; value: string | null }[] = [
 ];
 
 function Toolbar({ editor }: { editor: Editor }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   function promptLink() {
     const prev = editor.getAttributes("link").href as string | undefined;
     const url = window.prompt("Link URL", prev ?? "https://");
@@ -254,15 +263,30 @@ function Toolbar({ editor }: { editor: Editor }) {
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }
 
-  function promptImage() {
-    const url = window.prompt("Image URL (https only)", "https://");
-    if (!url || url.trim() === "" || url === "https://") return;
-    if (!/^https:\/\//i.test(url)) {
-      // eslint-disable-next-line no-alert
-      alert("Image URL must use https://");
-      return;
+  async function handleImageFile(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/email/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || `Upload failed (HTTP ${res.status})`);
+        return;
+      }
+      const { url } = (await res.json()) as { url: string };
+      editor.chain().focus().setImage({ src: url, alt: file.name }).run();
+    } catch (err) {
+      toast.error("Upload failed", {
+        description: err instanceof Error ? err.message : "Network error",
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    editor.chain().focus().setImage({ src: url, alt: "" }).run();
   }
 
   const currentColor = (editor.getAttributes("textStyle").color as string | undefined) ?? null;
@@ -271,18 +295,18 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   function applyFontSize(value: string | null) {
     if (value === null) {
-      // Strip just the fontSize attribute. Other textStyle attrs (color,
-      // fontFamily) survive because we only update this one key.
       editor.chain().focus().setMark("textStyle", { fontSize: null }).run();
     } else {
       editor.chain().focus().setMark("textStyle", { fontSize: value }).run();
     }
   }
 
+  function applyFontFamily(value: string | null) {
+    if (value === null) editor.chain().focus().unsetFontFamily().run();
+    else editor.chain().focus().setFontFamily(value).run();
+  }
+
   function clearFormatting() {
-    // Remove all inline marks (bold, italic, underline, strike, color,
-    // fontFamily, fontSize, link), demote headings to paragraphs, and
-    // reset text alignment. This is the "back to default" reset.
     editor
       .chain()
       .focus()
@@ -294,25 +318,25 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 p-1">
-      {/* Inline marks */}
+      {/* ── Section 1: Inline marks ───────────────────────────── */}
       <ToolbarButton
         active={editor.isActive("bold")}
         onClick={() => editor.chain().focus().toggleBold().run()}
-        label="Bold"
+        label="Bold (Ctrl+B)"
       >
         <Bold className="size-3.5" />
       </ToolbarButton>
       <ToolbarButton
         active={editor.isActive("italic")}
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        label="Italic"
+        label="Italic (Ctrl+I)"
       >
         <Italic className="size-3.5" />
       </ToolbarButton>
       <ToolbarButton
         active={editor.isActive("underline")}
         onClick={() => editor.chain().focus().toggleUnderline().run()}
-        label="Underline"
+        label="Underline (Ctrl+U)"
       >
         <UnderlineIcon className="size-3.5" />
       </ToolbarButton>
@@ -326,7 +350,17 @@ function Toolbar({ editor }: { editor: Editor }) {
 
       <div className="mx-1 h-4 w-px bg-border" />
 
-      {/* Font size */}
+      {/* ── Section 2: Formatting controls ────────────────────── */}
+      {/* Reset to default formatting — first in section 2 */}
+      <ToolbarButton
+        active={false}
+        onClick={clearFormatting}
+        label="Reset to default formatting"
+      >
+        <RemoveFormatting className="size-3.5" />
+      </ToolbarButton>
+
+      {/* Single 'Formatting' dropdown: text size + font family */}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -334,21 +368,23 @@ function Toolbar({ editor }: { editor: Editor }) {
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Font size"
+              title="Text size and font"
+              aria-label="Text size and font"
               className="h-7 px-1.5 gap-0.5 text-[11px] font-normal"
             />
           }
         >
-          {FONT_SIZES.find((s) => s.value === currentSize)?.label.replace(/\s*\(.*\)/, "") ?? "Size"}
+          <Pilcrow className="size-3.5" />
+          <span className="hidden sm:inline">Formatting</span>
           <ChevronDown className="size-3" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent className="w-56">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Font size</DropdownMenuLabel>
+            <DropdownMenuLabel>Text size</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {FONT_SIZES.map((s) => (
               <DropdownMenuItem
-                key={s.label}
+                key={`size-${s.label}`}
                 onClick={() => applyFontSize(s.value)}
                 className={currentSize === s.value ? "bg-accent font-semibold" : ""}
               >
@@ -358,36 +394,14 @@ function Toolbar({ editor }: { editor: Editor }) {
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Font family */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label="Font family"
-              className="h-7 px-1.5 gap-1 text-[11px] font-normal"
-            />
-          }
-        >
-          <Type className="size-3.5" />
-          <span className="hidden sm:inline">{FONT_FAMILIES.find((f) => f.value === currentFont)?.label ?? "Font"}</span>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
+          <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuLabel>Font family</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {FONT_FAMILIES.map((f) => (
               <DropdownMenuItem
-                key={f.label}
-                onClick={() => {
-                  if (f.value === null) editor.chain().focus().unsetFontFamily().run();
-                  else editor.chain().focus().setFontFamily(f.value).run();
-                }}
+                key={`font-${f.label}`}
+                onClick={() => applyFontFamily(f.value)}
                 className={currentFont === f.value ? "bg-accent font-semibold" : ""}
               >
                 <span style={f.value ? { fontFamily: f.value } : undefined}>{f.label}</span>
@@ -405,6 +419,7 @@ function Toolbar({ editor }: { editor: Editor }) {
               type="button"
               variant="ghost"
               size="sm"
+              title="Text color"
               aria-label="Text color"
               className="h-7 w-7 p-0"
             />
@@ -500,31 +515,32 @@ function Toolbar({ editor }: { editor: Editor }) {
 
       <div className="mx-1 h-4 w-px bg-border" />
 
-      {/* Link + image */}
+      {/* Link + image (upload) */}
       <ToolbarButton
         active={editor.isActive("link")}
         onClick={promptLink}
-        label="Link"
+        label="Insert link"
       >
         <LinkIcon className="size-3.5" />
       </ToolbarButton>
       <ToolbarButton
         active={false}
-        onClick={promptImage}
-        label="Insert image (URL)"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading}
+        label={uploading ? "Uploading…" : "Upload image"}
       >
-        <ImageIcon className="size-3.5" />
+        {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImageIcon className="size-3.5" />}
       </ToolbarButton>
-
-      <div className="mx-1 h-4 w-px bg-border" />
-
-      <ToolbarButton
-        active={false}
-        onClick={clearFormatting}
-        label="Reset to default formatting"
-      >
-        <RemoveFormatting className="size-3.5" />
-      </ToolbarButton>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleImageFile(file);
+        }}
+      />
     </div>
   );
 }
