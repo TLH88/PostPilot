@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Send, Users } from "lucide-react";
+import { Loader2, Mail, Send, Users, Image as ImageIcon, Pencil } from "lucide-react";
+import { RecipientManagerDialog } from "@/components/admin/recipient-manager-dialog";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -49,6 +50,11 @@ export interface EmailUserDialogProps {
    * their own email with only their address in To: — no BCC, no leaks.
    */
   recipients: EmailRecipient[];
+  /**
+   * Full universe of users the admin can add to the recipient list via
+   * the Edit Recipients modal. Pass the page-level list.
+   */
+  allUsers?: EmailRecipient[];
   /** Called after a successful send. */
   onSent?: () => void;
 }
@@ -57,13 +63,18 @@ export function EmailUserDialog({
   open,
   onOpenChange,
   recipients,
+  allUsers,
   onSent,
 }: EmailUserDialogProps) {
   const [sender, setSender] = useState<SenderKey>("support");
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
+  const [showLogo, setShowLogo] = useState(true);
   const [sending, setSending] = useState(false);
-  const [recipientListExpanded, setRecipientListExpanded] = useState(false);
+  // Editable working copy of recipients. Initialized from `recipients`
+  // prop when the dialog opens; admin can add/remove via the manager.
+  const [workingRecipients, setWorkingRecipients] = useState<EmailRecipient[]>(recipients);
+  const [managerOpen, setManagerOpen] = useState(false);
 
   // Reset form when recipient set changes or dialog closes
   const recipientKey = recipients.map((r) => r.id).join(",");
@@ -72,14 +83,15 @@ export function EmailUserDialog({
     setSubject("");
     setBodyHtml("");
     setSender("support");
-    setRecipientListExpanded(false);
+    setShowLogo(true);
+    setWorkingRecipients(recipients);
   }, [open, recipientKey]);
 
-  const isBulk = recipients.length > 1;
-  const single = recipients[0];
+  const isBulk = workingRecipients.length > 1;
+  const single = workingRecipients[0];
 
   async function handleSend() {
-    if (recipients.length === 0) return;
+    if (workingRecipients.length === 0) return;
     const trimmedSubject = subject.trim();
     if (!trimmedSubject) {
       toast.error("Subject is required");
@@ -97,16 +109,18 @@ export function EmailUserDialog({
         : "/api/admin/email/send-to-user";
       const body = isBulk
         ? {
-            userIds: recipients.map((r) => r.id),
+            userIds: workingRecipients.map((r) => r.id),
             subject: trimmedSubject,
             bodyHtml,
             from: sender,
+            showLogo,
           }
         : {
             userId: single.id,
             subject: trimmedSubject,
             bodyHtml,
             from: sender,
+            showLogo,
           };
 
       const res = await fetch(endpoint, {
@@ -126,7 +140,7 @@ export function EmailUserDialog({
         const detailParts: string[] = [];
         if (data.failed) detailParts.push(`${data.failed} failed`);
         if (data.skipped) detailParts.push(`${data.skipped} skipped (no email)`);
-        toast.success(`Sent to ${data.sent} of ${recipients.length} users`, {
+        toast.success(`Sent to ${data.sent} of ${workingRecipients.length} users`, {
           description: detailParts.length ? detailParts.join(", ") : `Batch id: ${data.batchId}`,
         });
       } else {
@@ -156,22 +170,35 @@ export function EmailUserDialog({
             {isBulk ? "Email selected users" : "Email user"}
           </DialogTitle>
           <DialogDescription>
-            {isBulk ? (
-              <BulkRecipientSummary
-                recipients={recipients}
-                expanded={recipientListExpanded}
-                onToggle={() => setRecipientListExpanded((v) => !v)}
-              />
-            ) : single ? (
-              <>
-                Sending to{" "}
-                <span className="font-medium text-foreground">
-                  {single.full_name ?? single.email}
-                </span>{" "}
-                <span className="text-muted-foreground">({single.email})</span>
-              </>
-            ) : (
+            {workingRecipients.length === 0 ? (
               "No recipient selected"
+            ) : isBulk ? (
+              <RecipientSummaryBar
+                recipients={workingRecipients}
+                onEdit={allUsers ? () => setManagerOpen(true) : undefined}
+              />
+            ) : (
+              <span className="flex items-center justify-between gap-2 flex-wrap">
+                <span>
+                  Sending to{" "}
+                  <span className="font-medium text-foreground">
+                    {single.full_name ?? single.email}
+                  </span>{" "}
+                  <span className="text-muted-foreground">({single.email})</span>
+                </span>
+                {allUsers && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setManagerOpen(true)}
+                    className="h-7 gap-1 text-xs"
+                  >
+                    <Pencil className="size-3" />
+                    Edit recipients
+                  </Button>
+                )}
+              </span>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -246,6 +273,31 @@ export function EmailUserDialog({
               {isBulk && " Each recipient sees their own first name in the greeting."}
             </p>
           </div>
+
+          {/* Display options */}
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">
+            <Label htmlFor="show-logo-toggle" className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+              <ImageIcon className="size-3.5 text-muted-foreground" />
+              Show PostPilot logo at top of email
+            </Label>
+            <button
+              id="show-logo-toggle"
+              type="button"
+              role="switch"
+              aria-checked={showLogo}
+              onClick={() => setShowLogo((v) => !v)}
+              disabled={sending}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                showLogo ? "bg-primary" : "bg-input"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block size-4 transform rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                  showLogo ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
         <DialogFooter>
@@ -256,7 +308,7 @@ export function EmailUserDialog({
           >
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={sending || recipients.length === 0}>
+          <Button onClick={handleSend} disabled={sending || workingRecipients.length === 0}>
             {sending ? (
               <>
                 <Loader2 className="size-3.5 mr-1.5 animate-spin" />
@@ -265,43 +317,52 @@ export function EmailUserDialog({
             ) : (
               <>
                 <Send className="size-3.5 mr-1.5" />
-                {isBulk ? `Send to ${recipients.length} users` : "Send email"}
+                {isBulk ? `Send to ${workingRecipients.length} users` : "Send email"}
               </>
             )}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {allUsers && (
+        <RecipientManagerDialog
+          open={managerOpen}
+          onOpenChange={setManagerOpen}
+          recipients={workingRecipients}
+          allUsers={allUsers}
+          onApply={(next) => setWorkingRecipients(next)}
+        />
+      )}
     </Dialog>
   );
 }
 
-function BulkRecipientSummary({
+function RecipientSummaryBar({
   recipients,
-  expanded,
-  onToggle,
+  onEdit,
 }: {
   recipients: EmailRecipient[];
-  expanded: boolean;
-  onToggle: () => void;
+  onEdit?: () => void;
 }) {
   return (
-    <span>
-      Sending to{" "}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="font-medium text-foreground underline-offset-2 hover:underline"
-      >
-        {recipients.length} user{recipients.length === 1 ? "" : "s"}
-      </button>
-      {expanded && (
-        <span className="mt-1.5 block max-h-32 overflow-y-auto rounded-md border bg-muted/30 p-2 text-[11px] leading-relaxed">
-          {recipients.map((r) => (
-            <span key={r.id} className="block truncate">
-              {r.full_name ?? r.email} <span className="text-muted-foreground">({r.email})</span>
-            </span>
-          ))}
+    <span className="flex items-center justify-between gap-2 flex-wrap">
+      <span>
+        Sending to{" "}
+        <span className="font-medium text-foreground">
+          {recipients.length} user{recipients.length === 1 ? "" : "s"}
         </span>
+      </span>
+      {onEdit && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+          className="h-7 gap-1 text-xs"
+        >
+          <Pencil className="size-3" />
+          Edit recipients
+        </Button>
       )}
     </span>
   );

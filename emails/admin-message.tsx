@@ -21,6 +21,8 @@ export interface AdminMessageEmailProps {
   preview?: string;
   /** Display name shown in the signoff. Defaults to "PostPilot Support". */
   signoff?: string;
+  /** Show the PostPilot wordmark at the top of the email. Default true. */
+  showLogo?: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ export function AdminMessageEmail({
   bodyHtml,
   preview,
   signoff = "PostPilot Support",
+  showLogo = true,
 }: AdminMessageEmailProps) {
   const previewText = preview ?? subject;
   const greetingName = recipientName?.trim() || "there";
@@ -51,6 +54,13 @@ export function AdminMessageEmail({
       <Tailwind>
         <Body className="bg-white font-sans">
           <Container className="mx-auto max-w-[600px] px-6 py-10">
+            {showLogo && (
+              <Section className="mb-6 text-center">
+                <Text className="m-0 text-2xl font-bold tracking-tight text-slate-900">
+                  Post<span className="text-blue-600">Pilot</span>
+                </Text>
+              </Section>
+            )}
             <Heading className="text-xl font-semibold text-slate-900 m-0 mb-4">
               {subject}
             </Heading>

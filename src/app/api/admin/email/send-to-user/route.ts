@@ -14,6 +14,7 @@ const bodySchema = z.object({
   subject: z.string().min(1).max(SUBJECT_MAX),
   bodyHtml: z.string().min(1).max(BODY_HTML_MAX),
   from: z.enum(["noreply", "hello", "news", "support"]).default("support"),
+  showLogo: z.boolean().default(true),
 });
 
 export async function POST(req: NextRequest) {
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
       recipientName,
       subject: parsed.data.subject,
       bodyHtml: cleanHtml,
+      showLogo: parsed.data.showLogo,
     }),
     idempotencyKey: `admin-message/${admin.id}/${recipient.id}/${Date.now()}`,
     tags: [

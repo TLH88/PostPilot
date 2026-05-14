@@ -69,6 +69,37 @@ function timeAgo(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+/**
+ * Two-part relative date: absolute date + smart relative parenthetical.
+ * Unit picked by recency so we don't show "504h ago" or "0d ago":
+ *   - < 60s    →  Just now
+ *   - < 1h     →  Nm ago
+ *   - < 24h    →  Nh ago
+ *   - < 2w     →  Nd ago     (up to 13 days = days)
+ *   - < 2mo    →  Nw ago     (2–8 weeks = weeks)
+ *   - < 12mo   →  Nmo ago    (2–11 months = months)
+ *   - >= 12mo  →  Ny ago
+ */
+function smartRelative(dateStr: string | null): { date: string; relative: string } {
+  if (!dateStr) return { date: "Never", relative: "" };
+  const d = new Date(dateStr);
+  const dateLabel = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return { date: dateLabel, relative: "Just now" };
+  if (mins < 60) return { date: dateLabel, relative: `${mins}m ago` };
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return { date: dateLabel, relative: `${hrs}h ago` };
+  const days = Math.floor(hrs / 24);
+  if (days < 14) return { date: dateLabel, relative: `${days}d ago` };
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9) return { date: dateLabel, relative: `${weeks}w ago` };
+  const months = Math.floor(days / 30);
+  if (months < 12) return { date: dateLabel, relative: `${months}mo ago` };
+  const years = Math.floor(days / 365);
+  return { date: dateLabel, relative: `${years}y ago` };
+}
+
 function isOnline(lastSignIn: string | null): boolean {
   if (!lastSignIn) return false;
   return Date.now() - new Date(lastSignIn).getTime() < 15 * 60 * 1000; // 15 min
@@ -699,7 +730,17 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {timeAgo(user.lastSignIn)}
+                        {(() => {
+                          const r = smartRelative(user.lastSignIn);
+                          return r.relative ? (
+                            <span className="whitespace-nowrap">
+                              <span className="text-foreground">{r.date}</span>
+                              <span className="ml-1 text-muted-foreground">({r.relative})</span>
+                            </span>
+                          ) : (
+                            <span>{r.date}</span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-xs tabular-nums">
                         {user.stats.totalPosts}
@@ -920,6 +961,7 @@ export default function AdminUsersPage() {
           if (!o) setEmailRecipients([]);
         }}
         recipients={emailRecipients}
+        allUsers={users.map((u) => ({ id: u.id, email: u.email, full_name: u.full_name }))}
       />
     </div>
   );
