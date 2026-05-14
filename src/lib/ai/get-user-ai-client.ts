@@ -7,7 +7,7 @@ import {
   type AIClient,
   type AIProvider,
 } from "./providers";
-import { getSystemAIDefaults } from "./system-defaults";
+import { getSystemAIDefaults, bucketForTier, type AIKind } from "./system-defaults";
 import { hasFeature } from "@/lib/feature-gate";
 import type { SubscriptionTier } from "@/lib/constants";
 import type { UserProfile } from "@/types";
@@ -172,11 +172,23 @@ export async function getUserAIClient(
     );
   }
 
-  const systemDefaults = await getSystemAIDefaults();
-  // Callers that specify forProvider (e.g. image gen) honor that — system
-  // defaults only apply when the route is provider-agnostic.
+  // For image gen routes the caller passes forProvider explicitly — use
+  // image-kind defaults so admin-configured image models flow through.
+  // For text routes we leave forProvider undefined and use text defaults.
+  const kind: AIKind = forProvider === "openai" || forProvider === "google" ? "image" : "text";
+  const systemDefaults = await getSystemAIDefaults({
+    tier: bucketForTier(userProfile.subscription_tier),
+    kind,
+  });
+  // Callers that specify forProvider (e.g. image gen) honor that for the
+  // provider; system defaults' model still applies when we're in image
+  // mode so admin-picked image model is used.
   const systemProvider = forProvider || systemDefaults.provider;
-  const systemModel = forProvider ? getDefaultModel(forProvider) : systemDefaults.model;
+  const systemModel = kind === "image"
+    ? systemDefaults.model
+    : forProvider
+      ? getDefaultModel(forProvider)
+      : systemDefaults.model;
 
   // Prefer Vercel AI Gateway (gateway source), fall back to direct system keys.
   if (gatewayAvailable) {
